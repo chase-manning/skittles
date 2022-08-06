@@ -4,7 +4,8 @@
   "description": "TypeScript Smart Contract Language for the EVM",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "npx tsc && node index.js",
+    "test": "ENV_FILE=./config/.env.test jest"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,9 @@
     "typescript": "^4.7.4"
   },
   "devDependencies": {
-    "@types/node": "^18.6.4"
+    "@types/jest": "^28.1.6",
+    "@types/node": "^18.6.4",
+    "jest": "^28.1.3",
+    "ts-jest": "^28.0.7"
   }
 }
