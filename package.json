@@ -1,0 +1,25 @@
+{
+  "name": "fox",
+  "version": "1.0.0",
+  "description": "TypeScript Smart Contract Language for the EVM",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chase-manning/fox.git"
+  },
+  "author": "Chase Manning",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chase-manning/fox/issues"
+  },
+  "homepage": "https://github.com/chase-manning/fox#readme",
+  "dependencies": {
+    "typescript": "^4.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^18.6.4"
+  }
+}
