@@ -9,10 +9,10 @@ object "HelloWorld" {
         code {
             /* ---------- dispatcher ----------- */
             switch selector()
-            case 0x70a08231 /* "balance()" */ {
+            case 0xb69ef8a8 /* "balance()" */ {
                 returnUint(balanceStorage())
             }
-            case 0x70a08232 /* "addBalance(uint256)" */ {
+            case 0xd91921ed /* "addBalance(uint256)" */ {
                 addBalance(decodeAsUint(0))
             }
             default {
