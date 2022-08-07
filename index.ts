@@ -1,6 +1,8 @@
-import getAst from "./lib/get-ast";
+import getAbi from "./lib/get-abi";
+import { utils } from "ethers";
 
-console.log("meow");
+const abi = getAbi("./contracts/hello-world.ts");
 
-const ast = getAst("./contracts/hello-world.ts");
-console.log(ast);
+const iface = new utils.Interface(abi);
+console.log("Balance", iface.encodeFunctionData("balance", []));
+console.log("Add Balance", iface.encodeFunctionData("addBalance", [1]));
