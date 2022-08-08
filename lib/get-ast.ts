@@ -1,11 +1,20 @@
-import { createProgram, ScriptTarget, SourceFile } from "typescript";
+import {
+  createProgram,
+  ModuleKind,
+  ScriptTarget,
+  SourceFile,
+} from "typescript";
 
-const getAst = (file: string): SourceFile | undefined => {
+const getAst = (file: string): SourceFile => {
   let program = createProgram([file], {
     allowJs: true,
-    target: ScriptTarget.JSON,
+    target: ScriptTarget.ES5,
+    module: ModuleKind.CommonJS,
   });
-  return program.getSourceFile(file);
+
+  const ast = program.getSourceFile(file);
+  if (!ast) throw new Error("Could not get AST");
+  return ast;
 };
 
 export default getAst;
