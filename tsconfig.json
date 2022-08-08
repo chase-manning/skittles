@@ -7,5 +7,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["contracts", "lib"]
+  "include": ["./index.ts", "contracts", "lib"]
 }
