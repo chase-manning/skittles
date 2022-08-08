@@ -1,4 +1,3 @@
-
 object "HelloWorld" {
     code {
         // Deploy the contract
@@ -7,7 +6,7 @@ object "HelloWorld" {
     }
     object "runtime" {
         code {
-            /* ---------- dispatcher ----------- */
+            /* ---------- dispatchers start ----------- */
             switch selector()
             case 0xb69ef8a8 /* "balance()" */ {
                 returnUint(balanceStorage())
@@ -18,9 +17,10 @@ object "HelloWorld" {
             default {
                 revert(0, 0)
             }
+            /* ---------- dispatchers end ----------- */
 
 
-            /* ---------- calldata decoding functions ----------- */
+            /* ---------- calldata decoding functions start ----------- */
             function selector() -> s {
                 s := div(calldataload(0), 0x100000000000000000000000000000000000000000000000000000000)
             }
@@ -31,33 +31,38 @@ object "HelloWorld" {
                 }
                 v := calldataload(pos)
             }
+            /* ---------- calldata decoding functions end ----------- */
 
 
-            /* ---------- calldata encoding functions ---------- */
+            /* ---------- calldata encoding functions start ---------- */
             function returnUint(v) {
                 mstore(0, v)
                 return(0, 0x20)
             }
+            /* ---------- calldata encoding functions end ---------- */
 
 
-            /* -------- storage layout ---------- */
+            /* -------- storage layout start ---------- */
             function balancePos() -> p { p := 0 }
+            /* -------- storage layout end ---------- */
 
 
-            /* -------- storage access ---------- */
+            /* -------- storage access start ---------- */
             function balanceStorage() -> b {
                 b := sload(balancePos())
             }
             function addBalance(value) {
                 sstore(balancePos(), safeAdd(balanceStorage(), value))
             }
+            /* -------- storage access end ---------- */
 
 
-            /* ---------- utility functions ---------- */
+            /* ---------- utility functions start ---------- */
             function safeAdd(a, b) -> r {
                 r := add(a, b)
                 if or(lt(r, a), lt(r, b)) { revert(0, 0) }
             }
+            /* ---------- utility functions end ---------- */
         }
     }
 }
