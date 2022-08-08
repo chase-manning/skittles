@@ -1,8 +1,17 @@
-import { forEachChild, isClassDeclaration, Node } from "typescript";
+import {
+  forEachChild,
+  isClassDeclaration,
+  isPropertyDeclaration,
+  MethodDeclaration,
+  Node,
+  PropertyDeclaration,
+} from "typescript";
 import getAst from "./get-ast";
 import fs from "fs";
-import yulTemplate from "./data/yul-template";
-import { ClassDeclaration } from "@babel/types";
+import yulTemplate, { addToSection, YulSection } from "./data/yul-template";
+import getAbi from "./get-abi";
+import { getNodeName, getNodeReturnType } from "./helpers/ast-helper";
+import getSelector from "./get-selector";
 
 const getBaseYul = (name: string): string[] => {
   const base = yulTemplate;
@@ -10,7 +19,7 @@ const getBaseYul = (name: string): string[] => {
   return base;
 };
 
-const getClass = (node: Node): ClassDeclaration => {
+const getClass = (node: Node): Node => {
   let classNode: Node | undefined = undefined;
   // Only consider exported nodes
   forEachChild(node, (node) => {
@@ -22,15 +31,53 @@ const getClass = (node: Node): ClassDeclaration => {
   return classNode;
 };
 
+const getProperties = (node: Node): PropertyDeclaration[] => {
+  const properties: PropertyDeclaration[] = [];
+  node.forEachChild((node) => {
+    if (isPropertyDeclaration(node)) {
+      properties.push(node);
+    }
+  });
+  return properties;
+};
+
+const addDispatcher = (
+  yul: string[],
+  abi: any[],
+  property: PropertyDeclaration | MethodDeclaration
+): string[] => {
+  const returnFunctions: Record<string, string> = {
+    uint256: "returnUint",
+    boolean: "returnTrue",
+  };
+  const name = getNodeName(property);
+  const returnType = getNodeReturnType(property);
+  const selector = getSelector(abi, name);
+  return addToSection(yul, YulSection.Dispatchers, [
+    `            case ${selector} /* "${name}()" */ {`,
+    `                ${returnFunctions[returnType]}(${name}Storage())`,
+    `            }`,
+  ]);
+};
+
 const writeFile = (file: string[]) => {
   fs.writeFileSync("./output.yul", file.join("\n"));
 };
 
 const getYul = (file: string) => {
+  // Getting base data
+  const abi = getAbi(file);
   const ast = getAst(file);
   const classNode = getClass(ast);
-  const contractName = (classNode as any).name.escapedText;
-  const yul = getBaseYul(contractName);
+  const contractName = getNodeName(classNode);
+  let yul = getBaseYul(contractName);
+
+  // Adding properties
+  const properties = getProperties(classNode);
+  properties.forEach((property: PropertyDeclaration) => {
+    yul = addDispatcher(yul, abi, property);
+    // TODO Handle private properties
+  });
 
   // forEachChild(ast, process);
   writeFile(yul);
