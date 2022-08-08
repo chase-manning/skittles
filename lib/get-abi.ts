@@ -12,6 +12,7 @@ import {
   SourceFile,
   SyntaxKind,
 } from "typescript";
+import { getNodeName, getNodeReturnType } from "./helpers/ast-helper";
 
 export interface AbiParameter {
   name: string;
@@ -38,22 +39,10 @@ const isNodePrivate = (node: Node): boolean => {
   return isPrivate;
 };
 
-const getType = (typeNode: Node | undefined): string => {
-  if (!typeNode) return "void";
-  if (typeNode.kind === SyntaxKind.NumberKeyword) {
-    return "uint256";
-  }
-  if (typeNode.kind === SyntaxKind.VoidKeyword) {
-    return "void";
-  }
-  // TODO Add more types
-  throw new Error("Unsupported type");
-};
-
 const getOutputs = (
   node: MethodDeclaration | PropertyDeclaration
 ): AbiParameter[] => {
-  const type = getType(node.type);
+  const type = getNodeReturnType(node);
   if (type === "void") return [];
   // TODO Support multiple outputs
   return [
@@ -66,8 +55,8 @@ const getOutputs = (
 
 const getInput = (parameter: ParameterDeclaration): AbiParameter => {
   return {
-    name: (parameter.name as any).escapedText,
-    type: "uint256",
+    name: getNodeName(parameter),
+    type: "uint256", // TODO Get the type for real
   };
 };
 
@@ -84,7 +73,7 @@ const getInputs = (node: MethodDeclaration): AbiParameter[] => {
 const propertyDeclarationToAbi = (node: PropertyDeclaration): AbiFunction => {
   return {
     type: "function",
-    name: (node.name as any).escapedText,
+    name: getNodeName(node),
     inputs: [],
     outputs: getOutputs(node),
     stateMutability: "view",
@@ -94,7 +83,7 @@ const propertyDeclarationToAbi = (node: PropertyDeclaration): AbiFunction => {
 const methodDeclarationToAbi = (node: MethodDeclaration): AbiFunction => {
   return {
     type: "function",
-    name: (node.name as any).escapedText,
+    name: getNodeName(node),
     inputs: getInputs(node),
     outputs: getOutputs(node),
     stateMutability: "nonpayable", // TODO Work out if it's payable or not
