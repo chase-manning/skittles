@@ -1,6 +1,5 @@
 import getAst from "./get-ast";
 
-import abi from "../data/abis/hello-world";
 import {
   forEachChild,
   isMethodDeclaration,
