@@ -28,6 +28,16 @@ export interface AbiFunction {
 
 export type Abi = AbiFunction[];
 
+const isNodePrivate = (node: Node): boolean => {
+  let isPrivate = false;
+  forEachChild(node, (node) => {
+    if (node.kind === SyntaxKind.PrivateKeyword) {
+      isPrivate = true;
+    }
+  });
+  return isPrivate;
+};
+
 const getType = (typeNode: Node | undefined): string => {
   if (!typeNode) return "void";
   if (typeNode.kind === SyntaxKind.NumberKeyword) {
@@ -92,6 +102,7 @@ const methodDeclarationToAbi = (node: MethodDeclaration): AbiFunction => {
 };
 
 const processNode = (node: Node): Abi => {
+  if (isNodePrivate(node)) return [];
   if (isPropertyDeclaration(node)) {
     return [propertyDeclarationToAbi(node)];
   }
