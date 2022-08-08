@@ -1,8 +1,9 @@
-const abi = [
+import { Abi } from "../../lib/get-abi";
+
+const abi: Abi = [
   {
     inputs: [
       {
-        internalType: "uint256",
         name: "value",
         type: "uint256",
       },
@@ -17,7 +18,6 @@ const abi = [
     name: "balance",
     outputs: [
       {
-        internalType: "uint256",
         name: "",
         type: "uint256",
       },
