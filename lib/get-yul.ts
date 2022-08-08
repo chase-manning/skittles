@@ -44,7 +44,7 @@ const getProperties = (node: Node): PropertyDeclaration[] => {
 const addDispatcher = (
   yul: string[],
   abi: any[],
-  property: PropertyDeclaration | MethodDeclaration
+  property: PropertyDeclaration
 ): string[] => {
   const returnFunctions: Record<string, string> = {
     uint256: "returnUint",
@@ -56,6 +56,27 @@ const addDispatcher = (
   return addToSection(yul, YulSection.Dispatchers, [
     `            case ${selector} /* "${name}()" */ {`,
     `                ${returnFunctions[returnType]}(${name}Storage())`,
+    `            }`,
+  ]);
+};
+
+const addStorageLayout = (
+  yul: string[],
+  property: PropertyDeclaration,
+  index: number
+) => {
+  const name = getNodeName(property);
+  return addToSection(yul, YulSection.StorageLayout, [
+    `            function ${name}Pos() -> p { p := ${index} }`,
+  ]);
+};
+
+const addStorageAccess = (yul: string[], property: PropertyDeclaration) => {
+  const name = getNodeName(property);
+  const initial = name.substring(0, 1);
+  return addToSection(yul, YulSection.StorageAccess, [
+    `            function ${name}Storage() -> ${initial} {`,
+    `                ${initial} := sload(${name}Pos())`,
     `            }`,
   ]);
 };
@@ -74,8 +95,10 @@ const getYul = (file: string) => {
 
   // Adding properties
   const properties = getProperties(classNode);
-  properties.forEach((property: PropertyDeclaration) => {
+  properties.forEach((property: PropertyDeclaration, index: number) => {
     yul = addDispatcher(yul, abi, property);
+    yul = addStorageLayout(yul, property, index);
+    yul = addStorageAccess(yul, property);
     // TODO Handle private properties
   });
 
