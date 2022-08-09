@@ -2,6 +2,7 @@ import { forEachChild, isParameter, Node, SyntaxKind } from "typescript";
 import { AbiParameter } from "../get-abi";
 
 export const getNodeName = (node: Node): string => {
+  if ((node as any).escapedText) return (node as any).escapedText;
   return (node as any).name.escapedText;
 };
 
