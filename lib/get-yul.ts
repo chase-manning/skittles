@@ -1,6 +1,7 @@
 import {
   forEachChild,
   isClassDeclaration,
+  isMethodDeclaration,
   isPropertyDeclaration,
   MethodDeclaration,
   Node,
@@ -9,8 +10,12 @@ import {
 import getAst from "./get-ast";
 import fs from "fs";
 import yulTemplate, { addToSection, YulSection } from "./data/yul-template";
-import getAbi from "./get-abi";
-import { getNodeName, getNodeReturnType } from "./helpers/ast-helper";
+import getAbi, { AbiParameter } from "./get-abi";
+import {
+  getNodeInputs,
+  getNodeName,
+  getNodeReturnType,
+} from "./helpers/ast-helper";
 import getSelector from "./get-selector";
 
 const getBaseYul = (name: string): string[] => {
@@ -41,7 +46,17 @@ const getProperties = (node: Node): PropertyDeclaration[] => {
   return properties;
 };
 
-const addDispatcher = (
+const getMethods = (node: Node): MethodDeclaration[] => {
+  const methods: MethodDeclaration[] = [];
+  node.forEachChild((node) => {
+    if (isMethodDeclaration(node)) {
+      methods.push(node);
+    }
+  });
+  return methods;
+};
+
+const addPropertyDispatcher = (
   yul: string[],
   abi: any[],
   property: PropertyDeclaration
@@ -56,6 +71,48 @@ const addDispatcher = (
   return addToSection(yul, YulSection.Dispatchers, [
     `            case ${selector} /* "${name}()" */ {`,
     `                ${returnFunctions[returnType]}(${name}Storage())`,
+    `            }`,
+  ]);
+};
+
+const addMethodDispatcher = (
+  yul: string[],
+  abi: any[],
+  property: MethodDeclaration
+): string[] => {
+  const decoderFunctions: Record<string, string> = {
+    address: "decodeAsAddress",
+    uint256: "decodeAsUint",
+  };
+  const returnFunctions: Record<string, string> = {
+    uint256: "returnUint",
+    boolean: "returnTrue",
+  };
+  const name = getNodeName(property);
+  const returnType = getNodeReturnType(property);
+  const selector = getSelector(abi, name);
+  const inputs = getNodeInputs(property);
+  return addToSection(yul, YulSection.Dispatchers, [
+    `            case ${selector} /* "${name}(${inputs.join(",")})" */ {`,
+    returnType === "void"
+      ? `                ${name}Function(${inputs
+          .map(
+            (input: AbiParameter, index: number) =>
+              `${decoderFunctions[input.type]}(${index})`
+          )
+          .join(", ")})`
+      : `                ${returnFunctions[returnType]}(${name}Storage())`,
+    `            }`,
+  ]);
+};
+
+const addMethodFunction = (yul: string[], method: MethodDeclaration) => {
+  const name = getNodeName(method);
+  const inputs = getNodeInputs(method);
+  return addToSection(yul, YulSection.Functions, [
+    `            function ${name}Function(${inputs
+      .map((input: AbiParameter) => input.name)
+      .join(", ")}) {`,
     `            }`,
   ]);
 };
@@ -78,6 +135,9 @@ const addStorageAccess = (yul: string[], property: PropertyDeclaration) => {
     `            function ${name}Storage() -> ${initial} {`,
     `                ${initial} := sload(${name}Pos())`,
     `            }`,
+    `            function ${name}Set(value) {`,
+    `                sstore(${name}Pos(), value)`,
+    `            }`,
   ]);
 };
 
@@ -96,10 +156,18 @@ const getYul = (file: string) => {
   // Adding properties
   const properties = getProperties(classNode);
   properties.forEach((property: PropertyDeclaration, index: number) => {
-    yul = addDispatcher(yul, abi, property);
+    yul = addPropertyDispatcher(yul, abi, property);
     yul = addStorageLayout(yul, property, index);
     yul = addStorageAccess(yul, property);
     // TODO Handle private properties
+  });
+
+  // Adding methods
+  const methods = getMethods(classNode);
+  methods.forEach((method: MethodDeclaration) => {
+    yul = addMethodDispatcher(yul, abi, method);
+    yul = addMethodFunction(yul, method);
+    // TODO Handle private methods
   });
 
   // forEachChild(ast, process);
