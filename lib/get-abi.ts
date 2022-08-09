@@ -3,16 +3,18 @@ import getAst from "./get-ast";
 import {
   forEachChild,
   isMethodDeclaration,
-  isParameter,
   isPropertyDeclaration,
   MethodDeclaration,
   Node,
-  ParameterDeclaration,
   PropertyDeclaration,
   SourceFile,
   SyntaxKind,
 } from "typescript";
-import { getNodeName, getNodeReturnType } from "./helpers/ast-helper";
+import {
+  getNodeInputs,
+  getNodeName,
+  getNodeOutputs,
+} from "./helpers/ast-helper";
 
 export interface AbiParameter {
   name: string;
@@ -42,32 +44,13 @@ const isNodePrivate = (node: Node): boolean => {
 const getOutputs = (
   node: MethodDeclaration | PropertyDeclaration
 ): AbiParameter[] => {
-  const type = getNodeReturnType(node);
-  if (type === "void") return [];
-  // TODO Support multiple outputs
-  return [
-    {
+  const outputs = getNodeOutputs(node);
+  return outputs.map((output) => {
+    return {
       name: "",
-      type,
-    },
-  ];
-};
-
-const getInput = (parameter: ParameterDeclaration): AbiParameter => {
-  return {
-    name: getNodeName(parameter),
-    type: "uint256", // TODO Get the type for real
-  };
-};
-
-const getInputs = (node: MethodDeclaration): AbiParameter[] => {
-  const inputs: AbiParameter[] = [];
-  forEachChild(node, (node) => {
-    if (isParameter(node)) {
-      inputs.push(getInput(node));
-    }
+      type: output,
+    };
   });
-  return inputs;
 };
 
 const propertyDeclarationToAbi = (node: PropertyDeclaration): AbiFunction => {
@@ -84,7 +67,7 @@ const methodDeclarationToAbi = (node: MethodDeclaration): AbiFunction => {
   return {
     type: "function",
     name: getNodeName(node),
-    inputs: getInputs(node),
+    inputs: getNodeInputs(node),
     outputs: getOutputs(node),
     stateMutability: "nonpayable", // TODO Work out if it's payable or not
   };
