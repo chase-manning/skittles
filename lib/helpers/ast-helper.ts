@@ -1,4 +1,5 @@
-import { Node, SyntaxKind } from "typescript";
+import { forEachChild, isParameter, Node, SyntaxKind } from "typescript";
+import { AbiParameter } from "../get-abi";
 
 export const getNodeName = (node: Node): string => {
   return (node as any).name.escapedText;
@@ -15,4 +16,21 @@ export const getNodeReturnType = (node: Node): string => {
   }
   // TODO Add more types
   throw new Error("Unsupported type");
+};
+
+export const getNodeOutputs = (node: Node): string[] => {
+  const type = getNodeReturnType(node);
+  if (type === "void") return [];
+  // TODO Support multiple outputs
+  return [type];
+};
+
+export const getNodeInputs = (node: Node): AbiParameter[] => {
+  const inputs: AbiParameter[] = [];
+  forEachChild(node, (node) => {
+    if (isParameter(node)) {
+      inputs.push({ name: getNodeName(node), type: "uint256" }); // TODO Get the type for real
+    }
+  });
+  return inputs;
 };
