@@ -1,11 +1,19 @@
 import {
+  BinaryExpression,
+  Block,
+  ExpressionStatement,
   forEachChild,
+  isBinaryExpression,
   isClassDeclaration,
+  isExpressionStatement,
+  isIdentifier,
   isMethodDeclaration,
+  isPropertyAccessExpression,
   isPropertyDeclaration,
   MethodDeclaration,
   Node,
   PropertyDeclaration,
+  SyntaxKind,
 } from "typescript";
 import getAst from "./get-ast";
 import fs from "fs";
@@ -106,6 +114,60 @@ const addMethodDispatcher = (
   ]);
 };
 
+const getNodeIdentifyer = (node: Node): string => {
+  if (isPropertyAccessExpression(node)) {
+    return `${getNodeName(node)}Storage()`;
+  }
+  return getNodeName(node);
+};
+
+const getPlusEqualsYul = (expression: BinaryExpression): string => {
+  if (isIdentifier(expression.left)) {
+    const left = getNodeIdentifyer(expression.left);
+    const right = getNodeIdentifyer(expression.right);
+    return `                ${left} := safeAdd(${left}, ${right})`;
+  }
+  if (isPropertyAccessExpression(expression.left)) {
+    const left = getNodeIdentifyer(expression.left);
+    const right = getNodeIdentifyer(expression.right);
+    return `                ${getNodeName(
+      expression.left
+    )}Set(safeAdd(${left}, ${right}))`;
+  }
+  throw new Error("Unsupported plus equals expression left");
+};
+
+const isPlusEquals = (expression: BinaryExpression): boolean => {
+  return expression.operatorToken.kind === SyntaxKind.PlusEqualsToken;
+};
+
+const getBinaryExpressionYul = (expression: BinaryExpression): string => {
+  if (isPlusEquals(expression)) {
+    return getPlusEqualsYul(expression);
+  }
+  throw new Error("Unsupported binary expression");
+};
+
+const getExpressionStatementYul = (statement: ExpressionStatement): string => {
+  const expression = statement.expression;
+  if (isBinaryExpression(expression)) {
+    return getBinaryExpressionYul(expression);
+  }
+  throw new Error("Unsupported expression");
+};
+
+const getStatementYul = (statement: Node): string => {
+  if (isExpressionStatement(statement)) {
+    return getExpressionStatementYul(statement);
+  }
+  throw new Error("Unsupported statement");
+};
+
+const getBlockYul = (block: Block | undefined): string[] => {
+  if (!block) return [];
+  return block.statements.map((statement) => getStatementYul(statement));
+};
+
 const addMethodFunction = (yul: string[], method: MethodDeclaration) => {
   const name = getNodeName(method);
   const inputs = getNodeInputs(method);
@@ -113,6 +175,7 @@ const addMethodFunction = (yul: string[], method: MethodDeclaration) => {
     `            function ${name}Function(${inputs
       .map((input: AbiParameter) => input.name)
       .join(", ")}) {`,
+    ...getBlockYul(method.body),
     `            }`,
   ]);
 };
