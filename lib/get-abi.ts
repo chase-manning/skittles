@@ -2,7 +2,9 @@ import getAst from "./get-ast";
 
 import {
   forEachChild,
+  isBinaryExpression,
   isMethodDeclaration,
+  isPropertyAccessExpression,
   isPropertyDeclaration,
   MethodDeclaration,
   Node,
@@ -14,6 +16,9 @@ import {
   getNodeInputs,
   getNodeName,
   getNodeOutputs,
+  isEquals,
+  isMinusEquals,
+  isPlusEquals,
 } from "./helpers/ast-helper";
 
 export interface AbiParameter {
@@ -39,6 +44,23 @@ const isNodePrivate = (node: Node): boolean => {
     }
   });
   return isPrivate;
+};
+
+const isNodeView = (node: Node): boolean => {
+  let isView = true;
+  forEachChild(node, (child) => {
+    if (isBinaryExpression(child)) {
+      if (isPropertyAccessExpression(child.left)) {
+        if (isPlusEquals(child) || isEquals(child) || isMinusEquals(child)) {
+          isView = false;
+        }
+      }
+    }
+    if (!isNodeView(child)) {
+      isView = false;
+    }
+  });
+  return isView;
 };
 
 const getOutputs = (
@@ -69,7 +91,7 @@ const methodDeclarationToAbi = (node: MethodDeclaration): AbiFunction => {
     name: getNodeName(node),
     inputs: getNodeInputs(node),
     outputs: getOutputs(node),
-    stateMutability: "nonpayable", // TODO Work out if it's payable or not
+    stateMutability: isNodeView(node) ? "view" : "nonpayable", // TODO Work out if it's payable or not
   };
 };
 
@@ -95,6 +117,7 @@ const processAst = (sourceFile: SourceFile) => {
   sourceFile.forEachChild((node) => {
     abi.push(...processNode(node));
   });
+  console.log(abi);
   return abi;
 };
 
