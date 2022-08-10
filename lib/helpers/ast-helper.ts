@@ -1,11 +1,27 @@
 import {
   BinaryExpression,
+  ClassDeclaration,
   forEachChild,
+  isClassDeclaration,
   isParameter,
   Node,
   SyntaxKind,
 } from "typescript";
 import { AbiParameter } from "../get-abi";
+
+export const getClassNode = (node: Node): ClassDeclaration => {
+  if (isClassDeclaration(node)) {
+    return node;
+  }
+  let classNode: ClassDeclaration | undefined = undefined;
+  forEachChild(node, (child) => {
+    if (isClassDeclaration(child)) {
+      classNode = child;
+    }
+  });
+  if (!classNode) throw new Error("Could not find class");
+  return classNode;
+};
 
 export const getNodeName = (node: Node): string => {
   if ((node as any).text) return (node as any).text;
