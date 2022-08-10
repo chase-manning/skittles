@@ -117,7 +117,6 @@ const processAst = (sourceFile: SourceFile) => {
   sourceFile.forEachChild((node) => {
     abi.push(...processNode(node));
   });
-  console.log(abi);
   return abi;
 };
 
