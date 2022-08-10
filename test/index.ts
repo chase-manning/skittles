@@ -3,15 +3,15 @@ import { ethers } from "hardhat";
 import getAbi from "../lib/get-abi";
 import fs from "fs";
 
-const getNthLine = (file: string, n: number) => {
+const getBytecode = () => {
+  const file = fs.readFileSync("./Binary.bin", "utf8");
   const lines = file.split("\n");
-  return lines[n];
+  return lines[4];
 };
 
 describe("Hello World", function () {
   it("Should add balance", async () => {
-    const file = fs.readFileSync("./Binary.bin", "utf8");
-    const bytecode = getNthLine(file, 4);
+    const bytecode = getBytecode();
     const abi = getAbi("./contracts/hello-world.ts");
     const HelloWorld = await ethers.getContractFactory(abi, bytecode);
     const helloWorld = await HelloWorld.deploy();
