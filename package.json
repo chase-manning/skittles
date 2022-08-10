@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "npx tsc && node index.js && solc --strict-assembly ./output.yul --bin > ./Binary.bin && hardhat test",
-    "test": "ENV_FILE=./config/.env.test jest",
-    "meow": "hardhat test"
+    "test": "ENV_FILE=./config/.env.test jest"
   },
   "repository": {
     "type": "git",
