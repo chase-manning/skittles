@@ -10,10 +10,11 @@ import {
   isMethodDeclaration,
   isPropertyAccessExpression,
   isPropertyDeclaration,
+  isReturnStatement,
   MethodDeclaration,
   Node,
   PropertyDeclaration,
-  SyntaxKind,
+  ReturnStatement,
 } from "typescript";
 import getAst from "./get-ast";
 import fs from "fs";
@@ -22,9 +23,21 @@ import getAbi, { AbiParameter } from "./get-abi";
 import {
   getNodeInputs,
   getNodeName,
+  getNodeOutputs,
   getNodeReturnType,
+  isAsteriskToken,
+  isPlusEquals,
 } from "./helpers/ast-helper";
 import getSelector from "./get-selector";
+
+const decoderFunctions: Record<string, string> = {
+  address: "decodeAsAddress",
+  uint256: "decodeAsUint",
+};
+const returnFunctions: Record<string, string> = {
+  uint256: "returnUint",
+  boolean: "returnTrue",
+};
 
 const getBaseYul = (name: string): string[] => {
   const base = yulTemplate;
@@ -69,10 +82,6 @@ const addPropertyDispatcher = (
   abi: any[],
   property: PropertyDeclaration
 ): string[] => {
-  const returnFunctions: Record<string, string> = {
-    uint256: "returnUint",
-    boolean: "returnTrue",
-  };
   const name = getNodeName(property);
   const returnType = getNodeReturnType(property);
   const selector = getSelector(abi, name);
@@ -88,14 +97,6 @@ const addMethodDispatcher = (
   abi: any[],
   property: MethodDeclaration
 ): string[] => {
-  const decoderFunctions: Record<string, string> = {
-    address: "decodeAsAddress",
-    uint256: "decodeAsUint",
-  };
-  const returnFunctions: Record<string, string> = {
-    uint256: "returnUint",
-    boolean: "returnTrue",
-  };
   const name = getNodeName(property);
   const returnType = getNodeReturnType(property);
   const selector = getSelector(abi, name);
@@ -109,7 +110,7 @@ const addMethodDispatcher = (
               `${decoderFunctions[input.type]}(${index})`
           )
           .join(", ")})`
-      : `                ${returnFunctions[returnType]}(${name}Storage())`,
+      : `                ${returnFunctions[returnType]}(${name}Function())`,
     `            }`,
   ]);
 };
@@ -137,13 +138,18 @@ const getPlusEqualsYul = (expression: BinaryExpression): string => {
   throw new Error("Unsupported plus equals expression left");
 };
 
-const isPlusEquals = (expression: BinaryExpression): boolean => {
-  return expression.operatorToken.kind === SyntaxKind.PlusEqualsToken;
+const getAsteriskTokenYul = (expression: BinaryExpression): string => {
+  return `mul(${getNodeIdentifyer(expression.left)}, ${getNodeIdentifyer(
+    expression.right
+  )})`;
 };
 
 const getBinaryExpressionYul = (expression: BinaryExpression): string => {
   if (isPlusEquals(expression)) {
     return getPlusEqualsYul(expression);
+  }
+  if (isAsteriskToken(expression)) {
+    return getAsteriskTokenYul(expression);
   }
   throw new Error("Unsupported binary expression");
 };
@@ -156,26 +162,42 @@ const getExpressionStatementYul = (statement: ExpressionStatement): string => {
   throw new Error("Unsupported expression");
 };
 
-const getStatementYul = (statement: Node): string => {
+const getReturnStatementYul = (
+  statement: ReturnStatement,
+  v: string
+): string => {
+  const expression = statement.expression;
+  if (!expression) throw new Error("Unsupported expression statement");
+  if (isBinaryExpression(expression)) {
+    return `                v := ${getBinaryExpressionYul(expression)}`;
+  }
+  throw new Error("Unsupported return statement");
+};
+
+const getStatementYul = (statement: Node, v: string): string => {
   if (isExpressionStatement(statement)) {
     return getExpressionStatementYul(statement);
+  }
+  if (isReturnStatement(statement)) {
+    return getReturnStatementYul(statement, v);
   }
   throw new Error("Unsupported statement");
 };
 
-const getBlockYul = (block: Block | undefined): string[] => {
+const getBlockYul = (block: Block | undefined, v: string): string[] => {
   if (!block) return [];
-  return block.statements.map((statement) => getStatementYul(statement));
+  return block.statements.map((statement) => getStatementYul(statement, v));
 };
 
 const addMethodFunction = (yul: string[], method: MethodDeclaration) => {
   const name = getNodeName(method);
   const inputs = getNodeInputs(method);
+  const outputs = getNodeOutputs(method);
   return addToSection(yul, YulSection.Functions, [
     `            function ${name}Function(${inputs
       .map((input: AbiParameter) => input.name)
-      .join(", ")}) {`,
-    ...getBlockYul(method.body),
+      .join(", ")}) ${outputs.length > 0 ? `-> v ` : ""}{`,
+    ...getBlockYul(method.body, outputs.length > 0 ? outputs[0] : "void"),
     `            }`,
   ]);
 };

@@ -1,7 +1,14 @@
-import { forEachChild, isParameter, Node, SyntaxKind } from "typescript";
+import {
+  BinaryExpression,
+  forEachChild,
+  isParameter,
+  Node,
+  SyntaxKind,
+} from "typescript";
 import { AbiParameter } from "../get-abi";
 
 export const getNodeName = (node: Node): string => {
+  if ((node as any).text) return (node as any).text;
   if ((node as any).escapedText) return (node as any).escapedText;
   return (node as any).name.escapedText;
 };
@@ -34,4 +41,20 @@ export const getNodeInputs = (node: Node): AbiParameter[] => {
     }
   });
   return inputs;
+};
+
+export const isPlusEquals = (expression: BinaryExpression): boolean => {
+  return expression.operatorToken.kind === SyntaxKind.PlusEqualsToken;
+};
+
+export const isAsteriskToken = (expression: BinaryExpression): boolean => {
+  return expression.operatorToken.kind === SyntaxKind.AsteriskToken;
+};
+
+export const isEquals = (expression: BinaryExpression): boolean => {
+  return expression.operatorToken.kind === SyntaxKind.EqualsToken;
+};
+
+export const isMinusEquals = (expression: BinaryExpression): boolean => {
+  return expression.operatorToken.kind === SyntaxKind.MinusEqualsToken;
 };
