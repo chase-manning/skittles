@@ -1,35 +1,21 @@
-import {
-  BinaryExpression,
-  Block,
-  ExpressionStatement,
-  forEachChild,
-  isBinaryExpression,
-  isClassDeclaration,
-  isExpressionStatement,
-  isIdentifier,
-  isMethodDeclaration,
-  isPropertyAccessExpression,
-  isPropertyDeclaration,
-  isReturnStatement,
-  MethodDeclaration,
-  Node,
-  PropertyDeclaration,
-  ReturnStatement,
-} from "typescript";
-import getAst from "./get-ast";
 import fs from "fs";
 import yulTemplate, { addToSection, YulSection } from "./data/yul-template";
 import getAbi, { AbiParameter } from "./get-abi";
-import {
-  getNodeInputs,
-  getNodeName,
-  getNodeOutputs,
-  getNodeReturnType,
-  isAsteriskToken,
-  isPlusEquals,
-} from "./helpers/ast-helper";
 import getSelector from "./get-selector";
 import getFoxClass from "./get-fox-class";
+import {
+  FoxBinaryExpression,
+  FoxExpression,
+  FoxExpressionType,
+  FoxMethod,
+  FoxOperator,
+  FoxParameter,
+  FoxProperty,
+  FoxReturnStatement,
+  FoxStatement,
+  FoxStatementType,
+  FoxStorageUpdateStatement,
+} from "./types/fox-class";
 
 const decoderFunctions: Record<string, string> = {
   address: "decodeAsAddress",
@@ -46,49 +32,16 @@ const getBaseYul = (name: string): string[] => {
   return base;
 };
 
-const getClass = (node: Node): Node => {
-  let classNode: Node | undefined = undefined;
-  // Only consider exported nodes
-  forEachChild(node, (node) => {
-    if (isClassDeclaration(node)) {
-      classNode = node;
-    }
-  });
-  if (!classNode) throw new Error("Could not find class");
-  return classNode;
-};
-
-const getProperties = (node: Node): PropertyDeclaration[] => {
-  const properties: PropertyDeclaration[] = [];
-  node.forEachChild((node) => {
-    if (isPropertyDeclaration(node)) {
-      properties.push(node);
-    }
-  });
-  return properties;
-};
-
-const getMethods = (node: Node): MethodDeclaration[] => {
-  const methods: MethodDeclaration[] = [];
-  node.forEachChild((node) => {
-    if (isMethodDeclaration(node)) {
-      methods.push(node);
-    }
-  });
-  return methods;
-};
-
 const addPropertyDispatcher = (
   yul: string[],
   abi: any[],
-  property: PropertyDeclaration
+  property: FoxProperty
 ): string[] => {
-  const name = getNodeName(property);
-  const returnType = getNodeReturnType(property);
+  const { name, type } = property;
   const selector = getSelector(abi, name);
   return addToSection(yul, YulSection.Dispatchers, [
     `            case ${selector} /* "${name}()" */ {`,
-    `                ${returnFunctions[returnType]}(${name}Storage())`,
+    `                ${returnFunctions[type]}(${name}Storage())`,
     `            }`,
   ]);
 };
@@ -96,126 +49,125 @@ const addPropertyDispatcher = (
 const addMethodDispatcher = (
   yul: string[],
   abi: any[],
-  property: MethodDeclaration
+  method: FoxMethod
 ): string[] => {
-  const name = getNodeName(property);
-  const returnType = getNodeReturnType(property);
+  const { name, parameters, returns } = method;
   const selector = getSelector(abi, name);
-  const inputs = getNodeInputs(property);
   return addToSection(yul, YulSection.Dispatchers, [
-    `            case ${selector} /* "${name}(${inputs.join(",")})" */ {`,
-    returnType === "void"
-      ? `                ${name}Function(${inputs
+    `            case ${selector} /* "${name}(${parameters
+      .map((p) => p.type)
+      .join(",")})" */ {`,
+    returns === "void"
+      ? `                ${name}Function(${parameters
           .map(
-            (input: AbiParameter, index: number) =>
+            (input: FoxParameter, index: number) =>
               `${decoderFunctions[input.type]}(${index})`
           )
           .join(", ")})`
-      : `                ${returnFunctions[returnType]}(${name}Function())`,
+      : `                ${returnFunctions[returns]}(${name}Function())`,
     `            }`,
   ]);
 };
 
-const getNodeIdentifyer = (node: Node): string => {
-  if (isPropertyAccessExpression(node)) {
-    return `${getNodeName(node)}Storage()`;
+const getBinaryYul = (expression: FoxBinaryExpression): string => {
+  const { left, right, operator } = expression;
+  switch (operator) {
+    case FoxOperator.Plus:
+      return `safeAdd(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Minus:
+      return `sub(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Multiply:
+      return `mul(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Divide:
+      return `div(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Modulo:
+      return `mod(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Equals:
+      return `eq(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.NotEquals:
+      return `not(eq(${getExpressionYul(left)}, ${getExpressionYul(right)}))`;
+    case FoxOperator.GreaterThan:
+      return `gt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.LessThan:
+      return `lt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.GreaterThanOrEqual:
+      return `gte(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.LessThanOrEqual:
+      return `lte(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.And:
+      return `and(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Or:
+      return `or(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case FoxOperator.Not:
+      return `not(${getExpressionYul(left)})`;
+    default:
+      throw new Error(`Unsupported binary operator ${operator}`);
   }
-  return getNodeName(node);
 };
 
-const getPlusEqualsYul = (expression: BinaryExpression): string => {
-  if (isIdentifier(expression.left)) {
-    const left = getNodeIdentifyer(expression.left);
-    const right = getNodeIdentifyer(expression.right);
-    return `                ${left} := safeAdd(${left}, ${right})`;
+const getExpressionYul = (expression: FoxExpression): string => {
+  switch (expression.expressionType) {
+    case FoxExpressionType.Binary:
+      return getBinaryYul(expression);
+    case FoxExpressionType.Value:
+      return expression.value;
+    case FoxExpressionType.Storage:
+      return `${expression.variable}Storage()`;
+    default:
+      throw new Error("Unsupported expression");
   }
-  if (isPropertyAccessExpression(expression.left)) {
-    const left = getNodeIdentifyer(expression.left);
-    const right = getNodeIdentifyer(expression.right);
-    return `                ${getNodeName(
-      expression.left
-    )}Set(safeAdd(${left}, ${right}))`;
-  }
-  throw new Error("Unsupported plus equals expression left");
 };
 
-const getAsteriskTokenYul = (expression: BinaryExpression): string => {
-  return `mul(${getNodeIdentifyer(expression.left)}, ${getNodeIdentifyer(
-    expression.right
-  )})`;
+const getStorageUpdateYul = (statement: FoxStorageUpdateStatement): string => {
+  const { variable, value } = statement;
+  return `                ${variable}Set(${getExpressionYul(value)})`;
 };
 
-const getBinaryExpressionYul = (expression: BinaryExpression): string => {
-  if (isPlusEquals(expression)) {
-    return getPlusEqualsYul(expression);
-  }
-  if (isAsteriskToken(expression)) {
-    return getAsteriskTokenYul(expression);
-  }
-  throw new Error("Unsupported binary expression");
+const getReturnYul = (statement: FoxReturnStatement): string => {
+  const { value } = statement;
+  return `                v := ${getExpressionYul(value)}`;
 };
 
-const getExpressionStatementYul = (statement: ExpressionStatement): string => {
-  const expression = statement.expression;
-  if (isBinaryExpression(expression)) {
-    return getBinaryExpressionYul(expression);
+const getStatementYul = (statement: FoxStatement): string => {
+  switch (statement.statementType) {
+    case FoxStatementType.StorageUpdate:
+      return getStorageUpdateYul(statement);
+    case FoxStatementType.Return:
+      return getReturnYul(statement);
+    default:
+      throw new Error("Unsupported statement");
   }
-  throw new Error("Unsupported expression");
 };
 
-const getReturnStatementYul = (
-  statement: ReturnStatement,
-  v: string
-): string => {
-  const expression = statement.expression;
-  if (!expression) throw new Error("Unsupported expression statement");
-  if (isBinaryExpression(expression)) {
-    return `                v := ${getBinaryExpressionYul(expression)}`;
-  }
-  throw new Error("Unsupported return statement");
+const getBlockYul = (statements: FoxStatement[]): string[] => {
+  return statements.map((statement) => getStatementYul(statement));
 };
 
-const getStatementYul = (statement: Node, v: string): string => {
-  if (isExpressionStatement(statement)) {
-    return getExpressionStatementYul(statement);
-  }
-  if (isReturnStatement(statement)) {
-    return getReturnStatementYul(statement, v);
-  }
-  throw new Error("Unsupported statement");
-};
-
-const getBlockYul = (block: Block | undefined, v: string): string[] => {
-  if (!block) return [];
-  return block.statements.map((statement) => getStatementYul(statement, v));
-};
-
-const addMethodFunction = (yul: string[], method: MethodDeclaration) => {
-  const name = getNodeName(method);
-  const inputs = getNodeInputs(method);
-  const outputs = getNodeOutputs(method);
+const addMethodFunction = (yul: string[], method: FoxMethod) => {
+  const { name, parameters, returns, statements } = method;
+  const hasReturn = returns !== "void";
   return addToSection(yul, YulSection.Functions, [
-    `            function ${name}Function(${inputs
+    `            function ${name}Function(${parameters
       .map((input: AbiParameter) => input.name)
-      .join(", ")}) ${outputs.length > 0 ? `-> v ` : ""}{`,
-    ...getBlockYul(method.body, outputs.length > 0 ? outputs[0] : "void"),
+      .join(", ")}) ${hasReturn ? `-> v ` : ""}{`,
+    ...getBlockYul(statements),
     `            }`,
   ]);
 };
 
 const addStorageLayout = (
   yul: string[],
-  property: PropertyDeclaration,
+  property: FoxProperty,
   index: number
 ) => {
-  const name = getNodeName(property);
+  const { name } = property;
   return addToSection(yul, YulSection.StorageLayout, [
     `            function ${name}Pos() -> p { p := ${index} }`,
   ]);
 };
 
-const addStorageAccess = (yul: string[], property: PropertyDeclaration) => {
-  const name = getNodeName(property);
+const addStorageAccess = (yul: string[], property: FoxProperty) => {
+  const { name } = property;
   const initial = name.substring(0, 1);
   return addToSection(yul, YulSection.StorageAccess, [
     `            function ${name}Storage() -> ${initial} {`,
@@ -235,14 +187,10 @@ const getYul = (file: string) => {
   // Getting base data
   const foxClass = getFoxClass(file);
   const abi = getAbi(foxClass);
-  const ast = getAst(file);
-  const classNode = getClass(ast);
-  const contractName = getNodeName(classNode);
-  let yul = getBaseYul(contractName);
+  let yul = getBaseYul(foxClass.name);
 
   // Adding properties
-  const properties = getProperties(classNode);
-  properties.forEach((property: PropertyDeclaration, index: number) => {
+  foxClass.properties.forEach((property: FoxProperty, index: number) => {
     yul = addPropertyDispatcher(yul, abi, property);
     yul = addStorageLayout(yul, property, index);
     yul = addStorageAccess(yul, property);
@@ -250,8 +198,7 @@ const getYul = (file: string) => {
   });
 
   // Adding methods
-  const methods = getMethods(classNode);
-  methods.forEach((method: MethodDeclaration) => {
+  foxClass.methods.forEach((method: FoxMethod) => {
     yul = addMethodDispatcher(yul, abi, method);
     yul = addMethodFunction(yul, method);
     // TODO Handle private methods

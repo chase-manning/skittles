@@ -171,11 +171,40 @@ const getFoxStatement = (node: Node, returnType: string): FoxStatement => {
     const expression = node.expression;
     if (isBinaryExpression(expression)) {
       if (isPropertyAccessExpression(expression.left)) {
-        return {
-          statementType: FoxStatementType.StorageUpdate,
-          variable: getNodeName(expression.left),
-          value: getFoxExpression(expression.right),
-        };
+        if (isEquals(expression)) {
+          return {
+            statementType: FoxStatementType.StorageUpdate,
+            variable: getNodeName(expression.left),
+            value: getFoxExpression(expression.right),
+          };
+        }
+        if (isPlusEquals(expression)) {
+          return {
+            statementType: FoxStatementType.StorageUpdate,
+            variable: getNodeName(expression.left),
+            value: {
+              expressionType: FoxExpressionType.Binary,
+              operator: FoxOperator.Plus,
+              left: getFoxExpression(expression.left),
+              right: getFoxExpression(expression.right),
+            },
+          };
+        }
+        if (isMinusEquals(expression)) {
+          return {
+            statementType: FoxStatementType.StorageUpdate,
+            variable: getNodeName(expression.left),
+            value: {
+              expressionType: FoxExpressionType.Binary,
+              operator: FoxOperator.Minus,
+              left: getFoxExpression(expression.left),
+              right: getFoxExpression(expression.right),
+            },
+          };
+        }
+        throw new Error(
+          `Unknown binary expression: ${expression.operatorToken.kind}`
+        );
       }
       throw new Error(`Unknown binary expression type: ${expression.kind}`);
     }
