@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import getAbi from "../lib/get-abi";
+import getFoxClass from "../lib/get-fox-class";
 import fs from "fs";
 
 const getBytecode = () => {
@@ -12,7 +13,8 @@ const getBytecode = () => {
 describe("Hello World", function () {
   it("Should add balance", async () => {
     const bytecode = getBytecode();
-    const abi = getAbi("./contracts/hello-world.ts");
+    const foxClass = getFoxClass("./contracts/hello-world.ts");
+    const abi = getAbi(foxClass);
     const HelloWorld = await ethers.getContractFactory(abi, bytecode);
     const helloWorld = await HelloWorld.deploy();
     await helloWorld.deployed();

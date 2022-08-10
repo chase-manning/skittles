@@ -20,6 +20,7 @@ import {
   isMinusEquals,
   isPlusEquals,
 } from "./helpers/ast-helper";
+import FoxClass, { FoxMethod, FoxProperty } from "./types/fox-class";
 
 export interface AbiParameter {
   name: string;
@@ -36,93 +37,34 @@ export interface AbiFunction {
 
 export type Abi = AbiFunction[];
 
-const isNodePrivate = (node: Node): boolean => {
-  let isPrivate = false;
-  forEachChild(node, (node) => {
-    if (node.kind === SyntaxKind.PrivateKeyword) {
-      isPrivate = true;
-    }
-  });
-  return isPrivate;
-};
-
-const isNodeView = (node: Node): boolean => {
-  let isView = true;
-  forEachChild(node, (child) => {
-    if (isBinaryExpression(child)) {
-      if (isPropertyAccessExpression(child.left)) {
-        if (isPlusEquals(child) || isEquals(child) || isMinusEquals(child)) {
-          isView = false;
-        }
-      }
-    }
-    if (!isNodeView(child)) {
-      isView = false;
-    }
-  });
-  return isView;
-};
-
-const getOutputs = (
-  node: MethodDeclaration | PropertyDeclaration
-): AbiParameter[] => {
-  const outputs = getNodeOutputs(node);
-  return outputs.map((output) => {
-    return {
-      name: "",
-      type: output,
-    };
-  });
-};
-
-const propertyDeclarationToAbi = (node: PropertyDeclaration): AbiFunction => {
+const getPropertyAbi = (property: FoxProperty): AbiFunction => {
   return {
     type: "function",
-    name: getNodeName(node),
+    name: property.name,
     inputs: [],
-    outputs: getOutputs(node),
+    outputs: [{ name: "", type: property.type }],
     stateMutability: "view",
   };
 };
 
-const methodDeclarationToAbi = (node: MethodDeclaration): AbiFunction => {
+const getMethodAbi = (method: FoxMethod): AbiFunction => {
   return {
     type: "function",
-    name: getNodeName(node),
-    inputs: getNodeInputs(node),
-    outputs: getOutputs(node),
-    stateMutability: isNodeView(node) ? "view" : "nonpayable", // TODO Work out if it's payable or not
+    name: method.name,
+    inputs: method.parameters.map((i) => ({
+      name: i.name,
+      type: i.type,
+    })),
+    outputs: [{ name: "", type: method.returns }],
+    stateMutability: method.view ? "view" : "payable",
   };
 };
 
-const processNode = (node: Node): Abi => {
-  if (isNodePrivate(node)) return [];
-  if (isPropertyDeclaration(node)) {
-    return [propertyDeclarationToAbi(node)];
-  }
-  if (isMethodDeclaration(node)) {
-    return [methodDeclarationToAbi(node)];
-  }
-  // TODO Add events
-  // TODO Add errors
-  const abi: Abi = [];
-  node.forEachChild((node) => {
-    abi.push(...processNode(node));
-  });
-  return abi;
-};
-
-const processAst = (sourceFile: SourceFile) => {
-  const abi: Abi = [];
-  sourceFile.forEachChild((node) => {
-    abi.push(...processNode(node));
-  });
-  return abi;
-};
-
-const getAbi = (file: string): Abi => {
-  const ast = getAst(file);
-  return processAst(ast);
+const getAbi = (foxClass: FoxClass): Abi => {
+  return [
+    ...foxClass.properties.filter((p) => !p.private).map(getPropertyAbi),
+    ...foxClass.methods.filter((p) => !p.private).map(getMethodAbi),
+  ];
 };
 
 export default getAbi;

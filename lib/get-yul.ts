@@ -29,6 +29,7 @@ import {
   isPlusEquals,
 } from "./helpers/ast-helper";
 import getSelector from "./get-selector";
+import getFoxClass from "./get-fox-class";
 
 const decoderFunctions: Record<string, string> = {
   address: "decodeAsAddress",
@@ -232,7 +233,8 @@ const writeFile = (file: string[]) => {
 
 const getYul = (file: string) => {
   // Getting base data
-  const abi = getAbi(file);
+  const foxClass = getFoxClass(file);
+  const abi = getAbi(foxClass);
   const ast = getAst(file);
   const classNode = getClass(ast);
   const contractName = getNodeName(classNode);
