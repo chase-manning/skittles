@@ -1,25 +1,3 @@
-import getAst from "./get-ast";
-
-import {
-  forEachChild,
-  isBinaryExpression,
-  isMethodDeclaration,
-  isPropertyAccessExpression,
-  isPropertyDeclaration,
-  MethodDeclaration,
-  Node,
-  PropertyDeclaration,
-  SourceFile,
-  SyntaxKind,
-} from "typescript";
-import {
-  getNodeInputs,
-  getNodeName,
-  getNodeOutputs,
-  isEquals,
-  isMinusEquals,
-  isPlusEquals,
-} from "./helpers/ast-helper";
 import FoxClass, { FoxMethod, FoxProperty } from "./types/fox-class";
 
 export interface AbiParameter {
