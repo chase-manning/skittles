@@ -2,17 +2,11 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import getAbi from "../lib/get-abi";
 import getFoxClass from "../lib/get-fox-class";
-import fs from "fs";
-
-const getBytecode = () => {
-  const file = fs.readFileSync("./Binary.bin", "utf8");
-  const lines = file.split("\n");
-  return lines[4];
-};
+import getBytecode from "../lib/get-bytecode";
 
 describe("Hello World", function () {
   it("Should add balance", async () => {
-    const bytecode = getBytecode();
+    const bytecode = await getBytecode("./output.yul");
     const foxClass = getFoxClass("./contracts/hello-world.ts");
     const abi = getAbi(foxClass);
     const HelloWorld = await ethers.getContractFactory(abi, bytecode);
