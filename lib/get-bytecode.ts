@@ -1,34 +1,24 @@
-import { Compile } from "@truffle/compile-solidity";
-import { Resolver } from "@truffle/resolver";
+const solc = require("solc");
 
-const options = {
-  working_directory: __dirname,
-  contracts_directory: "./not-actually-needed",
-  contracts_build_directory: "./not-actually-needed",
-  compilers: {
-    solc: {
-      version: "0.5.17",
-      settings: {
-        optimizer: {
-          enabled: false,
-          runs: 200,
+const getBytecode = (className: string, content: string) => {
+  var input = {
+    language: "Yul",
+    sources: {
+      main: {
+        content,
+      },
+    },
+    settings: {
+      outputSelection: {
+        "*": {
+          "*": ["*"],
         },
       },
     },
-  },
-  quiet: true,
-};
+  };
 
-(options as any).resolver = new Resolver(options);
-
-const getBytecode = async (path: string) => {
-  const paths = [path];
-  const { compilations } = await Compile.sourcesWithDependencies({
-    paths,
-    options,
-  });
-
-  return compilations[0].contracts[0].bytecode.bytes;
+  const compiled = JSON.parse(solc.compile(JSON.stringify(input)));
+  return compiled.contracts["main"][className].evm.bytecode.object;
 };
 
 export default getBytecode;

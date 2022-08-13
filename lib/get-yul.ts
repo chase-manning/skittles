@@ -1,4 +1,3 @@
-import fs from "fs";
 import yulTemplate, { addToSection, YulSection } from "./data/yul-template";
 import getAbi, { AbiParameter } from "./get-abi";
 import getSelector from "./get-selector";
@@ -179,10 +178,6 @@ const addStorageAccess = (yul: string[], property: FoxProperty) => {
   ]);
 };
 
-const writeFile = (file: string[]) => {
-  fs.writeFileSync("./output.yul", file.join("\n"));
-};
-
 const getYul = (file: string) => {
   // Getting base data
   const foxClass = getFoxClass(file);
@@ -205,7 +200,7 @@ const getYul = (file: string) => {
   });
 
   // forEachChild(ast, process);
-  writeFile(yul);
+  return yul.join("\n");
 };
 
 export default getYul;

@@ -3,12 +3,15 @@ import { ethers } from "hardhat";
 import getAbi from "../lib/get-abi";
 import getFoxClass from "../lib/get-fox-class";
 import getBytecode from "../lib/get-bytecode";
+import getYul from "../lib/get-yul";
 
-describe("Hello World", function () {
+describe("Hello World", () => {
   it("Should add balance", async () => {
-    const bytecode = await getBytecode("./output.yul");
-    const foxClass = getFoxClass("./contracts/hello-world.ts");
+    const FILE = "./contracts/hello-world.ts";
+    const foxClass = getFoxClass(FILE);
     const abi = getAbi(foxClass);
+    const yul = getYul(FILE);
+    const bytecode = getBytecode(foxClass.name, yul);
     const HelloWorld = await ethers.getContractFactory(abi, bytecode);
     const helloWorld = await HelloWorld.deploy();
     await helloWorld.deployed();
