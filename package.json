@@ -13,7 +13,8 @@
     "build": "tsc -p .",
     "refresh": "rm -rf ./node_modules ./package-lock.json && yarn",
     "local": "sudo yarn global add && skittles",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "prepublishOnly": "yarn run build && yarn run test"
   },
   "repository": {
     "type": "git",
