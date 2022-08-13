@@ -1,23 +1,35 @@
 {
-  "name": "fox",
-  "version": "1.0.0",
+  "name": "skittles",
+  "version": "0.1.0",
   "description": "TypeScript Smart Contract Language for the EVM",
-  "main": "index.js",
+  "main": "./lib/index.js",
+  "bin": {
+    "skittles": "./lib/index.js"
+  },
   "scripts": {
-    "start": "npx tsc && node index.js",
+    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "create": "yarn run build && yarn run test",
+    "build": "tsc -p .",
+    "refresh": "rm -rf ./node_modules ./package-lock.json && yarn",
+    "local": "sudo yarn global add && skittles",
     "test": "hardhat test"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chase-manning/fox.git"
+    "url": "git+https://github.com/chase-manning/skittles.git"
   },
   "author": "Chase Manning",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/chase-manning/fox/issues"
+    "url": "https://github.com/chase-manning/skittles/issues"
   },
-  "homepage": "https://github.com/chase-manning/fox#readme",
+  "homepage": "https://github.com/chase-manning/skittles#readme",
   "dependencies": {
+    "chalk": "4.1.2",
+    "clear": "^0.1.0",
+    "commander": "^9.4.0",
+    "figlet": "^1.5.2",
+    "path": "^0.12.7",
     "solc": "^0.8.16",
     "typescript": "^4.7.4"
   },
@@ -28,6 +40,8 @@
     "@typechain/ethers-v5": "^7.2.0",
     "@typechain/hardhat": "^2.3.1",
     "@types/chai": "^4.3.1",
+    "@types/clear": "^0.1.2",
+    "@types/figlet": "^1.5.4",
     "@types/mocha": "^9.1.1",
     "@types/node": "^18.6.4",
     "@typescript-eslint/eslint-plugin": "^4.33.0",
@@ -45,6 +59,7 @@
     "ethers": "^5.6.9",
     "hardhat": "^2.10.1",
     "hardhat-gas-reporter": "^1.0.8",
+    "nodemon": "^2.0.19",
     "prettier": "^2.7.1",
     "prettier-plugin-solidity": "^1.0.0-beta.13",
     "solhint": "^3.3.7",
