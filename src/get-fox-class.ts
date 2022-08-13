@@ -23,18 +23,18 @@ import {
   isMinusEquals,
   isPlusEquals,
 } from "./helpers/ast-helper";
-import FoxClass, {
-  FoxExpression,
-  FoxExpressionType,
-  FoxMethod,
-  FoxOperator,
-  FoxParameter,
-  FoxProperty,
-  FoxStatement,
-  FoxStatementType,
-} from "./types/fox-class";
+import SkittlesClass, {
+  SkittlesExpression,
+  SkittlesExpressionType,
+  SkittlesMethod,
+  SkittlesOperator,
+  SkittlesParameter,
+  SkittlesProperty,
+  SkittlesStatement,
+  SkittlesStatementType,
+} from "./types/skittles-class";
 
-const getFoxType = (syntaxKind: SyntaxKind | undefined): string => {
+const getSkittlesType = (syntaxKind: SyntaxKind | undefined): string => {
   if (!syntaxKind) return "void";
   switch (syntaxKind) {
     case SyntaxKind.StringKeyword:
@@ -52,64 +52,64 @@ const getFoxType = (syntaxKind: SyntaxKind | undefined): string => {
   }
 };
 
-const getFoxOperator = (syntaxKind: SyntaxKind): FoxOperator => {
+const getSkittlesOperator = (syntaxKind: SyntaxKind): SkittlesOperator => {
   switch (syntaxKind) {
     case SyntaxKind.PlusToken:
-      return FoxOperator.Plus;
+      return SkittlesOperator.Plus;
     case SyntaxKind.MinusToken:
-      return FoxOperator.Minus;
+      return SkittlesOperator.Minus;
     case SyntaxKind.AsteriskToken:
-      return FoxOperator.Multiply;
+      return SkittlesOperator.Multiply;
     case SyntaxKind.SlashToken:
-      return FoxOperator.Divide;
+      return SkittlesOperator.Divide;
     case SyntaxKind.PercentToken:
-      return FoxOperator.Modulo;
+      return SkittlesOperator.Modulo;
     case SyntaxKind.AmpersandAmpersandToken:
-      return FoxOperator.And;
+      return SkittlesOperator.And;
     case SyntaxKind.BarBarToken:
-      return FoxOperator.Or;
+      return SkittlesOperator.Or;
     case SyntaxKind.EqualsEqualsToken:
-      return FoxOperator.Equals;
+      return SkittlesOperator.Equals;
     case SyntaxKind.ExclamationEqualsToken:
-      return FoxOperator.NotEquals;
+      return SkittlesOperator.NotEquals;
     case SyntaxKind.LessThanToken:
-      return FoxOperator.LessThan;
+      return SkittlesOperator.LessThan;
     case SyntaxKind.LessThanEqualsToken:
-      return FoxOperator.LessThanOrEqual;
+      return SkittlesOperator.LessThanOrEqual;
     case SyntaxKind.GreaterThanToken:
-      return FoxOperator.GreaterThan;
+      return SkittlesOperator.GreaterThan;
     case SyntaxKind.GreaterThanEqualsToken:
-      return FoxOperator.GreaterThanOrEqual;
+      return SkittlesOperator.GreaterThanOrEqual;
     default:
       throw new Error(`Unknown syntax kind: ${syntaxKind}`);
   }
 };
 
-const getFoxExpression = (expression: Expression): FoxExpression => {
+const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
   if (isLiteralExpression(expression)) {
     return {
-      expressionType: FoxExpressionType.Value,
+      expressionType: SkittlesExpressionType.Value,
       value: expression.text,
     };
   }
   if (isIdentifier(expression)) {
     return {
-      expressionType: FoxExpressionType.Value,
+      expressionType: SkittlesExpressionType.Value,
       value: expression.escapedText,
     };
   }
   if (isPropertyAccessExpression(expression)) {
     return {
-      expressionType: FoxExpressionType.Storage,
+      expressionType: SkittlesExpressionType.Storage,
       variable: getNodeName(expression),
     };
   }
   if (isBinaryExpression(expression)) {
     return {
-      expressionType: FoxExpressionType.Binary,
-      left: getFoxExpression(expression.left),
-      right: getFoxExpression(expression.right),
-      operator: getFoxOperator(expression.operatorToken.kind),
+      expressionType: SkittlesExpressionType.Binary,
+      left: getSkittlesExpression(expression.left),
+      right: getSkittlesExpression(expression.right),
+      operator: getSkittlesOperator(expression.operatorToken.kind),
     };
   }
   throw new Error(`Unknown expression type: ${expression.kind}`);
@@ -125,13 +125,15 @@ const isNodePrivate = (node: Node): boolean => {
   return isPrivate;
 };
 
-const getFoxProperty = (astProperty: PropertyDeclaration): FoxProperty => {
+const getSkittlesProperty = (
+  astProperty: PropertyDeclaration
+): SkittlesProperty => {
   if (!astProperty.type) throw new Error("Could not get property type");
   const initializer = astProperty.initializer;
   return {
     name: getNodeName(astProperty),
-    type: getFoxType(astProperty.type.kind),
-    value: initializer ? getFoxExpression(initializer) : undefined,
+    type: getSkittlesType(astProperty.type.kind),
+    value: initializer ? getSkittlesExpression(initializer) : undefined,
     private: isNodePrivate(astProperty),
   };
 };
@@ -153,52 +155,55 @@ const isNodeView = (node: Node): boolean => {
   return isView;
 };
 
-export const getFoxParameters = (node: Node): FoxParameter[] => {
-  const inputs: FoxParameter[] = [];
+export const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
+  const inputs: SkittlesParameter[] = [];
   forEachChild(node, (node) => {
     if (isParameter(node)) {
       inputs.push({
         name: getNodeName(node),
-        type: getFoxType(node.type?.kind),
+        type: getSkittlesType(node.type?.kind),
       });
     }
   });
   return inputs;
 };
 
-const getFoxStatement = (node: Node, returnType: string): FoxStatement => {
+const getSkittlesStatement = (
+  node: Node,
+  returnType: string
+): SkittlesStatement => {
   if (isExpressionStatement(node)) {
     const expression = node.expression;
     if (isBinaryExpression(expression)) {
       if (isPropertyAccessExpression(expression.left)) {
         if (isEquals(expression)) {
           return {
-            statementType: FoxStatementType.StorageUpdate,
+            statementType: SkittlesStatementType.StorageUpdate,
             variable: getNodeName(expression.left),
-            value: getFoxExpression(expression.right),
+            value: getSkittlesExpression(expression.right),
           };
         }
         if (isPlusEquals(expression)) {
           return {
-            statementType: FoxStatementType.StorageUpdate,
+            statementType: SkittlesStatementType.StorageUpdate,
             variable: getNodeName(expression.left),
             value: {
-              expressionType: FoxExpressionType.Binary,
-              operator: FoxOperator.Plus,
-              left: getFoxExpression(expression.left),
-              right: getFoxExpression(expression.right),
+              expressionType: SkittlesExpressionType.Binary,
+              operator: SkittlesOperator.Plus,
+              left: getSkittlesExpression(expression.left),
+              right: getSkittlesExpression(expression.right),
             },
           };
         }
         if (isMinusEquals(expression)) {
           return {
-            statementType: FoxStatementType.StorageUpdate,
+            statementType: SkittlesStatementType.StorageUpdate,
             variable: getNodeName(expression.left),
             value: {
-              expressionType: FoxExpressionType.Binary,
-              operator: FoxOperator.Minus,
-              left: getFoxExpression(expression.left),
-              right: getFoxExpression(expression.right),
+              expressionType: SkittlesExpressionType.Binary,
+              operator: SkittlesOperator.Minus,
+              left: getSkittlesExpression(expression.left),
+              right: getSkittlesExpression(expression.right),
             },
           };
         }
@@ -215,39 +220,39 @@ const getFoxStatement = (node: Node, returnType: string): FoxStatement => {
     if (!expression) throw new Error("Return statement has no expression");
     if (isBinaryExpression(expression)) {
       return {
-        statementType: FoxStatementType.Return,
+        statementType: SkittlesStatementType.Return,
         type: returnType,
-        value: getFoxExpression(node.expression),
+        value: getSkittlesExpression(node.expression),
       };
     }
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
 
-const getFoxMethod = (astMethod: MethodDeclaration): FoxMethod => {
+const getSkittlesMethod = (astMethod: MethodDeclaration): SkittlesMethod => {
   return {
     name: getNodeName(astMethod),
-    returns: getFoxType(astMethod.type?.kind),
+    returns: getSkittlesType(astMethod.type?.kind),
     private: isNodePrivate(astMethod),
     view: isNodeView(astMethod),
-    parameters: getFoxParameters(astMethod),
+    parameters: getSkittlesParameters(astMethod),
     statements:
       astMethod.body?.statements.map((statement) =>
-        getFoxStatement(statement, getFoxType(astMethod.type?.kind))
+        getSkittlesStatement(statement, getSkittlesType(astMethod.type?.kind))
       ) || [],
   };
 };
 
-const getFoxClass = (file: string): FoxClass => {
+const getSkittlesClass = (file: string): SkittlesClass => {
   const ast = getAst(file);
   const classNode = getClassNode(ast);
   const astProperties = classNode.members.filter(isPropertyDeclaration);
   const astMethods = classNode.members.filter(isMethodDeclaration);
   return {
     name: getNodeName(classNode),
-    properties: astProperties.map(getFoxProperty),
-    methods: astMethods.map(getFoxMethod),
+    properties: astProperties.map(getSkittlesProperty),
+    methods: astMethods.map(getSkittlesMethod),
   };
 };
 
-export default getFoxClass;
+export default getSkittlesClass;
