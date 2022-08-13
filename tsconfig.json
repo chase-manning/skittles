@@ -5,7 +5,10 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "outDir": "lib",
+    "rootDir": "src",
     "skipLibCheck": true
   },
-  "include": ["./index.ts", "contracts", "lib"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "**/*.d.ts", "test"]
 }
