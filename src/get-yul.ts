@@ -1,20 +1,19 @@
 import yulTemplate, { YulSection } from "./data/yul-template";
-import getAbi, { AbiParameter } from "./get-abi";
+import { Abi, AbiParameter } from "./get-abi";
 import getSelector from "./get-selector";
-import getFoxClass from "./get-fox-class";
-import {
-  FoxBinaryExpression,
-  FoxExpression,
-  FoxExpressionType,
-  FoxMethod,
-  FoxOperator,
-  FoxParameter,
-  FoxProperty,
-  FoxReturnStatement,
-  FoxStatement,
-  FoxStatementType,
-  FoxStorageUpdateStatement,
-} from "./types/fox-class";
+import SkittlesClass, {
+  SkittlesBinaryExpression,
+  SkittlesExpression,
+  SkittlesExpressionType,
+  SkittlesMethod,
+  SkittlesOperator,
+  SkittlesParameter,
+  SkittlesProperty,
+  SkittlesReturnStatement,
+  SkittlesStatement,
+  SkittlesStatementType,
+  SkittlesStorageUpdateStatement,
+} from "./types/skittles-class";
 
 const addToSection = (
   yul: string[],
@@ -49,7 +48,7 @@ const getBaseYul = (name: string): string[] => {
 const addPropertyDispatcher = (
   yul: string[],
   abi: any[],
-  property: FoxProperty
+  property: SkittlesProperty
 ): string[] => {
   const { name, type } = property;
   const selector = getSelector(abi, name);
@@ -63,7 +62,7 @@ const addPropertyDispatcher = (
 const addMethodDispatcher = (
   yul: string[],
   abi: any[],
-  method: FoxMethod
+  method: SkittlesMethod
 ): string[] => {
   const { name, parameters, returns } = method;
   const selector = getSelector(abi, name);
@@ -74,7 +73,7 @@ const addMethodDispatcher = (
     returns === "void"
       ? `                ${name}Function(${parameters
           .map(
-            (input: FoxParameter, index: number) =>
+            (input: SkittlesParameter, index: number) =>
               `${decoderFunctions[input.type]}(${index})`
           )
           .join(", ")})`
@@ -83,81 +82,83 @@ const addMethodDispatcher = (
   ]);
 };
 
-const getBinaryYul = (expression: FoxBinaryExpression): string => {
+const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
   const { left, right, operator } = expression;
   switch (operator) {
-    case FoxOperator.Plus:
+    case SkittlesOperator.Plus:
       return `safeAdd(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Minus:
+    case SkittlesOperator.Minus:
       return `sub(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Multiply:
+    case SkittlesOperator.Multiply:
       return `mul(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Divide:
+    case SkittlesOperator.Divide:
       return `div(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Modulo:
+    case SkittlesOperator.Modulo:
       return `mod(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Equals:
+    case SkittlesOperator.Equals:
       return `eq(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.NotEquals:
+    case SkittlesOperator.NotEquals:
       return `not(eq(${getExpressionYul(left)}, ${getExpressionYul(right)}))`;
-    case FoxOperator.GreaterThan:
+    case SkittlesOperator.GreaterThan:
       return `gt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.LessThan:
+    case SkittlesOperator.LessThan:
       return `lt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.GreaterThanOrEqual:
+    case SkittlesOperator.GreaterThanOrEqual:
       return `gte(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.LessThanOrEqual:
+    case SkittlesOperator.LessThanOrEqual:
       return `lte(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.And:
+    case SkittlesOperator.And:
       return `and(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Or:
+    case SkittlesOperator.Or:
       return `or(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case FoxOperator.Not:
+    case SkittlesOperator.Not:
       return `not(${getExpressionYul(left)})`;
     default:
       throw new Error(`Unsupported binary operator ${operator}`);
   }
 };
 
-const getExpressionYul = (expression: FoxExpression): string => {
+const getExpressionYul = (expression: SkittlesExpression): string => {
   switch (expression.expressionType) {
-    case FoxExpressionType.Binary:
+    case SkittlesExpressionType.Binary:
       return getBinaryYul(expression);
-    case FoxExpressionType.Value:
+    case SkittlesExpressionType.Value:
       return expression.value;
-    case FoxExpressionType.Storage:
+    case SkittlesExpressionType.Storage:
       return `${expression.variable}Storage()`;
     default:
       throw new Error("Unsupported expression");
   }
 };
 
-const getStorageUpdateYul = (statement: FoxStorageUpdateStatement): string => {
+const getStorageUpdateYul = (
+  statement: SkittlesStorageUpdateStatement
+): string => {
   const { variable, value } = statement;
   return `                ${variable}Set(${getExpressionYul(value)})`;
 };
 
-const getReturnYul = (statement: FoxReturnStatement): string => {
+const getReturnYul = (statement: SkittlesReturnStatement): string => {
   const { value } = statement;
   return `                v := ${getExpressionYul(value)}`;
 };
 
-const getStatementYul = (statement: FoxStatement): string => {
+const getStatementYul = (statement: SkittlesStatement): string => {
   switch (statement.statementType) {
-    case FoxStatementType.StorageUpdate:
+    case SkittlesStatementType.StorageUpdate:
       return getStorageUpdateYul(statement);
-    case FoxStatementType.Return:
+    case SkittlesStatementType.Return:
       return getReturnYul(statement);
     default:
       throw new Error("Unsupported statement");
   }
 };
 
-const getBlockYul = (statements: FoxStatement[]): string[] => {
+const getBlockYul = (statements: SkittlesStatement[]): string[] => {
   return statements.map((statement) => getStatementYul(statement));
 };
 
-const addMethodFunction = (yul: string[], method: FoxMethod) => {
+const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   const { name, parameters, returns, statements } = method;
   const hasReturn = returns !== "void";
   return addToSection(yul, YulSection.Functions, [
@@ -171,7 +172,7 @@ const addMethodFunction = (yul: string[], method: FoxMethod) => {
 
 const addStorageLayout = (
   yul: string[],
-  property: FoxProperty,
+  property: SkittlesProperty,
   index: number
 ) => {
   const { name } = property;
@@ -180,7 +181,7 @@ const addStorageLayout = (
   ]);
 };
 
-const addStorageAccess = (yul: string[], property: FoxProperty) => {
+const addStorageAccess = (yul: string[], property: SkittlesProperty) => {
   const { name } = property;
   const initial = name.substring(0, 1);
   return addToSection(yul, YulSection.StorageAccess, [
@@ -193,22 +194,22 @@ const addStorageAccess = (yul: string[], property: FoxProperty) => {
   ]);
 };
 
-const getYul = (file: string) => {
+const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   // Getting base data
-  const foxClass = getFoxClass(file);
-  const abi = getAbi(foxClass);
-  let yul = getBaseYul(foxClass.name);
+  let yul = getBaseYul(skittlesClass.name);
 
   // Adding properties
-  foxClass.properties.forEach((property: FoxProperty, index: number) => {
-    yul = addPropertyDispatcher(yul, abi, property);
-    yul = addStorageLayout(yul, property, index);
-    yul = addStorageAccess(yul, property);
-    // TODO Handle private properties
-  });
+  skittlesClass.properties.forEach(
+    (property: SkittlesProperty, index: number) => {
+      yul = addPropertyDispatcher(yul, abi, property);
+      yul = addStorageLayout(yul, property, index);
+      yul = addStorageAccess(yul, property);
+      // TODO Handle private properties
+    }
+  );
 
   // Adding methods
-  foxClass.methods.forEach((method: FoxMethod) => {
+  skittlesClass.methods.forEach((method: SkittlesMethod) => {
     yul = addMethodDispatcher(yul, abi, method);
     yul = addMethodFunction(yul, method);
     // TODO Handle private methods

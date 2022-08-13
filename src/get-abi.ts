@@ -1,4 +1,7 @@
-import FoxClass, { FoxMethod, FoxProperty } from "./types/fox-class";
+import SkittlesClass, {
+  SkittlesMethod,
+  SkittlesProperty,
+} from "./types/skittles-class";
 
 export interface AbiParameter {
   name: string;
@@ -15,7 +18,7 @@ export interface AbiFunction {
 
 export type Abi = AbiFunction[];
 
-const getPropertyAbi = (property: FoxProperty): AbiFunction => {
+const getPropertyAbi = (property: SkittlesProperty): AbiFunction => {
   return {
     type: "function",
     name: property.name,
@@ -25,7 +28,7 @@ const getPropertyAbi = (property: FoxProperty): AbiFunction => {
   };
 };
 
-const getMethodAbi = (method: FoxMethod): AbiFunction => {
+const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
   return {
     type: "function",
     name: method.name,
@@ -38,10 +41,10 @@ const getMethodAbi = (method: FoxMethod): AbiFunction => {
   };
 };
 
-const getAbi = (foxClass: FoxClass): Abi => {
+const getAbi = (skittlesClass: SkittlesClass): Abi => {
   return [
-    ...foxClass.properties.filter((p) => !p.private).map(getPropertyAbi),
-    ...foxClass.methods.filter((p) => !p.private).map(getMethodAbi),
+    ...skittlesClass.properties.filter((p) => !p.private).map(getPropertyAbi),
+    ...skittlesClass.methods.filter((p) => !p.private).map(getMethodAbi),
   ];
 };
 
