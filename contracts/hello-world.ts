@@ -1,5 +1,5 @@
 export class HelloWorld {
-  balance: number = 0;
+  balance: number = 1;
 
   addBalance(value: number): void {
     this.balance += value;

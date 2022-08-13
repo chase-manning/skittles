@@ -1,4 +1,5 @@
 export enum YulSection {
+  Constructor = "constructor",
   Dispatchers = "dispatchers",
   Functions = "functions",
   StorageLayout = "storage layout",
@@ -7,7 +8,9 @@ export enum YulSection {
 
 const yulTemplate: string[] = [
   `    code {`,
-  `        // Deploy the contract`,
+  `        /* ---------- constructor ----------- */`,
+  ``,
+  ``,
   `        datacopy(0, dataoffset("runtime"), datasize("runtime"))`,
   `        return(0, datasize("runtime"))`,
   `    }`,

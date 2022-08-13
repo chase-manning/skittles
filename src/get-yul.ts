@@ -194,6 +194,17 @@ const addStorageAccess = (yul: string[], property: SkittlesProperty) => {
   ]);
 };
 
+const addValueInitializations = (
+  yul: string[],
+  property: SkittlesProperty,
+  index: number
+) => {
+  if (!property.value) return yul;
+  return addToSection(yul, YulSection.Constructor, [
+    `        sstore(${index}, ${getExpressionYul(property.value)})`,
+  ]);
+};
+
 const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   // Getting base data
   let yul = getBaseYul(skittlesClass.name);
@@ -204,6 +215,7 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
       yul = addPropertyDispatcher(yul, abi, property);
       yul = addStorageLayout(yul, property, index);
       yul = addStorageAccess(yul, property);
+      yul = addValueInitializations(yul, property, index);
       // TODO Handle private properties
     }
   );

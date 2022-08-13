@@ -16,13 +16,13 @@ describe("Hello World", () => {
     const helloWorld = await HelloWorld.deploy();
     await helloWorld.deployed();
 
-    expect(await helloWorld.balance()).to.equal(0);
-    expect(await helloWorld.getBalanceTimesTwo()).to.equal(0);
-    await helloWorld.addBalance(1);
     expect(await helloWorld.balance()).to.equal(1);
     expect(await helloWorld.getBalanceTimesTwo()).to.equal(2);
+    await helloWorld.addBalance(1);
+    expect(await helloWorld.balance()).to.equal(2);
+    expect(await helloWorld.getBalanceTimesTwo()).to.equal(4);
     await helloWorld.addBalance(234);
-    expect(await helloWorld.balance()).to.equal(235);
-    expect(await helloWorld.getBalanceTimesTwo()).to.equal(470);
+    expect(await helloWorld.balance()).to.equal(236);
+    expect(await helloWorld.getBalanceTimesTwo()).to.equal(472);
   });
 });
