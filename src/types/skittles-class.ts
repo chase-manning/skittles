@@ -9,20 +9,20 @@ export interface SkittlesBaseExpression {
 }
 
 export enum SkittlesOperator {
-  Plus = "+",
-  Minus = "-",
-  Multiply = "*",
-  Divide = "/",
-  Modulo = "%",
-  Equals = "==",
-  NotEquals = "!=",
-  GreaterThan = ">",
-  LessThan = "<",
-  GreaterThanOrEqual = ">=",
-  LessThanOrEqual = "<=",
-  And = "&&",
-  Or = "||",
-  Not = "!",
+  Plus,
+  Minus,
+  Multiply,
+  Divide,
+  Modulo,
+  Equals,
+  NotEquals,
+  GreaterThan,
+  LessThan,
+  GreaterThanOrEqual,
+  LessThanOrEqual,
+  And,
+  Or,
+  Not,
 }
 
 export interface SkittlesBinaryExpression extends SkittlesBaseExpression {
