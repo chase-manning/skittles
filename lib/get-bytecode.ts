@@ -1,7 +1,7 @@
 const solc = require("solc");
 
 const getBytecode = (className: string, content: string) => {
-  var input = {
+  const input = {
     language: "Yul",
     sources: {
       main: {
