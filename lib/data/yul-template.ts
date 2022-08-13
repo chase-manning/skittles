@@ -5,21 +5,6 @@ export enum YulSection {
   StorageAccess = "storage access",
 }
 
-export const addToSection = (
-  yul: string[],
-  section: YulSection,
-  lines: string[]
-): string[] => {
-  const sectionIndex = yul.findIndex((line) => line.includes(`- ${section} -`));
-  if (sectionIndex === -1) {
-    yul.push(`${section}:`);
-    yul.push(...lines);
-  } else {
-    yul.splice(sectionIndex + 1, 0, ...lines);
-  }
-  return yul;
-};
-
 const yulTemplate: string[] = [
   `    code {`,
   `        // Deploy the contract`,

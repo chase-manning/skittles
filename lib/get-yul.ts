@@ -1,4 +1,4 @@
-import yulTemplate, { addToSection, YulSection } from "./data/yul-template";
+import yulTemplate, { YulSection } from "./data/yul-template";
 import getAbi, { AbiParameter } from "./get-abi";
 import getSelector from "./get-selector";
 import getFoxClass from "./get-fox-class";
@@ -15,6 +15,21 @@ import {
   FoxStatementType,
   FoxStorageUpdateStatement,
 } from "./types/fox-class";
+
+const addToSection = (
+  yul: string[],
+  section: YulSection,
+  lines: string[]
+): string[] => {
+  const sectionIndex = yul.findIndex((line) => line.includes(`- ${section} -`));
+  if (sectionIndex === -1) {
+    yul.push(`${section}:`);
+    yul.push(...lines);
+  } else {
+    yul.splice(sectionIndex + 1, 0, ...lines);
+  }
+  return yul;
+};
 
 const decoderFunctions: Record<string, string> = {
   address: "decodeAsAddress",
