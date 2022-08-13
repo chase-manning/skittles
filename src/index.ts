@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import chalk from "chalk";
-import clear from "clear";
-import figlet from "figlet";
-import path from "path";
+// import chalk from "chalk";
+// import clear from "clear";
+// import figlet from "figlet";
+// import path from "path";
 import { program } from "commander";
-import { compileTypeScriptToBytecode } from "./compiler";
-import { getAllContractFiles } from "./helpers/file-helper";
+import { skittlesCompile } from "./skittles";
 
 // clear();
 // console.log(
@@ -28,12 +27,8 @@ program
 program
   .command("compile")
   .description("Compile all TypeScript file")
-  .action(async (str, options) => {
-    const files = getAllContractFiles();
-    const promises = files.map(async (file) => {
-      console.log(await compileTypeScriptToBytecode(file));
-    });
-    await Promise.all(promises);
+  .action(async () => {
+    await skittlesCompile();
   });
 
 program.parse();

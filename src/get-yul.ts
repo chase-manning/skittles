@@ -1,8 +1,7 @@
 import yulTemplate, { YulSection } from "./data/yul-template";
-import getAbi, { AbiParameter } from "./get-abi";
+import { Abi, AbiParameter } from "./get-abi";
 import getSelector from "./get-selector";
-import getSkittlesClass from "./get-skittles-class";
-import {
+import SkittlesClass, {
   SkittlesBinaryExpression,
   SkittlesExpression,
   SkittlesExpressionType,
@@ -195,10 +194,8 @@ const addStorageAccess = (yul: string[], property: SkittlesProperty) => {
   ]);
 };
 
-const getYul = (file: string) => {
+const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   // Getting base data
-  const skittlesClass = getSkittlesClass(file);
-  const abi = getAbi(skittlesClass);
   let yul = getBaseYul(skittlesClass.name);
 
   // Adding properties
