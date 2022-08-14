@@ -8,7 +8,7 @@ import SkittlesClass, {
   SkittlesMethod,
   SkittlesOperator,
   SkittlesParameter,
-  SkittlesProperty,
+  SkittlesVariable,
   SkittlesReturnStatement,
   SkittlesStatement,
   SkittlesStatementType,
@@ -48,7 +48,7 @@ const getBaseYul = (name: string): string[] => {
 const addPropertyDispatcher = (
   yul: string[],
   abi: any[],
-  property: SkittlesProperty
+  property: SkittlesVariable
 ): string[] => {
   const { name, type } = property;
   const selector = getSelector(abi, name);
@@ -172,7 +172,7 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
 
 const addStorageLayout = (
   yul: string[],
-  property: SkittlesProperty,
+  property: SkittlesVariable,
   index: number
 ) => {
   const { name } = property;
@@ -181,7 +181,7 @@ const addStorageLayout = (
   ]);
 };
 
-const addStorageAccess = (yul: string[], property: SkittlesProperty) => {
+const addStorageAccess = (yul: string[], property: SkittlesVariable) => {
   const { name } = property;
   const initial = name.substring(0, 1);
   return addToSection(yul, YulSection.StorageAccess, [
@@ -196,7 +196,7 @@ const addStorageAccess = (yul: string[], property: SkittlesProperty) => {
 
 const addValueInitializations = (
   yul: string[],
-  property: SkittlesProperty,
+  property: SkittlesVariable,
   index: number
 ) => {
   if (!property.value) return yul;
@@ -210,8 +210,8 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   let yul = getBaseYul(skittlesClass.name);
 
   // Adding properties
-  skittlesClass.properties.forEach(
-    (property: SkittlesProperty, index: number) => {
+  skittlesClass.variables.forEach(
+    (property: SkittlesVariable, index: number) => {
       yul = addPropertyDispatcher(yul, abi, property);
       yul = addStorageLayout(yul, property, index);
       yul = addStorageAccess(yul, property);

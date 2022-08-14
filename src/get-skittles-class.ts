@@ -14,6 +14,8 @@ import {
   isExpressionStatement,
   isReturnStatement,
   isIdentifier,
+  isArrowFunction,
+  Block,
 } from "typescript";
 import getAst from "./get-ast";
 import {
@@ -29,7 +31,7 @@ import SkittlesClass, {
   SkittlesMethod,
   SkittlesOperator,
   SkittlesParameter,
-  SkittlesProperty,
+  SkittlesVariable,
   SkittlesStatement,
   SkittlesStatementType,
 } from "./types/skittles-class";
@@ -127,7 +129,7 @@ const isNodePrivate = (node: Node): boolean => {
 
 const getSkittlesProperty = (
   astProperty: PropertyDeclaration
-): SkittlesProperty => {
+): SkittlesVariable => {
   if (!astProperty.type) throw new Error("Could not get property type");
   const initializer = astProperty.initializer;
   return {
@@ -243,15 +245,59 @@ const getSkittlesMethod = (astMethod: MethodDeclaration): SkittlesMethod => {
   };
 };
 
+const isPropertyArrowFunction = (node: PropertyDeclaration): boolean => {
+  if (!isPropertyDeclaration(node)) return false;
+  if (!node.initializer) return false;
+  return isArrowFunction(node.initializer);
+};
+
+const getSkittlesMethodFromArrowFunctionProperty = (
+  astMethod: PropertyDeclaration
+): SkittlesMethod => {
+  if (!astMethod.initializer)
+    throw new Error("Arrow function has no initializer");
+  if (!isArrowFunction(astMethod.initializer))
+    throw new Error("Not an arrow function");
+
+  const arrowFunction = astMethod.initializer;
+  return {
+    name: getNodeName(astMethod),
+    returns: getSkittlesType(arrowFunction.type?.kind),
+    private: isNodePrivate(astMethod),
+    view: isNodeView(arrowFunction),
+    parameters: getSkittlesParameters(arrowFunction),
+    statements:
+      (arrowFunction.body as Block)?.statements.map((statement) =>
+        getSkittlesStatement(statement, getSkittlesType(astMethod.type?.kind))
+      ) || [],
+  };
+};
+
+const isVariable = (property: PropertyDeclaration): boolean => {
+  return !isPropertyArrowFunction(property);
+};
+
 const getSkittlesClass = (file: string): SkittlesClass => {
   const ast = getAst(file);
   const classNode = getClassNode(ast);
-  const astProperties = classNode.members.filter(isPropertyDeclaration);
+
+  const astVariables = classNode.members
+    .filter(isPropertyDeclaration)
+    .filter(isVariable);
+
   const astMethods = classNode.members.filter(isMethodDeclaration);
+
+  const astArrowFunctions = classNode.members
+    .filter(isPropertyDeclaration)
+    .filter(isPropertyArrowFunction);
+
   return {
     name: getNodeName(classNode),
-    properties: astProperties.map(getSkittlesProperty),
-    methods: astMethods.map(getSkittlesMethod),
+    variables: astVariables.map(getSkittlesProperty),
+    methods: [
+      ...astMethods.map(getSkittlesMethod),
+      ...astArrowFunctions.map(getSkittlesMethodFromArrowFunctionProperty),
+    ],
   };
 };
 

@@ -1,6 +1,6 @@
 import SkittlesClass, {
   SkittlesMethod,
-  SkittlesProperty,
+  SkittlesVariable,
 } from "./types/skittles-class";
 
 export interface AbiParameter {
@@ -18,7 +18,7 @@ export interface AbiFunction {
 
 export type Abi = AbiFunction[];
 
-const getPropertyAbi = (property: SkittlesProperty): AbiFunction => {
+const getPropertyAbi = (property: SkittlesVariable): AbiFunction => {
   return {
     type: "function",
     name: property.name,
@@ -43,7 +43,7 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
 
 const getAbi = (skittlesClass: SkittlesClass): Abi => {
   return [
-    ...skittlesClass.properties.filter((p) => !p.private).map(getPropertyAbi),
+    ...skittlesClass.variables.filter((p) => !p.private).map(getPropertyAbi),
     ...skittlesClass.methods.filter((p) => !p.private).map(getMethodAbi),
   ];
 };

@@ -72,7 +72,7 @@ export type SkittlesStatement =
   | SkittlesStorageUpdateStatement
   | SkittlesReturnStatement;
 
-export interface SkittlesProperty {
+export interface SkittlesVariable {
   name: string;
   type: string;
   value?: SkittlesExpression;
@@ -95,7 +95,7 @@ export interface SkittlesMethod {
 
 interface SkittlesClass {
   name: string;
-  properties: SkittlesProperty[];
+  variables: SkittlesVariable[];
   methods: SkittlesMethod[];
 }
 
