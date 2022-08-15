@@ -16,3 +16,11 @@ export const getAllContractFiles = (): string[] => {
       return file.endsWith(".ts") || file.endsWith(".js");
     });
 };
+
+const DIR = "build";
+
+export const writeFile = (type: string, fileName: string, content: string) => {
+  const directory = `${DIR}/${type}`;
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(`${directory}/${fileName}.${type}`, content);
+};
