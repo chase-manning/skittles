@@ -15,6 +15,9 @@ import SkittlesClass, {
   SkittlesStorageUpdateStatement,
 } from "./types/skittles-class";
 
+import fs from "fs";
+import { writeFile } from "./helpers/file-helper";
+
 const addToSection = (
   yul: string[],
   section: YulSection,
@@ -40,7 +43,7 @@ const returnFunctions: Record<string, string> = {
 };
 
 const getBaseYul = (name: string): string[] => {
-  const base = yulTemplate;
+  const base = [...yulTemplate];
   base.unshift(`object "${name}" {`);
   return base;
 };
@@ -205,7 +208,7 @@ const addValueInitializations = (
   ]);
 };
 
-const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
+const getYul = (skittlesClass: SkittlesClass, abi: Abi, debug = false) => {
   // Getting base data
   let yul = getBaseYul(skittlesClass.name);
 
@@ -228,7 +231,9 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   });
 
   // forEachChild(ast, process);
-  return yul.join("\n");
+  const output = yul.join("\n");
+  if (debug) writeFile("yul", skittlesClass.name, output);
+  return output;
 };
 
 export default getYul;
