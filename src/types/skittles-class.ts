@@ -93,8 +93,14 @@ export interface SkittlesMethod {
   statements: SkittlesStatement[];
 }
 
+export interface SkittlesConstructor {
+  parameters: SkittlesParameter[];
+  statements: SkittlesStatement[];
+}
+
 interface SkittlesClass {
   name: string;
+  constructor?: SkittlesConstructor;
   variables: SkittlesVariable[];
   methods: SkittlesMethod[];
 }

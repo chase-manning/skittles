@@ -15,7 +15,10 @@ import {
   isReturnStatement,
   isIdentifier,
   isArrowFunction,
-  Block,
+  ConstructorDeclaration,
+  isConstructorDeclaration,
+  ParameterDeclaration,
+  ExpressionStatement,
 } from "typescript";
 import getAst from "./get-ast";
 import {
@@ -34,6 +37,7 @@ import SkittlesClass, {
   SkittlesVariable,
   SkittlesStatement,
   SkittlesStatementType,
+  SkittlesConstructor,
 } from "./types/skittles-class";
 
 const getSkittlesType = (syntaxKind: SyntaxKind | undefined): string => {
@@ -170,6 +174,17 @@ export const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
   return inputs;
 };
 
+const getSkittlesStatements = (node: Node): SkittlesStatement[] => {
+  const { body } = node as any;
+  if (!body) return [];
+  const { statements } = body;
+  if (!statements) return [];
+  const { type } = node as any;
+  return statements.map((statement: ExpressionStatement) =>
+    getSkittlesStatement(statement, getSkittlesType(type?.kind))
+  );
+};
+
 const getSkittlesStatement = (
   node: Node,
   returnType: string
@@ -238,10 +253,7 @@ const getSkittlesMethod = (astMethod: MethodDeclaration): SkittlesMethod => {
     private: isNodePrivate(astMethod),
     view: isNodeView(astMethod),
     parameters: getSkittlesParameters(astMethod),
-    statements:
-      astMethod.body?.statements.map((statement) =>
-        getSkittlesStatement(statement, getSkittlesType(astMethod.type?.kind))
-      ) || [],
+    statements: getSkittlesStatements(astMethod),
   };
 };
 
@@ -266,15 +278,28 @@ const getSkittlesMethodFromArrowFunctionProperty = (
     private: isNodePrivate(astMethod),
     view: isNodeView(arrowFunction),
     parameters: getSkittlesParameters(arrowFunction),
-    statements:
-      (arrowFunction.body as Block)?.statements.map((statement) =>
-        getSkittlesStatement(statement, getSkittlesType(astMethod.type?.kind))
-      ) || [],
+    statements: getSkittlesStatements(arrowFunction),
   };
 };
 
 const isVariable = (property: PropertyDeclaration): boolean => {
   return !isPropertyArrowFunction(property);
+};
+
+const getSkittlesConstructor = (
+  astConstructor: ConstructorDeclaration
+): SkittlesConstructor => {
+  return {
+    parameters: astConstructor.parameters.map(
+      (parameter: ParameterDeclaration) => {
+        return {
+          name: getNodeName(parameter),
+          type: getSkittlesType(parameter.type?.kind),
+        };
+      }
+    ),
+    statements: getSkittlesStatements(astConstructor),
+  };
 };
 
 const getSkittlesClass = (file: string): SkittlesClass => {
@@ -291,8 +316,13 @@ const getSkittlesClass = (file: string): SkittlesClass => {
     .filter(isPropertyDeclaration)
     .filter(isPropertyArrowFunction);
 
+  const astConstructor = classNode.members.find(isConstructorDeclaration);
+
   return {
     name: getNodeName(classNode),
+    constructor: astConstructor
+      ? getSkittlesConstructor(astConstructor)
+      : undefined,
     variables: astVariables.map(getSkittlesProperty),
     methods: [
       ...astMethods.map(getSkittlesMethod),
