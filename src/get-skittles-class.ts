@@ -195,7 +195,7 @@ const getSkittlesStatement = (
   returnType: string
 ): SkittlesStatement => {
   if (isExpressionStatement(node)) {
-    const expression = node.expression;
+    const { expression } = node;
     if (isBinaryExpression(expression)) {
       if (isPropertyAccessExpression(expression.left)) {
         if (isEquals(expression)) {
@@ -238,15 +238,23 @@ const getSkittlesStatement = (
     throw new Error("Not implemented expression statement handling");
   }
   if (isReturnStatement(node)) {
-    const expression = node.expression;
+    const { expression } = node;
     if (!expression) throw new Error("Return statement has no expression");
     if (isBinaryExpression(expression)) {
       return {
         statementType: SkittlesStatementType.Return,
         type: returnType,
-        value: getSkittlesExpression(node.expression),
+        value: getSkittlesExpression(expression),
       };
     }
+    if (isPropertyAccessExpression(expression)) {
+      return {
+        statementType: SkittlesStatementType.Return,
+        type: returnType,
+        value: getSkittlesExpression(expression),
+      };
+    }
+    throw new Error(`Unknown return expression type: ${expression.kind}`);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
