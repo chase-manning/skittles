@@ -1,4 +1,5 @@
 import SkittlesClass, {
+  SkittlesConstructor,
   SkittlesMethod,
   SkittlesVariable,
 } from "./types/skittles-class";
@@ -10,13 +11,29 @@ export interface AbiParameter {
 
 export interface AbiFunction {
   type: "function" | "constructor" | "receive" | "fallback";
-  name: string;
+  name?: string;
   inputs: AbiParameter[];
-  outputs: AbiParameter[];
+  outputs?: AbiParameter[];
   stateMutability: "view" | "payable" | "nonpayable" | "pure";
 }
 
 export type Abi = AbiFunction[];
+
+const getConstructorAbi = (
+  constructor?: SkittlesConstructor
+): AbiFunction[] => {
+  if (!constructor) return [];
+  return [
+    {
+      type: "constructor",
+      inputs: constructor.parameters.map((i) => ({
+        name: i.name,
+        type: i.type,
+      })),
+      stateMutability: "nonpayable",
+    },
+  ];
+};
 
 const getPropertyAbi = (property: SkittlesVariable): AbiFunction => {
   return {
@@ -43,6 +60,7 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
 
 const getAbi = (skittlesClass: SkittlesClass): Abi => {
   return [
+    ...getConstructorAbi(skittlesClass.constructor),
     ...skittlesClass.variables.filter((p) => !p.private).map(getPropertyAbi),
     ...skittlesClass.methods.filter((p) => !p.private).map(getMethodAbi),
   ];
