@@ -1,7 +1,13 @@
-Add more support
+TODO compile features:
 
-add readme
-Add other normal repo things
+- Add support for strings
+- All constructor inputs
+- mapping
+- readonly
 
-add init function
-wrap all the hardhat functions
+TODO project features:
+
+- add readme
+- add normal repo things
+- add init function
+- wrap all hardhat functions
