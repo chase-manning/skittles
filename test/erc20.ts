@@ -39,7 +39,8 @@ describe("ERC20", () => {
     const totalSupply = await token.totalSupply();
     expect(totalSupply).to.equal(0);
   });
-  it("Should have 18 decimals to start", async () => {
+
+  it("Should have 18 decimals", async () => {
     expect(await token.decimals()).to.equal(18);
   });
 });
