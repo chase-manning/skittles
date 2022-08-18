@@ -2,6 +2,7 @@ export enum SkittlesExpressionType {
   Binary = "Binary",
   Value = "Value",
   Storage = "Storage",
+  Variable = "Variable",
 }
 
 export interface SkittlesBaseExpression {
@@ -32,8 +33,14 @@ export interface SkittlesBinaryExpression extends SkittlesBaseExpression {
   operator: SkittlesOperator;
 }
 
+export interface SkittlesVariableExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Variable;
+  value: any;
+}
+
 export interface SkittlesValueExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.Value;
+  type: string;
   value: any;
 }
 
@@ -44,6 +51,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 
 export type SkittlesExpression =
   | SkittlesBinaryExpression
+  | SkittlesVariableExpression
   | SkittlesValueExpression
   | SkittlesStorageExpression;
 

@@ -45,7 +45,11 @@ const getSkittlesType = (syntaxKind: SyntaxKind | undefined): string => {
   switch (syntaxKind) {
     case SyntaxKind.StringKeyword:
       return "string";
+    case SyntaxKind.StringLiteral:
+      return "string";
     case SyntaxKind.NumberKeyword:
+      return "uint256";
+    case SyntaxKind.NumericLiteral:
       return "uint256";
     case SyntaxKind.BooleanKeyword:
       return "boolean";
@@ -92,16 +96,17 @@ const getSkittlesOperator = (syntaxKind: SyntaxKind): SkittlesOperator => {
 };
 
 const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
+  if (isIdentifier(expression)) {
+    return {
+      expressionType: SkittlesExpressionType.Variable,
+      value: expression.escapedText,
+    };
+  }
   if (isLiteralExpression(expression)) {
     return {
       expressionType: SkittlesExpressionType.Value,
+      type: getSkittlesType(expression.kind),
       value: expression.text,
-    };
-  }
-  if (isIdentifier(expression)) {
-    return {
-      expressionType: SkittlesExpressionType.Value,
-      value: expression.escapedText,
     };
   }
   if (isPropertyAccessExpression(expression)) {
