@@ -3,12 +3,20 @@ export enum YulSection {
   Dispatchers = "dispatchers",
   Functions = "functions",
   StorageLayout = "storage layout",
+  ConstructorStorageLayout = "constructor storage layout",
   StorageAccess = "storage access",
+  ConstructorStorageAccess = "constructor storage access",
 }
 
 const yulTemplate: string[] = [
   `    code {`,
   `        /* ---------- constructor ----------- */`,
+  ``,
+  ``,
+  `        /* -------- constructor storage layout ---------- */`,
+  ``,
+  ``,
+  `        /* -------- constructor storage access ---------- */`,
   ``,
   ``,
   `        datacopy(0, dataoffset("runtime"), datasize("runtime"))`,

@@ -13,9 +13,9 @@ import SkittlesClass, {
   SkittlesStatement,
   SkittlesStatementType,
   SkittlesStorageUpdateStatement,
+  SkittlesConstructor,
 } from "./types/skittles-class";
 
-import fs from "fs";
 import { writeFile } from "./helpers/file-helper";
 
 const addToSection = (
@@ -24,12 +24,8 @@ const addToSection = (
   lines: string[]
 ): string[] => {
   const sectionIndex = yul.findIndex((line) => line.includes(`- ${section} -`));
-  if (sectionIndex === -1) {
-    yul.push(`${section}:`);
-    yul.push(...lines);
-  } else {
-    yul.splice(sectionIndex + 1, 0, ...lines);
-  }
+  if (sectionIndex === -1) return yul;
+  yul.splice(sectionIndex + 1, 0, ...lines);
   return yul;
 };
 
@@ -37,6 +33,7 @@ const decoderFunctions: Record<string, string> = {
   address: "decodeAsAddress",
   uint256: "decodeAsUint",
 };
+
 const returnFunctions: Record<string, string> = {
   uint256: "returnUint",
   boolean: "returnTrue",
@@ -184,6 +181,17 @@ const addStorageLayout = (
   ]);
 };
 
+const addConstructorStorageLayout = (
+  yul: string[],
+  property: SkittlesVariable,
+  index: number
+) => {
+  const { name } = property;
+  return addToSection(yul, YulSection.ConstructorStorageLayout, [
+    `        function ${name}Pos() -> p { p := ${index} }`,
+  ]);
+};
+
 const addStorageAccess = (yul: string[], property: SkittlesVariable) => {
   const { name } = property;
   const initial = name.substring(0, 1);
@@ -194,6 +202,22 @@ const addStorageAccess = (yul: string[], property: SkittlesVariable) => {
     `            function ${name}Set(value) {`,
     `                sstore(${name}Pos(), value)`,
     `            }`,
+  ]);
+};
+
+const addConstructorStorageAccess = (
+  yul: string[],
+  property: SkittlesVariable
+) => {
+  const { name } = property;
+  const initial = name.substring(0, 1);
+  return addToSection(yul, YulSection.ConstructorStorageAccess, [
+    `        function ${name}Storage() -> ${initial} {`,
+    `            ${initial} := sload(${name}Pos())`,
+    `        }`,
+    `        function ${name}Set(value) {`,
+    `            sstore(${name}Pos(), value)`,
+    `        }`,
   ]);
 };
 
@@ -208,6 +232,36 @@ const addValueInitializations = (
   ]);
 };
 
+const getParameters = (
+  parameters: AbiParameter[],
+  className: string
+): string[] => {
+  return [
+    `        let programSize := datasize("${className}")`,
+    `        let argSize := sub(codesize(), programSize)`,
+    `        codecopy(0, programSize, argSize)`,
+    ...parameters.map(
+      (input: AbiParameter, index: number) =>
+        `        let ${input.name} := mload(${index * 32})`
+    ),
+  ];
+};
+
+const addConstructor = (
+  yul: string[],
+  className: string,
+  constructor?: SkittlesConstructor
+) => {
+  if (!constructor) return yul;
+  const { parameters, statements } = constructor;
+  return addToSection(yul, YulSection.Constructor, [
+    ...getParameters(parameters, className),
+    ...getBlockYul(statements).map((statement) =>
+      statement.replace("                ", "        ")
+    ),
+  ]);
+};
+
 const getYul = (skittlesClass: SkittlesClass, abi: Abi, debug = false) => {
   // Getting base data
   let yul = getBaseYul(skittlesClass.name);
@@ -217,11 +271,16 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi, debug = false) => {
     (property: SkittlesVariable, index: number) => {
       yul = addPropertyDispatcher(yul, abi, property);
       yul = addStorageLayout(yul, property, index);
+      yul = addConstructorStorageLayout(yul, property, index);
       yul = addStorageAccess(yul, property);
+      yul = addConstructorStorageAccess(yul, property);
       yul = addValueInitializations(yul, property, index);
       // TODO Handle private properties
     }
   );
+
+  // Adding constructor
+  yul = addConstructor(yul, skittlesClass.name, skittlesClass.constructor);
 
   // Adding methods
   skittlesClass.methods.forEach((method: SkittlesMethod) => {
