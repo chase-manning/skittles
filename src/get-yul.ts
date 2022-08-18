@@ -50,6 +50,7 @@ const addPropertyDispatcher = (
   abi: any[],
   property: SkittlesVariable
 ): string[] => {
+  if (property.private) return yul;
   const { name, type } = property;
   const selector = getSelector(abi, name);
   return addToSection(yul, YulSection.Dispatchers, [
@@ -64,6 +65,7 @@ const addMethodDispatcher = (
   abi: any[],
   method: SkittlesMethod
 ): string[] => {
+  if (method.private) return yul;
   const { name, parameters, returns } = method;
   const selector = getSelector(abi, name);
   return addToSection(yul, YulSection.Dispatchers, [
