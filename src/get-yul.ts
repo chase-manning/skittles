@@ -37,6 +37,7 @@ const decoderFunctions: Record<string, string> = {
 const returnFunctions: Record<string, string> = {
   uint256: "returnUint",
   boolean: "returnTrue",
+  address: "returnAddress",
 };
 
 const getBaseYul = (name: string): string[] => {

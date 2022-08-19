@@ -1,3 +1,4 @@
+import { isAddress } from "ethers/lib/utils";
 import {
   Expression,
   forEachChild,
@@ -40,12 +41,18 @@ import SkittlesClass, {
   SkittlesConstructor,
 } from "./types/skittles-class";
 
-const getSkittlesType = (syntaxKind: SyntaxKind | undefined): string => {
-  if (!syntaxKind) return "void";
-  switch (syntaxKind) {
+const getSkittlesType = (type: Node | undefined, value?: any): string => {
+  if (!type) return "void";
+  const { kind } = type;
+  if (!kind) return "void";
+  switch (kind) {
     case SyntaxKind.StringKeyword:
+      if (!value) return "string";
+      if (isAddress(value)) return "address";
       return "string";
     case SyntaxKind.StringLiteral:
+      if (!value) return "string";
+      if (isAddress(value)) return "address";
       return "string";
     case SyntaxKind.NumberKeyword:
       return "uint256";
@@ -57,8 +64,19 @@ const getSkittlesType = (syntaxKind: SyntaxKind | undefined): string => {
       return "void";
     case SyntaxKind.AnyKeyword:
       return "any";
+    case SyntaxKind.TypeReference:
+      const { typeName } = type as any;
+      if (!typeName) throw new Error("Could not get type name");
+      const { escapedText } = typeName;
+      if (!escapedText) throw new Error("Could not get type escaped text");
+      switch (escapedText) {
+        case "Address":
+          return "address";
+        default:
+          throw new Error(`Unknown type reference type: ${escapedText}`);
+      }
     default:
-      throw new Error(`Unknown syntax kind: ${syntaxKind}`);
+      throw new Error(`Unknown syntax kind: ${kind}`);
   }
 };
 
@@ -103,10 +121,11 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
     };
   }
   if (isLiteralExpression(expression)) {
+    const value = expression.text;
     return {
       expressionType: SkittlesExpressionType.Value,
-      type: getSkittlesType(expression.kind),
-      value: expression.text,
+      type: getSkittlesType(expression, value),
+      value,
     };
   }
   if (isPropertyAccessExpression(expression)) {
@@ -141,10 +160,11 @@ const getSkittlesProperty = (
 ): SkittlesVariable => {
   if (!astProperty.type) throw new Error("Could not get property type");
   const initializer = astProperty.initializer;
+  const value = initializer ? getSkittlesExpression(initializer) : undefined;
   return {
     name: getNodeName(astProperty),
-    type: getSkittlesType(astProperty.type.kind),
-    value: initializer ? getSkittlesExpression(initializer) : undefined,
+    type: getSkittlesType(astProperty.type, value),
+    value,
     private: isNodePrivate(astProperty),
   };
 };
@@ -172,7 +192,7 @@ export const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
     if (isParameter(node)) {
       inputs.push({
         name: getNodeName(node),
-        type: getSkittlesType(node.type?.kind),
+        type: getSkittlesType(node.type),
       });
     }
   });
@@ -186,7 +206,7 @@ const getSkittlesStatements = (node: Node): SkittlesStatement[] => {
   if (!statements) return [];
   const { type } = node as any;
   return statements.map((statement: ExpressionStatement) =>
-    getSkittlesStatement(statement, getSkittlesType(type?.kind))
+    getSkittlesStatement(statement, getSkittlesType(type))
   );
 };
 
@@ -262,7 +282,7 @@ const getSkittlesStatement = (
 const getSkittlesMethod = (astMethod: MethodDeclaration): SkittlesMethod => {
   return {
     name: getNodeName(astMethod),
-    returns: getSkittlesType(astMethod.type?.kind),
+    returns: getSkittlesType(astMethod.type),
     private: isNodePrivate(astMethod),
     view: isNodeView(astMethod),
     parameters: getSkittlesParameters(astMethod),
@@ -287,7 +307,7 @@ const getSkittlesMethodFromArrowFunctionProperty = (
   const arrowFunction = astMethod.initializer;
   return {
     name: getNodeName(astMethod),
-    returns: getSkittlesType(arrowFunction.type?.kind),
+    returns: getSkittlesType(arrowFunction.type),
     private: isNodePrivate(astMethod),
     view: isNodeView(arrowFunction),
     parameters: getSkittlesParameters(arrowFunction),
@@ -307,7 +327,7 @@ const getSkittlesConstructor = (
       (parameter: ParameterDeclaration) => {
         return {
           name: getNodeName(parameter),
-          type: getSkittlesType(parameter.type?.kind),
+          type: getSkittlesType(parameter.type),
         };
       }
     ),

@@ -43,4 +43,10 @@ describe("ERC20", () => {
   it("Should have 18 decimals", async () => {
     expect(await token.decimals()).to.equal(18);
   });
+
+  it("Should have owner", async () => {
+    expect(await token.owner()).to.equal(
+      "0x00000000006c3852cbEf3e08E8dF289169EdE581"
+    );
+  });
 });
