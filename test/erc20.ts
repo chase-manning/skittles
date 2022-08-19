@@ -8,9 +8,9 @@ import { Contract } from "ethers";
 import fs from "fs";
 
 let token: Contract;
-let walletA;
-let walletB;
-let walletC;
+let walletA: any;
+let walletB: any;
+let walletC: any;
 
 const readFileAsString = (fileName: string) => {
   return fs.readFileSync(fileName, { encoding: "utf8" });
@@ -48,5 +48,16 @@ describe("ERC20", () => {
     expect(await token.owner()).to.equal(
       "0x00000000006c3852cbEf3e08E8dF289169EdE581"
     );
+  });
+
+  it("owner should have 100 balance by default", async () => {
+    const owner = await token.owner();
+    const ownerBalance = await token.balanceOf(owner);
+    expect(ownerBalance).to.equal(100);
+  });
+
+  it("B should have 0 balance by default", async () => {
+    const bBalance = await token.balanceOf(walletB.address);
+    expect(bBalance).to.equal(0);
   });
 });

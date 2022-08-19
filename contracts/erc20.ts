@@ -13,7 +13,7 @@ export class ERC20 {
     this._balances[this.owner] = 100;
   }
 
-  // balanceOf(address: Address): number {
-  //   return this._balances[address];
-  // }
+  balanceOf(address: Address): number {
+    return this._balances[address];
+  }
 }

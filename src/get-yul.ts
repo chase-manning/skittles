@@ -81,7 +81,14 @@ const addMethodDispatcher = (
               `${decoderFunctions[input.type]}(${index})`
           )
           .join(", ")})`
-      : `                ${returnFunctions[returns]}(${name}Function())`,
+      : `                ${
+          returnFunctions[returns]
+        }(${name}Function(${parameters
+          .map(
+            (input: SkittlesParameter, index: number) =>
+              `${decoderFunctions[input.type]}(${index})`
+          )
+          .join(", ")}))`,
     `            }`,
   ]);
 };
@@ -127,12 +134,16 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
     case SkittlesExpressionType.Binary:
       return getBinaryYul(expression);
     case SkittlesExpressionType.Variable:
-      return expression.value;
+      return `${expression.value}Var`;
     case SkittlesExpressionType.Value:
       if (expression.type === "string") return `"${expression.value}"`;
       return expression.value;
     case SkittlesExpressionType.Storage:
       return `${expression.variable}Storage()`;
+    case SkittlesExpressionType.Mapping:
+      return `${expression.variable}Storage(${getExpressionYul(
+        expression.item
+      )})`;
     default:
       throw new Error("Unsupported expression");
   }
@@ -179,7 +190,7 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   const hasReturn = returns !== "void";
   return addToSection(yul, YulSection.Functions, [
     `            function ${name}Function(${parameters
-      .map((input: AbiParameter) => input.name)
+      .map((input: AbiParameter) => `${input.name}Var`)
       .join(", ")}) ${hasReturn ? `-> v ` : ""}{`,
     ...getBlockYul(statements),
     `            }`,
@@ -288,7 +299,7 @@ const getParameters = (
     `        codecopy(0, programSize, argSize)`,
     ...parameters.map(
       (input: AbiParameter, index: number) =>
-        `        let ${input.name} := mload(${index * 32})`
+        `        let ${input.name}Var := mload(${index * 32})`
     ),
   ];
 };

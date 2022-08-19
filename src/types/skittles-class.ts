@@ -3,6 +3,7 @@ export enum SkittlesExpressionType {
   Value = "Value",
   Storage = "Storage",
   Variable = "Variable",
+  Mapping = "Mapping",
 }
 
 export interface SkittlesBaseExpression {
@@ -24,6 +25,12 @@ export enum SkittlesOperator {
   And,
   Or,
   Not,
+}
+
+export interface SkittlesMappingExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Mapping;
+  variable: string;
+  item: SkittlesExpression;
 }
 
 export interface SkittlesBinaryExpression extends SkittlesBaseExpression {
@@ -50,6 +57,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesMappingExpression
   | SkittlesBinaryExpression
   | SkittlesVariableExpression
   | SkittlesValueExpression

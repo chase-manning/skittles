@@ -148,6 +148,13 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
       operator: getSkittlesOperator(expression.operatorToken.kind),
     };
   }
+  if (isElementAccessExpression(expression)) {
+    return {
+      expressionType: SkittlesExpressionType.Mapping,
+      variable: getNodeName(expression.expression),
+      item: getSkittlesExpression(expression.argumentExpression),
+    };
+  }
   throw new Error(`Unknown expression type: ${expression.kind}`);
 };
 
@@ -293,6 +300,14 @@ const getSkittlesStatement = (
         value: getSkittlesExpression(expression),
       };
     }
+    if (isElementAccessExpression(expression)) {
+      return {
+        statementType: SkittlesStatementType.Return,
+        type: returnType,
+        value: getSkittlesExpression(expression),
+      };
+    }
+
     throw new Error(`Unknown return expression type: ${expression.kind}`);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
