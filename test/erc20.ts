@@ -60,4 +60,12 @@ describe("ERC20", () => {
     const bBalance = await token.balanceOf(walletB.address);
     expect(bBalance).to.equal(0);
   });
+
+  it("owner should transfer to B", async () => {
+    const amount = 10;
+    const tx = await token.transfer(walletB.address, amount);
+    expect(tx.hash).to.be.a("string");
+    const bBalance = await token.balanceOf(walletB.address);
+    expect(bBalance).to.equal(amount);
+  });
 });

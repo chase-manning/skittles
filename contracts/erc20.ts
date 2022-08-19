@@ -16,4 +16,10 @@ export class ERC20 {
   balanceOf(address: Address): number {
     return this._balances[address];
   }
+
+  transfer(to: Address, amount: number): boolean {
+    this._balances[to] += amount;
+    this._balances[this.owner] -= amount; // TODO Wrong
+    return true;
+  }
 }
