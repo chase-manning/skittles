@@ -20,6 +20,7 @@ import {
   isConstructorDeclaration,
   ParameterDeclaration,
   ExpressionStatement,
+  isElementAccessExpression,
 } from "typescript";
 import getAst from "./get-ast";
 import {
@@ -72,6 +73,11 @@ const getSkittlesType = (type: Node | undefined, value?: any): string => {
       switch (escapedText) {
         case "Address":
           return "address";
+        case "Record":
+          const { typeArguments } = type as any;
+          return `mapping(${getSkittlesType(
+            typeArguments[0]
+          )},${getSkittlesType(typeArguments[1])})`;
         default:
           throw new Error(`Unknown type reference type: ${escapedText}`);
       }
@@ -253,6 +259,19 @@ const getSkittlesStatement = (
           `Unknown binary expression: ${expression.operatorToken.kind}`
         );
       }
+      if (isElementAccessExpression(expression.left)) {
+        if (isEquals(expression)) {
+          return {
+            statementType: SkittlesStatementType.MappingUpdate,
+            variable: getNodeName(expression.left.expression),
+            item: getSkittlesExpression(expression.left.argumentExpression),
+            value: getSkittlesExpression(expression.right),
+          };
+        }
+        throw new Error(
+          `Unknown element access expression: ${expression.operatorToken.kind}`
+        );
+      }
       throw new Error(`Unknown binary expression type: ${expression.kind}`);
     }
     throw new Error("Not implemented expression statement handling");
@@ -351,7 +370,7 @@ const getSkittlesClass = (file: string): SkittlesClass => {
 
   const astConstructor = classNode.members.find(isConstructorDeclaration);
 
-  return {
+  const skittlesClass = {
     name: getNodeName(classNode),
     constructor: astConstructor
       ? getSkittlesConstructor(astConstructor)
@@ -362,6 +381,7 @@ const getSkittlesClass = (file: string): SkittlesClass => {
       ...astArrowFunctions.map(getSkittlesMethodFromArrowFunctionProperty),
     ],
   };
+  return skittlesClass;
 };
 
 export default getSkittlesClass;

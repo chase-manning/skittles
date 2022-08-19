@@ -14,6 +14,7 @@ import SkittlesClass, {
   SkittlesStatementType,
   SkittlesStorageUpdateStatement,
   SkittlesConstructor,
+  SkittlesMappingUpdateStatement,
 } from "./types/skittles-class";
 
 import { writeFile } from "./helpers/file-helper";
@@ -137,6 +138,13 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
   }
 };
 
+const getMappingUpdateYul = (statement: SkittlesMappingUpdateStatement) => {
+  const { variable, item, value } = statement;
+  return `                ${variable}Set(${getExpressionYul(
+    item
+  )}, ${getExpressionYul(value)})`;
+};
+
 const getStorageUpdateYul = (
   statement: SkittlesStorageUpdateStatement
 ): string => {
@@ -155,6 +163,8 @@ const getStatementYul = (statement: SkittlesStatement): string => {
       return getStorageUpdateYul(statement);
     case SkittlesStatementType.Return:
       return getReturnYul(statement);
+    case SkittlesStatementType.MappingUpdate:
+      return getMappingUpdateYul(statement);
     default:
       throw new Error("Unsupported statement");
   }
@@ -182,6 +192,11 @@ const addStorageLayout = (
   index: number
 ) => {
   const { name } = property;
+  if (property.type.includes("mapping")) {
+    return addToSection(yul, YulSection.StorageLayout, [
+      `            function ${name}Pos(a) -> p { p := add(0x1000, a) }`,
+    ]);
+  }
   return addToSection(yul, YulSection.StorageLayout, [
     `            function ${name}Pos() -> p { p := ${index} }`,
   ]);
@@ -193,6 +208,11 @@ const addConstructorStorageLayout = (
   index: number
 ) => {
   const { name } = property;
+  if (property.type.includes("mapping")) {
+    return addToSection(yul, YulSection.ConstructorStorageLayout, [
+      `        function ${name}Pos(a) -> p { p := add(0x1000, a) }`,
+    ]);
+  }
   return addToSection(yul, YulSection.ConstructorStorageLayout, [
     `        function ${name}Pos() -> p { p := ${index} }`,
   ]);
@@ -201,6 +221,16 @@ const addConstructorStorageLayout = (
 const addStorageAccess = (yul: string[], property: SkittlesVariable) => {
   const { name } = property;
   const initial = name.substring(0, 1);
+  if (property.type.includes("mapping")) {
+    return addToSection(yul, YulSection.StorageAccess, [
+      `            function ${name}Storage(a) -> ${initial} {`,
+      `                ${initial} := sload(${name}Pos(a))`,
+      `            }`,
+      `            function ${name}Set(a, value) {`,
+      `                sstore(${name}Pos(a), value)`,
+      `            }`,
+    ]);
+  }
   return addToSection(yul, YulSection.StorageAccess, [
     `            function ${name}Storage() -> ${initial} {`,
     `                ${initial} := sload(${name}Pos())`,
@@ -217,6 +247,16 @@ const addConstructorStorageAccess = (
 ) => {
   const { name } = property;
   const initial = name.substring(0, 1);
+  if (property.type.includes("mapping")) {
+    return addToSection(yul, YulSection.ConstructorStorageAccess, [
+      `        function ${name}Storage(a) -> ${initial} {`,
+      `            ${initial} := sload(${name}Pos(a))`,
+      `        }`,
+      `        function ${name}Set(a, value) {`,
+      `            sstore(${name}Pos(a), value)`,
+      `        }`,
+    ]);
+  }
   return addToSection(yul, YulSection.ConstructorStorageAccess, [
     `        function ${name}Storage() -> ${initial} {`,
     `            ${initial} := sload(${name}Pos())`,
