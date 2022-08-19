@@ -60,7 +60,7 @@ const getSkittlesType = (type: Node | undefined, value?: any): string => {
     case SyntaxKind.NumericLiteral:
       return "uint256";
     case SyntaxKind.BooleanKeyword:
-      return "boolean";
+      return "bool";
     case SyntaxKind.VoidKeyword:
       return "void";
     case SyntaxKind.AnyKeyword:
@@ -117,6 +117,14 @@ const getSkittlesOperator = (syntaxKind: SyntaxKind): SkittlesOperator => {
     default:
       throw new Error(`Unknown syntax kind: ${syntaxKind}`);
   }
+};
+
+const isTrueKeyword = (node: Node): boolean => {
+  return node.kind === SyntaxKind.TrueKeyword;
+};
+
+const isFalseKeyword = (node: Node): boolean => {
+  return node.kind === SyntaxKind.FalseKeyword;
 };
 
 const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
@@ -187,6 +195,11 @@ const isNodeView = (node: Node): boolean => {
   forEachChild(node, (child) => {
     if (isBinaryExpression(child)) {
       if (isPropertyAccessExpression(child.left)) {
+        if (isPlusEquals(child) || isEquals(child) || isMinusEquals(child)) {
+          isView = false;
+        }
+      }
+      if (isElementAccessExpression(child.left)) {
         if (isPlusEquals(child) || isEquals(child) || isMinusEquals(child)) {
           isView = false;
         }
@@ -275,6 +288,32 @@ const getSkittlesStatement = (
             value: getSkittlesExpression(expression.right),
           };
         }
+        if (isPlusEquals(expression)) {
+          return {
+            statementType: SkittlesStatementType.MappingUpdate,
+            variable: getNodeName(expression.left.expression),
+            item: getSkittlesExpression(expression.left.argumentExpression),
+            value: {
+              expressionType: SkittlesExpressionType.Binary,
+              operator: SkittlesOperator.Plus,
+              left: getSkittlesExpression(expression.left),
+              right: getSkittlesExpression(expression.right),
+            },
+          };
+        }
+        if (isMinusEquals(expression)) {
+          return {
+            statementType: SkittlesStatementType.MappingUpdate,
+            variable: getNodeName(expression.left.expression),
+            item: getSkittlesExpression(expression.left.argumentExpression),
+            value: {
+              expressionType: SkittlesExpressionType.Binary,
+              operator: SkittlesOperator.Minus,
+              left: getSkittlesExpression(expression.left),
+              right: getSkittlesExpression(expression.right),
+            },
+          };
+        }
         throw new Error(
           `Unknown element access expression: ${expression.operatorToken.kind}`
         );
@@ -307,7 +346,28 @@ const getSkittlesStatement = (
         value: getSkittlesExpression(expression),
       };
     }
-
+    if (isTrueKeyword(expression)) {
+      return {
+        statementType: SkittlesStatementType.Return,
+        type: returnType,
+        value: {
+          expressionType: SkittlesExpressionType.Value,
+          type: "bool",
+          value: "true",
+        },
+      };
+    }
+    if (isFalseKeyword(expression)) {
+      return {
+        statementType: SkittlesStatementType.Return,
+        type: returnType,
+        value: {
+          expressionType: SkittlesExpressionType.Value,
+          type: "bool",
+          value: "false",
+        },
+      };
+    }
     throw new Error(`Unknown return expression type: ${expression.kind}`);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
