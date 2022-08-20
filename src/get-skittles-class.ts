@@ -24,6 +24,8 @@ import {
   isIfStatement,
   isBlock,
   Statement,
+  isThrowStatement,
+  isNewExpression,
 } from "typescript";
 import getAst from "./get-ast";
 import {
@@ -387,6 +389,22 @@ const getSkittlesStatement = (
       then: getSkittlesStatements(thenStatement, "void"),
       else: getSkittlesStatements(elseStatement, "void"),
     };
+  }
+  if (isThrowStatement(node)) {
+    const { expression } = node;
+    if (isNewExpression(expression)) {
+      const args = expression.arguments;
+      if (!args) throw new Error("Throw statement has no arguments");
+      if (args.length === 0)
+        throw new Error("Throw statement has no arguments");
+      if (args.length > 1)
+        throw new Error("Throw statement has too many arguments");
+      return {
+        statementType: SkittlesStatementType.Throw,
+        error: getSkittlesExpression(args[0]),
+      };
+    }
+    throw new Error("Not implemented throw statement handling");
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };

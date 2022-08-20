@@ -24,6 +24,9 @@ export class ERC20 {
   }
 
   private _transfer(from: address, to: address, amount: number): void {
+    if (this._balances[from] < amount) {
+      throw new Error("transfer amount exceeds balance");
+    }
     this._balances[to] += amount;
     this._balances[from] -= amount;
   }

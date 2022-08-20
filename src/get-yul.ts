@@ -17,6 +17,7 @@ import SkittlesClass, {
   SkittlesMappingUpdateStatement,
   SkittlesCallStatement,
   SkittlesIfStatement,
+  SkittlesThrowStatement,
 } from "./types/skittles-class";
 
 import { writeFile } from "./helpers/file-helper";
@@ -221,6 +222,11 @@ const getIfYul = (statement: SkittlesIfStatement): string[] => {
   ];
 };
 
+const getThrowYul = (statement: SkittlesThrowStatement): string[] => {
+  const { error } = statement;
+  return [`                revert256(${getExpressionYul(error)})`];
+};
+
 const getStatementYul = (statement: SkittlesStatement): string[] => {
   switch (statement.statementType) {
     case SkittlesStatementType.StorageUpdate:
@@ -233,8 +239,10 @@ const getStatementYul = (statement: SkittlesStatement): string[] => {
       return getCallYul(statement);
     case SkittlesStatementType.If:
       return getIfYul(statement);
+    case SkittlesStatementType.Throw:
+      return getThrowYul(statement);
     default:
-      throw new Error("Unsupported statement");
+      throw new Error(`Unsupported statement type ${statement}`);
   }
 };
 
