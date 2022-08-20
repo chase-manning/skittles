@@ -71,7 +71,7 @@ const getSkittlesType = (type: Node | undefined, value?: any): string => {
       const { escapedText } = typeName;
       if (!escapedText) throw new Error("Could not get type escaped text");
       switch (escapedText) {
-        case "Address":
+        case "address":
           return "address";
         case "Record":
           const { typeArguments } = type as any;

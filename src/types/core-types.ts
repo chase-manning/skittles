@@ -1,10 +1,10 @@
-export type Address = string;
+export type address = string;
 
-export const self: Address = "0x00000000006c3852cbEf3e08E8dF289169EdE581";
+export const self: address = "0x00000000006c3852cbEf3e08E8dF289169EdE581";
 
 export class block {
   // Current block miner’s address
-  static get coinbase(): Address {
+  static get coinbase(): address {
     return "0x0000000000000000000000000000000000000000";
   }
 
@@ -43,7 +43,7 @@ export class msg {
   }
 
   // Sender of the message (current call)
-  static get sender(): Address {
+  static get sender(): address {
     return "0x0000000000000000000000000000000000000000";
   }
 
@@ -60,7 +60,7 @@ export class tx {
   }
 
   // Sender of the transaction (full call chain)
-  static get origin(): Address {
+  static get origin(): address {
     return "0x0000000000000000000000000000000000000000";
   }
 }
