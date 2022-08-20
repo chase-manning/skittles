@@ -143,10 +143,27 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
     };
   }
   if (isPropertyAccessExpression(expression)) {
-    return {
-      expressionType: SkittlesExpressionType.Storage,
-      variable: getNodeName(expression),
-    };
+    if (expression.expression.kind === SyntaxKind.ThisKeyword) {
+      return {
+        expressionType: SkittlesExpressionType.Storage,
+        variable: getNodeName(expression),
+      };
+    }
+    if (expression.expression.kind === SyntaxKind.Identifier) {
+      const environment = (expression.expression as any).escapedText;
+      if (!environment) throw new Error("Could not get environment");
+      if (["block", "chain", "msg", "tx"].includes(environment)) {
+        return {
+          expressionType: SkittlesExpressionType.EvmDialect,
+          environment: environment,
+          variable: getNodeName(expression),
+        };
+      }
+      throw new Error(`Unknown environment: ${environment}`);
+    }
+    throw new Error(
+      `Property access expression not supported ${expression.getText()}`
+    );
   }
   if (isBinaryExpression(expression)) {
     return {

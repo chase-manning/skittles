@@ -41,6 +41,28 @@ const returnFunctions: Record<string, string> = {
   address: "returnAddress",
 };
 
+const evmDialects: Record<string, Record<string, string>> = {
+  block: {
+    coinbase: "coinbase()",
+    difficulty: "difficulty()",
+    block: "number()",
+    prevhash: "",
+    timestamp: "timestamp()",
+  },
+  chain: {
+    id: "chainid()",
+  },
+  msg: {
+    data: "",
+    sender: "caller()",
+    value: "callvalue()",
+  },
+  tx: {
+    gasPrice: "gasprice()",
+    origin: "origin()",
+  },
+};
+
 const getBaseYul = (name: string): string[] => {
   const base = [...yulTemplate];
   base.unshift(`object "${name}" {`);
@@ -144,6 +166,8 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
       return `${expression.variable}Storage(${getExpressionYul(
         expression.item
       )})`;
+    case SkittlesExpressionType.EvmDialect:
+      return evmDialects[expression.environment][expression.variable];
     default:
       throw new Error("Unsupported expression");
   }

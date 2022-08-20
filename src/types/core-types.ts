@@ -55,7 +55,7 @@ export class msg {
 
 export class tx {
   // Gas price of current transaction in wei
-  static get gasprice(): number {
+  static get gasPrice(): number {
     return 0;
   }
 
