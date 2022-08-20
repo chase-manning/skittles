@@ -7,6 +7,8 @@ import getYul from "../src/get-yul";
 import { Contract } from "ethers";
 import fs from "fs";
 
+const WALLET_A_AMOUNT = 100;
+
 let token: Contract;
 let walletA: any;
 let walletB: any;
@@ -45,15 +47,13 @@ describe("ERC20", () => {
   });
 
   it("Should have owner", async () => {
-    expect(await token.owner()).to.equal(
-      "0x00000000006c3852cbEf3e08E8dF289169EdE581"
-    );
+    expect(await token.owner()).to.equal(walletA.address);
   });
 
   it("owner should have 100 balance by default", async () => {
     const owner = await token.owner();
     const ownerBalance = await token.balanceOf(owner);
-    expect(ownerBalance).to.equal(100);
+    expect(ownerBalance).to.equal(WALLET_A_AMOUNT);
   });
 
   it("B should have 0 balance by default", async () => {
@@ -66,6 +66,8 @@ describe("ERC20", () => {
     const tx = await token.transfer(walletB.address, amount);
     expect(tx.hash).to.be.a("string");
     const bBalance = await token.balanceOf(walletB.address);
+    const aBalance = await token.balanceOf(walletA.address);
     expect(bBalance).to.equal(amount);
+    expect(aBalance).to.equal(WALLET_A_AMOUNT - amount);
   });
 });

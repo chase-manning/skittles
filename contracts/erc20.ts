@@ -1,4 +1,4 @@
-import { address } from "../src/types/core-types";
+import { address, msg } from "../src/types/core-types";
 
 export class ERC20 {
   decimals: number;
@@ -9,7 +9,7 @@ export class ERC20 {
 
   constructor(decimals_: number) {
     this.decimals = decimals_;
-    this.owner = "0x00000000006c3852cbEf3e08E8dF289169EdE581";
+    this.owner = msg.sender;
     this._balances[this.owner] = 100;
   }
 
@@ -19,7 +19,7 @@ export class ERC20 {
 
   transfer(to: address, amount: number): boolean {
     this._balances[to] += amount;
-    this._balances[this.owner] -= amount; // TODO Wrong
+    this._balances[msg.sender] -= amount;
     return true;
   }
 }
