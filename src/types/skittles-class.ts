@@ -76,10 +76,18 @@ export enum SkittlesStatementType {
   Return = "Return",
   MappingUpdate = "Mapping Update",
   Call = "Call",
+  If = "If",
 }
 
 export interface SkittlesBaseStatement {
   statementType: SkittlesStatementType;
+}
+
+export interface SkittlesIfStatement extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.If;
+  condition: SkittlesExpression;
+  then: SkittlesStatement[];
+  else: SkittlesStatement[];
 }
 
 export interface SkittlesCallStatement extends SkittlesBaseStatement {
@@ -108,6 +116,7 @@ export interface SkittlesReturnStatement extends SkittlesBaseStatement {
 }
 
 export type SkittlesStatement =
+  | SkittlesIfStatement
   | SkittlesCallStatement
   | SkittlesMappingUpdateStatement
   | SkittlesStorageUpdateStatement

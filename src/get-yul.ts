@@ -16,6 +16,7 @@ import SkittlesClass, {
   SkittlesConstructor,
   SkittlesMappingUpdateStatement,
   SkittlesCallStatement,
+  SkittlesIfStatement,
 } from "./types/skittles-class";
 
 import { writeFile } from "./helpers/file-helper";
@@ -176,33 +177,51 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
 
 const getStorageUpdateYul = (
   statement: SkittlesStorageUpdateStatement
-): string => {
+): string[] => {
   const { variable, value } = statement;
-  return `                ${variable}Set(${getExpressionYul(value)})`;
+  return [`                ${variable}Set(${getExpressionYul(value)})`];
 };
 
-const getReturnYul = (statement: SkittlesReturnStatement): string => {
+const getReturnYul = (statement: SkittlesReturnStatement): string[] => {
   const { value } = statement;
-  return `                v := ${getExpressionYul(value)}`;
+  return [`                v := ${getExpressionYul(value)}`];
 };
 
 const getMappingUpdateYul = (
   statement: SkittlesMappingUpdateStatement
-): string => {
+): string[] => {
   const { variable, item, value } = statement;
-  return `                ${variable}Set(${getExpressionYul(
-    item
-  )}, ${getExpressionYul(value)})`;
+  return [
+    `                ${variable}Set(${getExpressionYul(
+      item
+    )}, ${getExpressionYul(value)})`,
+  ];
 };
 
-const getCallYul = (statement: SkittlesCallStatement): string => {
+const getCallYul = (statement: SkittlesCallStatement): string[] => {
   const { target, parameters } = statement;
-  return `                ${target}Function(${parameters
-    .map(getExpressionYul)
-    .join(", ")})`;
+  return [
+    `                ${target}Function(${parameters
+      .map(getExpressionYul)
+      .join(", ")})`,
+  ];
 };
 
-const getStatementYul = (statement: SkittlesStatement): string => {
+const getIfYul = (statement: SkittlesIfStatement): string[] => {
+  const { condition, then } = statement;
+  // TODO Add else support (needs to use switches)
+  const statements = [];
+  for (const statement of then) {
+    statements.push(...getStatementYul(statement));
+  }
+  return [
+    `                if ${getExpressionYul(condition)} {`,
+    ...statements,
+    `                }`,
+  ];
+};
+
+const getStatementYul = (statement: SkittlesStatement): string[] => {
   switch (statement.statementType) {
     case SkittlesStatementType.StorageUpdate:
       return getStorageUpdateYul(statement);
@@ -212,13 +231,19 @@ const getStatementYul = (statement: SkittlesStatement): string => {
       return getMappingUpdateYul(statement);
     case SkittlesStatementType.Call:
       return getCallYul(statement);
+    case SkittlesStatementType.If:
+      return getIfYul(statement);
     default:
       throw new Error("Unsupported statement");
   }
 };
 
 const getBlockYul = (statements: SkittlesStatement[]): string[] => {
-  return statements.map((statement) => getStatementYul(statement));
+  const yul = [];
+  for (const statement of statements) {
+    yul.push(...getStatementYul(statement));
+  }
+  return yul;
 };
 
 const addMethodFunction = (yul: string[], method: SkittlesMethod) => {

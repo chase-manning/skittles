@@ -19,9 +19,11 @@ import {
   ConstructorDeclaration,
   isConstructorDeclaration,
   ParameterDeclaration,
-  ExpressionStatement,
   isElementAccessExpression,
   isCallExpression,
+  isIfStatement,
+  isBlock,
+  Statement,
 } from "typescript";
 import getAst from "./get-ast";
 import {
@@ -221,15 +223,18 @@ export const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
   return inputs;
 };
 
-const getSkittlesStatements = (node: Node): SkittlesStatement[] => {
-  const { body } = node as any;
-  if (!body) return [];
-  const { statements } = body;
-  if (!statements) return [];
-  const { type } = node as any;
-  return statements.map((statement: ExpressionStatement) =>
-    getSkittlesStatement(statement, getSkittlesType(type))
-  );
+const getSkittlesStatements = (
+  block: Statement | undefined,
+  returnType: string
+): SkittlesStatement[] => {
+  if (!block) return [];
+  if (isBlock(block)) {
+    const { statements } = block;
+    return statements.map((statement: Node) =>
+      getSkittlesStatement(statement, returnType)
+    );
+  }
+  return [getSkittlesStatement(block, returnType)];
 };
 
 const getSkittlesStatement = (
@@ -373,6 +378,16 @@ const getSkittlesStatement = (
     }
     throw new Error(`Unknown return expression type: ${expression.kind}`);
   }
+  if (isIfStatement(node)) {
+    const { expression, thenStatement, elseStatement } = node;
+    if (!thenStatement) throw new Error("If statement has no then statement");
+    return {
+      statementType: SkittlesStatementType.If,
+      condition: getSkittlesExpression(expression),
+      then: getSkittlesStatements(thenStatement, "void"),
+      else: getSkittlesStatements(elseStatement, "void"),
+    };
+  }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
 
@@ -383,7 +398,10 @@ const getSkittlesMethod = (astMethod: MethodDeclaration): SkittlesMethod => {
     private: isNodePrivate(astMethod),
     view: false, // Temporary, is overriden later with `getStateMutability()`
     parameters: getSkittlesParameters(astMethod),
-    statements: getSkittlesStatements(astMethod),
+    statements: getSkittlesStatements(
+      astMethod.body,
+      getSkittlesType(astMethod.type)
+    ),
   };
 };
 
@@ -408,7 +426,10 @@ const getSkittlesMethodFromArrowFunctionProperty = (
     private: isNodePrivate(astMethod),
     view: false, // Temporary, is overriden later with `getStateMutability()`
     parameters: getSkittlesParameters(arrowFunction),
-    statements: getSkittlesStatements(arrowFunction),
+    statements: getSkittlesStatements(
+      arrowFunction.body as Statement,
+      getSkittlesType(astMethod.type)
+    ),
   };
 };
 
@@ -428,7 +449,10 @@ const getSkittlesConstructor = (
         };
       }
     ),
-    statements: getSkittlesStatements(astConstructor),
+    statements: getSkittlesStatements(
+      astConstructor.body,
+      getSkittlesType(astConstructor.type)
+    ),
   };
 };
 
