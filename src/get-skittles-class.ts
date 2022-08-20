@@ -208,32 +208,6 @@ const getSkittlesProperty = (
   };
 };
 
-const isNodeView = (node: Node): boolean => {
-  let isView = true;
-  forEachChild(node, (child) => {
-    if (isBinaryExpression(child)) {
-      if (isPropertyAccessExpression(child.left)) {
-        if (isPlusEquals(child) || isEquals(child) || isMinusEquals(child)) {
-          isView = false;
-        }
-      }
-      if (isElementAccessExpression(child.left)) {
-        if (isPlusEquals(child) || isEquals(child) || isMinusEquals(child)) {
-          isView = false;
-        }
-      }
-    }
-    // TODO This is wrong
-    if (isCallExpression(child)) {
-      isView = false;
-    }
-    if (!isNodeView(child)) {
-      isView = false;
-    }
-  });
-  return isView;
-};
-
 export const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
   const inputs: SkittlesParameter[] = [];
   forEachChild(node, (node) => {
@@ -407,7 +381,7 @@ const getSkittlesMethod = (astMethod: MethodDeclaration): SkittlesMethod => {
     name: getNodeName(astMethod),
     returns: getSkittlesType(astMethod.type),
     private: isNodePrivate(astMethod),
-    view: isNodeView(astMethod),
+    view: false, // Temporary, is overriden later with `getStateMutability()`
     parameters: getSkittlesParameters(astMethod),
     statements: getSkittlesStatements(astMethod),
   };
@@ -432,7 +406,7 @@ const getSkittlesMethodFromArrowFunctionProperty = (
     name: getNodeName(astMethod),
     returns: getSkittlesType(arrowFunction.type),
     private: isNodePrivate(astMethod),
-    view: isNodeView(arrowFunction),
+    view: false, // Temporary, is overriden later with `getStateMutability()`
     parameters: getSkittlesParameters(arrowFunction),
     statements: getSkittlesStatements(arrowFunction),
   };
@@ -456,6 +430,39 @@ const getSkittlesConstructor = (
     ),
     statements: getSkittlesStatements(astConstructor),
   };
+};
+
+const getMethod = (
+  target: string,
+  skittlesClass: SkittlesClass
+): SkittlesMethod => {
+  const method = skittlesClass.methods.find((m) => m.name === target);
+  if (!method) throw new Error(`Method ${target} not found`);
+  return method;
+};
+
+const methodModifiesState = (
+  method: SkittlesMethod,
+  skittlesClass: SkittlesClass
+): boolean => {
+  if (method.returns === "void") return true;
+  for (const statement of method.statements) {
+    const { statementType } = statement;
+    if (statementType === SkittlesStatementType.MappingUpdate) return true;
+    if (statementType === SkittlesStatementType.StorageUpdate) return true;
+    if (statementType === SkittlesStatementType.Call) {
+      const target = getMethod(statement.target, skittlesClass);
+      if (methodModifiesState(target, skittlesClass)) return true;
+    }
+  }
+  return false;
+};
+
+const getStateMutability = (skittlesClass: SkittlesClass): SkittlesClass => {
+  for (let method of skittlesClass.methods) {
+    method.view = !methodModifiesState(method, skittlesClass);
+  }
+  return skittlesClass;
 };
 
 const getSkittlesClass = (file: string): SkittlesClass => {
@@ -485,7 +492,8 @@ const getSkittlesClass = (file: string): SkittlesClass => {
       ...astArrowFunctions.map(getSkittlesMethodFromArrowFunctionProperty),
     ],
   };
-  return skittlesClass;
+
+  return getStateMutability(skittlesClass);
 };
 
 export default getSkittlesClass;
