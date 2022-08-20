@@ -66,4 +66,13 @@ describe("ERC20", () => {
     const allowance = await token.allowance(walletA.address, walletB.address);
     expect(allowance).to.equal(33);
   });
+
+  it("Should set approval and transfer", async () => {
+    await token.connect(walletB).approve(walletA.address, 5);
+    const bBalanceBefore = await token.balanceOf(walletB.address);
+    const cBalanceBefore = await token.balanceOf(walletC.address);
+    await token.transferFrom(walletB.address, walletC.address, 5);
+    expect(await token.balanceOf(walletB.address)).to.equal(bBalanceBefore - 5);
+    expect(await token.balanceOf(walletC.address)).to.equal(cBalanceBefore + 5);
+  });
 });

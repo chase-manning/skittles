@@ -23,13 +23,22 @@ export class ERC20 {
     return this._allowances[owner][spender];
   }
 
+  approve(spender: address, amount: number): boolean {
+    this._allowances[msg.sender][spender] = amount;
+    return true;
+  }
+
   transfer(to: address, amount: number): boolean {
     this._transfer(msg.sender, to, amount);
     return true;
   }
 
-  approve(spender: address, amount: number): boolean {
-    this._allowances[msg.sender][spender] = amount;
+  transferFrom(from: address, to: address, amount: number): boolean {
+    if (this._allowances[from][msg.sender] < amount) {
+      throw new Error("amount exceeds allowance");
+    }
+    this._transfer(from, to, amount);
+    this._allowances[from][msg.sender] -= amount;
     return true;
   }
 
