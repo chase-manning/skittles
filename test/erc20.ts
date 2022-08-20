@@ -22,9 +22,9 @@ describe("ERC20", () => {
     await token.deployed();
   });
 
-  it("Should have 0 total supply to start", async () => {
+  it("Should have 100 total supply to start", async () => {
     const totalSupply = await token.totalSupply();
-    expect(totalSupply).to.equal(0);
+    expect(totalSupply).to.equal(100);
   });
 
   it("Should have 18 decimals", async () => {
