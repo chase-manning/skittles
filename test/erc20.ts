@@ -31,14 +31,8 @@ describe("ERC20", () => {
     expect(await token.decimals()).to.equal(18);
   });
 
-  it("Should have owner", async () => {
-    expect(await token.owner()).to.equal(walletA.address);
-  });
-
-  it("owner should have 100 balance by default", async () => {
-    const owner = await token.owner();
-    const ownerBalance = await token.balanceOf(owner);
-    expect(ownerBalance).to.equal(WALLET_A_AMOUNT);
+  it("A should have 100 balance by default", async () => {
+    expect(await token.balanceOf(walletA.address)).to.equal(WALLET_A_AMOUNT);
   });
 
   it("B should have 0 balance by default", async () => {
@@ -46,7 +40,7 @@ describe("ERC20", () => {
     expect(bBalance).to.equal(0);
   });
 
-  it("owner should transfer to B", async () => {
+  it("A should transfer to B", async () => {
     const amount = 10;
     const tx = await token.transfer(walletB.address, amount);
     expect(tx.hash).to.be.a("string");
