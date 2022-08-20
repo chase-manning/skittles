@@ -21,6 +21,7 @@ import {
   ParameterDeclaration,
   ExpressionStatement,
   isElementAccessExpression,
+  isCallExpression,
 } from "typescript";
 import getAst from "./get-ast";
 import {
@@ -222,6 +223,10 @@ const isNodeView = (node: Node): boolean => {
         }
       }
     }
+    // TODO This is wrong
+    if (isCallExpression(child)) {
+      isView = false;
+    }
     if (!isNodeView(child)) {
       isView = false;
     }
@@ -336,6 +341,13 @@ const getSkittlesStatement = (
         );
       }
       throw new Error(`Unknown binary expression type: ${expression.kind}`);
+    }
+    if (isCallExpression(expression)) {
+      return {
+        statementType: SkittlesStatementType.Call,
+        target: getNodeName(expression.expression),
+        parameters: expression.arguments.map(getSkittlesExpression),
+      };
     }
     throw new Error("Not implemented expression statement handling");
   }

@@ -15,6 +15,7 @@ import SkittlesClass, {
   SkittlesStorageUpdateStatement,
   SkittlesConstructor,
   SkittlesMappingUpdateStatement,
+  SkittlesCallStatement,
 } from "./types/skittles-class";
 
 import { writeFile } from "./helpers/file-helper";
@@ -173,13 +174,6 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
   }
 };
 
-const getMappingUpdateYul = (statement: SkittlesMappingUpdateStatement) => {
-  const { variable, item, value } = statement;
-  return `                ${variable}Set(${getExpressionYul(
-    item
-  )}, ${getExpressionYul(value)})`;
-};
-
 const getStorageUpdateYul = (
   statement: SkittlesStorageUpdateStatement
 ): string => {
@@ -192,6 +186,22 @@ const getReturnYul = (statement: SkittlesReturnStatement): string => {
   return `                v := ${getExpressionYul(value)}`;
 };
 
+const getMappingUpdateYul = (
+  statement: SkittlesMappingUpdateStatement
+): string => {
+  const { variable, item, value } = statement;
+  return `                ${variable}Set(${getExpressionYul(
+    item
+  )}, ${getExpressionYul(value)})`;
+};
+
+const getCallYul = (statement: SkittlesCallStatement): string => {
+  const { target, parameters } = statement;
+  return `                ${target}Function(${parameters
+    .map(getExpressionYul)
+    .join(", ")})`;
+};
+
 const getStatementYul = (statement: SkittlesStatement): string => {
   switch (statement.statementType) {
     case SkittlesStatementType.StorageUpdate:
@@ -200,6 +210,8 @@ const getStatementYul = (statement: SkittlesStatement): string => {
       return getReturnYul(statement);
     case SkittlesStatementType.MappingUpdate:
       return getMappingUpdateYul(statement);
+    case SkittlesStatementType.Call:
+      return getCallYul(statement);
     default:
       throw new Error("Unsupported statement");
   }

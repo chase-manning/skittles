@@ -72,13 +72,20 @@ export type SkittlesExpression =
   | SkittlesStorageExpression;
 
 export enum SkittlesStatementType {
-  StorageUpdate = "StorageUpdate",
+  StorageUpdate = "Storage Update",
   Return = "Return",
-  MappingUpdate = "MappingUpdate",
+  MappingUpdate = "Mapping Update",
+  Call = "Call",
 }
 
 export interface SkittlesBaseStatement {
   statementType: SkittlesStatementType;
+}
+
+export interface SkittlesCallStatement extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.Call;
+  target: string;
+  parameters: SkittlesExpression[];
 }
 
 export interface SkittlesMappingUpdateStatement extends SkittlesBaseStatement {
@@ -101,6 +108,7 @@ export interface SkittlesReturnStatement extends SkittlesBaseStatement {
 }
 
 export type SkittlesStatement =
+  | SkittlesCallStatement
   | SkittlesMappingUpdateStatement
   | SkittlesStorageUpdateStatement
   | SkittlesReturnStatement;
