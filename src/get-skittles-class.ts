@@ -179,10 +179,16 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
     };
   }
   if (isElementAccessExpression(expression)) {
+    const items: SkittlesExpression[] = [];
+    while (isElementAccessExpression(expression)) {
+      items.unshift(getSkittlesExpression(expression.argumentExpression));
+      expression = expression.expression;
+    }
+
     return {
       expressionType: SkittlesExpressionType.Mapping,
-      variable: getNodeName(expression.expression),
-      item: getSkittlesExpression(expression.argumentExpression),
+      variable: getNodeName(expression),
+      items,
     };
   }
   throw new Error(`Unknown expression type: ${expression.kind}`);

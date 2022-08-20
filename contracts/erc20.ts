@@ -6,6 +6,7 @@ export class ERC20 {
 
   totalSupply: number;
   private _balances: Record<address, number>;
+  private _allowances: Record<address, Record<address, number>>;
 
   constructor(decimals_: number) {
     this.decimals = decimals_;
@@ -16,6 +17,10 @@ export class ERC20 {
 
   balanceOf(address: address): number {
     return this._balances[address];
+  }
+
+  allowance(owner: address, spender: address): number {
+    return this._allowances[owner][spender];
   }
 
   transfer(to: address, amount: number): boolean {

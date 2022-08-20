@@ -37,7 +37,7 @@ export interface SkittlesEvmDialectExpression extends SkittlesBaseExpression {
 export interface SkittlesMappingExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.Mapping;
   variable: string;
-  item: SkittlesExpression;
+  items: SkittlesExpression[];
 }
 
 export interface SkittlesBinaryExpression extends SkittlesBaseExpression {

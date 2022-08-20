@@ -21,6 +21,7 @@ import SkittlesClass, {
 } from "./types/skittles-class";
 
 import { writeFile } from "./helpers/file-helper";
+import { getVariables, subStringCount } from "./helpers/string-helper";
 
 const addToSection = (
   yul: string[],
@@ -166,9 +167,8 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
     case SkittlesExpressionType.Storage:
       return `${expression.variable}Storage()`;
     case SkittlesExpressionType.Mapping:
-      return `${expression.variable}Storage(${getExpressionYul(
-        expression.item
-      )})`;
+      const variables = expression.items.map((item) => getExpressionYul(item));
+      return `${expression.variable}Storage(${variables.join(", ")})`;
     case SkittlesExpressionType.EvmDialect:
       return evmDialects[expression.environment][expression.variable];
     default:
@@ -293,10 +293,24 @@ const _addStorageLayout = (
   index: number,
   section: YulSection
 ) => {
-  const { name } = property;
-  if (property.type.includes("mapping")) {
+  const { name, type } = property;
+  if (type.includes("mapping")) {
+    const mappings = subStringCount(type, "mapping");
+    const variables = getVariables(mappings);
+    const extraVars = variables.split(", ").slice(1);
+    const extraVarsYul = [
+      `            mstore(0, p)`,
+      ...extraVars.map(
+        (v: string, index: number) =>
+          `            mstore(0x${index * 20}, ${v})`
+      ),
+      `            p := keccak256(0, 0x${mappings * 20})`,
+    ];
     return addToSection(yul, section, [
-      `        function ${name}Pos(a) -> p { p := add(0x1000, a) }`,
+      `        function ${name}Pos(${variables}) -> p {`,
+      `            p := add(0x1000, a)`,
+      ...(extraVars.length > 0 ? extraVarsYul : []),
+      `        }`,
     ]);
   }
   return addToSection(yul, section, [
@@ -320,15 +334,17 @@ const _addStorageAccess = (
   property: SkittlesVariable,
   section: YulSection
 ) => {
-  const { name } = property;
+  const { name, type } = property;
   const initial = name.substring(0, 1);
-  if (property.type.includes("mapping")) {
+  if (type.includes("mapping")) {
+    const mappings = subStringCount(type, "mapping");
+    const vars = getVariables(mappings);
     return addToSection(yul, section, [
-      `        function ${name}Storage(a) -> ${initial} {`,
-      `            ${initial} := sload(${name}Pos(a))`,
+      `        function ${name}Storage(${vars}) -> ${initial} {`,
+      `            ${initial} := sload(${name}Pos(${vars}))`,
       `        }`,
-      `        function ${name}Set(a, value) {`,
-      `            sstore(${name}Pos(a), value)`,
+      `        function ${name}Set(${vars}, value) {`,
+      `            sstore(${name}Pos(${vars}), value)`,
       `        }`,
     ]);
   }

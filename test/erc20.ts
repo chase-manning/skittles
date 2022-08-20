@@ -55,4 +55,9 @@ describe("ERC20", () => {
     expect(bBalance).to.equal(amount);
     expect(aBalance).to.equal(WALLET_A_AMOUNT - amount);
   });
+
+  it("A should have no allowance for B", async () => {
+    const allowance = await token.allowance(walletA.address, walletB.address);
+    expect(allowance).to.equal(0);
+  });
 });
