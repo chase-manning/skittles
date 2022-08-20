@@ -18,8 +18,12 @@ export class ERC20 {
   }
 
   transfer(to: address, amount: number): boolean {
-    this._balances[to] += amount;
-    this._balances[msg.sender] -= amount;
+    this._transfer(msg.sender, to, amount);
     return true;
+  }
+
+  private _transfer(from: address, to: address, amount: number): void {
+    this._balances[to] += amount;
+    this._balances[from] -= amount;
   }
 }
