@@ -105,7 +105,7 @@ export interface SkittlesCallStatement extends SkittlesBaseStatement {
 export interface SkittlesMappingUpdateStatement extends SkittlesBaseStatement {
   statementType: SkittlesStatementType.MappingUpdate;
   variable: string;
-  item: SkittlesExpression;
+  items: SkittlesExpression[];
   value: SkittlesExpression;
 }
 

@@ -289,19 +289,28 @@ const getSkittlesStatement = (
         );
       }
       if (isElementAccessExpression(expression.left)) {
+        let currentExpression: Node = [...[expression.left]][0];
+        const items: SkittlesExpression[] = [];
+        while (isElementAccessExpression(currentExpression)) {
+          items.unshift(
+            getSkittlesExpression((currentExpression as any).argumentExpression)
+          );
+          currentExpression = (currentExpression as any).expression;
+        }
+
         if (isEquals(expression)) {
           return {
             statementType: SkittlesStatementType.MappingUpdate,
-            variable: getNodeName(expression.left.expression),
-            item: getSkittlesExpression(expression.left.argumentExpression),
+            variable: getNodeName(currentExpression),
+            items,
             value: getSkittlesExpression(expression.right),
           };
         }
         if (isPlusEquals(expression)) {
           return {
             statementType: SkittlesStatementType.MappingUpdate,
-            variable: getNodeName(expression.left.expression),
-            item: getSkittlesExpression(expression.left.argumentExpression),
+            variable: getNodeName(currentExpression),
+            items,
             value: {
               expressionType: SkittlesExpressionType.Binary,
               operator: SkittlesOperator.Plus,
@@ -313,8 +322,8 @@ const getSkittlesStatement = (
         if (isMinusEquals(expression)) {
           return {
             statementType: SkittlesStatementType.MappingUpdate,
-            variable: getNodeName(expression.left.expression),
-            item: getSkittlesExpression(expression.left.argumentExpression),
+            variable: getNodeName(currentExpression),
+            items,
             value: {
               expressionType: SkittlesExpressionType.Binary,
               operator: SkittlesOperator.Minus,

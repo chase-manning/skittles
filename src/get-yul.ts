@@ -191,11 +191,12 @@ const getReturnYul = (statement: SkittlesReturnStatement): string[] => {
 const getMappingUpdateYul = (
   statement: SkittlesMappingUpdateStatement
 ): string[] => {
-  const { variable, item, value } = statement;
+  const { variable, items, value } = statement;
+  const variables = items.map((item) => getExpressionYul(item));
   return [
-    `                ${variable}Set(${getExpressionYul(
-      item
-    )}, ${getExpressionYul(value)})`,
+    `                ${variable}Set(${variables.join(", ")}, ${getExpressionYul(
+      value
+    )})`,
   ];
 };
 
