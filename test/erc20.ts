@@ -60,4 +60,10 @@ describe("ERC20", () => {
     const allowance = await token.allowance(walletA.address, walletB.address);
     expect(allowance).to.equal(0);
   });
+
+  it("Should set approval for B", async () => {
+    await token.approve(walletB.address, 33);
+    const allowance = await token.allowance(walletA.address, walletB.address);
+    expect(allowance).to.equal(33);
+  });
 });

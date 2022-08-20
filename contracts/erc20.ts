@@ -28,6 +28,11 @@ export class ERC20 {
     return true;
   }
 
+  approve(spender: address, amount: number): boolean {
+    this._allowances[msg.sender][spender] = amount;
+    return true;
+  }
+
   private _transfer(from: address, to: address, amount: number): void {
     if (this._balances[from] < amount) {
       throw new Error("transfer amount exceeds balance");
