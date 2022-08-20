@@ -1,11 +1,7 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import getAbi from "../src/get-abi";
-import getSkittlesClass from "../src/get-skittles-class";
-import getBytecode from "../src/get-bytecode";
-import getYul from "../src/get-yul";
 import { Contract } from "ethers";
-import fs from "fs";
+import { getContractFactory } from "./support";
 
 const WALLET_A_AMOUNT = 100;
 
@@ -14,10 +10,6 @@ let walletA: any;
 let walletB: any;
 let walletC: any;
 
-const readFileAsString = (fileName: string) => {
-  return fs.readFileSync(fileName, { encoding: "utf8" });
-};
-
 describe("ERC20", () => {
   before(async () => {
     let signers = await ethers.getSigners();
@@ -25,14 +17,7 @@ describe("ERC20", () => {
     walletB = signers[1];
     walletC = signers[2];
 
-    const FILE = "./contracts/erc20.ts";
-    const skittlesClass = getSkittlesClass(FILE);
-    const abi = getAbi(skittlesClass);
-
-    const yul = getYul(skittlesClass, abi, true);
-    // const yul = readFileAsString("./build/yul/erc20.yul");
-    const bytecode = getBytecode(skittlesClass.name, yul);
-    const Token = await ethers.getContractFactory(abi, bytecode);
+    const Token = await getContractFactory("./contracts/erc20.ts");
     token = await Token.deploy(18);
     await token.deployed();
   });

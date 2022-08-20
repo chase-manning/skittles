@@ -1,18 +1,9 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
-import getAbi from "../src/get-abi";
-import getSkittlesClass from "../src/get-skittles-class";
-import getBytecode from "../src/get-bytecode";
-import getYul from "../src/get-yul";
+import { getContractFactory } from "./support";
 
 describe("Hello World", () => {
   it("Should add balance", async () => {
-    const FILE = "./contracts/hello-world.ts";
-    const skittlesClass = getSkittlesClass(FILE);
-    const abi = getAbi(skittlesClass);
-    const yul = getYul(skittlesClass, abi, true);
-    const bytecode = getBytecode(skittlesClass.name, yul);
-    const HelloWorld = await ethers.getContractFactory(abi, bytecode);
+    const HelloWorld = await getContractFactory("./contracts/hello-world.ts");
     const helloWorld = await HelloWorld.deploy();
     await helloWorld.deployed();
 
