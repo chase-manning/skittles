@@ -134,6 +134,7 @@ export interface SkittlesVariable {
   type: string;
   value?: SkittlesExpression;
   private: boolean;
+  immutable: boolean;
 }
 
 export interface SkittlesParameter {

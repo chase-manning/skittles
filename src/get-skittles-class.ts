@@ -204,6 +204,16 @@ const isNodePrivate = (node: Node): boolean => {
   return isPrivate;
 };
 
+const isNodeImmutable = (node: Node): boolean => {
+  let isImmutable = false;
+  forEachChild(node, (node) => {
+    if (node.kind === SyntaxKind.ReadonlyKeyword) {
+      isImmutable = true;
+    }
+  });
+  return isImmutable;
+};
+
 const getSkittlesProperty = (
   astProperty: PropertyDeclaration
 ): SkittlesVariable => {
@@ -215,6 +225,7 @@ const getSkittlesProperty = (
     type: getSkittlesType(astProperty.type, value),
     value,
     private: isNodePrivate(astProperty),
+    immutable: isNodeImmutable(astProperty),
   };
 };
 

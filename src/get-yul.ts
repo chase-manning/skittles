@@ -294,6 +294,7 @@ const _addStorageLayout = (
   index: number,
   section: YulSection
 ) => {
+  if (property.immutable) return yul;
   const { name, type } = property;
   if (type.includes("mapping")) {
     const mappings = subStringCount(type, "mapping");
@@ -319,24 +320,74 @@ const _addStorageLayout = (
   ]);
 };
 
-const addStorageAccess = (yul: string[], property: SkittlesVariable) => {
-  return _addStorageAccess(yul, property, YulSection.StorageAccess);
+const addStorageAccess = (
+  yul: string[],
+  property: SkittlesVariable,
+  skittlesClass: SkittlesClass
+) => {
+  return _addStorageAccess(
+    yul,
+    property,
+    YulSection.StorageAccess,
+    skittlesClass
+  );
 };
 
 const addConstructorStorageAccess = (
   yul: string[],
-  property: SkittlesVariable
+  property: SkittlesVariable,
+  skittlesClass: SkittlesClass
 ) => {
-  return _addStorageAccess(yul, property, YulSection.ConstructorStorageAccess);
+  return _addStorageAccess(
+    yul,
+    property,
+    YulSection.ConstructorStorageAccess,
+    skittlesClass
+  );
 };
 
 const _addStorageAccess = (
   yul: string[],
   property: SkittlesVariable,
-  section: YulSection
+  section: YulSection,
+  skittlesClass: SkittlesClass
 ) => {
   const { name, type } = property;
   const initial = name.substring(0, 1);
+
+  if (property.immutable) {
+    let { value } = property;
+    if (!value) {
+      if (!skittlesClass.constructor) {
+        throw new Error("No constructor to get storage value");
+      }
+
+      skittlesClass.constructor.statements.forEach(
+        (statement: SkittlesStatement) => {
+          const { statementType } = statement;
+          if (statementType === SkittlesStatementType.StorageUpdate) {
+            if (statement.variable === name) {
+              if (
+                statement.value.expressionType !== SkittlesExpressionType.Value
+              ) {
+                throw new Error(
+                  "Issue setting readonly from constructor `setimmutable` not implemented yet"
+                );
+              }
+              value = statement.value;
+            }
+          }
+        }
+      );
+    }
+    if (!value) throw new Error("No storage update to get storage value");
+    return addToSection(yul, section, [
+      `        function ${name}Storage() -> ${initial} {`,
+      `            ${initial} := ${getExpressionYul(value)}`,
+      `        }`,
+    ]);
+  }
+
   if (type.includes("mapping")) {
     const mappings = subStringCount(type, "mapping");
     const vars = getVariables(mappings);
@@ -349,6 +400,7 @@ const _addStorageAccess = (
       `        }`,
     ]);
   }
+
   return addToSection(yul, section, [
     `        function ${name}Storage() -> ${initial} {`,
     `            ${initial} := sload(${name}Pos())`,
@@ -385,15 +437,22 @@ const getParameters = (
   ];
 };
 
-const addConstructor = (
-  yul: string[],
-  className: string,
-  constructor?: SkittlesConstructor
-) => {
+const addConstructor = (yul: string[], skittlesClass: SkittlesClass) => {
+  const { constructor } = skittlesClass;
   if (!constructor) return yul;
-  const { parameters, statements } = constructor;
+  let { parameters, statements } = constructor;
+  statements = statements.filter((statement: SkittlesStatement) => {
+    const { statementType } = statement;
+    if (statementType !== SkittlesStatementType.StorageUpdate) return true;
+    const variable = skittlesClass.variables.find(
+      (v: SkittlesVariable) => v.name === statement.variable
+    );
+    if (!variable)
+      throw new Error(`No variable found for ${statement.variable}`);
+    return !variable.immutable;
+  });
   return addToSection(yul, YulSection.Constructor, [
-    ...getParameters(parameters, className),
+    ...getParameters(parameters, skittlesClass.name),
     ...getBlockYul(statements).map((statement) =>
       statement.replace("                ", "        ")
     ),
@@ -410,15 +469,15 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi, debug = false) => {
       yul = addPropertyDispatcher(yul, abi, property);
       yul = addStorageLayout(yul, property, index);
       yul = addConstructorStorageLayout(yul, property, index);
-      yul = addStorageAccess(yul, property);
-      yul = addConstructorStorageAccess(yul, property);
+      yul = addStorageAccess(yul, property, skittlesClass);
+      yul = addConstructorStorageAccess(yul, property, skittlesClass);
       yul = addValueInitializations(yul, property, index);
       // TODO Handle private properties
     }
   );
 
   // Adding constructor
-  yul = addConstructor(yul, skittlesClass.name, skittlesClass.constructor);
+  yul = addConstructor(yul, skittlesClass);
 
   // Adding methods
   skittlesClass.methods.forEach((method: SkittlesMethod) => {
