@@ -18,7 +18,7 @@ describe("ERC20", () => {
     walletC = signers[2];
 
     const Token = await getContractFactory("./contracts/erc20.ts");
-    token = await Token.deploy(18);
+    token = await Token.deploy(100);
     await token.deployed();
   });
 

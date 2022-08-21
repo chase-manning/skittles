@@ -1,16 +1,15 @@
 import { address, msg } from "../src/types/core-types";
 
 export class ERC20 {
-  decimals: number;
+  readonly decimals: number = 18;
 
   totalSupply: number;
   private _balances: Record<address, number>;
   private _allowances: Record<address, Record<address, number>>;
 
-  constructor(decimals_: number) {
-    this.decimals = decimals_;
-    this._balances[msg.sender] = 100;
-    this.totalSupply = 100;
+  constructor(mintAmount_: number) {
+    this._balances[msg.sender] = mintAmount_;
+    this.totalSupply = mintAmount_;
   }
 
   balanceOf(address: address): number {
