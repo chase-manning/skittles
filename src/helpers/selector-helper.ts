@@ -1,5 +1,5 @@
 import { utils } from "ethers";
-import { AbiParameter } from "./abi/get-abi";
+import { AbiParameter } from "../abi/get-abi";
 
 const exampleValues: Record<string, any> = {
   uint256: 1,
