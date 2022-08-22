@@ -1,5 +1,5 @@
 import yulTemplate, { YulSection } from "../data/yul-template";
-import { Abi } from "../get-abi";
+import { Abi } from "../abi/get-abi";
 import getSelector from "../get-selector";
 import SkittlesClass, {
   SkittlesBinaryExpression,

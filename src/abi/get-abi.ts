@@ -2,7 +2,7 @@ import SkittlesClass, {
   SkittlesConstructor,
   SkittlesMethod,
   SkittlesVariable,
-} from "./types/skittles-class";
+} from "../types/skittles-class";
 
 export interface AbiParameter {
   name: string;

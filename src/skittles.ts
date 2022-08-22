@@ -1,4 +1,4 @@
-import getAbi from "./get-abi";
+import getAbi from "./abi/get-abi";
 import getBytecode from "./get-bytecode";
 import getSkittlesClass from "./skittles-class/get-skittles-class";
 import getYul from "./yul/get-yul";
