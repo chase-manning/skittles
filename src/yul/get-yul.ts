@@ -13,10 +13,11 @@ import getSelector from "../helpers/selector-helper";
 import { Abi } from "../types/abi-types";
 import { returnFunctions, decoderFunctions } from "./yul-constants";
 import getExpressionYul from "./get-expression-yul";
-import getStatementYul from "./get-statement-yul";
 import formatYul from "./format-yul";
 import { addToSection, getBaseYul } from "../helpers/yul-helper";
 import addStorageLayout from "./add-yul-storage-layout";
+import getBlockYul from "./get-block-yul";
+import addConstructor from "./add-yul-constructor";
 
 const addPropertyDispatcher = (
   yul: string[],
@@ -60,14 +61,6 @@ const addMethodDispatcher = (
           .join(", ")}))`,
     `}`,
   ]);
-};
-
-const getBlockYul = (statements: SkittlesStatement[]): string[] => {
-  const yul = [];
-  for (const statement of statements) {
-    yul.push(...getStatementYul(statement));
-  }
-  return yul;
 };
 
 const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
@@ -184,41 +177,6 @@ const addValueInitializations = (
     property.type === "string"
       ? `sstore(${index}, add(${expression}, ${(expression.length - 2) * 2}))`
       : `sstore(${index}, ${expression})`,
-  ]);
-};
-
-const getParameters = (
-  parameters: SkittlesParameter[],
-  className: string
-): string[] => {
-  return [
-    `let programSize := datasize("${className}")`,
-    `let argSize := sub(codesize(), programSize)`,
-    `codecopy(0, programSize, argSize)`,
-    ...parameters.map(
-      (input: SkittlesParameter, index: number) =>
-        `let ${input.name}Var := mload(${index * 32})`
-    ),
-  ];
-};
-
-const addConstructor = (yul: string[], skittlesClass: SkittlesClass) => {
-  const { constructor } = skittlesClass;
-  if (!constructor) return yul;
-  let { parameters, statements } = constructor;
-  statements = statements.filter((statement: SkittlesStatement) => {
-    const { statementType } = statement;
-    if (statementType !== SkittlesStatementType.StorageUpdate) return true;
-    const variable = skittlesClass.variables.find(
-      (v: SkittlesVariable) => v.name === statement.variable
-    );
-    if (!variable)
-      throw new Error(`No variable found for ${statement.variable}`);
-    return !variable.immutable;
-  });
-  return addToSection(yul, YulSection.Constructor, [
-    ...getParameters(parameters, skittlesClass.name),
-    ...getBlockYul(statements),
   ]);
 };
 
