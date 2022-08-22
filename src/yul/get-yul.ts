@@ -1,5 +1,4 @@
 import yulTemplate, { YulSection } from "../data/yul-template";
-import { Abi } from "../abi/get-abi";
 import SkittlesClass, {
   SkittlesBinaryExpression,
   SkittlesExpression,
@@ -20,6 +19,7 @@ import SkittlesClass, {
 
 import { getVariables, subStringCount } from "../helpers/string-helper";
 import getSelector from "../helpers/selector-helper";
+import { Abi } from "../types/abi-types";
 
 const addToSection = (
   yul: string[],
