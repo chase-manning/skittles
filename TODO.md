@@ -1,4 +1,3 @@
-- Setup Hello World as a full regression test
 - Move formatting to separate step
 - Test overflow and underflow protection
 
@@ -18,6 +17,7 @@
 
 ==== Beta ready ====
 
+- Add support for events
 - Add immutable (readonly) setting for evaluated values using `setimmutable`
 - Consider how we handle large numbers (BigNumber or something?)
 - automatic mapping views
