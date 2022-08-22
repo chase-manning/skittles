@@ -132,7 +132,7 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
     case SkittlesOperator.Equals:
       return `eq(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.NotEquals:
-      return `not(eq(${getExpressionYul(left)}, ${getExpressionYul(right)}))`;
+      return `neq(${getExpressionYul(left)}, ${getExpressionYul(right)}))`;
     case SkittlesOperator.GreaterThan:
       return `gt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.LessThan:
