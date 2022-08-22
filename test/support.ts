@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { ContractFactory } from "ethers";
 import getAbi, { Abi } from "../src/abi/get-abi";
-import getBytecode from "../src/get-bytecode";
+import getBytecode from "../src/bytecode/get-bytecode";
 import getSkittlesClass from "../src/skittles-class/get-skittles-class";
 import getYul from "../src/yul/get-yul";
 import { writeFile } from "../src/helpers/file-helper";

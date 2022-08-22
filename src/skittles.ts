@@ -1,5 +1,5 @@
 import getAbi from "./abi/get-abi";
-import getBytecode from "./get-bytecode";
+import getBytecode from "./bytecode/get-bytecode";
 import getSkittlesClass from "./skittles-class/get-skittles-class";
 import getYul from "./yul/get-yul";
 import { getAllContractFiles, writeFile } from "./helpers/file-helper";
