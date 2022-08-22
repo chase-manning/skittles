@@ -9,59 +9,15 @@ import SkittlesClass, {
 } from "../types/skittles-class";
 
 import { getVariables, subStringCount } from "../helpers/string-helper";
-import getSelector from "../helpers/selector-helper";
 import { Abi } from "../types/abi-types";
-import { returnFunctions, decoderFunctions } from "./yul-constants";
 import getExpressionYul from "./get-expression-yul";
 import formatYul from "./format-yul";
 import { addToSection, getBaseYul } from "../helpers/yul-helper";
 import addStorageLayout from "./add-yul-storage-layout";
 import getBlockYul from "./get-block-yul";
 import addConstructor from "./add-yul-constructor";
-
-const addPropertyDispatcher = (
-  yul: string[],
-  abi: any[],
-  property: SkittlesVariable
-): string[] => {
-  if (property.private) return yul;
-  const { name, type } = property;
-  const selector = getSelector(abi, name);
-  return addToSection(yul, YulSection.Dispatchers, [
-    `case ${selector} /* "${name}()" */ {`,
-    `${returnFunctions[type]}(${name}Storage())`,
-    `}`,
-  ]);
-};
-
-const addMethodDispatcher = (
-  yul: string[],
-  abi: any[],
-  method: SkittlesMethod
-): string[] => {
-  if (method.private) return yul;
-  const { name, parameters, returns } = method;
-  const selector = getSelector(abi, name);
-  return addToSection(yul, YulSection.Dispatchers, [
-    `case ${selector} /* "${name}(${parameters
-      .map((p) => p.type)
-      .join(",")})" */ {`,
-    returns === "void"
-      ? `${name}Function(${parameters
-          .map(
-            (input: SkittlesParameter, index: number) =>
-              `${decoderFunctions[input.type]}(${index})`
-          )
-          .join(", ")})`
-      : `${returnFunctions[returns]}(${name}Function(${parameters
-          .map(
-            (input: SkittlesParameter, index: number) =>
-              `${decoderFunctions[input.type]}(${index})`
-          )
-          .join(", ")}))`,
-    `}`,
-  ]);
-};
+import addPropertyDispatcher from "./add-yul-property-dispatcher";
+import addMethodDispatcher from "./add-yul-method-dispatcher";
 
 const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   const { name, parameters, returns, statements } = method;
