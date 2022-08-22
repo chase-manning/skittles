@@ -14,6 +14,7 @@ import { Abi } from "../types/abi-types";
 import { returnFunctions, decoderFunctions } from "./yul-constants";
 import getExpressionYul from "./get-expression-yul";
 import getStatementYul from "./get-statement-yul";
+import formatYul from "./format-yul";
 
 const addToSection = (
   yul: string[],
@@ -288,18 +289,6 @@ const addConstructor = (yul: string[], skittlesClass: SkittlesClass) => {
   ]);
 };
 
-const addTabs = (yul: string[]) => {
-  const tab = `    `;
-  let indentation = 0;
-  const yulWithTabs = [];
-  for (const line of yul) {
-    if (line === "}") indentation--;
-    yulWithTabs.push(`${tab.repeat(indentation)}${line}`);
-    if (line.slice(-1) === "{") indentation++;
-  }
-  return yulWithTabs;
-};
-
 const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   // Getting base data
   let yul = getBaseYul(skittlesClass.name);
@@ -328,10 +317,7 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   });
 
   // Formatting
-  yul = addTabs(yul);
-
-  const output = yul.join("\n");
-  return output;
+  return formatYul(yul);
 };
 
 export default getYul;
