@@ -1,9 +1,4 @@
-- ERC20 Symbol
-- ERC20 Name
-- Add immutable (readonly) support (and change decimals and totalSupply to readonly)
-
-========= ERC20 Done ========
-
+- Setup Hello World as a full regression test
 - Move formatting to separate step
 - Test overflow and underflow protection
 
@@ -23,8 +18,11 @@
 
 ==== Beta ready ====
 
+- Add immutable (readonly) setting for evaluated values using `setimmutable`
 - Consider how we handle large numbers (BigNumber or something?)
 - automatic mapping views
 - Add config for things like running optimizer
 
 ==== FORMATTED ====
+
+- Remove redundant stores for `readonly` values in the constructor

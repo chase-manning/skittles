@@ -27,6 +27,14 @@ describe("ERC20", () => {
     expect(totalSupply).to.equal(100);
   });
 
+  it("Should have Symbol as TEST", async () => {
+    expect(await token.symbol()).to.equal("TEST");
+  });
+
+  it("Should have name as TEST ERC20", async () => {
+    expect(await token.name()).to.equal("TEST ERC20");
+  });
+
   it("Should have 18 decimals", async () => {
     expect(await token.decimals()).to.equal(18);
   });
