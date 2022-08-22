@@ -3,7 +3,7 @@ import { ContractFactory } from "ethers";
 import getAbi, { Abi } from "../src/get-abi";
 import getBytecode from "../src/get-bytecode";
 import getSkittlesClass from "../src/skittles-class/get-skittles-class";
-import getYul from "../src/get-yul";
+import getYul from "../src/yul/get-yul";
 import { writeFile } from "../src/helpers/file-helper";
 import fs from "fs";
 

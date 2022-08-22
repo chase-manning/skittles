@@ -1,7 +1,7 @@
 import getAbi from "./get-abi";
 import getBytecode from "./get-bytecode";
 import getSkittlesClass from "./skittles-class/get-skittles-class";
-import getYul from "./get-yul";
+import getYul from "./yul/get-yul";
 import { getAllContractFiles, writeFile } from "./helpers/file-helper";
 
 export const skittlesCompile = async () => {
