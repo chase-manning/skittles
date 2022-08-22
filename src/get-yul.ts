@@ -81,9 +81,9 @@ const addPropertyDispatcher = (
   const { name, type } = property;
   const selector = getSelector(abi, name);
   return addToSection(yul, YulSection.Dispatchers, [
-    `            case ${selector} /* "${name}()" */ {`,
-    `                ${returnFunctions[type]}(${name}Storage())`,
-    `            }`,
+    `case ${selector} /* "${name}()" */ {`,
+    `${returnFunctions[type]}(${name}Storage())`,
+    `}`,
   ]);
 };
 
@@ -96,25 +96,23 @@ const addMethodDispatcher = (
   const { name, parameters, returns } = method;
   const selector = getSelector(abi, name);
   return addToSection(yul, YulSection.Dispatchers, [
-    `            case ${selector} /* "${name}(${parameters
+    `case ${selector} /* "${name}(${parameters
       .map((p) => p.type)
       .join(",")})" */ {`,
     returns === "void"
-      ? `                ${name}Function(${parameters
+      ? `${name}Function(${parameters
           .map(
             (input: SkittlesParameter, index: number) =>
               `${decoderFunctions[input.type]}(${index})`
           )
           .join(", ")})`
-      : `                ${
-          returnFunctions[returns]
-        }(${name}Function(${parameters
+      : `${returnFunctions[returns]}(${name}Function(${parameters
           .map(
             (input: SkittlesParameter, index: number) =>
               `${decoderFunctions[input.type]}(${index})`
           )
           .join(", ")}))`,
-    `            }`,
+    `}`,
   ]);
 };
 
@@ -179,12 +177,12 @@ const getStorageUpdateYul = (
   statement: SkittlesStorageUpdateStatement
 ): string[] => {
   const { variable, value } = statement;
-  return [`                ${variable}Set(${getExpressionYul(value)})`];
+  return [`${variable}Set(${getExpressionYul(value)})`];
 };
 
 const getReturnYul = (statement: SkittlesReturnStatement): string[] => {
   const { value } = statement;
-  return [`                v := ${getExpressionYul(value)}`];
+  return [`v := ${getExpressionYul(value)}`];
 };
 
 const getMappingUpdateYul = (
@@ -193,19 +191,13 @@ const getMappingUpdateYul = (
   const { variable, items, value } = statement;
   const variables = items.map((item) => getExpressionYul(item));
   return [
-    `                ${variable}Set(${variables.join(", ")}, ${getExpressionYul(
-      value
-    )})`,
+    `${variable}Set(${variables.join(", ")}, ${getExpressionYul(value)})`,
   ];
 };
 
 const getCallYul = (statement: SkittlesCallStatement): string[] => {
   const { target, parameters } = statement;
-  return [
-    `                ${target}Function(${parameters
-      .map(getExpressionYul)
-      .join(", ")})`,
-  ];
+  return [`${target}Function(${parameters.map(getExpressionYul).join(", ")})`];
 };
 
 const getIfYul = (statement: SkittlesIfStatement): string[] => {
@@ -215,16 +207,12 @@ const getIfYul = (statement: SkittlesIfStatement): string[] => {
   for (const statement of then) {
     statements.push(...getStatementYul(statement));
   }
-  return [
-    `                if ${getExpressionYul(condition)} {`,
-    ...statements,
-    `                }`,
-  ];
+  return [`if ${getExpressionYul(condition)} {`, ...statements, `}`];
 };
 
 const getThrowYul = (statement: SkittlesThrowStatement): string[] => {
   const { error } = statement;
-  return [`                revert256(${getExpressionYul(error)})`];
+  return [`revert256(${getExpressionYul(error)})`];
 };
 
 const getStatementYul = (statement: SkittlesStatement): string[] => {
@@ -258,11 +246,11 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   const { name, parameters, returns, statements } = method;
   const hasReturn = returns !== "void";
   return addToSection(yul, YulSection.Functions, [
-    `            function ${name}Function(${parameters
+    `function ${name}Function(${parameters
       .map((input: SkittlesParameter) => `${input.name}Var`)
       .join(", ")}) ${hasReturn ? `-> v ` : ""}{`,
     ...getBlockYul(statements),
-    `            }`,
+    `}`,
   ]);
 };
 
@@ -300,22 +288,21 @@ const _addStorageLayout = (
     const variables = getVariables(mappings);
     const extraVars = variables.split(", ").slice(1);
     const extraVarsYul = [
-      `            mstore(0, p)`,
+      `mstore(0, p)`,
       ...extraVars.map(
-        (v: string, index: number) =>
-          `            mstore(0x${index * 20}, ${v})`
+        (v: string, index: number) => `mstore(0x${index * 20}, ${v})`
       ),
-      `            p := keccak256(0, 0x${mappings * 20})`,
+      `p := keccak256(0, 0x${mappings * 20})`,
     ];
     return addToSection(yul, section, [
-      `        function ${name}Pos(${variables}) -> p {`,
-      `            p := add(0x1000, a)`,
+      `function ${name}Pos(${variables}) -> p {`,
+      `p := add(0x1000, a)`,
       ...(extraVars.length > 0 ? extraVarsYul : []),
-      `        }`,
+      `}`,
     ]);
   }
   return addToSection(yul, section, [
-    `        function ${name}Pos() -> p { p := ${index} }`,
+    `function ${name}Pos() -> p { p := ${index} }`,
   ]);
 };
 
@@ -381,9 +368,9 @@ const _addStorageAccess = (
     }
     if (!value) throw new Error("No storage update to get storage value");
     return addToSection(yul, section, [
-      `        function ${name}Storage() -> ${initial} {`,
-      `            ${initial} := ${getExpressionYul(value)}`,
-      `        }`,
+      `function ${name}Storage() -> ${initial} {`,
+      `${initial} := ${getExpressionYul(value)}`,
+      `}`,
     ]);
   }
 
@@ -391,22 +378,22 @@ const _addStorageAccess = (
     const mappings = subStringCount(type, "mapping");
     const vars = getVariables(mappings);
     return addToSection(yul, section, [
-      `        function ${name}Storage(${vars}) -> ${initial} {`,
-      `            ${initial} := sload(${name}Pos(${vars}))`,
-      `        }`,
-      `        function ${name}Set(${vars}, value) {`,
-      `            sstore(${name}Pos(${vars}), value)`,
-      `        }`,
+      `function ${name}Storage(${vars}) -> ${initial} {`,
+      `${initial} := sload(${name}Pos(${vars}))`,
+      `}`,
+      `function ${name}Set(${vars}, value) {`,
+      `sstore(${name}Pos(${vars}), value)`,
+      `}`,
     ]);
   }
 
   return addToSection(yul, section, [
-    `        function ${name}Storage() -> ${initial} {`,
-    `            ${initial} := sload(${name}Pos())`,
-    `        }`,
-    `        function ${name}Set(value) {`,
-    `            sstore(${name}Pos(), value)`,
-    `        }`,
+    `function ${name}Storage() -> ${initial} {`,
+    `${initial} := sload(${name}Pos())`,
+    `}`,
+    `function ${name}Set(value) {`,
+    `sstore(${name}Pos(), value)`,
+    `}`,
   ]);
 };
 
@@ -419,10 +406,8 @@ const addValueInitializations = (
   const expression = getExpressionYul(property.value);
   return addToSection(yul, YulSection.Constructor, [
     property.type === "string"
-      ? `        sstore(${index}, add(${expression}, ${
-          (expression.length - 2) * 2
-        }))`
-      : `        sstore(${index}, ${expression})`,
+      ? `sstore(${index}, add(${expression}, ${(expression.length - 2) * 2}))`
+      : `sstore(${index}, ${expression})`,
   ]);
 };
 
@@ -431,12 +416,12 @@ const getParameters = (
   className: string
 ): string[] => {
   return [
-    `        let programSize := datasize("${className}")`,
-    `        let argSize := sub(codesize(), programSize)`,
-    `        codecopy(0, programSize, argSize)`,
+    `let programSize := datasize("${className}")`,
+    `let argSize := sub(codesize(), programSize)`,
+    `codecopy(0, programSize, argSize)`,
     ...parameters.map(
       (input: SkittlesParameter, index: number) =>
-        `        let ${input.name}Var := mload(${index * 32})`
+        `let ${input.name}Var := mload(${index * 32})`
     ),
   ];
 };
@@ -457,10 +442,20 @@ const addConstructor = (yul: string[], skittlesClass: SkittlesClass) => {
   });
   return addToSection(yul, YulSection.Constructor, [
     ...getParameters(parameters, skittlesClass.name),
-    ...getBlockYul(statements).map((statement) =>
-      statement.replace("                ", "        ")
-    ),
+    ...getBlockYul(statements),
   ]);
+};
+
+const addTabs = (yul: string[]) => {
+  const tab = `    `;
+  let indentation = 0;
+  const yulWithTabs = [];
+  for (const line of yul) {
+    if (line === "}") indentation--;
+    yulWithTabs.push(`${tab.repeat(indentation)}${line}`);
+    if (line.slice(-1) === "{") indentation++;
+  }
+  return yulWithTabs;
 };
 
 const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
@@ -490,7 +485,9 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
     // TODO Handle private methods
   });
 
-  // forEachChild(ast, process);
+  // Formatting
+  yul = addTabs(yul);
+
   const output = yul.join("\n");
   return output;
 };
