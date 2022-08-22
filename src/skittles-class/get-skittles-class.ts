@@ -3,7 +3,7 @@ import {
   isPropertyDeclaration,
   isConstructorDeclaration,
 } from "typescript";
-import getAst from "../get-ast";
+import getAst from "../ast/get-ast";
 import {
   getClassNode,
   getNodeName,
