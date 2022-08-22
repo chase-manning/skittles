@@ -1,6 +1,7 @@
 node_modules
 */*.js
 */*/*.js
+lib
 index.js
 cache
 output.yul
