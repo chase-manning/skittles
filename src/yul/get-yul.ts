@@ -1,10 +1,7 @@
 import yulTemplate, { YulSection } from "../data/yul-template";
 import SkittlesClass, {
-  SkittlesBinaryExpression,
-  SkittlesExpression,
   SkittlesExpressionType,
   SkittlesMethod,
-  SkittlesOperator,
   SkittlesParameter,
   SkittlesVariable,
   SkittlesReturnStatement,
@@ -20,6 +17,8 @@ import SkittlesClass, {
 import { getVariables, subStringCount } from "../helpers/string-helper";
 import getSelector from "../helpers/selector-helper";
 import { Abi } from "../types/abi-types";
+import { returnFunctions, decoderFunctions } from "./yul-constants";
+import getExpressionYul from "./get-expression-yul";
 
 const addToSection = (
   yul: string[],
@@ -30,40 +29,6 @@ const addToSection = (
   if (sectionIndex === -1) return yul;
   yul.splice(sectionIndex + 1, 0, ...lines);
   return yul;
-};
-
-const decoderFunctions: Record<string, string> = {
-  address: "decodeAsAddress",
-  uint256: "decodeAsUint",
-};
-
-const returnFunctions: Record<string, string> = {
-  uint256: "return256",
-  bool: "returnBoolean",
-  address: "return256",
-  string: "returnString",
-};
-
-const evmDialects: Record<string, Record<string, string>> = {
-  block: {
-    coinbase: "coinbase()",
-    difficulty: "difficulty()",
-    block: "number()",
-    prevhash: "",
-    timestamp: "timestamp()",
-  },
-  chain: {
-    id: "chainid()",
-  },
-  msg: {
-    data: "",
-    sender: "caller()",
-    value: "callvalue()",
-  },
-  tx: {
-    gasPrice: "gasprice()",
-    origin: "origin()",
-  },
 };
 
 const getBaseYul = (name: string): string[] => {
@@ -114,63 +79,6 @@ const addMethodDispatcher = (
           .join(", ")}))`,
     `}`,
   ]);
-};
-
-const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
-  const { left, right, operator } = expression;
-  switch (operator) {
-    case SkittlesOperator.Plus:
-      return `safeAdd(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Minus:
-      return `safeSub(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Multiply:
-      return `mul(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Divide:
-      return `div(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Modulo:
-      return `mod(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Equals:
-      return `eq(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.NotEquals:
-      return `neq(${getExpressionYul(left)}, ${getExpressionYul(right)}))`;
-    case SkittlesOperator.GreaterThan:
-      return `gt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.LessThan:
-      return `lt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.GreaterThanOrEqual:
-      return `gte(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.LessThanOrEqual:
-      return `lte(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.And:
-      return `and(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Or:
-      return `or(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Not:
-      return `not(${getExpressionYul(left)})`;
-    default:
-      throw new Error(`Unsupported binary operator ${operator}`);
-  }
-};
-
-const getExpressionYul = (expression: SkittlesExpression): string => {
-  switch (expression.expressionType) {
-    case SkittlesExpressionType.Binary:
-      return getBinaryYul(expression);
-    case SkittlesExpressionType.Variable:
-      return `${expression.value}Var`;
-    case SkittlesExpressionType.Value:
-      if (expression.type === "string") return `"${expression.value}"`;
-      return expression.value;
-    case SkittlesExpressionType.Storage:
-      return `${expression.variable}Storage()`;
-    case SkittlesExpressionType.Mapping:
-      const variables = expression.items.map((item) => getExpressionYul(item));
-      return `${expression.variable}Storage(${variables.join(", ")})`;
-    case SkittlesExpressionType.EvmDialect:
-      return evmDialects[expression.environment][expression.variable];
-    default:
-      throw new Error("Unsupported expression");
-  }
 };
 
 const getStorageUpdateYul = (
