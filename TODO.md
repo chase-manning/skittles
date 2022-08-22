@@ -1,4 +1,3 @@
-- We can remove lib from source control right?
 - Split up code more
 - Extract all TODO comments to here
 
