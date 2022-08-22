@@ -1,5 +1,5 @@
 import yulTemplate, { YulSection } from "./data/yul-template";
-import { Abi, AbiParameter } from "./get-abi";
+import { Abi } from "./get-abi";
 import getSelector from "./get-selector";
 import SkittlesClass, {
   SkittlesBinaryExpression,
@@ -13,14 +13,12 @@ import SkittlesClass, {
   SkittlesStatement,
   SkittlesStatementType,
   SkittlesStorageUpdateStatement,
-  SkittlesConstructor,
   SkittlesMappingUpdateStatement,
   SkittlesCallStatement,
   SkittlesIfStatement,
   SkittlesThrowStatement,
 } from "./types/skittles-class";
 
-import { writeFile } from "./helpers/file-helper";
 import { getVariables, subStringCount } from "./helpers/string-helper";
 
 const addToSection = (
@@ -40,9 +38,10 @@ const decoderFunctions: Record<string, string> = {
 };
 
 const returnFunctions: Record<string, string> = {
-  uint256: "returnUint",
+  uint256: "return256",
   bool: "returnBoolean",
-  address: "returnAddress",
+  address: "return256",
+  string: "returnString",
 };
 
 const evmDialects: Record<string, Record<string, string>> = {
@@ -260,7 +259,7 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   const hasReturn = returns !== "void";
   return addToSection(yul, YulSection.Functions, [
     `            function ${name}Function(${parameters
-      .map((input: AbiParameter) => `${input.name}Var`)
+      .map((input: SkittlesParameter) => `${input.name}Var`)
       .join(", ")}) ${hasReturn ? `-> v ` : ""}{`,
     ...getBlockYul(statements),
     `            }`,
@@ -417,13 +416,18 @@ const addValueInitializations = (
   index: number
 ) => {
   if (!property.value) return yul;
+  const expression = getExpressionYul(property.value);
   return addToSection(yul, YulSection.Constructor, [
-    `        sstore(${index}, ${getExpressionYul(property.value)})`,
+    property.type === "string"
+      ? `        sstore(${index}, add(${expression}, ${
+          (expression.length - 2) * 2
+        }))`
+      : `        sstore(${index}, ${expression})`,
   ]);
 };
 
 const getParameters = (
-  parameters: AbiParameter[],
+  parameters: SkittlesParameter[],
   className: string
 ): string[] => {
   return [
@@ -431,7 +435,7 @@ const getParameters = (
     `        let argSize := sub(codesize(), programSize)`,
     `        codecopy(0, programSize, argSize)`,
     ...parameters.map(
-      (input: AbiParameter, index: number) =>
+      (input: SkittlesParameter, index: number) =>
         `        let ${input.name}Var := mload(${index * 32})`
     ),
   ];
@@ -459,7 +463,7 @@ const addConstructor = (yul: string[], skittlesClass: SkittlesClass) => {
   ]);
 };
 
-const getYul = (skittlesClass: SkittlesClass, abi: Abi, debug = false) => {
+const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   // Getting base data
   let yul = getBaseYul(skittlesClass.name);
 
@@ -488,7 +492,6 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi, debug = false) => {
 
   // forEachChild(ast, process);
   const output = yul.join("\n");
-  if (debug) writeFile("yul", skittlesClass.name, output);
   return output;
 };
 
