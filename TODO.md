@@ -1,8 +1,3 @@
-- Move formatting to separate step
-- Test overflow and underflow protection
-
-====== Code Phase 1 Complete =====
-
 - We can remove lib from source control right?
 - Split up code more
 - Extract all TODO comments to here

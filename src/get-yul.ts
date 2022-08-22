@@ -122,7 +122,7 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
     case SkittlesOperator.Plus:
       return `safeAdd(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.Minus:
-      return `sub(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+      return `safeSub(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.Multiply:
       return `mul(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.Divide:
