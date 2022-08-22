@@ -1,6 +1,7 @@
 - Split up code more
 - Add tests for other EVM dialects
-- Add tests for other operations
+- Add tests for other operations (divide, mul ect)
+- Add test for all EVM commands
 - Extract all TODO comments to here
 
 ===== Peer Review ====
