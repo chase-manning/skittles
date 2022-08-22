@@ -1,4 +1,4 @@
-import yulTemplate, { YulSection } from "../data/yul-template";
+import { YulSection } from "../data/yul-template";
 import SkittlesClass, {
   SkittlesExpressionType,
   SkittlesMethod,
@@ -15,23 +15,8 @@ import { returnFunctions, decoderFunctions } from "./yul-constants";
 import getExpressionYul from "./get-expression-yul";
 import getStatementYul from "./get-statement-yul";
 import formatYul from "./format-yul";
-
-const addToSection = (
-  yul: string[],
-  section: YulSection,
-  lines: string[]
-): string[] => {
-  const sectionIndex = yul.findIndex((line) => line.includes(`- ${section} -`));
-  if (sectionIndex === -1) return yul;
-  yul.splice(sectionIndex + 1, 0, ...lines);
-  return yul;
-};
-
-const getBaseYul = (name: string): string[] => {
-  const base = [...yulTemplate];
-  base.unshift(`object "${name}" {`);
-  return base;
-};
+import { addToSection, getBaseYul } from "../helpers/yul-helper";
+import addStorageLayout from "./add-yul-storage-layout";
 
 const addPropertyDispatcher = (
   yul: string[],
@@ -94,58 +79,6 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
       .join(", ")}) ${hasReturn ? `-> v ` : ""}{`,
     ...getBlockYul(statements),
     `}`,
-  ]);
-};
-
-const addStorageLayout = (
-  yul: string[],
-  property: SkittlesVariable,
-  index: number
-) => {
-  return _addStorageLayout(yul, property, index, YulSection.StorageLayout);
-};
-
-const addConstructorStorageLayout = (
-  yul: string[],
-  property: SkittlesVariable,
-  index: number
-) => {
-  return _addStorageLayout(
-    yul,
-    property,
-    index,
-    YulSection.ConstructorStorageLayout
-  );
-};
-
-const _addStorageLayout = (
-  yul: string[],
-  property: SkittlesVariable,
-  index: number,
-  section: YulSection
-) => {
-  if (property.immutable) return yul;
-  const { name, type } = property;
-  if (type.includes("mapping")) {
-    const mappings = subStringCount(type, "mapping");
-    const variables = getVariables(mappings);
-    const extraVars = variables.split(", ").slice(1);
-    const extraVarsYul = [
-      `mstore(0, p)`,
-      ...extraVars.map(
-        (v: string, index: number) => `mstore(0x${index * 20}, ${v})`
-      ),
-      `p := keccak256(0, 0x${mappings * 20})`,
-    ];
-    return addToSection(yul, section, [
-      `function ${name}Pos(${variables}) -> p {`,
-      `p := add(0x1000, a)`,
-      ...(extraVars.length > 0 ? extraVarsYul : []),
-      `}`,
-    ]);
-  }
-  return addToSection(yul, section, [
-    `function ${name}Pos() -> p { p := ${index} }`,
   ]);
 };
 
@@ -298,7 +231,7 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
     (property: SkittlesVariable, index: number) => {
       yul = addPropertyDispatcher(yul, abi, property);
       yul = addStorageLayout(yul, property, index);
-      yul = addConstructorStorageLayout(yul, property, index);
+      yul = addStorageLayout(yul, property, index, true);
       yul = addStorageAccess(yul, property, skittlesClass);
       yul = addConstructorStorageAccess(yul, property, skittlesClass);
       yul = addValueInitializations(yul, property, index);
