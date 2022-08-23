@@ -3,7 +3,10 @@ import {
   ClassDeclaration,
   forEachChild,
   isArrowFunction,
+  isBinaryExpression,
   isClassDeclaration,
+  isElementAccessExpression,
+  isPropertyAccessExpression,
   isPropertyDeclaration,
   Node,
   PropertyDeclaration,
@@ -91,4 +94,14 @@ export const isPropertyArrowFunction = (node: PropertyDeclaration): boolean => {
 
 export const isVariable = (property: PropertyDeclaration): boolean => {
   return !isPropertyArrowFunction(property);
+};
+
+export const isExpression = (node: Node): boolean => {
+  return (
+    isBinaryExpression(node) ||
+    isTrueKeyword(node) ||
+    isFalseKeyword(node) ||
+    isPropertyAccessExpression(node) ||
+    isElementAccessExpression(node)
+  );
 };
