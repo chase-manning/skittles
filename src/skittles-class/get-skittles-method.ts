@@ -45,22 +45,22 @@ const getSkittlesMethod = (
   }
 
   // Is arrow function
-  if (!astMethod.initializer)
-    throw new Error("Arrow function has no initializer");
-  if (!isArrowFunction(astMethod.initializer))
-    throw new Error("Not an arrow function");
-  const arrowFunction = astMethod.initializer;
-  return {
-    name: getNodeName(astMethod),
-    returns: getSkittlesType(arrowFunction.type),
-    private: isNodePrivate(astMethod),
-    view: false, // Temporary, is overriden later with `getStateMutability()`
-    parameters: getSkittlesParameters(arrowFunction),
-    statements: getSkittlesStatements(
-      arrowFunction.body as Statement,
-      getSkittlesType(astMethod.type)
-    ),
-  };
+  if (astMethod.initializer && isArrowFunction(astMethod.initializer)) {
+    const arrowFunction = astMethod.initializer;
+    return {
+      name: getNodeName(astMethod),
+      returns: getSkittlesType(arrowFunction.type),
+      private: isNodePrivate(astMethod),
+      view: false, // Temporary, is overriden later with `getStateMutability()`
+      parameters: getSkittlesParameters(arrowFunction),
+      statements: getSkittlesStatements(
+        arrowFunction.body as Statement,
+        getSkittlesType(astMethod.type)
+      ),
+    };
+  }
+
+  throw new Error("Method type is not supported");
 };
 
 export default getSkittlesMethod;
