@@ -6,7 +6,11 @@
 import { program } from "commander";
 import getAbi from "./abi/get-abi";
 import getBytecode from "./bytecode/get-bytecode";
-import { getAllContractFiles, writeFile } from "./helpers/file-helper";
+import {
+  clearDirectory,
+  getAllContractFiles,
+  writeFile,
+} from "./helpers/file-helper";
 import getSkittlesClass from "./skittles-class/get-skittles-class";
 import getYul from "./yul/get-yul";
 import { address, self, block, chain, msg, tx } from "./types/core-types";
@@ -36,19 +40,18 @@ program
   .description("CLI for the Skittles compiler")
   .version("0.1.0");
 
-// program
-//   .command("compile")
-//   .description("Compile TypeScript file")
-//   .argument("<string>", "file name")
-//   .action(async (str, options) => {
-//     console.log(await compileTypeScriptToBytecode(str));
-//   });
-
 program
   .command("compile")
-  .description("Compile all TypeScript file")
+  .description("Compile all TypeScript files")
   .action(async () => {
     await skittlesCompile();
+  });
+
+program
+  .command("clean")
+  .description("Clears the cache and deletes all builds")
+  .action(() => {
+    clearDirectory("./build");
   });
 
 program.parse();

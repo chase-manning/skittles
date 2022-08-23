@@ -24,3 +24,17 @@ export const writeFile = (type: string, fileName: string, content: string) => {
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(`${directory}/${fileName}.${type}`, content);
 };
+
+// Delete all files and directories in the given directory
+export const clearDirectory = (directory: string) => {
+  const files = fs.readdirSync(directory);
+  for (const file of files) {
+    const filePath = path.join(directory, file);
+    if (fs.statSync(filePath).isFile()) {
+      fs.unlinkSync(filePath);
+    } else {
+      clearDirectory(filePath);
+    }
+  }
+  fs.rmdirSync(directory);
+};
