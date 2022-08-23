@@ -6,6 +6,7 @@ import {
   isBinaryExpression,
   isClassDeclaration,
   isElementAccessExpression,
+  isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isPropertyDeclaration,
   Node,
@@ -102,6 +103,7 @@ export const isExpression = (node: Node): boolean => {
     isTrueKeyword(node) ||
     isFalseKeyword(node) ||
     isPropertyAccessExpression(node) ||
-    isElementAccessExpression(node)
+    isElementAccessExpression(node) ||
+    isPrefixUnaryExpression(node)
   );
 };

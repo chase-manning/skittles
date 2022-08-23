@@ -22,7 +22,7 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
     case SkittlesOperator.Equals:
       return `eq(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.NotEquals:
-      return `neq(${getExpressionYul(left)}, ${getExpressionYul(right)}))`;
+      return `neq(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.GreaterThan:
       return `gt(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.LessThan:
@@ -35,8 +35,6 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
       return `and(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.Or:
       return `or(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
-    case SkittlesOperator.Not:
-      return `not(${getExpressionYul(left)})`;
     default:
       throw new Error(`Unsupported binary operator ${operator}`);
   }
@@ -44,6 +42,8 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
 
 const getExpressionYul = (expression: SkittlesExpression): string => {
   switch (expression.expressionType) {
+    case SkittlesExpressionType.Not:
+      return `not(${getExpressionYul(expression.value)})`;
     case SkittlesExpressionType.Binary:
       return getBinaryYul(expression);
     case SkittlesExpressionType.Variable:

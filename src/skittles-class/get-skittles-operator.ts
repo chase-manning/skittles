@@ -19,7 +19,11 @@ const getSkittlesOperator = (syntaxKind: SyntaxKind): SkittlesOperator => {
       return SkittlesOperator.Or;
     case SyntaxKind.EqualsEqualsToken:
       return SkittlesOperator.Equals;
+    case SyntaxKind.EqualsEqualsEqualsToken:
+      return SkittlesOperator.Equals;
     case SyntaxKind.ExclamationEqualsToken:
+      return SkittlesOperator.NotEquals;
+    case SyntaxKind.ExclamationEqualsEqualsToken:
       return SkittlesOperator.NotEquals;
     case SyntaxKind.LessThanToken:
       return SkittlesOperator.LessThan;

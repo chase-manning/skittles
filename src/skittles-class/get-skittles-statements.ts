@@ -7,6 +7,7 @@ import {
   isExpressionStatement,
   isIfStatement,
   isNewExpression,
+  isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isReturnStatement,
   isThrowStatement,
@@ -89,6 +90,16 @@ const getReturnStatementExpression = (
         expressionType: SkittlesExpressionType.Value,
         type: "bool",
         value: "false",
+      },
+    };
+  }
+  if (isPrefixUnaryExpression(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: {
+        expressionType: SkittlesExpressionType.Not,
+        value: getSkittlesExpression(expression.operand),
       },
     };
   }
@@ -231,6 +242,7 @@ const getSkittlesStatement = (
   if (isExpression(node)) {
     return getReturnStatementExpression(node as Expression, returnType);
   }
+  console.log(JSON.stringify(node));
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
 

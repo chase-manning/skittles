@@ -5,10 +5,15 @@ import {
   isIdentifier,
   isLiteralExpression,
   isParenthesizedExpression,
+  isPrefixUnaryExpression,
   isPropertyAccessExpression,
   SyntaxKind,
 } from "typescript";
-import { getNodeName } from "../helpers/ast-helper";
+import {
+  getNodeName,
+  isFalseKeyword,
+  isTrueKeyword,
+} from "../helpers/ast-helper";
 import {
   SkittlesExpression,
   SkittlesExpressionType,
@@ -78,6 +83,27 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
   if (isParenthesizedExpression(expression)) {
     return getSkittlesExpression(expression.expression);
   }
+  if (isPrefixUnaryExpression(expression)) {
+    return {
+      expressionType: SkittlesExpressionType.Not,
+      value: getSkittlesExpression(expression.operand),
+    };
+  }
+  if (isTrueKeyword(expression)) {
+    return {
+      expressionType: SkittlesExpressionType.Value,
+      type: "bool",
+      value: "true",
+    };
+  }
+  if (isFalseKeyword(expression)) {
+    return {
+      expressionType: SkittlesExpressionType.Value,
+      type: "bool",
+      value: "false",
+    };
+  }
+  console.log(JSON.stringify(expression));
   throw new Error(`Unknown expression type: ${expression.kind}`);
 };
 

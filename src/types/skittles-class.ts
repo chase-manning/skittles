@@ -1,4 +1,5 @@
 export enum SkittlesExpressionType {
+  Not = "Not",
   Binary = "Binary",
   Value = "Value",
   Storage = "Storage",
@@ -26,6 +27,10 @@ export enum SkittlesOperator {
   And,
   Or,
   Not,
+}
+export interface SkittlesNotExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Not;
+  value: SkittlesExpression;
 }
 
 export interface SkittlesEvmDialectExpression extends SkittlesBaseExpression {
@@ -64,6 +69,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesNotExpression
   | SkittlesEvmDialectExpression
   | SkittlesMappingExpression
   | SkittlesBinaryExpression

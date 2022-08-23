@@ -1,6 +1,7 @@
 export const decoderFunctions: Record<string, string> = {
   address: "decodeAsAddress",
   uint256: "decodeAsUint",
+  bool: "decodeAsUint",
 };
 
 export const returnFunctions: Record<string, string> = {
