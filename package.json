@@ -1,6 +1,6 @@
 {
   "name": "skittles",
-  "version": "0.1.4",
+  "version": "0.1.7",
   "description": "TypeScript Smart Contract Language for the EVM",
   "main": "./lib/index.js",
   "bin": {
@@ -14,7 +14,7 @@
     "refresh": "rm -rf ./node_modules ./package-lock.json && yarn",
     "local": "sudo yarn global add && skittles",
     "test": "hardhat test",
-    "prepublishOnly": "yarn run build && yarn run test"
+    "prepublishOnly": "yarn run build && yarn run test && node ./lib/index.js compile"
   },
   "repository": {
     "type": "git",
