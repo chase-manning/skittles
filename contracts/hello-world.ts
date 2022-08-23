@@ -1,5 +1,8 @@
 import { address, block, chain, msg, tx } from "../src/types/core-types";
 
+// This contract is used for regression testing and intends to implement all compile features
+// It should not be used as an example of a contract implementation using Skittles
+
 export class HelloWorld {
   private _privatebalance: number = 111;
   balance: number = 1;
