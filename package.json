@@ -1,8 +1,9 @@
 {
   "name": "skittles",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "TypeScript Smart Contract Language for the EVM",
   "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "bin": {
     "skittles": "./lib/index.js"
   },
