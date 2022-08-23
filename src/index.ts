@@ -9,6 +9,7 @@ import getBytecode from "./bytecode/get-bytecode";
 import { getAllContractFiles, writeFile } from "./helpers/file-helper";
 import getSkittlesClass from "./skittles-class/get-skittles-class";
 import getYul from "./yul/get-yul";
+import { address, self, block, chain, msg, tx } from "./types/core-types";
 
 const skittlesCompile = async () => {
   const files = getAllContractFiles();
@@ -51,3 +52,5 @@ program
   });
 
 program.parse();
+
+export { address, self, block, chain, msg, tx };
