@@ -1,4 +1,5 @@
 import {
+  Expression,
   isBinaryExpression,
   isBlock,
   isCallExpression,
@@ -15,6 +16,7 @@ import {
 import {
   getNodeName,
   isEquals,
+  isExpression,
   isFalseKeyword,
   isMinusEquals,
   isPlusEquals,
@@ -41,6 +43,56 @@ const getSkittlesStatements = (
     );
   }
   return [getSkittlesStatement(block, returnType)];
+};
+
+const getReturnStatementExpression = (
+  expression: Expression,
+  returnType: string
+): SkittlesStatement => {
+  if (isBinaryExpression(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: getSkittlesExpression(expression),
+    };
+  }
+  if (isPropertyAccessExpression(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: getSkittlesExpression(expression),
+    };
+  }
+  if (isElementAccessExpression(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: getSkittlesExpression(expression),
+    };
+  }
+  if (isTrueKeyword(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: {
+        expressionType: SkittlesExpressionType.Value,
+        type: "bool",
+        value: "true",
+      },
+    };
+  }
+  if (isFalseKeyword(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: {
+        expressionType: SkittlesExpressionType.Value,
+        type: "bool",
+        value: "false",
+      },
+    };
+  }
+  throw new Error(`Unknown return expression type: ${expression.kind}`);
 };
 
 const getSkittlesStatement = (
@@ -148,50 +200,7 @@ const getSkittlesStatement = (
   if (isReturnStatement(node)) {
     const { expression } = node;
     if (!expression) throw new Error("Return statement has no expression");
-    if (isBinaryExpression(expression)) {
-      return {
-        statementType: SkittlesStatementType.Return,
-        type: returnType,
-        value: getSkittlesExpression(expression),
-      };
-    }
-    if (isPropertyAccessExpression(expression)) {
-      return {
-        statementType: SkittlesStatementType.Return,
-        type: returnType,
-        value: getSkittlesExpression(expression),
-      };
-    }
-    if (isElementAccessExpression(expression)) {
-      return {
-        statementType: SkittlesStatementType.Return,
-        type: returnType,
-        value: getSkittlesExpression(expression),
-      };
-    }
-    if (isTrueKeyword(expression)) {
-      return {
-        statementType: SkittlesStatementType.Return,
-        type: returnType,
-        value: {
-          expressionType: SkittlesExpressionType.Value,
-          type: "bool",
-          value: "true",
-        },
-      };
-    }
-    if (isFalseKeyword(expression)) {
-      return {
-        statementType: SkittlesStatementType.Return,
-        type: returnType,
-        value: {
-          expressionType: SkittlesExpressionType.Value,
-          type: "bool",
-          value: "false",
-        },
-      };
-    }
-    throw new Error(`Unknown return expression type: ${expression.kind}`);
+    return getReturnStatementExpression(expression, returnType);
   }
   if (isIfStatement(node)) {
     const { expression, thenStatement, elseStatement } = node;
@@ -218,6 +227,9 @@ const getSkittlesStatement = (
       };
     }
     throw new Error("Not implemented throw statement handling");
+  }
+  if (isExpression(node)) {
+    return getReturnStatementExpression(node as Expression, returnType);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
