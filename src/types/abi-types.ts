@@ -1,6 +1,6 @@
 export interface AbiParameter {
   name: string;
-  type: string; // TODO Add subtypes
+  type: string;
 }
 
 export interface AbiFunction {
