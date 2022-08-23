@@ -164,4 +164,86 @@ describe("Hello World", () => {
     const result = Number((await helloWorld.getMathsResult()).toString());
     expect(result).to.equal(1);
   });
+
+  /* Test all these */
+  // getNotEqualToTwo = (value: number): boolean => 2 !== value;
+  // getEqualToSeven = (value: number): boolean => 7 === value;
+  // getGreaterThanFour = (value: number): boolean => value > 4;
+  // getLessThan9 = (value: number): boolean => value < 9;
+  // getGreaterThanOrEqualToFour = (value: number): boolean => value >= 4;
+  // getLessThanOrEqualTo9 = (value: number): boolean => value <= 9;
+  // getAnd = (value: boolean): boolean => value && true;
+  // getOr = (value: boolean): boolean => value || false;
+  // getNot = (value: boolean): boolean => !value;
+
+  it("Should get Not Equal To Two", async () => {
+    const result = await helloWorld.getNotEqualToTwo(2);
+    expect(result).to.equal(false);
+    const neg_result = await helloWorld.getNotEqualToTwo(1);
+    expect(neg_result).to.equal(true);
+  });
+
+  it("Should get Equal To Seven", async () => {
+    const result = await helloWorld.getEqualToSeven(7);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getEqualToSeven(1);
+    expect(neg_result).to.equal(false);
+  });
+
+  it("Should get Greater Than Four", async () => {
+    const result = await helloWorld.getGreaterThanFour(5);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getGreaterThanFour(3);
+    expect(neg_result).to.equal(false);
+    const edge_result = await helloWorld.getGreaterThanFour(4);
+    expect(edge_result).to.equal(false);
+  });
+
+  it("Should get Less Than 9", async () => {
+    const result = await helloWorld.getLessThan9(8);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getLessThan9(10);
+    expect(neg_result).to.equal(false);
+    const edge_result = await helloWorld.getLessThan9(9);
+    expect(edge_result).to.equal(false);
+  });
+
+  it("Should get Greater Than Or Equal To Four", async () => {
+    const result = await helloWorld.getGreaterThanOrEqualToFour(5);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getGreaterThanOrEqualToFour(2);
+    expect(neg_result).to.equal(false);
+    const edge_result = await helloWorld.getGreaterThanOrEqualToFour(4);
+    expect(edge_result).to.equal(true);
+  });
+
+  it("Should get Less Than Or Equal To 9", async () => {
+    const result = await helloWorld.getLessThanOrEqualTo9(8);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getLessThanOrEqualTo9(10);
+    expect(neg_result).to.equal(10);
+    const edge_result = await helloWorld.getLessThanOrEqualTo9(9);
+    expect(edge_result).to.equal(9);
+  });
+
+  it("Should get And", async () => {
+    const result = await helloWorld.getAnd(true);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getAnd(false);
+    expect(neg_result).to.equal(false);
+  });
+
+  it("Should get Or", async () => {
+    const result = await helloWorld.getOr(false);
+    expect(result).to.equal(true);
+    const neg_result = await helloWorld.getOr(true);
+    expect(neg_result).to.equal(true);
+  });
+
+  it("Should get Not", async () => {
+    const result = await helloWorld.getNot(true);
+    expect(result).to.equal(false);
+    const neg_result = await helloWorld.getNot(false);
+    expect(neg_result).to.equal(true);
+  });
 });

@@ -58,4 +58,13 @@ export class HelloWorld {
 
   // Testing maths and logic
   getMathsResult = (): number => 2 + 3 - (((4 * 6) / 6) % 7);
+  getNotEqualToTwo = (value: number): boolean => 2 !== value;
+  getEqualToSeven = (value: number): boolean => 7 === value;
+  getGreaterThanFour = (value: number): boolean => value > 4;
+  getLessThan9 = (value: number): boolean => value < 9;
+  getGreaterThanOrEqualToFour = (value: number): boolean => value >= 4;
+  getLessThanOrEqualTo9 = (value: number): boolean => value <= 9;
+  getAnd = (value: boolean): boolean => value && true;
+  getOr = (value: boolean): boolean => value || false;
+  getNot = (value: boolean): boolean => !value;
 }
