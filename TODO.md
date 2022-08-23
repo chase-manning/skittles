@@ -1,6 +1,3 @@
-- Add tests for other operations (divide, mul ect)
-- Extract all TODO comments to here
-
 ===== Peer Review ====
 
 - Consider making types default exports (like `string` and `number` are)
@@ -11,6 +8,7 @@
 
 ==== Beta ready ====
 
+- Add support for `else` conditions for `if` statements (need to use switches)
 - Add support for events
 - Add immutable (readonly) setting for evaluated values using `setimmutable`
 - Consider how we handle large numbers (BigNumber or something?)

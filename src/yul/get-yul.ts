@@ -27,7 +27,6 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
       yul = addStorageAccess(yul, property, skittlesClass);
       yul = addStorageAccess(yul, property, skittlesClass, true);
       yul = addValueInitializations(yul, property, index);
-      // TODO Handle private properties
     }
   );
 
@@ -38,7 +37,6 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   skittlesClass.methods.forEach((method: SkittlesMethod) => {
     yul = addMethodDispatcher(yul, abi, method);
     yul = addMethodFunction(yul, method);
-    // TODO Handle private methods
   });
 
   // Formatting

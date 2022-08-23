@@ -39,7 +39,6 @@ const getCallYul = (statement: SkittlesCallStatement): string[] => {
 
 const getIfYul = (statement: SkittlesIfStatement): string[] => {
   const { condition, then } = statement;
-  // TODO Add else support (needs to use switches)
   const statements = [];
   for (const statement of then) {
     statements.push(...getStatementYul(statement));
