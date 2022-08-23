@@ -55,4 +55,7 @@ export class HelloWorld {
   getMsgValue = (): number => msg.value;
   getTxGasPrice = (): number => tx.gasPrice;
   getTxOrigin = (): address => tx.origin;
+
+  // Testing maths and logic
+  getMathsResult = (): number => 2 + 3 - (((4 * 6) / 6) % 7);
 }

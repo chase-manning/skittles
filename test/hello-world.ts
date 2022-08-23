@@ -159,4 +159,9 @@ describe("Hello World", () => {
     const txGasPrice = await helloWorld.getTxGasPrice();
     expect(txGasPrice).to.equal(0);
   });
+
+  it("Should get Maths Result", async () => {
+    const result = Number((await helloWorld.getMathsResult()).toString());
+    expect(result).to.equal(1);
+  });
 });
