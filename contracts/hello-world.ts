@@ -1,4 +1,4 @@
-import { address, msg } from "../src/types/core-types";
+import { address, block, chain, msg, tx } from "../src/types/core-types";
 
 export class HelloWorld {
   private _privatebalance: number = 111;
@@ -45,4 +45,14 @@ export class HelloWorld {
   getUsersBalance(user: address): number {
     return this._balances[user];
   }
+
+  // Testing EVM OP Codes
+  getCoinbase = (): address => block.coinbase;
+  getDifficulty = (): number => block.difficulty;
+  getBlock = (): number => block.block;
+  getTimestamp = (): number => block.timestamp;
+  getChainId = (): number => chain.id;
+  getMsgValue = (): number => msg.value;
+  getTxGasPrice = (): number => tx.gasPrice;
+  getTxOrigin = (): address => tx.origin;
 }

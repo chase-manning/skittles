@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { getContractFactory } from "./support";
+import { isAddress } from "ethers/lib/utils";
 
 let helloWorld: Contract;
 let walletA: any;
@@ -113,5 +114,49 @@ describe("Hello World", () => {
       walletB.address
     );
     expect(approval).to.equal(7);
+  });
+
+  it("Should get Coinbase", async () => {
+    const coinbase = await helloWorld.getCoinbase();
+    expect(isAddress(coinbase)).to.equal(true);
+    expect(coinbase).to.not.equal(ethers.constants.AddressZero);
+  });
+
+  it("Should get TX Origin", async () => {
+    const txOrigin = await helloWorld.getTxOrigin();
+    expect(txOrigin).to.equal(walletA.address);
+  });
+
+  it("Should get Difficulty", async () => {
+    const difficulty = Number((await helloWorld.getDifficulty()).toString());
+    expect(difficulty).to.be.greaterThan(10_000);
+    expect(difficulty).to.be.lessThan(1_000_000);
+  });
+
+  it("Should get Block", async () => {
+    const block = Number((await helloWorld.getBlock()).toString());
+    expect(block).to.be.greaterThan(5);
+    expect(block).to.be.lessThan(100);
+  });
+
+  it("Should get Timestamp", async () => {
+    const timestamp = Number((await helloWorld.getTimestamp()).toString());
+    const now = new Date().getTime() / 1000;
+    expect(timestamp).to.be.greaterThan(now * 0.9);
+    expect(timestamp).to.be.lessThan(now * 1.1);
+  });
+
+  it("Should get Chain ID", async () => {
+    const chainId = await helloWorld.getChainId();
+    expect(chainId).to.equal(31337);
+  });
+
+  it("Should get MSG Value", async () => {
+    expect(await helloWorld.getMsgValue()).to.equal(0);
+  });
+
+  it("Should get TX Gas Price", async () => {
+    const txGasPrice = await helloWorld.getTxGasPrice();
+    expect(txGasPrice).to.equal(0);
   });
 });
