@@ -1,10 +1,10 @@
 ===== Peer Review ====
 
-- Consider making types default exports (like `string` and `number` are)
-- wrap all hardhat functions
 - add init function
+- wrap all hardhat functions
 - add readme
 - add normal repo things
+- Consider making types default exports (like `string` and `number` are)
 
 ==== Beta ready ====
 
