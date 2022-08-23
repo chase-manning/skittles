@@ -221,9 +221,9 @@ describe("Hello World", () => {
     const result = await helloWorld.getLessThanOrEqualTo9(8);
     expect(result).to.equal(true);
     const neg_result = await helloWorld.getLessThanOrEqualTo9(10);
-    expect(neg_result).to.equal(10);
+    expect(neg_result).to.equal(false);
     const edge_result = await helloWorld.getLessThanOrEqualTo9(9);
-    expect(edge_result).to.equal(9);
+    expect(edge_result).to.equal(true);
   });
 
   it("Should get And", async () => {
@@ -235,7 +235,7 @@ describe("Hello World", () => {
 
   it("Should get Or", async () => {
     const result = await helloWorld.getOr(false);
-    expect(result).to.equal(true);
+    expect(result).to.equal(false);
     const neg_result = await helloWorld.getOr(true);
     expect(neg_result).to.equal(true);
   });
