@@ -43,7 +43,7 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
 const getExpressionYul = (expression: SkittlesExpression): string => {
   switch (expression.expressionType) {
     case SkittlesExpressionType.Not:
-      return `not(${getExpressionYul(expression.value)})`;
+      return `iszero(${getExpressionYul(expression.value)})`;
     case SkittlesExpressionType.Binary:
       return getBinaryYul(expression);
     case SkittlesExpressionType.Variable:
