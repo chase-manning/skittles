@@ -4,6 +4,7 @@ import {
   isElementAccessExpression,
   isIdentifier,
   isLiteralExpression,
+  isParenthesizedExpression,
   isPropertyAccessExpression,
   SyntaxKind,
 } from "typescript";
@@ -73,6 +74,9 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
       variable: getNodeName(expression),
       items,
     };
+  }
+  if (isParenthesizedExpression(expression)) {
+    return getSkittlesExpression(expression.expression);
   }
   throw new Error(`Unknown expression type: ${expression.kind}`);
 };
