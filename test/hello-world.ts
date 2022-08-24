@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
-import { getContractFactory } from "./support";
 import { isAddress } from "ethers/lib/utils";
+import getSkittlesFactory from "../src/testing/get-skittles-factory";
 
 let helloWorld: Contract;
 let walletA: any;
@@ -16,7 +16,7 @@ describe("Hello World", () => {
     walletB = signers[1];
     walletC = signers[2];
 
-    const HelloWorld = await getContractFactory("./contracts/hello-world.ts");
+    const HelloWorld = await getSkittlesFactory(walletA, "HelloWorld");
     helloWorld = await HelloWorld.deploy(7890);
     await helloWorld.deployed();
   });
