@@ -2,8 +2,8 @@ import { address, msg } from "../src/types/core-types";
 
 export class ERC20 {
   readonly decimals: number = 18;
-  symbol: string = "TEST";
-  name: string = "TEST ERC20";
+  readonly symbol: string = "TEST";
+  readonly name: string = "TEST ERC20";
 
   totalSupply: number;
   private _balances: Record<address, number>;

@@ -10,6 +10,7 @@ export class HelloWorld {
   readonly age: number;
   name: string = "Hello World";
   init: number;
+  readonly readOnlyString: string = "Readonly string";
 
   private _balances: Record<address, number>;
   private _approvals: Record<address, Record<address, number>>;
