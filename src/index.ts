@@ -2,7 +2,6 @@
 // import chalk from "chalk";
 // import clear from "clear";
 // import figlet from "figlet";
-// import path from "path";
 import { program } from "commander";
 import getAbi from "./abi/get-abi";
 import getBytecode from "./bytecode/get-bytecode";
@@ -14,6 +13,7 @@ import {
 import getSkittlesClass from "./skittles-class/get-skittles-class";
 import getYul from "./yul/get-yul";
 import { address, self, block, chain, msg, tx } from "./types/core-types";
+import getSkittlesFactory from "./testing/get-skittles-factory";
 
 const skittlesCompile = async () => {
   const files = getAllContractFiles();
@@ -56,4 +56,4 @@ program
 
 program.parse();
 
-export { address, self, block, chain, msg, tx };
+export { address, self, block, chain, msg, tx, getSkittlesFactory };
