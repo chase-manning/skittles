@@ -1,5 +1,6 @@
 import {
   SkittlesCallStatement,
+  SkittlesExpressionType,
   SkittlesIfStatement,
   SkittlesMappingUpdateStatement,
   SkittlesReturnStatement,
@@ -43,7 +44,24 @@ const getIfYul = (statement: SkittlesIfStatement): string[] => {
   for (const statement of then) {
     statements.push(...getStatementYul(statement));
   }
-  return [`if ${getExpressionYul(condition)} {`, ...statements, `}`];
+  if (statement.else.length === 0) {
+    return [`if ${getExpressionYul(condition)} {`, ...statements, `}`];
+  }
+  const elseStatements = [];
+  for (const s of statement.else) {
+    elseStatements.push(...getStatementYul(s));
+  }
+  return [
+    `if ${getExpressionYul(condition)} {`,
+    ...statements,
+    `}`,
+    `if ${getExpressionYul({
+      expressionType: SkittlesExpressionType.Not,
+      value: condition,
+    })} {`,
+    ...elseStatements,
+    `}`,
+  ];
 };
 
 const getThrowYul = (statement: SkittlesThrowStatement): string[] => {
