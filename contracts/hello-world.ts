@@ -59,6 +59,16 @@ export class HelloWorld {
     }
   }
 
+  weirdConditionUpdate(value: number): void {
+    if (value % 2 === 0) {
+      this.balance = 789;
+    } else if (value * 7 === 21) {
+      this.balance = 123;
+    } else {
+      this.balance = 43;
+    }
+  }
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;
