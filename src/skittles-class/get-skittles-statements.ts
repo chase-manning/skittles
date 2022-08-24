@@ -6,6 +6,7 @@ import {
   isElementAccessExpression,
   isExpressionStatement,
   isIfStatement,
+  isLiteralExpression,
   isNewExpression,
   isPrefixUnaryExpression,
   isPropertyAccessExpression,
@@ -31,6 +32,7 @@ import {
   SkittlesStatementType,
 } from "../types/skittles-class";
 import getSkittlesExpression from "./get-skittles-expression";
+import getSkittlesType from "./get-skittles-type";
 
 const getSkittlesStatements = (
   block: Statement | undefined,
@@ -100,6 +102,17 @@ const getReturnStatementExpression = (
       value: {
         expressionType: SkittlesExpressionType.Not,
         value: getSkittlesExpression(expression.operand),
+      },
+    };
+  }
+  if (isLiteralExpression(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: {
+        expressionType: SkittlesExpressionType.Value,
+        type: getSkittlesType(expression),
+        value: getNodeName(expression),
       },
     };
   }
