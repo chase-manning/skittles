@@ -3,17 +3,30 @@ import fs from "fs";
 
 const CONTRCT_PATH = "./contracts";
 
+export const getAllFilesInDirectory = (dir: string) => {
+  const files: string[] = [];
+  fs.readdirSync(dir).forEach((file) => {
+    const filePath = path.join(dir, file);
+    if (fs.statSync(filePath).isDirectory()) {
+      files.push(...getAllFilesInDirectory(filePath));
+    } else {
+      files.push(filePath);
+    }
+  });
+  return files;
+};
+
 export const getAllContractFiles = (): string[] => {
-  return fs
-    .readdirSync(CONTRCT_PATH)
+  return getAllFilesInDirectory(CONTRCT_PATH)
     .filter((file) => {
-      return fs.statSync(path.join(CONTRCT_PATH, file)).isFile();
-    })
-    .map((file) => {
-      return path.join(CONTRCT_PATH, file);
+      return fs.statSync(file).isFile();
     })
     .filter((file) => {
-      return file.endsWith(".ts") || file.endsWith(".js");
+      return (
+        file.endsWith(".ts") &&
+        !file.endsWith(".d.ts") &&
+        !file.endsWith(".spec.ts")
+      );
     });
 };
 
