@@ -12,6 +12,7 @@ import getSkittlesClass from "./skittles-class/get-skittles-class";
 import getYul from "./yul/get-yul";
 import { address, self, block, chain, msg, tx } from "./types/core-types";
 import getSkittlesFactory from "./testing/get-skittles-factory";
+import { logSkittles } from "./helpers/console-helper";
 
 const skittlesCompile = async () => {
   const files = getAllContractFiles();
@@ -28,11 +29,9 @@ const skittlesCompile = async () => {
   await Promise.all(promises);
 };
 
-// Basic, bubbles, Coinstak, Colossal, Dot matrix, Roman
-
 yargs
-  .usage("test usage")
   .command("compile", "Compile all TypeScript files", async () => {
+    logSkittles();
     await skittlesCompile();
   })
   .command("clean", "Clears the cache and deletes all builds", () => {
