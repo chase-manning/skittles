@@ -38,3 +38,13 @@ export const clearDirectory = (directory: string) => {
   }
   fs.rmdirSync(directory);
 };
+
+export const getContractName = (fileName: string) => {
+  const file = fs.readFileSync(fileName, { encoding: "utf8" });
+  const contractIndex = file.indexOf("class");
+  if (contractIndex === -1) throw new Error(`No contract in file ${file}`);
+  return file.substring(
+    contractIndex + 6,
+    file.indexOf(" ", contractIndex + 6)
+  );
+};
