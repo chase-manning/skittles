@@ -3,7 +3,6 @@
 - add init function
 - add readme
 - add normal repo things
-- Consider making types default exports (like `string` and `number` are)
 
 ==== Beta ready ====
 
@@ -16,7 +15,8 @@
 
 ==== FORMATTED ====
 
+- Change to the same output format as Hardhat
 - Add smarter compiling with cache and only update chagned contracts
 - Remove redundant stores for `readonly` values in the constructor
-- Change to getting function signatures with this: https://github.com/FuelLabs/yulp/blob/620d04acb060a7a817e2cfc6da4c9b4d9c7fcef0/src/yulplus.ne#L40
 - Performance improvements
+- Change to getting function signatures with this: https://github.com/FuelLabs/yulp/blob/620d04acb060a7a817e2cfc6da4c9b4d9c7fcef0/src/yulplus.ne#L40
