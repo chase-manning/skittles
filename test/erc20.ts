@@ -1,14 +1,15 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
-import { getContractFactory } from "./support";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import getSkittlesFactory from "../src/testing/get-skittles-factory";
 
 const WALLET_A_AMOUNT = 100;
 
 let token: Contract;
-let walletA: any;
-let walletB: any;
-let walletC: any;
+let walletA: SignerWithAddress;
+let walletB: SignerWithAddress;
+let walletC: SignerWithAddress;
 
 describe("ERC20", () => {
   before(async () => {
@@ -17,7 +18,7 @@ describe("ERC20", () => {
     walletB = signers[1];
     walletC = signers[2];
 
-    const Token = await getContractFactory("./contracts/erc20.ts");
+    const Token = await getSkittlesFactory(walletA, "ERC20");
     token = await Token.deploy(100);
     await token.deployed();
   });
