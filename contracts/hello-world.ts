@@ -1,7 +1,7 @@
 import { address, block, chain, msg, tx } from "../src/types/core-types";
 
 // This contract is used for regression testing and intends to implement all compile features
-// It should not be used as an example of a contract implementation using Skittles
+// It should NOT be used as an example of a contract implementation using Skittles
 
 export class HelloWorld {
   private _privatebalance: number = 111;
@@ -47,6 +47,16 @@ export class HelloWorld {
 
   getUsersBalance(user: address): number {
     return this._balances[user];
+  }
+
+  getWeirdCondition(value: number): number {
+    if (value % 2 === 0) {
+      return 789;
+    } else if (value * 7 === 21) {
+      return 123;
+    } else {
+      return 43;
+    }
   }
 
   // Testing EVM OP Codes

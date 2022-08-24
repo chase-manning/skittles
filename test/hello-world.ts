@@ -246,4 +246,13 @@ describe("Hello World", () => {
     const neg_result = await helloWorld.getNot(false);
     expect(neg_result).to.equal(true);
   });
+
+  it("Should get weird condition", async () => {
+    const four_result = await helloWorld.getWeirdCondition(4);
+    expect(four_result).to.equal(789);
+    const three_result = await helloWorld.getWeirdCondition(3);
+    expect(three_result).to.equal(123);
+    const nine_result = await helloWorld.getWeirdCondition(9);
+    expect(nine_result).to.equal(43);
+  });
 });
