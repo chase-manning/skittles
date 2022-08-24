@@ -6,10 +6,6 @@
 
 ==== Beta ready ====
 
-- Add support for `else` conditions for `if` statements (need to use switches)
-  - normal if, if else, else return
-  - Same, but not with return
-  - Syntax without {}
 - Add support for events
 - Add immutable (readonly) setting for evaluated values using `setimmutable`
 - Consider how we handle large numbers (BigNumber or something?)

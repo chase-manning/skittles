@@ -69,6 +69,18 @@ export class HelloWorld {
     }
   }
 
+  getSimpleIfStatementReturn(value: number): number {
+    if (value === 1) return 1;
+    else if (value === 2) return 2;
+    else return 3;
+  }
+
+  simpleIfStatementUpdate(value: number): void {
+    if (value === 1) this.balance = 1;
+    else if (value === 2) this.balance = 2;
+    else this.balance = 3;
+  }
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;

@@ -255,4 +255,28 @@ describe("Hello World", () => {
     const nine_result = await helloWorld.getWeirdCondition(9);
     expect(nine_result).to.equal(43);
   });
+
+  it("Should update weird condition", async () => {
+    await helloWorld.weirdConditionUpdate(4);
+    expect(await helloWorld.balance()).to.equal(789);
+    await helloWorld.weirdConditionUpdate(3);
+    expect(await helloWorld.balance()).to.equal(123);
+    await helloWorld.weirdConditionUpdate(9);
+    expect(await helloWorld.balance()).to.equal(43);
+  });
+
+  it("Should get simple if statement return", async () => {
+    expect(await helloWorld.getSimpleIfStatementReturn(1)).to.equal(1);
+    expect(await helloWorld.getSimpleIfStatementReturn(2)).to.equal(2);
+    expect(await helloWorld.getSimpleIfStatementReturn(3)).to.equal(3);
+  });
+
+  it("Should do simple update", async () => {
+    await helloWorld.simpleIfStatementUpdate(1);
+    expect(await helloWorld.balance()).to.equal(1);
+    await helloWorld.simpleIfStatementUpdate(2);
+    expect(await helloWorld.balance()).to.equal(2);
+    await helloWorld.simpleIfStatementUpdate(3);
+    expect(await helloWorld.balance()).to.equal(3);
+  });
 });
