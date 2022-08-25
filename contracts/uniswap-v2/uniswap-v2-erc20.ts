@@ -1,5 +1,9 @@
 import { address, msg } from "../../src/types/core-types";
 
+// TODO Extend interface
+// TODO Create test contract and flesh out tests
+// TODO Add events
+
 export class UniswapV2ERC20 {
   readonly name: string = "Uniswap V2";
   readonly symbol: string = "UNI-V2";
