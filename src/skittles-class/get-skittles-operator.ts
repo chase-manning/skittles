@@ -33,6 +33,8 @@ const getSkittlesOperator = (syntaxKind: SyntaxKind): SkittlesOperator => {
       return SkittlesOperator.GreaterThan;
     case SyntaxKind.GreaterThanEqualsToken:
       return SkittlesOperator.GreaterThanOrEqual;
+    case SyntaxKind.AsteriskAsteriskToken:
+      return SkittlesOperator.Power;
     default:
       throw new Error(`Unknown syntax kind: ${syntaxKind}`);
   }

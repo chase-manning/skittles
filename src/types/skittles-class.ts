@@ -57,6 +57,7 @@ export enum SkittlesOperator {
   And,
   Or,
   Not,
+  Power,
 }
 export interface SkittlesNotExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.Not;

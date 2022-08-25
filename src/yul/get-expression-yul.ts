@@ -36,6 +36,8 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
       return `and(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     case SkittlesOperator.Or:
       return `or(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
+    case SkittlesOperator.Power:
+      return `exp(${getExpressionYul(left)}, ${getExpressionYul(right)})`;
     default:
       throw new Error(`Unsupported binary operator ${operator}`);
   }
