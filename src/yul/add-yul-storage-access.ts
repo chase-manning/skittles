@@ -1,5 +1,5 @@
 import { YulSection } from "../data/yul-template";
-import { getVariables, subStringCount } from "../helpers/string-helper";
+import { getVariables } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
 import SkittlesClass, {
   SkittlesExpressionType,
@@ -17,7 +17,7 @@ const _addStorageAccess = (
   skittlesClass: SkittlesClass
 ) => {
   const { name, type } = property;
-  const initial = name.substring(0, 1);
+  const initial = `_${name.substring(0, 1)}`;
 
   if (property.immutable) {
     let { value } = property;
