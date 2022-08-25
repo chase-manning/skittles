@@ -14,6 +14,7 @@
 
 ==== FORMATTED ====
 
+- Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat
 - Add smarter compiling with cache and only update chagned contracts
 - Remove redundant stores for `readonly` values in the constructor
