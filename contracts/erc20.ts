@@ -6,24 +6,16 @@ export class ERC20 {
   readonly name: string = "TEST ERC20";
 
   totalSupply: number;
-  private _balances: Record<address, number>;
-  private _allowances: Record<address, Record<address, number>>;
+  balanceOf: Record<address, number>;
+  allowance: Record<address, Record<address, number>>;
 
   constructor(mintAmount_: number) {
-    this._balances[msg.sender] = mintAmount_;
+    this.balanceOf[msg.sender] = mintAmount_;
     this.totalSupply = mintAmount_;
   }
 
-  balanceOf(address: address): number {
-    return this._balances[address];
-  }
-
-  allowance(owner: address, spender: address): number {
-    return this._allowances[owner][spender];
-  }
-
   approve(spender: address, amount: number): boolean {
-    this._allowances[msg.sender][spender] = amount;
+    this.allowance[msg.sender][spender] = amount;
     return true;
   }
 
@@ -33,19 +25,19 @@ export class ERC20 {
   }
 
   transferFrom(from: address, to: address, amount: number): boolean {
-    if (this._allowances[from][msg.sender] < amount) {
+    if (this.allowance[from][msg.sender] < amount) {
       throw new Error("amount exceeds allowance");
     }
     this._transfer(from, to, amount);
-    this._allowances[from][msg.sender] -= amount;
+    this.allowance[from][msg.sender] -= amount;
     return true;
   }
 
   private _transfer(from: address, to: address, amount: number): void {
-    if (this._balances[from] < amount) {
+    if (this.balanceOf[from] < amount) {
       throw new Error("transfer amount exceeds balance");
     }
-    this._balances[to] += amount;
-    this._balances[from] -= amount;
+    this.balanceOf[to] += amount;
+    this.balanceOf[from] -= amount;
   }
 }
