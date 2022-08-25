@@ -286,7 +286,7 @@ describe("Hello World", () => {
 
   it("Should get public nested mapping", async () => {
     const { address } = walletA;
-    const value = await helloWorld.publicNestedMapping(address, address);
+    const value = await helloWorld.publicMappingNested(address, address);
     expect(value).to.equal(7890 * 3);
   });
 });
