@@ -1,7 +1,7 @@
 import { YulSection } from "../data/yul-template";
 import { getVariables, subStringCount } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
-import { SkittlesVariable } from "../types/skittles-class";
+import SkittlesClass, { SkittlesVariable } from "../types/skittles-class";
 
 const _addStorageLayout = (
   yul: string[],
@@ -24,7 +24,7 @@ const _addStorageLayout = (
     ];
     return addToSection(yul, section, [
       `function ${name}Pos(${variables}) -> p {`,
-      `p := add(0x1000, a)`,
+      `p := add(0x${index + 1}000, a)`,
       ...(extraVars.length > 0 ? extraVarsYul : []),
       `}`,
     ]);
@@ -37,9 +37,20 @@ const _addStorageLayout = (
 const addStorageLayout = (
   yul: string[],
   property: SkittlesVariable,
+  skittlesClass: SkittlesClass,
   index: number,
   constructor?: boolean
 ) => {
+  if (property.type.includes("mapping")) {
+    const mappings = subStringCount(property.type, "mapping");
+    const matchingMappings = skittlesClass.variables.filter((v) => {
+      return (
+        v.type.includes("mapping") &&
+        subStringCount(v.type, "mapping") === mappings
+      );
+    });
+    index = matchingMappings.findIndex((v) => v.name === property.name);
+  }
   return _addStorageLayout(
     yul,
     property,

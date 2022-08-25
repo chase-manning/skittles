@@ -22,8 +22,8 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   skittlesClass.variables.forEach(
     (property: SkittlesVariable, index: number) => {
       yul = addPropertyDispatcher(yul, abi, property);
-      yul = addStorageLayout(yul, property, index);
-      yul = addStorageLayout(yul, property, index, true);
+      yul = addStorageLayout(yul, property, skittlesClass, index);
+      yul = addStorageLayout(yul, property, skittlesClass, index, true);
       yul = addStorageAccess(yul, property, skittlesClass);
       yul = addStorageAccess(yul, property, skittlesClass, true);
       yul = addValueInitializations(yul, property, index);
