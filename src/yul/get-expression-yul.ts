@@ -3,6 +3,7 @@ import {
   SkittlesExpression,
   SkittlesExpressionType,
   SkittlesOperator,
+  SkittlesTypeKind,
 } from "../types/skittles-class";
 import { evmDialects } from "./yul-constants";
 
@@ -49,7 +50,9 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
     case SkittlesExpressionType.Variable:
       return `${expression.value}Var`;
     case SkittlesExpressionType.Value:
-      if (expression.type === "string") return `"${expression.value}"`;
+      const { type } = expression;
+      if (type.kind === SkittlesTypeKind.Simple && type.value === "string")
+        return `"${expression.value}"`;
       return expression.value;
     case SkittlesExpressionType.Storage:
       return `${expression.variable}Storage()`;

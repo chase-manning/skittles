@@ -5,6 +5,7 @@ import SkittlesClass, {
   SkittlesExpressionType,
   SkittlesStatement,
   SkittlesStatementType,
+  SkittlesTypeKind,
   SkittlesVariable,
 } from "../types/skittles-class";
 import getExpressionYul from "./get-expression-yul";
@@ -45,7 +46,8 @@ const _addStorageAccess = (
     }
     if (!value) throw new Error("No storage update to get storage value");
     if (
-      type === "string" &&
+      type.kind === SkittlesTypeKind.Simple &&
+      type.value === "string" &&
       value.expressionType === SkittlesExpressionType.Value
     ) {
       const expression = getExpressionYul(value);
@@ -62,9 +64,8 @@ const _addStorageAccess = (
     ]);
   }
 
-  if (type.includes("mapping")) {
-    const mappings = subStringCount(type, "mapping");
-    const vars = getVariables(mappings);
+  if (type.kind === SkittlesTypeKind.Mapping) {
+    const vars = getVariables(type.inputs.length);
     return addToSection(yul, section, [
       `function ${name}Storage(${vars}) -> ${initial} {`,
       `${initial} := sload(${name}Pos(${vars}))`,

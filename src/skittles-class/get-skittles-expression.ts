@@ -17,6 +17,7 @@ import {
 import {
   SkittlesExpression,
   SkittlesExpressionType,
+  SkittlesTypeKind,
 } from "../types/skittles-class";
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
@@ -92,14 +93,14 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
   if (isTrueKeyword(expression)) {
     return {
       expressionType: SkittlesExpressionType.Value,
-      type: "bool",
+      type: { kind: SkittlesTypeKind.Void },
       value: "true",
     };
   }
   if (isFalseKeyword(expression)) {
     return {
       expressionType: SkittlesExpressionType.Value,
-      type: "bool",
+      type: { kind: SkittlesTypeKind.Void },
       value: "false",
     };
   }

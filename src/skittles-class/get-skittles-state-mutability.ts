@@ -1,6 +1,7 @@
 import SkittlesClass, {
   SkittlesMethod,
   SkittlesStatementType,
+  SkittlesTypeKind,
 } from "../types/skittles-class";
 
 const getMethod = (
@@ -16,7 +17,7 @@ const methodModifiesState = (
   method: SkittlesMethod,
   skittlesClass: SkittlesClass
 ): boolean => {
-  if (method.returns === "void") return true;
+  if (method.returns.kind === SkittlesTypeKind.Void) return true;
   for (const statement of method.statements) {
     const { statementType } = statement;
     if (statementType === SkittlesStatementType.MappingUpdate) return true;

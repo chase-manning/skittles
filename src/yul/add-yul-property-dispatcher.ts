@@ -1,12 +1,8 @@
 import { YulSection } from "../data/yul-template";
 import getSelector from "../helpers/selector-helper";
 import { addToSection } from "../helpers/yul-helper";
-import { SkittlesVariable } from "../types/skittles-class";
+import { SkittlesTypeKind, SkittlesVariable } from "../types/skittles-class";
 import { decoderFunctions, returnFunctions } from "./yul-constants";
-
-const getMappingTypes = (type: string): string[] => {
-  return type.split(/,|\(|\)/).filter((t) => t && t != "mapping");
-};
 
 const addPropertyDispatcher = (
   yul: string[],
@@ -17,22 +13,32 @@ const addPropertyDispatcher = (
   const { name, type } = property;
   const selector = getSelector(abi, name);
 
-  if (type.includes("mapping")) {
-    const types = getMappingTypes(type);
-    const returnType = types[types.length - 1];
+  if (type.kind === SkittlesTypeKind.Mapping) {
+    if (type.output.kind !== SkittlesTypeKind.Simple) {
+      throw new Error("Unexpected type kind");
+    }
+    const inputTypes = type.inputs.map((input) => {
+      if (input.kind !== SkittlesTypeKind.Simple) {
+        throw new Error("Unexpected type kind");
+      }
+      return input.value;
+    });
     return addToSection(yul, YulSection.Dispatchers, [
-      `case ${selector} /* "${name}(${types.join(", ")})" */ {`,
-      `${returnFunctions[returnType]}(${name}Storage(${types
-        .splice(0, types.length - 1)
+      `case ${selector} /* "${name}(${inputTypes.join(", ")})" */ {`,
+      `${returnFunctions[type.output.value]}(${name}Storage(${inputTypes
         .map((t, i) => `${decoderFunctions[t]}(${i})`)
         .join(", ")}))`,
       `}`,
     ]);
   }
 
+  if (type.kind !== SkittlesTypeKind.Simple) {
+    throw new Error("Unexpected type kind");
+  }
+
   return addToSection(yul, YulSection.Dispatchers, [
     `case ${selector} /* "${name}()" */ {`,
-    `${returnFunctions[type]}(${name}Storage())`,
+    `${returnFunctions[type.value]}(${name}Storage())`,
     `}`,
   ]);
 };

@@ -12,6 +12,7 @@ export class HelloWorld {
   init: number;
   readonly readOnlyString: string = "Readonly string";
   publicMapping: Record<address, number>;
+  publicMappingNested: Record<address, Record<address, number>>;
 
   private _balances: Record<address, number>;
   private _approvals: Record<address, Record<address, number>>;
@@ -21,6 +22,7 @@ export class HelloWorld {
     this.init = init_;
     this._balances[msg.sender] = init_;
     this.publicMapping[msg.sender] = init_ * 2;
+    this.publicMappingNested[msg.sender][msg.sender] = init_ * 3;
   }
 
   addBalance = (value: number): void => {

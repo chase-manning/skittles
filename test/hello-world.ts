@@ -279,4 +279,14 @@ describe("Hello World", () => {
     await helloWorld.simpleIfStatementUpdate(3);
     expect(await helloWorld.balance()).to.equal(3);
   });
+
+  it("Should get public mapping", async () => {
+    expect(await helloWorld.publicMapping(walletA.address)).to.equal(7890 * 2);
+  });
+
+  it("Should get public nested mapping", async () => {
+    const { address } = walletA;
+    const value = await helloWorld.publicNestedMapping(address, address);
+    expect(value).to.equal(7890 * 3);
+  });
 });

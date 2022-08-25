@@ -30,13 +30,15 @@ import {
   SkittlesOperator,
   SkittlesStatement,
   SkittlesStatementType,
+  SkittlesType,
+  SkittlesTypeKind,
 } from "../types/skittles-class";
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
 
 const getSkittlesStatements = (
   block: Statement | undefined,
-  returnType: string
+  returnType: SkittlesType
 ): SkittlesStatement[] => {
   if (!block) return [];
   if (isBlock(block)) {
@@ -50,7 +52,7 @@ const getSkittlesStatements = (
 
 const getReturnStatementExpression = (
   expression: Expression,
-  returnType: string
+  returnType: SkittlesType
 ): SkittlesStatement => {
   if (isBinaryExpression(expression)) {
     return {
@@ -79,7 +81,7 @@ const getReturnStatementExpression = (
       type: returnType,
       value: {
         expressionType: SkittlesExpressionType.Value,
-        type: "bool",
+        type: { kind: SkittlesTypeKind.Simple, value: "bool" },
         value: "true",
       },
     };
@@ -90,7 +92,7 @@ const getReturnStatementExpression = (
       type: returnType,
       value: {
         expressionType: SkittlesExpressionType.Value,
-        type: "bool",
+        type: { kind: SkittlesTypeKind.Simple, value: "bool" },
         value: "false",
       },
     };
@@ -121,7 +123,7 @@ const getReturnStatementExpression = (
 
 const getSkittlesStatement = (
   node: Node,
-  returnType: string
+  returnType: SkittlesType
 ): SkittlesStatement => {
   if (isExpressionStatement(node)) {
     const { expression } = node;
@@ -232,8 +234,12 @@ const getSkittlesStatement = (
     return {
       statementType: SkittlesStatementType.If,
       condition: getSkittlesExpression(expression),
-      then: getSkittlesStatements(thenStatement, "void"),
-      else: getSkittlesStatements(elseStatement, "void"),
+      then: getSkittlesStatements(thenStatement, {
+        kind: SkittlesTypeKind.Void,
+      }),
+      else: getSkittlesStatements(elseStatement, {
+        kind: SkittlesTypeKind.Void,
+      }),
     };
   }
   if (isThrowStatement(node)) {

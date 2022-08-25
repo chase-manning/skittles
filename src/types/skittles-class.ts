@@ -12,6 +12,36 @@ export interface SkittlesBaseExpression {
   expressionType: SkittlesExpressionType;
 }
 
+export enum SkittlesTypeKind {
+  Simple = "Simple",
+  Mapping = "Mapping",
+  Void = "Void",
+}
+
+export interface SkittlesBaseType {
+  kind: SkittlesTypeKind;
+}
+
+export interface SkittlesVoidType extends SkittlesBaseType {
+  kind: SkittlesTypeKind.Void;
+}
+
+export interface SkittlesSimpleType extends SkittlesBaseType {
+  kind: SkittlesTypeKind.Simple;
+  value: string;
+}
+
+export interface SkittlesMappingType extends SkittlesBaseType {
+  kind: SkittlesTypeKind.Mapping;
+  inputs: SkittlesType[];
+  output: SkittlesType;
+}
+
+export type SkittlesType =
+  | SkittlesSimpleType
+  | SkittlesMappingType
+  | SkittlesVoidType;
+
 export enum SkittlesOperator {
   Plus,
   Minus,
@@ -59,7 +89,7 @@ export interface SkittlesVariableExpression extends SkittlesBaseExpression {
 
 export interface SkittlesValueExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.Value;
-  type: string;
+  type: SkittlesType;
   value: any;
 }
 
@@ -123,7 +153,7 @@ export interface SkittlesStorageUpdateStatement extends SkittlesBaseStatement {
 
 export interface SkittlesReturnStatement extends SkittlesBaseStatement {
   statementType: SkittlesStatementType.Return;
-  type: string;
+  type: SkittlesType;
   value: SkittlesExpression;
 }
 
@@ -137,7 +167,7 @@ export type SkittlesStatement =
 
 export interface SkittlesVariable {
   name: string;
-  type: string;
+  type: SkittlesType;
   value?: SkittlesExpression;
   private: boolean;
   immutable: boolean;
@@ -145,12 +175,12 @@ export interface SkittlesVariable {
 
 export interface SkittlesParameter {
   name: string;
-  type: string;
+  type: SkittlesType;
 }
 
 export interface SkittlesMethod {
   name: string;
-  returns: string;
+  returns: SkittlesType;
   private: boolean;
   view: boolean;
   parameters: SkittlesParameter[];
