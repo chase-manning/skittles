@@ -53,8 +53,7 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
       return `${expression.value}Var`;
     case SkittlesExpressionType.Value:
       const { type } = expression;
-      if (type.kind === SkittlesTypeKind.Simple && type.value === "string")
-        return `"${expression.value}"`;
+      if (type.kind === SkittlesTypeKind.String) return `"${expression.value}"`;
       return expression.value;
     case SkittlesExpressionType.Storage:
       return `${expression.variable}Storage()`;

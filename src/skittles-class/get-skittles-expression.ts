@@ -110,7 +110,6 @@ const getSkittlesExpression = (
       value: "false",
     };
   }
-  console.log(JSON.stringify(expression));
   throw new Error(`Unknown expression type: ${expression.kind}`);
 };
 

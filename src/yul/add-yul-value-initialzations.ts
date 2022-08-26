@@ -11,8 +11,7 @@ const addValueInitializations = (
   if (!property.value) return yul;
   const expression = getExpressionYul(property.value);
   return addToSection(yul, YulSection.Constructor, [
-    property.type.kind === SkittlesTypeKind.Simple &&
-    property.type.value === "string"
+    property.type.kind === SkittlesTypeKind.String
       ? `sstore(${index}, add(${expression}, ${(expression.length - 2) * 2}))`
       : `sstore(${index}, ${expression})`,
   ]);

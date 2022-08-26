@@ -14,28 +14,31 @@ export interface SkittlesBaseExpression {
 }
 
 export enum SkittlesTypeKind {
-  Simple = "Simple",
   Mapping = "Mapping",
   Void = "Void",
   Interface = "Interface",
+  String = "string",
+  Address = "address",
+  Number = "uint256",
+  Boolean = "bool",
 }
 
 export interface SkittlesBaseType {
   kind: SkittlesTypeKind;
 }
 
+export interface SkittleSimpleType extends SkittlesBaseType {
+  kind:
+    | SkittlesTypeKind.String
+    | SkittlesTypeKind.Address
+    | SkittlesTypeKind.Boolean
+    | SkittlesTypeKind.Void
+    | SkittlesTypeKind.Number;
+}
+
 export interface SkittlesInterfaceType extends SkittlesBaseType {
   kind: SkittlesTypeKind.Interface;
   interface: SkittlesInterface;
-}
-
-export interface SkittlesVoidType extends SkittlesBaseType {
-  kind: SkittlesTypeKind.Void;
-}
-
-export interface SkittlesSimpleType extends SkittlesBaseType {
-  kind: SkittlesTypeKind.Simple;
-  value: string;
 }
 
 export interface SkittlesMappingType extends SkittlesBaseType {
@@ -46,9 +49,8 @@ export interface SkittlesMappingType extends SkittlesBaseType {
 
 export type SkittlesType =
   | SkittlesInterfaceType
-  | SkittlesSimpleType
   | SkittlesMappingType
-  | SkittlesVoidType;
+  | SkittleSimpleType;
 
 export enum SkittlesOperator {
   Plus,

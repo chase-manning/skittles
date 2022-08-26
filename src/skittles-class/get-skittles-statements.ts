@@ -86,7 +86,7 @@ const getReturnStatementExpression = (
       type: returnType,
       value: {
         expressionType: SkittlesExpressionType.Value,
-        type: { kind: SkittlesTypeKind.Simple, value: "bool" },
+        type: { kind: SkittlesTypeKind.Boolean },
         value: "true",
       },
     };
@@ -97,7 +97,7 @@ const getReturnStatementExpression = (
       type: returnType,
       value: {
         expressionType: SkittlesExpressionType.Value,
-        type: { kind: SkittlesTypeKind.Simple, value: "bool" },
+        type: { kind: SkittlesTypeKind.Boolean },
         value: "false",
       },
     };
@@ -312,7 +312,6 @@ const getSkittlesStatement = (
       interfaces
     );
   }
-  console.log(JSON.stringify(node));
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
 

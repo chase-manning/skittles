@@ -46,8 +46,7 @@ const _addStorageAccess = (
     }
     if (!value) throw new Error("No storage update to get storage value");
     if (
-      type.kind === SkittlesTypeKind.Simple &&
-      type.value === "string" &&
+      type.kind === SkittlesTypeKind.String &&
       value.expressionType === SkittlesExpressionType.Value
     ) {
       const expression = getExpressionYul(value);

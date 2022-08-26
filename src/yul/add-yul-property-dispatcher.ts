@@ -14,31 +14,21 @@ const addPropertyDispatcher = (
   const selector = getSelector(abi, name);
 
   if (type.kind === SkittlesTypeKind.Mapping) {
-    if (type.output.kind !== SkittlesTypeKind.Simple) {
-      throw new Error("Unexpected type kind 2");
-    }
     const inputTypes = type.inputs.map((input) => {
-      if (input.kind !== SkittlesTypeKind.Simple) {
-        throw new Error("Unexpected type kind 3");
-      }
-      return input.value;
+      return input.kind;
     });
     return addToSection(yul, YulSection.Dispatchers, [
       `case ${selector} /* "${name}(${inputTypes.join(", ")})" */ {`,
-      `${returnFunctions[type.output.value]}(${name}Storage(${inputTypes
+      `${returnFunctions[type.output.kind]}(${name}Storage(${inputTypes
         .map((t, i) => `${decoderFunctions[t]}(${i})`)
         .join(", ")}))`,
       `}`,
     ]);
   }
 
-  if (type.kind !== SkittlesTypeKind.Simple) {
-    throw new Error("Unexpected type kind 4");
-  }
-
   return addToSection(yul, YulSection.Dispatchers, [
     `case ${selector} /* "${name}()" */ {`,
-    `${returnFunctions[type.value]}(${name}Storage())`,
+    `${returnFunctions[type.kind]}(${name}Storage())`,
     `}`,
   ]);
 };

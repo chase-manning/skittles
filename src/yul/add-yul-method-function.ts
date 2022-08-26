@@ -17,8 +17,7 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
         .map((e) => `_${e.name}Var`)
         .join(", ")} `;
     }
-    if (returns.kind === SkittlesTypeKind.Simple) return "-> v ";
-    throw new Error(`Missing support for returns kind ${returns.kind}`);
+    return "-> v ";
   };
 
   return addToSection(yul, YulSection.Functions, [

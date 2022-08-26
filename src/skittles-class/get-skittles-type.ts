@@ -6,21 +6,20 @@ import {
   SkittlesTypeKind,
 } from "../types/skittles-class";
 
-const kind = SkittlesTypeKind.Simple;
-const stringType: SkittlesType = { kind, value: "string" };
-const addressType: SkittlesType = { kind, value: "address" };
-const uint256Type: SkittlesType = { kind, value: "uint256" };
-const boolType: SkittlesType = { kind, value: "bool" };
-const anyType: SkittlesType = { kind, value: "any" };
+const stringType: SkittlesType = { kind: SkittlesTypeKind.String };
+const addressType: SkittlesType = { kind: SkittlesTypeKind.Address };
+const uint256Type: SkittlesType = { kind: SkittlesTypeKind.Number };
+const boolType: SkittlesType = { kind: SkittlesTypeKind.Boolean };
+const voidType: SkittlesType = { kind: SkittlesTypeKind.Void };
 
 const getSkittlesType = (
   type: Node | undefined,
   interfaces: SkittlesInterfaces,
   value?: any
 ): SkittlesType => {
-  if (!type) return { kind: SkittlesTypeKind.Void };
+  if (!type) return voidType;
   const { kind } = type;
-  if (!kind) return { kind: SkittlesTypeKind.Void };
+  if (!kind) return voidType;
   switch (kind) {
     case SyntaxKind.StringKeyword:
       if (!value) return stringType;
@@ -37,9 +36,9 @@ const getSkittlesType = (
     case SyntaxKind.BooleanKeyword:
       return boolType;
     case SyntaxKind.VoidKeyword:
-      return { kind: SkittlesTypeKind.Void };
+      return voidType;
     case SyntaxKind.AnyKeyword:
-      return anyType;
+      throw new Error("Any type not supported");
     case SyntaxKind.TypeReference:
       const { typeName } = type as any;
       if (!typeName) throw new Error("Could not get type name");

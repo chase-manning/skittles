@@ -14,12 +14,9 @@ const getConstructorAbi = (
     {
       type: "constructor",
       inputs: constructor.parameters.map((i) => {
-        if (i.type.kind !== SkittlesTypeKind.Simple) {
-          throw new Error("Unexpected type kind 8");
-        }
         return {
           name: i.name,
-          type: i.type.value,
+          type: i.type.kind,
         };
       }),
       stateMutability: "nonpayable",
@@ -28,73 +25,58 @@ const getConstructorAbi = (
 };
 
 const getPropertyAbi = (property: SkittlesVariable): AbiFunction => {
-  if (property.type.kind === SkittlesTypeKind.Simple) {
-    return {
-      type: "function",
-      name: property.name,
-      inputs: [],
-      outputs: [{ name: "", type: property.type.value }],
-      stateMutability: "view",
-    };
-  }
   if (property.type.kind === SkittlesTypeKind.Mapping) {
-    if (property.type.output.kind !== SkittlesTypeKind.Simple) {
-      throw new Error("Unexpected type kind 9");
-    }
     return {
       type: "function",
       name: property.name,
       inputs: property.type.inputs.map((i) => {
-        if (i.kind !== SkittlesTypeKind.Simple) {
-          throw new Error("Unexpected type kind 10");
-        }
         return {
           name: "",
-          type: i.value,
+          type: i.kind,
         };
       }),
-      outputs: [{ name: "", type: property.type.output.value }],
+      outputs: [{ name: "", type: property.type.output.kind }],
       stateMutability: "view",
     };
   }
-  throw new Error("Property abi type not supported");
+  return {
+    type: "function",
+    name: property.name,
+    inputs: [],
+    outputs: [{ name: "", type: property.type.kind }],
+    stateMutability: "view",
+  };
 };
 
 const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
   const outputs = () => {
     const { returns } = method;
     if (returns.kind === SkittlesTypeKind.Void) return [];
-    if (returns.kind === SkittlesTypeKind.Simple)
-      return [
-        {
-          name: "",
-          type: returns.value,
-        },
-      ];
-    if (returns.kind === SkittlesTypeKind.Interface)
+    if (returns.kind === SkittlesTypeKind.Interface) {
       return [
         ...returns.interface.elements.map((e) => {
-          if (e.type.kind !== SkittlesTypeKind.Simple) {
-            throw new Error("Nested return types not supported");
-          }
           return {
             name: e.name,
-            type: e.type.value,
+            type: e.type.kind,
           };
         }),
       ];
-    throw new Error("Missing return type in getMethodAbi in get-abi");
+    }
+    return [
+      {
+        name: "",
+        type: returns.kind,
+      },
+    ];
   };
+
   return {
     type: "function",
     name: method.name,
     inputs: method.parameters.map((i) => {
-      if (i.type.kind !== SkittlesTypeKind.Simple) {
-        throw new Error("Unexpected type kind 11");
-      }
       return {
         name: i.name,
-        type: i.type.value,
+        type: i.type.kind,
       };
     }),
     outputs: outputs(),

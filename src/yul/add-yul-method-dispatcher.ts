@@ -21,12 +21,10 @@ const addMethodDispatcher = (
     throw new Error("Unexpected type kind 5");
   }
   const functionInputs = parameters
-    .map((input: SkittlesParameter, index: number) => {
-      if (input.type.kind !== SkittlesTypeKind.Simple) {
-        throw new Error("Unexpected type kind 6");
-      }
-      return `${decoderFunctions[input.type.value]}(${index})`;
-    })
+    .map(
+      (input: SkittlesParameter, index: number) =>
+        `${decoderFunctions[input.type.kind]}(${index})`
+    )
     .join(", ");
 
   const functionCall = (): string[] => {
@@ -43,21 +41,15 @@ const addMethodDispatcher = (
     if (returns.kind === SkittlesTypeKind.Void) {
       return [`${name}Function(${functionInputs})`];
     }
-    if (returns.kind === SkittlesTypeKind.Simple) {
-      return [
-        `${returnFunctions[returns.value]}(${name}Function(${functionInputs}))`,
-      ];
-    }
-    throw new Error("Unexpected type kind 7");
+    return [
+      `${returnFunctions[returns.kind]}(${name}Function(${functionInputs}))`,
+    ];
   };
 
   return addToSection(yul, YulSection.Dispatchers, [
     `case ${selector} /* "${name}(${parameters
       .map((p) => {
-        if (p.type.kind !== SkittlesTypeKind.Simple) {
-          throw new Error("Unexpected type kind 7");
-        }
-        return p.type.value;
+        return p.type.kind;
       })
       .join(", ")})" */ {`,
     ...functionCall(),
