@@ -59,13 +59,11 @@ const getIfYul = (statement: SkittlesIfStatement): string[] => {
     elseStatements.push(...getStatementYul(s));
   }
   return [
-    `if ${getExpressionYul(condition)} {`,
+    `switch ${getExpressionYul(condition)}`,
+    `case true {`,
     ...statements,
     `}`,
-    `if ${getExpressionYul({
-      expressionType: SkittlesExpressionType.Not,
-      value: condition,
-    })} {`,
+    `case false {`,
     ...elseStatements,
     `}`,
   ];
