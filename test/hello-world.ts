@@ -165,17 +165,6 @@ describe("Hello World", () => {
     expect(result).to.equal(1);
   });
 
-  /* Test all these */
-  // getNotEqualToTwo = (value: number): boolean => 2 !== value;
-  // getEqualToSeven = (value: number): boolean => 7 === value;
-  // getGreaterThanFour = (value: number): boolean => value > 4;
-  // getLessThan9 = (value: number): boolean => value < 9;
-  // getGreaterThanOrEqualToFour = (value: number): boolean => value >= 4;
-  // getLessThanOrEqualTo9 = (value: number): boolean => value <= 9;
-  // getAnd = (value: boolean): boolean => value && true;
-  // getOr = (value: boolean): boolean => value || false;
-  // getNot = (value: boolean): boolean => !value;
-
   it("Should get Not Equal To Two", async () => {
     const result = await helloWorld.getNotEqualToTwo(2);
     expect(result).to.equal(false);
@@ -288,5 +277,11 @@ describe("Hello World", () => {
     const { address } = walletA;
     const value = await helloWorld.publicMappingNested(address, address);
     expect(value).to.equal(7890 * 3);
+  });
+
+  it("Should get number and address type", async () => {
+    const response = await helloWorld.getNumberAndAddress();
+    expect(response[0]).to.equal(123);
+    expect(response[1]).to.equal("0x1234567890123456789012345678901234567890");
   });
 });

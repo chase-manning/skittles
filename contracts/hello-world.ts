@@ -3,6 +3,11 @@ import { address, block, chain, msg, tx } from "../src/types/core-types";
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
 
+interface NumberAndAddress {
+  number: number;
+  address: address;
+}
+
 export class HelloWorld {
   private _privatebalance: number = 111;
   balance: number = 1;
@@ -84,6 +89,13 @@ export class HelloWorld {
     if (value === 1) this.balance = 1;
     else if (value === 2) this.balance = 2;
     else this.balance = 3;
+  }
+
+  getNumberAndAddress(): NumberAndAddress {
+    return {
+      number: 123,
+      address: "0x1234567890123456789012345678901234567890",
+    };
   }
 
   // Testing EVM OP Codes
