@@ -8,12 +8,12 @@ interface NumberAndAddress {
   address: address;
 }
 
-export class HelloWorld {
+export class RegressionTest {
   private _privatebalance: number = 111;
   balance: number = 1;
   readonly decimals: number = 18;
   readonly age: number;
-  name: string = "Hello World";
+  name: string = "Regression Test";
   init: number;
   readonly readOnlyString: string = "Readonly string";
   publicMapping: Record<address, number>;
