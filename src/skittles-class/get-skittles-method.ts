@@ -1,3 +1,4 @@
+import { interfaces } from "mocha";
 import {
   forEachChild,
   isArrowFunction,
@@ -9,17 +10,24 @@ import {
   Statement,
 } from "typescript";
 import { getNodeName, isNodePrivate } from "../helpers/ast-helper";
-import { SkittlesMethod, SkittlesParameter } from "../types/skittles-class";
+import {
+  SkittlesInterfaces,
+  SkittlesMethod,
+  SkittlesParameter,
+} from "../types/skittles-class";
 import getSkittlesStatements from "./get-skittles-statements";
 import getSkittlesType from "./get-skittles-type";
 
-const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
+const getSkittlesParameters = (
+  node: Node,
+  interfaces: SkittlesInterfaces
+): SkittlesParameter[] => {
   const inputs: SkittlesParameter[] = [];
   forEachChild(node, (node) => {
     if (isParameter(node)) {
       inputs.push({
         name: getNodeName(node),
-        type: getSkittlesType(node.type),
+        type: getSkittlesType(node.type, interfaces),
       });
     }
   });
@@ -27,19 +35,21 @@ const getSkittlesParameters = (node: Node): SkittlesParameter[] => {
 };
 
 const getSkittlesMethod = (
-  astMethod: MethodDeclaration | PropertyDeclaration
+  astMethod: MethodDeclaration | PropertyDeclaration,
+  interfaces: SkittlesInterfaces
 ): SkittlesMethod => {
   // Is normal function
   if (isMethodDeclaration(astMethod)) {
     return {
       name: getNodeName(astMethod),
-      returns: getSkittlesType(astMethod.type),
+      returns: getSkittlesType(astMethod.type, interfaces),
       private: isNodePrivate(astMethod),
       view: false, // Temporary, is overriden later with `getStateMutability()`
-      parameters: getSkittlesParameters(astMethod),
+      parameters: getSkittlesParameters(astMethod, interfaces),
       statements: getSkittlesStatements(
         astMethod.body,
-        getSkittlesType(astMethod.type)
+        getSkittlesType(astMethod.type, interfaces),
+        interfaces
       ),
     };
   }
@@ -49,13 +59,14 @@ const getSkittlesMethod = (
     const arrowFunction = astMethod.initializer;
     return {
       name: getNodeName(astMethod),
-      returns: getSkittlesType(arrowFunction.type),
+      returns: getSkittlesType(arrowFunction.type, interfaces),
       private: isNodePrivate(astMethod),
       view: false, // Temporary, is overriden later with `getStateMutability()`
-      parameters: getSkittlesParameters(arrowFunction),
+      parameters: getSkittlesParameters(arrowFunction, interfaces),
       statements: getSkittlesStatements(
         arrowFunction.body as Statement,
-        getSkittlesType(astMethod.type)
+        getSkittlesType(astMethod.type, interfaces),
+        interfaces
       ),
     };
   }

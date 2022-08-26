@@ -20,6 +20,13 @@ const getStorageUpdateYul = (
 
 const getReturnYul = (statement: SkittlesReturnStatement): string[] => {
   const { value } = statement;
+  if (value.expressionType === SkittlesExpressionType.Interface) {
+    return [
+      ...value.interface.elements.map((e) => {
+        return `_${e.name}Var := ${getExpressionYul(value.values[e.name])}`;
+      }),
+    ];
+  }
   return [`v := ${getExpressionYul(value)}`];
 };
 

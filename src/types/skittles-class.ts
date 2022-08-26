@@ -6,6 +6,7 @@ export enum SkittlesExpressionType {
   Variable = "Variable",
   Mapping = "Mapping",
   EvmDialect = "Evm Dialect",
+  Interface = "Interface",
 }
 
 export interface SkittlesBaseExpression {
@@ -16,10 +17,16 @@ export enum SkittlesTypeKind {
   Simple = "Simple",
   Mapping = "Mapping",
   Void = "Void",
+  Interface = "Interface",
 }
 
 export interface SkittlesBaseType {
   kind: SkittlesTypeKind;
+}
+
+export interface SkittlesInterfaceType extends SkittlesBaseType {
+  kind: SkittlesTypeKind.Interface;
+  interface: SkittlesInterface;
 }
 
 export interface SkittlesVoidType extends SkittlesBaseType {
@@ -38,6 +45,7 @@ export interface SkittlesMappingType extends SkittlesBaseType {
 }
 
 export type SkittlesType =
+  | SkittlesInterfaceType
   | SkittlesSimpleType
   | SkittlesMappingType
   | SkittlesVoidType;
@@ -59,6 +67,13 @@ export enum SkittlesOperator {
   Not,
   Power,
 }
+
+export interface SkittlesInterfaceExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Interface;
+  interface: SkittlesInterface;
+  values: Record<string, SkittlesExpression>;
+}
+
 export interface SkittlesNotExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.Not;
   value: SkittlesExpression;
@@ -100,6 +115,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesInterfaceExpression
   | SkittlesNotExpression
   | SkittlesEvmDialectExpression
   | SkittlesMappingExpression
@@ -193,7 +209,15 @@ export interface SkittlesConstructor {
   statements: SkittlesStatement[];
 }
 
+export interface SkittlesInterface {
+  name: string;
+  elements: SkittlesParameter[];
+}
+
+export type SkittlesInterfaces = Record<string, SkittlesInterface>;
+
 interface SkittlesClass {
+  interfaces: SkittlesInterfaces;
   name: string;
   constructor?: SkittlesConstructor;
   variables: SkittlesVariable[];

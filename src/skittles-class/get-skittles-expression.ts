@@ -17,12 +17,16 @@ import {
 import {
   SkittlesExpression,
   SkittlesExpressionType,
+  SkittlesInterfaces,
   SkittlesTypeKind,
 } from "../types/skittles-class";
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 
-const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
+const getSkittlesExpression = (
+  expression: Expression,
+  interfaces: SkittlesInterfaces
+): SkittlesExpression => {
   if (isIdentifier(expression)) {
     return {
       expressionType: SkittlesExpressionType.Variable,
@@ -33,7 +37,7 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
     const value = expression.text;
     return {
       expressionType: SkittlesExpressionType.Value,
-      type: getSkittlesType(expression, value),
+      type: getSkittlesType(expression, interfaces, value),
       value,
     };
   }
@@ -63,15 +67,17 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
   if (isBinaryExpression(expression)) {
     return {
       expressionType: SkittlesExpressionType.Binary,
-      left: getSkittlesExpression(expression.left),
-      right: getSkittlesExpression(expression.right),
+      left: getSkittlesExpression(expression.left, interfaces),
+      right: getSkittlesExpression(expression.right, interfaces),
       operator: getSkittlesOperator(expression.operatorToken.kind),
     };
   }
   if (isElementAccessExpression(expression)) {
     const items: SkittlesExpression[] = [];
     while (isElementAccessExpression(expression)) {
-      items.unshift(getSkittlesExpression(expression.argumentExpression));
+      items.unshift(
+        getSkittlesExpression(expression.argumentExpression, interfaces)
+      );
       expression = expression.expression;
     }
 
@@ -82,12 +88,12 @@ const getSkittlesExpression = (expression: Expression): SkittlesExpression => {
     };
   }
   if (isParenthesizedExpression(expression)) {
-    return getSkittlesExpression(expression.expression);
+    return getSkittlesExpression(expression.expression, interfaces);
   }
   if (isPrefixUnaryExpression(expression)) {
     return {
       expressionType: SkittlesExpressionType.Not,
-      value: getSkittlesExpression(expression.operand),
+      value: getSkittlesExpression(expression.operand, interfaces),
     };
   }
   if (isTrueKeyword(expression)) {

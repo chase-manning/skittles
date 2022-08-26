@@ -4,6 +4,12 @@ import { address } from "../../src/types/core-types";
 // TODO Extend interface
 // TODO Add renentrancy protection
 
+interface Reserves {
+  reserve0: number;
+  reserve1: number;
+  blockTimestampLast: number;
+}
+
 export class UniswapV2Pair {
   readonly MINIMUM_LIQUIDITY: number = 10 ** 3;
 
@@ -18,4 +24,12 @@ export class UniswapV2Pair {
   price0CumulativeLast: number;
   price1CumulativeLast: number;
   kLast: number;
+
+  getReserves(): Reserves {
+    return {
+      reserve0: this.reserve0,
+      reserve1: this.reserve1,
+      blockTimestampLast: this.blockTimestampLast,
+    };
+  }
 }

@@ -15,11 +15,11 @@ const addPropertyDispatcher = (
 
   if (type.kind === SkittlesTypeKind.Mapping) {
     if (type.output.kind !== SkittlesTypeKind.Simple) {
-      throw new Error("Unexpected type kind");
+      throw new Error("Unexpected type kind 2");
     }
     const inputTypes = type.inputs.map((input) => {
       if (input.kind !== SkittlesTypeKind.Simple) {
-        throw new Error("Unexpected type kind");
+        throw new Error("Unexpected type kind 3");
       }
       return input.value;
     });
@@ -33,7 +33,7 @@ const addPropertyDispatcher = (
   }
 
   if (type.kind !== SkittlesTypeKind.Simple) {
-    throw new Error("Unexpected type kind");
+    throw new Error("Unexpected type kind 4");
   }
 
   return addToSection(yul, YulSection.Dispatchers, [

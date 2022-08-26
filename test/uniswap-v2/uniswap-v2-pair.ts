@@ -28,6 +28,13 @@ describe("UniswapV2Pair", () => {
     await pair.deployed();
   });
 
+  it("Should get reserves", async () => {
+    const reserves = await pair.getReserves();
+    expect(reserves[0]).to.equal(0);
+    expect(reserves[1]).to.equal(0);
+    expect(reserves[2]).to.equal(0);
+  });
+
   it("mint", async () => {
     const token0Amount = scale(1);
     const token1Amount = scale(4);

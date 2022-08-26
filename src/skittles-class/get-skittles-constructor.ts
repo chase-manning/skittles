@@ -1,24 +1,29 @@
 import { ConstructorDeclaration, ParameterDeclaration } from "typescript";
 import { getNodeName } from "../helpers/ast-helper";
-import { SkittlesConstructor } from "../types/skittles-class";
+import {
+  SkittlesConstructor,
+  SkittlesInterfaces,
+} from "../types/skittles-class";
 import getSkittlesStatements from "./get-skittles-statements";
 import getSkittlesType from "./get-skittles-type";
 
 const getSkittlesConstructor = (
-  astConstructor: ConstructorDeclaration
+  astConstructor: ConstructorDeclaration,
+  interfaces: SkittlesInterfaces
 ): SkittlesConstructor => {
   return {
     parameters: astConstructor.parameters.map(
       (parameter: ParameterDeclaration) => {
         return {
           name: getNodeName(parameter),
-          type: getSkittlesType(parameter.type),
+          type: getSkittlesType(parameter.type, interfaces),
         };
       }
     ),
     statements: getSkittlesStatements(
       astConstructor.body,
-      getSkittlesType(astConstructor.type)
+      getSkittlesType(astConstructor.type, interfaces),
+      interfaces
     ),
   };
 };

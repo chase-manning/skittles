@@ -1,6 +1,10 @@
 import { isAddress } from "ethers/lib/utils";
 import { Node, SyntaxKind } from "typescript";
-import { SkittlesType, SkittlesTypeKind } from "../types/skittles-class";
+import {
+  SkittlesInterfaces,
+  SkittlesType,
+  SkittlesTypeKind,
+} from "../types/skittles-class";
 
 const kind = SkittlesTypeKind.Simple;
 const stringType: SkittlesType = { kind, value: "string" };
@@ -9,7 +13,11 @@ const uint256Type: SkittlesType = { kind, value: "uint256" };
 const boolType: SkittlesType = { kind, value: "bool" };
 const anyType: SkittlesType = { kind, value: "any" };
 
-const getSkittlesType = (type: Node | undefined, value?: any): SkittlesType => {
+const getSkittlesType = (
+  type: Node | undefined,
+  interfaces: SkittlesInterfaces,
+  value?: any
+): SkittlesType => {
   if (!type) return { kind: SkittlesTypeKind.Void };
   const { kind } = type;
   if (!kind) return { kind: SkittlesTypeKind.Void };
@@ -54,17 +62,22 @@ const getSkittlesType = (type: Node | undefined, value?: any): SkittlesType => {
               throw new Error("Could not get type arguments");
             }
             const [input, output] = typeArguments;
-            inputs.push(getSkittlesType(input));
+            inputs.push(getSkittlesType(input, interfaces));
             record = output;
           }
 
           return {
             kind: SkittlesTypeKind.Mapping,
             inputs,
-            output: getSkittlesType(record),
+            output: getSkittlesType(record, interfaces),
           };
         default:
-          throw new Error(`Unknown type reference type: ${escapedText}`);
+          const face = interfaces[escapedText];
+          if (!face) throw new Error(`Could not find interface ${escapedText}`);
+          return {
+            kind: SkittlesTypeKind.Interface,
+            interface: face,
+          };
       }
     default:
       throw new Error(`Unknown syntax kind: ${kind}`);

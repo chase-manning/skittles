@@ -63,6 +63,10 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
       return `${expression.variable}Storage(${variables.join(", ")})`;
     case SkittlesExpressionType.EvmDialect:
       return evmDialects[expression.environment][expression.variable];
+    case SkittlesExpressionType.Interface:
+      return `{ ${expression.interface.elements
+        .map((e) => expression.values[e.name])
+        .join(", ")} }`;
     default:
       throw new Error("Unsupported expression");
   }
