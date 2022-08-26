@@ -3,6 +3,7 @@ import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { isAddress } from "ethers/lib/utils";
 import getSkittlesFactory from "../src/testing/get-skittles-factory";
+import { address } from "../src/types/core-types";
 
 let helloWorld: Contract;
 let walletA: any;
@@ -283,5 +284,17 @@ describe("Hello World", () => {
     const response = await helloWorld.getNumberAndAddress();
     expect(response[0]).to.equal(123);
     expect(response[1]).to.equal("0x1234567890123456789012345678901234567890");
+  });
+
+  it("Should get number and address as interface", async () => {
+    interface NumberAndAddress {
+      number: number;
+      address: address;
+    }
+    const response: NumberAndAddress = await helloWorld.getNumberAndAddress();
+    expect(response.number).to.equal(123);
+    expect(response.address).to.equal(
+      "0x1234567890123456789012345678901234567890"
+    );
   });
 });
