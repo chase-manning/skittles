@@ -1,6 +1,6 @@
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
-import { BigNumber, Contract } from "ethers";
+import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import getSkittlesFactory from "../../src/testing/get-skittles-factory";
 import { solidity } from "ethereum-waffle";
@@ -10,7 +10,7 @@ const MINIMUM_LIQUIDITY = scale(1, 3);
 
 chai.use(solidity);
 
-describe("UniswapV2Pair", () => {
+describe("Uniswap V2 Pair", () => {
   let factory: Contract;
   let token0: Contract;
   let token1: Contract;
@@ -18,7 +18,7 @@ describe("UniswapV2Pair", () => {
   let wallet: SignerWithAddress;
   let other: SignerWithAddress;
 
-  before(async () => {
+  beforeEach(async () => {
     let signers = await ethers.getSigners();
     wallet = signers[0];
     other = signers[1];
