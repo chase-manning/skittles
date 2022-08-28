@@ -28,3 +28,4 @@
 - remove the Skittles prefix on all types
 - support files with no classes
 - support files with two classes
+- change all the constructor yuls to be like the neat functions one

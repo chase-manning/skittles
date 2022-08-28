@@ -2,6 +2,7 @@ export enum YulSection {
   Constructor = "constructor",
   Dispatchers = "dispatchers",
   Functions = "functions",
+  ConstructorFunctions = "constructor functions",
   StorageLayout = "storage layout",
   ConstructorStorageLayout = "constructor storage layout",
   StorageAccess = "storage access",
@@ -50,6 +51,9 @@ const utilityFunctions: string[] = [
 const yulTemplate: string[] = [
   `code {`,
   `/* ---------- constructor ----------- */`,
+  ``,
+  ``,
+  `/* ---------- constructor functions ----------- */`,
   ``,
   ``,
   `/* -------- constructor storage layout ---------- */`,

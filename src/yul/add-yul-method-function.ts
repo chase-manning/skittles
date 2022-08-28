@@ -20,13 +20,19 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
     return "-> v ";
   };
 
-  return addToSection(yul, YulSection.Functions, [
+  const yuls = [
     `function ${name}Function(${parameters
       .map((input: SkittlesParameter) => `${input.name}Var`)
       .join(", ")}) ${returnVariables()}{`,
     ...getBlockYul(statements),
     `}`,
-  ]);
+  ];
+
+  return addToSection(
+    addToSection(yul, YulSection.Functions, yuls),
+    YulSection.ConstructorFunctions,
+    yuls
+  );
 };
 
 export default addMethodFunction;
