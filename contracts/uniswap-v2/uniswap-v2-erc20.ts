@@ -12,12 +12,12 @@ export class UniswapV2ERC20 {
   balanceOf: Record<address, number>;
   allownace: Record<address, Record<address, number>>;
 
-  private _mint(to: address, amount: number): void {
+  protected _mint(to: address, amount: number): void {
     this.balanceOf[to] += amount;
     this.totalSupply += amount;
   }
 
-  private _burn(from: address, amount: number): void {
+  protected _burn(from: address, amount: number): void {
     this.balanceOf[from] -= amount;
     this.totalSupply -= amount;
   }
