@@ -133,10 +133,15 @@ export enum SkittlesStatementType {
   Call = "Call",
   If = "If",
   Throw = "Throw",
+  Ignore = "Ignore",
 }
 
 export interface SkittlesBaseStatement {
   statementType: SkittlesStatementType;
+}
+
+export interface SkittlesIgnoreStatement extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.Ignore;
 }
 
 export interface SkittlesThrowStatement extends SkittlesBaseStatement {
@@ -177,6 +182,7 @@ export interface SkittlesReturnStatement extends SkittlesBaseStatement {
 }
 
 export type SkittlesStatement =
+  | SkittlesIgnoreStatement
   | SkittlesThrowStatement
   | SkittlesIfStatement
   | SkittlesCallStatement

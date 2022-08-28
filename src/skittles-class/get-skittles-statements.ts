@@ -16,6 +16,7 @@ import {
   isThrowStatement,
   Node,
   Statement,
+  SyntaxKind,
 } from "typescript";
 import {
   getNodeName,
@@ -39,6 +40,10 @@ import {
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
 
+const isNotIgnored = (statement: SkittlesStatement): boolean => {
+  return statement.statementType !== SkittlesStatementType.Ignore;
+};
+
 const getSkittlesStatements = (
   block: Statement | undefined,
   returnType: SkittlesType,
@@ -47,11 +52,15 @@ const getSkittlesStatements = (
   if (!block) return [];
   if (isBlock(block)) {
     const { statements } = block;
-    return statements.map((statement: Node) =>
-      getSkittlesStatement(statement, returnType, interfaces)
-    );
+    return statements
+      .map((statement: Node) =>
+        getSkittlesStatement(statement, returnType, interfaces)
+      )
+      .filter(isNotIgnored);
   }
-  return [getSkittlesStatement(block, returnType, interfaces)];
+  return [getSkittlesStatement(block, returnType, interfaces)].filter(
+    isNotIgnored
+  );
 };
 
 const getReturnStatementExpression = (
@@ -252,13 +261,22 @@ const getSkittlesStatement = (
       throw new Error(`Unknown binary expression type: ${expression.kind}`);
     }
     if (isCallExpression(expression)) {
-      return {
-        statementType: SkittlesStatementType.Call,
-        target: getNodeName(expression.expression),
-        parameters: expression.arguments.map((e) =>
-          getSkittlesExpression(e, interfaces)
-        ),
-      };
+      const callExpression = expression.expression;
+      if (isPropertyAccessExpression(callExpression)) {
+        return {
+          statementType: SkittlesStatementType.Call,
+          target: getNodeName(callExpression),
+          parameters: expression.arguments.map((e) =>
+            getSkittlesExpression(e, interfaces)
+          ),
+        };
+      }
+      if (callExpression.kind === SyntaxKind.SuperKeyword) {
+        return {
+          statementType: SkittlesStatementType.Ignore,
+        };
+      }
+      throw new Error(`Unknown call expression type: ${callExpression.kind}`);
     }
     throw new Error("Not implemented expression statement handling");
   }
