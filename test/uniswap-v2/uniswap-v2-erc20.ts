@@ -4,10 +4,11 @@ import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import getSkittlesFactory from "../../src/testing/get-skittles-factory";
 import { solidity } from "ethereum-waffle";
+import { scale } from "../utils/number-utils";
 
 chai.use(solidity);
 
-// const TOTAL_SUPPLY = expandTo18Decimals(10000);
+const TOTAL_SUPPLY = scale(10000);
 // const TEST_AMOUNT = expandTo18Decimals(10);
 
 describe("ERC20", () => {
@@ -20,8 +21,8 @@ describe("ERC20", () => {
     wallet = signers[0];
     other = signers[1];
 
-    const Token = await getSkittlesFactory(wallet, "UniswapV2ERC20");
-    token = await Token.deploy();
+    const Token = await getSkittlesFactory(wallet, "UniswapV2TestERC20");
+    token = await Token.deploy(TOTAL_SUPPLY);
     await token.deployed();
   });
 
@@ -30,7 +31,7 @@ describe("ERC20", () => {
     expect(name).to.eq("Uniswap V2");
     expect(await token.symbol()).to.eq("UNI-V2");
     expect(await token.decimals()).to.eq(18);
-    //     expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY);
+    expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY);
     //     expect(await token.DOMAIN_SEPARATOR()).to.eq(
     //       keccak256(
     //         defaultAbiCoder.encode(
