@@ -35,7 +35,18 @@ const getSkittlesClass = (file: string): SkittlesClass => {
 
   const astConstructor = classNode.members.find(isConstructorDeclaration);
 
+  const classExtensions: string[] = [];
+  const { heritageClauses } = classNode;
+  if (heritageClauses) {
+    heritageClauses.forEach((heritageClause) => {
+      heritageClause.types.forEach((type) => {
+        classExtensions.push(getNodeName(type.expression));
+      });
+    });
+  }
+
   const skittlesClass = {
+    classExtensions,
     interfaces,
     name: getNodeName(classNode),
     constructor: astConstructor

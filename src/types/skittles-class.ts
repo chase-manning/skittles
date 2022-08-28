@@ -219,6 +219,7 @@ export interface SkittlesInterface {
 export type SkittlesInterfaces = Record<string, SkittlesInterface>;
 
 interface SkittlesClass {
+  classExtensions: string[];
   interfaces: SkittlesInterfaces;
   name: string;
   constructor?: SkittlesConstructor;
