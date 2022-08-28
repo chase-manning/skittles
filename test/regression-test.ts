@@ -32,6 +32,36 @@ describe("Regression Test", () => {
     expect(errored).to.equal(true);
   });
 
+  it("Should not have view for _protectedBalance", async () => {
+    let errored = false;
+    try {
+      await regressionTest._protectedBalance();
+    } catch {
+      errored = true;
+    }
+    expect(errored).to.equal(true);
+  });
+
+  it("Should not have view for _protectedView", async () => {
+    let errored = false;
+    try {
+      await regressionTest._protectedView();
+    } catch {
+      errored = true;
+    }
+    expect(errored).to.equal(true);
+  });
+
+  it("Should not have view for _protectedFunction", async () => {
+    let errored = false;
+    try {
+      await regressionTest._protectedFunction();
+    } catch {
+      errored = true;
+    }
+    expect(errored).to.equal(true);
+  });
+
   it("Should have balance of 1 by default", async () => {
     const balance = await regressionTest.balance();
     expect(balance).to.equal(1);

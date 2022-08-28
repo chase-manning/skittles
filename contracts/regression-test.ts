@@ -10,6 +10,7 @@ interface NumberAndAddress {
 
 export class RegressionTest {
   private _privatebalance: number = 111;
+  protected _protectedBalance: number = 345;
   balance: number = 1;
   readonly decimals: number = 18;
   readonly age: number;
@@ -44,6 +45,14 @@ export class RegressionTest {
 
   private _addBalance(value: number): void {
     this.balance += value;
+  }
+
+  protected _protectedView(): number {
+    return 123;
+  }
+
+  protected _protectedFunction(): void {
+    this._protectedBalance = 123;
   }
 
   setApproval(spender: address, amount: number): boolean {

@@ -57,7 +57,10 @@ export const isFalseKeyword = (node: Node): boolean => {
 export const isNodePrivate = (node: Node): boolean => {
   let isPrivate = false;
   forEachChild(node, (node) => {
-    if (node.kind === SyntaxKind.PrivateKeyword) {
+    if (
+      node.kind === SyntaxKind.PrivateKeyword ||
+      node.kind === SyntaxKind.ProtectedKeyword
+    ) {
       isPrivate = true;
     }
   });
