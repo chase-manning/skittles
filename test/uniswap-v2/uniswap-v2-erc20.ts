@@ -4,7 +4,8 @@ import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import getSkittlesFactory from "../../src/testing/get-skittles-factory";
 import { solidity } from "ethereum-waffle";
-import { MAX_UINT256, scale } from "../utils/number-utils";
+import { scale } from "../utils/number-utils";
+import { MAX_UINT256 } from "../utils/constants";
 
 chai.use(solidity);
 
