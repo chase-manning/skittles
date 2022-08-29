@@ -58,6 +58,20 @@ const getSkittlesExpression = (
           variable: getNodeName(expression),
         };
       }
+      if (environment === "Number") {
+        const element = getNodeName(expression.name);
+        if (element === "MAX_SAFE_INTEGER" || element === "MAX_VALUE") {
+          return {
+            expressionType: SkittlesExpressionType.Value,
+            type: {
+              kind: SkittlesTypeKind.Number,
+            },
+            value:
+              "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          };
+        }
+        throw new Error(`Could not get value for ${element}`);
+      }
       throw new Error(`Unknown environment: ${environment}`);
     }
     throw new Error(
