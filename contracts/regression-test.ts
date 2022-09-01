@@ -19,6 +19,7 @@ export class RegressionTest {
   readonly readOnlyString: string = "Readonly string";
   publicMapping: Record<address, number>;
   publicMappingNested: Record<address, Record<address, number>>;
+  addressArray: address[];
 
   private _balances: Record<address, number>;
   private _approvals: Record<address, Record<address, number>>;

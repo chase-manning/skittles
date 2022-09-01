@@ -332,4 +332,14 @@ describe("Regression Test", () => {
       "0x1234567890123456789012345678901234567890"
     );
   });
+
+  it("Should error getting address from empty array", async () => {
+    let errored = false;
+    try {
+      await regressionTest.addressArray(0);
+    } catch {
+      errored = true;
+    }
+    expect(errored).to.equal(true);
+  });
 });
