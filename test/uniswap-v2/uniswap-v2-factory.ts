@@ -24,11 +24,13 @@ describe("Uniswap V2 Factory", () => {
     other = signers[1];
 
     const Factory = await getSkittlesFactory(wallet, "UniswapV2Factory");
-    factory = await Factory.deploy();
+    factory = await Factory.deploy(wallet.address);
     await factory.deployed();
   });
 
-  it("meow", async () => {
+  it("feeTo, feeToSetter, allPairsLength", async () => {
     expect(await factory.feeTo()).to.eq(ZERO_ADDRESS);
+    expect(await factory.feeToSetter()).to.eq(wallet.address);
+    // expect(await factory.allPairsLength()).to.eq(0);
   });
 });
