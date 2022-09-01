@@ -8,7 +8,7 @@ const addValueInitializations = (
   property: SkittlesVariable,
   index: number
 ) => {
-  if (!property.value) return yul;
+  if (!property.value || property.immutable) return yul;
   const expression = getExpressionYul(property.value);
   return addToSection(yul, YulSection.Constructor, [
     property.type.kind === SkittlesTypeKind.String
