@@ -2,9 +2,14 @@ import { Abi, AbiFunction } from "../types/abi-types";
 import SkittlesClass, {
   SkittlesConstructor,
   SkittlesMethod,
+  SkittlesType,
   SkittlesTypeKind,
   SkittlesVariable,
 } from "../types/skittles-class";
+
+const getTypeString = (type: SkittlesType): string => {
+  return type.kind;
+};
 
 const getConstructorAbi = (
   constructor?: SkittlesConstructor
@@ -16,7 +21,7 @@ const getConstructorAbi = (
       inputs: constructor.parameters.map((i) => {
         return {
           name: i.name,
-          type: i.type.kind,
+          type: getTypeString(i.type),
         };
       }),
       stateMutability: "nonpayable",
@@ -32,10 +37,24 @@ const getPropertyAbi = (property: SkittlesVariable): AbiFunction => {
       inputs: property.type.inputs.map((i) => {
         return {
           name: "",
-          type: i.kind,
+          type: getTypeString(i),
         };
       }),
-      outputs: [{ name: "", type: property.type.output.kind }],
+      outputs: [{ name: "", type: getTypeString(property.type.output) }],
+      stateMutability: "view",
+    };
+  }
+  if (property.type.kind === SkittlesTypeKind.Array) {
+    return {
+      type: "function",
+      name: property.name,
+      inputs: [
+        {
+          name: "index",
+          type: "uint256",
+        },
+      ],
+      outputs: [{ name: "", type: getTypeString(property.type.itemType) }],
       stateMutability: "view",
     };
   }
@@ -43,7 +62,7 @@ const getPropertyAbi = (property: SkittlesVariable): AbiFunction => {
     type: "function",
     name: property.name,
     inputs: [],
-    outputs: [{ name: "", type: property.type.kind }],
+    outputs: [{ name: "", type: getTypeString(property.type) }],
     stateMutability: "view",
   };
 };
@@ -57,7 +76,7 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
         ...returns.interface.elements.map((e) => {
           return {
             name: e.name,
-            type: e.type.kind,
+            type: getTypeString(e.type),
           };
         }),
       ];
@@ -65,7 +84,7 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
     return [
       {
         name: "",
-        type: returns.kind,
+        type: getTypeString(returns),
       },
     ];
   };
@@ -76,7 +95,7 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
     inputs: method.parameters.map((i) => {
       return {
         name: i.name,
-        type: i.type.kind,
+        type: getTypeString(i.type),
       };
     }),
     outputs: outputs(),
