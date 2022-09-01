@@ -1,18 +1,3 @@
-export enum SkittlesExpressionType {
-  Not = "Not",
-  Binary = "Binary",
-  Value = "Value",
-  Storage = "Storage",
-  Variable = "Variable",
-  Mapping = "Mapping",
-  EvmDialect = "Evm Dialect",
-  Interface = "Interface",
-}
-
-export interface SkittlesBaseExpression {
-  expressionType: SkittlesExpressionType;
-}
-
 export enum SkittlesTypeKind {
   Mapping = "Mapping",
   Void = "Void",
@@ -77,6 +62,27 @@ export enum SkittlesOperator {
   Power,
 }
 
+export enum SkittlesExpressionType {
+  Not = "Not",
+  Binary = "Binary",
+  Value = "Value",
+  Storage = "Storage",
+  Variable = "Variable",
+  Mapping = "Mapping",
+  EvmDialect = "Evm Dialect",
+  Interface = "Interface",
+  Length = "Length",
+}
+
+export interface SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType;
+}
+
+export interface SkittlesLengthExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Length;
+  value: SkittlesExpression;
+}
+
 export interface SkittlesInterfaceExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.Interface;
   interface: SkittlesInterface;
@@ -124,6 +130,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesLengthExpression
   | SkittlesInterfaceExpression
   | SkittlesNotExpression
   | SkittlesEvmDialectExpression

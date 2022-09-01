@@ -49,8 +49,21 @@ const getLiteralYul = (
 };
 
 const getPropertyAccessExpressionYul = (
-  expression: PropertyAccessExpression
+  expression: PropertyAccessExpression,
+  interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
+  if (expression.expression.kind === SyntaxKind.PropertyAccessExpression) {
+    const property = getNodeName(expression);
+    switch (property) {
+      case "length":
+        return {
+          expressionType: SkittlesExpressionType.Length,
+          value: getSkittlesExpression(expression.expression, interfaces),
+        };
+      default:
+        throw new Error(`Unknown property access property: ${property}`);
+    }
+  }
   if (expression.expression.kind === SyntaxKind.ThisKeyword) {
     return {
       expressionType: SkittlesExpressionType.Storage,
@@ -84,7 +97,7 @@ const getPropertyAccessExpressionYul = (
     throw new Error(`Unknown environment: ${environment}`);
   }
   throw new Error(
-    `Property access expression not supported ${expression.getText()}`
+    `Property access expression not supported ${expression.kind}`
   );
 };
 
@@ -147,7 +160,7 @@ const getSkittlesExpression = (
     return getLiteralYul(expression, interfaces);
   }
   if (isPropertyAccessExpression(expression)) {
-    return getPropertyAccessExpressionYul(expression);
+    return getPropertyAccessExpressionYul(expression, interfaces);
   }
   if (isBinaryExpression(expression)) {
     return getBinaryYul(expression, interfaces);

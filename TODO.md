@@ -13,6 +13,7 @@
 
 ==== FORMATTED ====
 
+- Look at changing the script target to simplify things like arrow functions for the ast gen
 - Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat
 - Add smarter compiling with cache and only update chagned contracts
