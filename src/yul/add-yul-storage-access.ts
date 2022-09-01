@@ -81,6 +81,7 @@ const _addStorageAccess = (
       `${initial} := sload(${name}LengthPos())`,
       `}`,
       `function ${name}IndexStorage(value) -> ${initial} {`,
+      `if gte(value, ${name}LengthStorage()) { revert(0, 0) }`,
       `${initial} := sload(add(${name}ArrayPos(), value))`,
       `}`,
       `function ${name}Storage() -> l {`,
