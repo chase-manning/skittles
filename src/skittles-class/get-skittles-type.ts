@@ -1,5 +1,5 @@
 import { isAddress } from "ethers/lib/utils";
-import { Node, SyntaxKind } from "typescript";
+import { isArrayTypeNode, Node, SyntaxKind } from "typescript";
 import {
   SkittlesInterfaces,
   SkittlesType,
@@ -78,6 +78,12 @@ const getSkittlesType = (
             interface: face,
           };
       }
+    case SyntaxKind.ArrayType:
+      if (!isArrayTypeNode(type)) throw new Error("Could not get array type");
+      return {
+        kind: SkittlesTypeKind.Array,
+        itemType: getSkittlesType(type.elementType, interfaces),
+      };
     default:
       throw new Error(`Unknown syntax kind: ${kind}`);
   }

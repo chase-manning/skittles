@@ -21,6 +21,7 @@ export enum SkittlesTypeKind {
   Address = "address",
   Number = "uint256",
   Boolean = "bool",
+  Array = "array",
 }
 
 export interface SkittlesBaseType {
@@ -36,6 +37,11 @@ export interface SkittleSimpleType extends SkittlesBaseType {
     | SkittlesTypeKind.Number;
 }
 
+export interface SkittlesArrayType extends SkittlesBaseType {
+  kind: SkittlesTypeKind.Array;
+  itemType: SkittlesType;
+}
+
 export interface SkittlesInterfaceType extends SkittlesBaseType {
   kind: SkittlesTypeKind.Interface;
   interface: SkittlesInterface;
@@ -48,6 +54,7 @@ export interface SkittlesMappingType extends SkittlesBaseType {
 }
 
 export type SkittlesType =
+  | SkittlesArrayType
   | SkittlesInterfaceType
   | SkittlesMappingType
   | SkittleSimpleType;

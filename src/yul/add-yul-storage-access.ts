@@ -75,6 +75,21 @@ const _addStorageAccess = (
     ]);
   }
 
+  if (type.kind === SkittlesTypeKind.Array) {
+    return addToSection(yul, section, [
+      `function ${name}LengthStorage() -> ${initial} {`,
+      `${initial} := sload(${name}LengthPos())`,
+      `}`,
+      `function ${name}IndexStorage(value) -> ${initial} {`,
+      `${initial} := sload(add(${name}ArrayPos(), value))`,
+      `}`,
+      `function ${name}Storage() -> l {`,
+      `l := ${name}LengthStorage()`,
+      `for { let j := 0} lt(j, l) { j := add(j, 1) } { mstore(j, ${name}IndexStorage(j)) }`,
+      `}`,
+    ]);
+  }
+
   return addToSection(yul, section, [
     `function ${name}Storage() -> ${initial} {`,
     `${initial} := sload(${name}Pos())`,

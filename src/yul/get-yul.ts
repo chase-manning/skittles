@@ -19,16 +19,16 @@ const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
   let yul = getBaseYul(skittlesClass.name);
 
   // Adding properties
-  skittlesClass.variables.forEach(
-    (property: SkittlesVariable, index: number) => {
-      yul = addPropertyDispatcher(yul, abi, property);
-      yul = addStorageLayout(yul, property, skittlesClass, index);
-      yul = addStorageLayout(yul, property, skittlesClass, index, true);
-      yul = addStorageAccess(yul, property, skittlesClass);
-      yul = addStorageAccess(yul, property, skittlesClass, true);
-      yul = addValueInitializations(yul, property, index);
-    }
-  );
+  let slot = 0;
+  skittlesClass.variables.forEach((property: SkittlesVariable) => {
+    yul = addPropertyDispatcher(yul, abi, property);
+    let r = addStorageLayout(yul, property, skittlesClass, slot);
+    r = addStorageLayout(r.yul, property, skittlesClass, slot, true);
+    yul = addStorageAccess(r.yul, property, skittlesClass);
+    yul = addStorageAccess(yul, property, skittlesClass, true);
+    yul = addValueInitializations(yul, property, slot);
+    slot = r.slot;
+  });
 
   // Adding constructor
   yul = addConstructor(yul, skittlesClass);

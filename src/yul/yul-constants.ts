@@ -9,6 +9,7 @@ export const returnFunctions: Record<string, string> = {
   bool: "returnBoolean",
   address: "return256",
   string: "returnString",
+  array: "returnArray",
 };
 
 export const evmDialects: Record<string, Record<string, string>> = {
