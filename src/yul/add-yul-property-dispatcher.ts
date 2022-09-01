@@ -26,6 +26,16 @@ const addPropertyDispatcher = (
     ]);
   }
 
+  if (type.kind === SkittlesTypeKind.Array) {
+    return addToSection(yul, YulSection.Dispatchers, [
+      `case ${selector} /* "${name}(uint256)" */ {`,
+      `${
+        returnFunctions[type.itemType.kind]
+      }(${name}IndexStorage(decodeAsUint(0)))`,
+      `}`,
+    ]);
+  }
+
   return addToSection(yul, YulSection.Dispatchers, [
     `case ${selector} /* "${name}()" */ {`,
     `${returnFunctions[type.kind]}(${name}Storage())`,
