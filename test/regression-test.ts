@@ -342,4 +342,8 @@ describe("Regression Test", () => {
     }
     expect(errored).to.equal(true);
   });
+
+  it("Should return address array length of 0 for empty array", async () => {
+    expect(await regressionTest.getAddressArrayLength()).to.equal(0);
+  });
 });

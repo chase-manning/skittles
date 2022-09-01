@@ -108,6 +108,10 @@ export class RegressionTest {
     };
   }
 
+  getAddressArrayLength(): number {
+    return this.addressArray.length;
+  }
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;
