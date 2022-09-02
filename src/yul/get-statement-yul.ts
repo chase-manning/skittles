@@ -8,6 +8,7 @@ import {
   SkittlesStatementType,
   SkittlesStorageUpdateStatement,
   SkittlesThrowStatement,
+  SkittlesVariableDeclarationStatement,
 } from "../types/skittles-class";
 import getExpressionYul from "./get-expression-yul";
 
@@ -92,6 +93,13 @@ const getThrowYul = (statement: SkittlesThrowStatement): string[] => {
   return [`revert256(${getExpressionYul(error)})`];
 };
 
+const getVariableDeclarationYul = (
+  statement: SkittlesVariableDeclarationStatement
+): string[] => {
+  const { variable, value } = statement;
+  return [`let ${variable}Var := ${getExpressionYul(value)}`];
+};
+
 const getStatementYul = (statement: SkittlesStatement): string[] => {
   switch (statement.statementType) {
     case SkittlesStatementType.StorageUpdate:
@@ -106,6 +114,8 @@ const getStatementYul = (statement: SkittlesStatement): string[] => {
       return getIfYul(statement);
     case SkittlesStatementType.Throw:
       return getThrowYul(statement);
+    case SkittlesStatementType.VariableDeclaration:
+      return getVariableDeclarationYul(statement);
     default:
       throw new Error(`Unsupported statement type ${statement}`);
   }

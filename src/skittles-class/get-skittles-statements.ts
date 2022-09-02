@@ -5,6 +5,7 @@ import {
   isCallExpression,
   isElementAccessExpression,
   isExpressionStatement,
+  isIdentifier,
   isIfStatement,
   isLiteralExpression,
   isNewExpression,
@@ -14,6 +15,7 @@ import {
   isPropertyAssignment,
   isReturnStatement,
   isThrowStatement,
+  isVariableStatement,
   Node,
   Statement,
   SyntaxKind,
@@ -158,6 +160,13 @@ const getReturnStatementExpression = (
         interface: returnType.interface,
         values,
       },
+    };
+  }
+  if (isIdentifier(expression)) {
+    return {
+      statementType: SkittlesStatementType.Return,
+      type: returnType,
+      value: getSkittlesExpression(expression, interfaces),
     };
   }
   throw new Error(`Unknown return expression type: ${expression.kind}`);
@@ -330,6 +339,18 @@ const getSkittlesStatement = (
       returnType,
       interfaces
     );
+  }
+  if (isVariableStatement(node)) {
+    const { declarationList } = node;
+    if (declarationList.declarations.length !== 1)
+      throw new Error("Variable statement has too many declarations");
+    const { name, initializer } = declarationList.declarations[0];
+    if (!initializer) throw new Error("Variable statement has no initializer");
+    return {
+      statementType: SkittlesStatementType.VariableDeclaration,
+      variable: getNodeName(name),
+      value: getSkittlesExpression(initializer, interfaces),
+    };
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };

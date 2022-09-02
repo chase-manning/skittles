@@ -154,10 +154,18 @@ export enum SkittlesStatementType {
   If = "If",
   Throw = "Throw",
   Ignore = "Ignore",
+  VariableDeclaration = "Variable Declaration",
 }
 
 export interface SkittlesBaseStatement {
   statementType: SkittlesStatementType;
+}
+
+export interface SkittlesVariableDeclarationStatement
+  extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.VariableDeclaration;
+  variable: string;
+  value: SkittlesExpression;
 }
 
 export interface SkittlesIgnoreStatement extends SkittlesBaseStatement {
@@ -203,6 +211,7 @@ export interface SkittlesReturnStatement extends SkittlesBaseStatement {
 }
 
 export type SkittlesStatement =
+  | SkittlesVariableDeclarationStatement
   | SkittlesIgnoreStatement
   | SkittlesThrowStatement
   | SkittlesIfStatement
