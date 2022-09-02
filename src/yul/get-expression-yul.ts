@@ -69,8 +69,6 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
     case SkittlesExpressionType.Length:
       const { value } = expression;
       switch (value.expressionType) {
-        case SkittlesExpressionType.Variable:
-          return `${value.value}LengthStorage()`;
         case SkittlesExpressionType.Storage:
           return `${value.variable}LengthStorage()`;
         default:
