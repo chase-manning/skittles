@@ -14,7 +14,6 @@ export class UniswapV2Factory {
   }
 
   allPairsLength(): number {
-    return 0;
-    // return this.allPairs.length;
+    return this.allPairs.length;
   }
 }

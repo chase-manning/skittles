@@ -31,6 +31,6 @@ describe("Uniswap V2 Factory", () => {
   it("feeTo, feeToSetter, allPairsLength", async () => {
     expect(await factory.feeTo()).to.eq(ZERO_ADDRESS);
     expect(await factory.feeToSetter()).to.eq(wallet.address);
-    // expect(await factory.allPairsLength()).to.eq(0);
+    expect(await factory.allPairsLength()).to.eq(0);
   });
 });
