@@ -346,4 +346,10 @@ describe("Regression Test", () => {
   it("Should return address array length of 0 for empty array", async () => {
     expect(await regressionTest.getAddressArrayLength()).to.equal(0);
   });
+
+  it("Should push item to address array", async () => {
+    await regressionTest.pushAddressArrayValue(walletA.address);
+    expect(await regressionTest.getAddressArrayLength()).to.equal(1);
+    expect(await regressionTest.addressArray(0)).to.equal(walletA.address);
+  });
 });

@@ -112,6 +112,10 @@ export class RegressionTest {
     return this.addressArray.length;
   }
 
+  pushAddressArrayValue(value: address): void {
+    this.addressArray.push(value);
+  }
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;
