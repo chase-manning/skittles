@@ -352,4 +352,8 @@ describe("Regression Test", () => {
     expect(await regressionTest.getAddressArrayLength()).to.equal(1);
     expect(await regressionTest.addressArray(0)).to.equal(walletA.address);
   });
+
+  it("Should declare variable", async () => {
+    expect(await regressionTest.declareVariable()).to.equal(15);
+  });
 });

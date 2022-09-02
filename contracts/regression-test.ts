@@ -116,6 +116,11 @@ export class RegressionTest {
     this.addressArray.push(value);
   }
 
+  declareVariable(): number {
+    let x = 1 + 7 * 2;
+    return x;
+  }
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;
