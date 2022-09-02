@@ -29,14 +29,16 @@ import {
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 
-const getIdentifierYul = (expression: Identifier): SkittlesExpression => {
+const getIdentifierExpression = (
+  expression: Identifier
+): SkittlesExpression => {
   return {
     expressionType: SkittlesExpressionType.Variable,
     value: expression.escapedText,
   };
 };
 
-const getLiteralYul = (
+const getLiteralExpression = (
   expression: LiteralExpression,
   interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
@@ -48,7 +50,7 @@ const getLiteralYul = (
   };
 };
 
-const getPropertyAccessExpressionYul = (
+const getPropertyAccessExpression = (
   expression: PropertyAccessExpression,
   interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
@@ -101,7 +103,7 @@ const getPropertyAccessExpressionYul = (
   );
 };
 
-const getBinaryYul = (
+const getBinaryExpression = (
   expression: BinaryExpression,
   interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
@@ -113,7 +115,7 @@ const getBinaryYul = (
   };
 };
 
-const getElementAccessYul = (
+const getElementAccessExpression = (
   expression: ElementAccessExpression,
   interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
@@ -131,7 +133,7 @@ const getElementAccessYul = (
   };
 };
 
-const getPrefixUnaryYul = (
+const getPrefixUnaryExpression = (
   expression: PrefixUnaryExpression,
   interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
@@ -141,11 +143,17 @@ const getPrefixUnaryYul = (
   };
 };
 
-const getBooleanYul = (item: boolean): SkittlesExpression => {
+const getBooleanExpression = (item: boolean): SkittlesExpression => {
   return {
     expressionType: SkittlesExpressionType.Value,
     type: { kind: SkittlesTypeKind.Void },
     value: item ? "true" : "false",
+  };
+};
+
+const getThisExpression = (): SkittlesExpression => {
+  return {
+    expressionType: SkittlesExpressionType.This,
   };
 };
 
@@ -154,31 +162,34 @@ const getSkittlesExpression = (
   interfaces: SkittlesInterfaces
 ): SkittlesExpression => {
   if (isIdentifier(expression)) {
-    return getIdentifierYul(expression);
+    return getIdentifierExpression(expression);
   }
   if (isLiteralExpression(expression)) {
-    return getLiteralYul(expression, interfaces);
+    return getLiteralExpression(expression, interfaces);
   }
   if (isPropertyAccessExpression(expression)) {
-    return getPropertyAccessExpressionYul(expression, interfaces);
+    return getPropertyAccessExpression(expression, interfaces);
   }
   if (isBinaryExpression(expression)) {
-    return getBinaryYul(expression, interfaces);
+    return getBinaryExpression(expression, interfaces);
   }
   if (isElementAccessExpression(expression)) {
-    return getElementAccessYul(expression, interfaces);
+    return getElementAccessExpression(expression, interfaces);
   }
   if (isParenthesizedExpression(expression)) {
     return getSkittlesExpression(expression.expression, interfaces);
   }
   if (isPrefixUnaryExpression(expression)) {
-    return getPrefixUnaryYul(expression, interfaces);
+    return getPrefixUnaryExpression(expression, interfaces);
   }
   if (isTrueKeyword(expression)) {
-    return getBooleanYul(true);
+    return getBooleanExpression(true);
   }
   if (isFalseKeyword(expression)) {
-    return getBooleanYul(false);
+    return getBooleanExpression(false);
+  }
+  if (expression.kind === SyntaxKind.ThisKeyword) {
+    return getThisExpression();
   }
   throw new Error(`Unknown expression type: ${expression.kind}`);
 };

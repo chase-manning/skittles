@@ -72,10 +72,15 @@ export enum SkittlesExpressionType {
   EvmDialect = "Evm Dialect",
   Interface = "Interface",
   Length = "Length",
+  This = "This",
 }
 
 export interface SkittlesBaseExpression {
   expressionType: SkittlesExpressionType;
+}
+
+export interface SkittlesThisExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.This;
 }
 
 export interface SkittlesLengthExpression extends SkittlesBaseExpression {
@@ -130,6 +135,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesThisExpression
   | SkittlesLengthExpression
   | SkittlesInterfaceExpression
   | SkittlesNotExpression
@@ -173,6 +179,7 @@ export interface SkittlesIfStatement extends SkittlesBaseStatement {
 export interface SkittlesCallStatement extends SkittlesBaseStatement {
   statementType: SkittlesStatementType.Call;
   target: string;
+  element: SkittlesExpression;
   parameters: SkittlesExpression[];
 }
 

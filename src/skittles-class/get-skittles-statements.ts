@@ -266,6 +266,7 @@ const getSkittlesStatement = (
         return {
           statementType: SkittlesStatementType.Call,
           target: getNodeName(callExpression),
+          element: getSkittlesExpression(callExpression.expression, interfaces),
           parameters: expression.arguments.map((e) =>
             getSkittlesExpression(e, interfaces)
           ),

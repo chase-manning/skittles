@@ -88,6 +88,11 @@ const _addStorageAccess = (
       `l := ${name}LengthStorage()`,
       `for { let j := 0} lt(j, l) { j := add(j, 1) } { mstore(j, ${name}IndexStorage(j)) }`,
       `}`,
+      `function ${name}Push(value) {`,
+      `let length := ${name}LengthStorage()`,
+      `sstore(add(length, ${name}ArrayPos()), value)`,
+      `sstore(${name}LengthPos(), add(length, 1))`,
+      `}`,
     ]);
   }
 

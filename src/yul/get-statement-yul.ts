@@ -41,8 +41,26 @@ const getMappingUpdateYul = (
 };
 
 const getCallYul = (statement: SkittlesCallStatement): string[] => {
-  const { target, parameters } = statement;
-  return [`${target}Function(${parameters.map(getExpressionYul).join(", ")})`];
+  const { target, parameters, element } = statement;
+  switch (element.expressionType) {
+    case SkittlesExpressionType.This:
+      return [
+        `${target}Function(${parameters.map(getExpressionYul).join(", ")})`,
+      ];
+    case SkittlesExpressionType.Storage:
+      switch (target) {
+        case "push":
+          return [
+            `${element.variable}Push(${parameters
+              .map(getExpressionYul)
+              .join()})`,
+          ];
+        default:
+          throw new Error(`Unsupported storage function ${target}`);
+      }
+    default:
+      throw new Error(`Unsupported expression type ${element}`);
+  }
 };
 
 const getIfYul = (statement: SkittlesIfStatement): string[] => {
