@@ -356,4 +356,8 @@ describe("Regression Test", () => {
   it("Should declare variable", async () => {
     expect(await regressionTest.declareVariable()).to.equal(15);
   });
+
+  it("Should update variable", async () => {
+    expect(await regressionTest.variableUpdates()).to.equal(14);
+  });
 });
