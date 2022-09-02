@@ -4,7 +4,7 @@ import { Contract } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import getSkittlesFactory from "../../src/testing/get-skittles-factory";
 import { solidity } from "ethereum-waffle";
-import { ZERO_ADDRESS } from "../utils/constants";
+import { ZERO_ADDRESS } from "../../src/data/constants";
 
 const TEST_ADDRESSES: [string, string] = [
   "0x1000000000000000000000000000000000000000",
