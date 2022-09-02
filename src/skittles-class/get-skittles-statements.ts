@@ -267,6 +267,43 @@ const getSkittlesStatement = (
           `Unknown element access expression: ${expression.operatorToken.kind}`
         );
       }
+      if (isIdentifier(expression.left)) {
+        if (isEquals(expression)) {
+          return {
+            statementType: SkittlesStatementType.VariableUpdate,
+            variable: getNodeName(expression.left),
+            value: getSkittlesExpression(expression.right, interfaces),
+          };
+        }
+        if (isPlusEquals(expression)) {
+          return {
+            statementType: SkittlesStatementType.VariableUpdate,
+            variable: getNodeName(expression.left),
+            value: {
+              expressionType: SkittlesExpressionType.Binary,
+              operator: SkittlesOperator.Plus,
+              left: getSkittlesExpression(expression.left, interfaces),
+              right: getSkittlesExpression(expression.right, interfaces),
+            },
+          };
+        }
+        if (isMinusEquals(expression)) {
+          return {
+            statementType: SkittlesStatementType.VariableUpdate,
+            variable: getNodeName(expression.left),
+            value: {
+              expressionType: SkittlesExpressionType.Binary,
+              operator: SkittlesOperator.Minus,
+              left: getSkittlesExpression(expression.left, interfaces),
+              right: getSkittlesExpression(expression.right, interfaces),
+            },
+          };
+        }
+        throw new Error(
+          `Unknown identifier expression: ${expression.operatorToken.kind}`
+        );
+      }
+
       throw new Error(`Unknown binary expression type: ${expression.kind}`);
     }
     if (isCallExpression(expression)) {

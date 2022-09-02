@@ -13,6 +13,10 @@
 
 ==== FORMATTED ====
 
+- Lots of duplication in `getSkittlesStatement` expression statement handling
+- Split up `getSkittlesStatement` steps
+- Split up skittles class
+- Add suppor for conditional expressions `a ? b : c`
 - Look at changing the script target to simplify things like arrow functions for the ast gen
 - Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat

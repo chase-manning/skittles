@@ -150,6 +150,7 @@ export enum SkittlesStatementType {
   StorageUpdate = "Storage Update",
   Return = "Return",
   MappingUpdate = "Mapping Update",
+  VariableUpdate = "Variable Update",
   Call = "Call",
   If = "If",
   Throw = "Throw",
@@ -198,6 +199,12 @@ export interface SkittlesMappingUpdateStatement extends SkittlesBaseStatement {
   value: SkittlesExpression;
 }
 
+export interface SkittlesVariableUpdateStatement extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.VariableUpdate;
+  variable: string;
+  value: SkittlesExpression;
+}
+
 export interface SkittlesStorageUpdateStatement extends SkittlesBaseStatement {
   statementType: SkittlesStatementType.StorageUpdate;
   variable: string;
@@ -211,6 +218,7 @@ export interface SkittlesReturnStatement extends SkittlesBaseStatement {
 }
 
 export type SkittlesStatement =
+  | SkittlesVariableUpdateStatement
   | SkittlesVariableDeclarationStatement
   | SkittlesIgnoreStatement
   | SkittlesThrowStatement
