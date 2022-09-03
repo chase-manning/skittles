@@ -73,10 +73,17 @@ export enum SkittlesExpressionType {
   Interface = "Interface",
   Length = "Length",
   This = "This",
+  Deploy = "Deploy",
 }
 
 export interface SkittlesBaseExpression {
   expressionType: SkittlesExpressionType;
+}
+
+export interface SkittlesDeployExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Deploy;
+  contract: string;
+  parameters: SkittlesExpression[];
 }
 
 export interface SkittlesThisExpression extends SkittlesBaseExpression {
@@ -135,6 +142,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesDeployExpression
   | SkittlesThisExpression
   | SkittlesLengthExpression
   | SkittlesInterfaceExpression
@@ -263,6 +271,7 @@ export interface SkittlesInterface {
 export type SkittlesInterfaces = Record<string, SkittlesInterface>;
 
 interface SkittlesClass {
+  bytecodeDependencies: string[];
   classExtensions: string[];
   interfaces: SkittlesInterfaces;
   name: string;

@@ -7,10 +7,12 @@ import {
   isElementAccessExpression,
   isIdentifier,
   isLiteralExpression,
+  isNewExpression,
   isParenthesizedExpression,
   isPrefixUnaryExpression,
   isPropertyAccessExpression,
   LiteralExpression,
+  NewExpression,
   PrefixUnaryExpression,
   PropertyAccessExpression,
   SyntaxKind,
@@ -157,6 +159,20 @@ const getThisExpression = (): SkittlesExpression => {
   };
 };
 
+const getNewExpression = (
+  expression: NewExpression,
+  interfaces: SkittlesInterfaces
+): SkittlesExpression => {
+  return {
+    expressionType: SkittlesExpressionType.Deploy,
+    contract: getNodeName(expression.expression),
+    parameters:
+      expression.arguments?.map((arg) =>
+        getSkittlesExpression(arg, interfaces)
+      ) || [],
+  };
+};
+
 const getSkittlesExpression = (
   expression: Expression,
   interfaces: SkittlesInterfaces
@@ -191,6 +207,10 @@ const getSkittlesExpression = (
   if (expression.kind === SyntaxKind.ThisKeyword) {
     return getThisExpression();
   }
+  if (isNewExpression(expression)) {
+    return getNewExpression(expression, interfaces);
+  }
+
   throw new Error(`Unknown expression type: ${expression.kind}`);
 };
 
