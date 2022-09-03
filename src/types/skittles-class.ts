@@ -271,7 +271,6 @@ export interface SkittlesInterface {
 export type SkittlesInterfaces = Record<string, SkittlesInterface>;
 
 interface SkittlesClass {
-  bytecodeDependencies: string[];
   classExtensions: string[];
   interfaces: SkittlesInterfaces;
   name: string;
