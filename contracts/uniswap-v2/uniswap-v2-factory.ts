@@ -3,6 +3,7 @@ import { address } from "../../src/types/core-types";
 // TODO Add events
 // TODO Refactor token assignments to use conditional expressions a ? b : c
 // TODO Increase line length and refactor to assing token0 and token1 at the same time
+// TODO Change to using ZERO_ADDRESS import
 
 export class UniswapV2Factory {
   feeTo: address;
@@ -29,5 +30,16 @@ export class UniswapV2Factory {
       token0 = tokenB;
       token1 = tokenA;
     }
+    if (token0 === "0x0000000000000000000000000000000000000000") {
+      throw new Error("UniswapV2: ZERO_ADDRESS");
+    }
+    if (
+      this.getPair[token0][token1] !==
+      "0x0000000000000000000000000000000000000000"
+    ) {
+      throw new Error("UniswapV2: PAIR_EXISTS");
+    }
+    // const pair = new UniswapV2Pair();
+    // pair.initialize(token0, token1);
   }
 }
