@@ -32,4 +32,9 @@ export class UniswapV2Pair {
       blockTimestampLast: this.blockTimestampLast,
     };
   }
+
+  initialize(token0: address, token1: address): void {
+    this.token0 = token0;
+    this.token1 = token1;
+  }
 }
