@@ -1,9 +1,9 @@
 import { address, msg } from "../../src/types/core-types";
+import { IUniswapV2ERC20 } from "./interfaces/uniswap-v2-erc20-interface";
 
-// TODO Extend interface
 // TODO Add events
 
-export class UniswapV2ERC20 {
+export class UniswapV2ERC20 implements IUniswapV2ERC20 {
   readonly name: string = "Uniswap V2";
   readonly symbol: string = "UNI-V2";
   readonly decimals: number = 18;
