@@ -1,6 +1,6 @@
+import { SkittlesExpressionType } from "../types/skittles-contract";
 import {
   SkittlesCallStatement,
-  SkittlesExpressionType,
   SkittlesIfStatement,
   SkittlesMappingUpdateStatement,
   SkittlesReturnStatement,
@@ -10,7 +10,7 @@ import {
   SkittlesThrowStatement,
   SkittlesVariableDeclarationStatement,
   SkittlesVariableUpdateStatement,
-} from "../types/skittles-contract";
+} from "../types/skittles-statement";
 import getExpressionYul from "./get-expression-yul";
 
 const getStorageUpdateYul = (

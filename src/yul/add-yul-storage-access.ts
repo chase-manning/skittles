@@ -3,11 +3,13 @@ import { getVariables } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
 import SkittlesContract, {
   SkittlesExpressionType,
-  SkittlesStatement,
-  SkittlesStatementType,
   SkittlesTypeKind,
   SkittlesVariable,
 } from "../types/skittles-contract";
+import {
+  SkittlesStatement,
+  SkittlesStatementType,
+} from "../types/skittles-statement";
 import getExpressionYul from "./get-expression-yul";
 
 const _addStorageAccess = (

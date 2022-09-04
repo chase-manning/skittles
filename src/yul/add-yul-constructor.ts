@@ -2,10 +2,12 @@ import { YulSection } from "../data/yul-template";
 import { addToSection } from "../helpers/yul-helper";
 import SkittlesContract, {
   SkittlesParameter,
-  SkittlesStatement,
-  SkittlesStatementType,
   SkittlesVariable,
 } from "../types/skittles-contract";
+import {
+  SkittlesStatement,
+  SkittlesStatementType,
+} from "../types/skittles-statement";
 import getBlockYul from "./get-block-yul";
 
 const getParameters = (

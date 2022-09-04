@@ -1,8 +1,8 @@
 import SkittlesContract, {
   SkittlesMethod,
-  SkittlesStatementType,
   SkittlesTypeKind,
 } from "../types/skittles-contract";
+import { SkittlesStatementType } from "../types/skittles-statement";
 
 const getMethod = (
   target: string,

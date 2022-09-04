@@ -39,11 +39,13 @@ import {
   SkittlesExpressionType,
   SkittlesInterfaces,
   SkittlesOperator,
-  SkittlesStatement,
-  SkittlesStatementType,
   SkittlesType,
   SkittlesTypeKind,
 } from "../types/skittles-contract";
+import {
+  SkittlesStatement,
+  SkittlesStatementType,
+} from "../types/skittles-statement";
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
 

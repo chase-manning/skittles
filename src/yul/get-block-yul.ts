@@ -1,4 +1,4 @@
-import { SkittlesStatement } from "../types/skittles-contract";
+import { SkittlesStatement } from "../types/skittles-statement";
 import getStatementYul from "./get-statement-yul";
 
 const getBlockYul = (statements: SkittlesStatement[]): string[] => {
