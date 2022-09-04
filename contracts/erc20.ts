@@ -25,18 +25,14 @@ export class ERC20 {
   }
 
   transferFrom(from: address, to: address, amount: number): boolean {
-    if (this.allowance[from][msg.sender] < amount) {
-      throw new Error("amount exceeds allowance");
+    if (this.allowance[from][msg.sender] !== Number.MAX_VALUE) {
+      this.allowance[from][msg.sender] -= amount;
     }
     this._transfer(from, to, amount);
-    this.allowance[from][msg.sender] -= amount;
     return true;
   }
 
   private _transfer(from: address, to: address, amount: number): void {
-    if (this.balanceOf[from] < amount) {
-      throw new Error("transfer amount exceeds balance");
-    }
     this.balanceOf[to] += amount;
     this.balanceOf[from] -= amount;
   }
