@@ -1,7 +1,7 @@
 import { YulSection } from "../data/yul-template";
 import { getVariables } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
-import SkittlesClass, {
+import SkittlesContract, {
   SkittlesExpressionType,
   SkittlesStatement,
   SkittlesStatementType,
@@ -14,7 +14,7 @@ const _addStorageAccess = (
   yul: string[],
   property: SkittlesVariable,
   section: YulSection,
-  skittlesClass: SkittlesClass
+  skittlesClass: SkittlesContract
 ) => {
   const { name, type } = property;
   const initial = `_${name.substring(0, 1)}`;
@@ -110,7 +110,7 @@ const _addStorageAccess = (
 const addStorageAccess = (
   yul: string[],
   property: SkittlesVariable,
-  skittlesClass: SkittlesClass,
+  skittlesClass: SkittlesContract,
   isConstructor?: boolean
 ) => {
   return _addStorageAccess(

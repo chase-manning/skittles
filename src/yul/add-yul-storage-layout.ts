@@ -1,7 +1,7 @@
 import { YulSection } from "../data/yul-template";
 import { getVariables } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
-import SkittlesClass, {
+import SkittlesContract, {
   SkittlesTypeKind,
   SkittlesVariable,
 } from "../types/skittles-class";
@@ -9,7 +9,7 @@ import SkittlesClass, {
 const _addStorageLayout = (
   yul: string[],
   property: SkittlesVariable,
-  skittlesClass: SkittlesClass,
+  skittlesClass: SkittlesContract,
   section: YulSection,
   slot: number
 ): StorageLayoutResponse => {
@@ -71,7 +71,7 @@ interface StorageLayoutResponse {
 const addStorageLayout = (
   yul: string[],
   property: SkittlesVariable,
-  skittlesClass: SkittlesClass,
+  skittlesClass: SkittlesContract,
   slot: number,
   constructor?: boolean
 ): StorageLayoutResponse => {

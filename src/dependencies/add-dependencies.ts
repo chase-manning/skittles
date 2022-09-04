@@ -1,9 +1,9 @@
-import SkittlesClass from "../types/skittles-class";
+import SkittlesContract from "../types/skittles-class";
 
 const addDependencies = (
-  skittlesClass: SkittlesClass,
-  classes: SkittlesClass[]
-): SkittlesClass => {
+  skittlesClass: SkittlesContract,
+  classes: SkittlesContract[]
+): SkittlesContract => {
   const dependencyClasses = classes.filter((c) => {
     return skittlesClass.classExtensions.includes(c.name);
   });

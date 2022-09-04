@@ -4,7 +4,7 @@ import getBytecode from "../bytecode/get-bytecode";
 import addDependencies from "../dependencies/add-dependencies";
 import { getAllContractFiles, writeFile } from "../helpers/file-helper";
 import getSkittlesClass from "../skittles-class/get-skittles-class";
-import SkittlesClass from "../types/skittles-class";
+import SkittlesContract from "../types/skittles-class";
 import getYul from "../yul/get-yul";
 
 const doTask = (task: string, fn: () => any) => {
@@ -17,7 +17,7 @@ const doTask = (task: string, fn: () => any) => {
 const skittlesCompile = () => {
   const files = doTask("Loading Contracts", () => getAllContractFiles());
   const classes = doTask("Processing", () => files.map(getSkittlesClass));
-  classes.forEach((skittlesClass: SkittlesClass) => {
+  classes.forEach((skittlesClass: SkittlesContract) => {
     const { name } = skittlesClass;
     doTask(`Compiling ${name}`, () => {
       const newClass = addDependencies(skittlesClass, classes);

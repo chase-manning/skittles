@@ -270,7 +270,7 @@ export interface SkittlesInterface {
 
 export type SkittlesInterfaces = Record<string, SkittlesInterface>;
 
-interface SkittlesClass {
+interface SkittlesContract {
   classExtensions: string[];
   interfaces: SkittlesInterfaces;
   name: string;
@@ -279,4 +279,4 @@ interface SkittlesClass {
   methods: SkittlesMethod[];
 }
 
-export default SkittlesClass;
+export default SkittlesContract;

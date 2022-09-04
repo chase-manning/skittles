@@ -1,6 +1,6 @@
 import { YulSection } from "../data/yul-template";
 import { addToSection } from "../helpers/yul-helper";
-import SkittlesClass, {
+import SkittlesContract, {
   SkittlesParameter,
   SkittlesStatement,
   SkittlesStatementType,
@@ -23,7 +23,7 @@ const getParameters = (
   ];
 };
 
-const addConstructor = (yul: string[], skittlesClass: SkittlesClass) => {
+const addConstructor = (yul: string[], skittlesClass: SkittlesContract) => {
   const { constructor } = skittlesClass;
   if (!constructor) return yul;
   let { parameters, statements } = constructor;

@@ -1,5 +1,3 @@
-- For lists, add check that you're not adding a value over the max length
-- reaname SkittlesClass to Contract?
 - remove the Skittles prefix on all types
 - Split up `getSkittlesStatement` steps
 - Lots of duplication in `getSkittlesStatement` expression statement handling
@@ -41,6 +39,7 @@
 
 === IDEAS ===
 
+- Extend everything from a contract class for things like `Contract.address` and stuff
 - Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat
 

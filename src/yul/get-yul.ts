@@ -1,4 +1,4 @@
-import SkittlesClass, {
+import SkittlesContract, {
   SkittlesMethod,
   SkittlesVariable,
 } from "../types/skittles-class";
@@ -14,7 +14,7 @@ import addMethodFunction from "./add-yul-method-function";
 import addStorageAccess from "./add-yul-storage-access";
 import addValueInitializations from "./add-yul-value-initialzations";
 
-const getYul = (skittlesClass: SkittlesClass, abi: Abi) => {
+const getYul = (skittlesClass: SkittlesContract, abi: Abi) => {
   // Getting base data
   let yul = getBaseYul(skittlesClass.name);
 

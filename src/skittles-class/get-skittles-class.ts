@@ -10,14 +10,14 @@ import {
   isPropertyArrowFunction,
   isVariable,
 } from "../helpers/ast-helper";
-import SkittlesClass from "../types/skittles-class";
+import SkittlesContract from "../types/skittles-class";
 import getSkittlesConstructor from "./get-skittles-constructor";
 import getSkittlesInterfaces from "./get-skittles-interfaces";
 import getSkittlesMethod from "./get-skittles-method";
 import getSkittlesProperty from "./get-skittles-property";
 import getStateMutability from "./get-skittles-state-mutability";
 
-const getSkittlesClass = (file: string): SkittlesClass => {
+const getSkittlesClass = (file: string): SkittlesContract => {
   const ast = getAst(file);
   const classNode = getClassNode(ast);
 

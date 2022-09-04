@@ -1,4 +1,4 @@
-import SkittlesClass, {
+import SkittlesContract, {
   SkittlesMethod,
   SkittlesStatementType,
   SkittlesTypeKind,
@@ -6,7 +6,7 @@ import SkittlesClass, {
 
 const getMethod = (
   target: string,
-  skittlesClass: SkittlesClass
+  skittlesClass: SkittlesContract
 ): SkittlesMethod => {
   const method = skittlesClass.methods.find((m) => m.name === target);
   if (!method) throw new Error(`Method ${target} not found`);
@@ -15,7 +15,7 @@ const getMethod = (
 
 const methodModifiesState = (
   method: SkittlesMethod,
-  skittlesClass: SkittlesClass
+  skittlesClass: SkittlesContract
 ): boolean => {
   if (method.returns.kind === SkittlesTypeKind.Void) return true;
   for (const statement of method.statements) {
@@ -30,7 +30,9 @@ const methodModifiesState = (
   return false;
 };
 
-const getStateMutability = (skittlesClass: SkittlesClass): SkittlesClass => {
+const getStateMutability = (
+  skittlesClass: SkittlesContract
+): SkittlesContract => {
   for (let method of skittlesClass.methods) {
     method.view = !methodModifiesState(method, skittlesClass);
   }

@@ -1,5 +1,5 @@
 import { Abi, AbiFunction } from "../types/abi-types";
-import SkittlesClass, {
+import SkittlesContract, {
   SkittlesConstructor,
   SkittlesMethod,
   SkittlesType,
@@ -103,7 +103,7 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
   };
 };
 
-const getAbi = (skittlesClass: SkittlesClass): Abi => {
+const getAbi = (skittlesClass: SkittlesContract): Abi => {
   return [
     ...getConstructorAbi(skittlesClass.constructor),
     ...skittlesClass.variables.filter((p) => !p.private).map(getPropertyAbi),
