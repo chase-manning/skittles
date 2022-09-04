@@ -155,17 +155,3 @@ export class RegressionTest implements IRegressionTest {
 export class SecondRegressionTest {
   variable: number = 1;
 }
-
-// export class RegressionTestChild extends RegressionTest {
-//   constructor() {
-//     super(123);
-//   }
-
-//   getProtectedView(): number {
-//     return this._protectedView();
-//   }
-
-//   setProtectedBalance(): void {
-//     this._protectedFunction();
-//   }
-// }
