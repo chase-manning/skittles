@@ -35,13 +35,15 @@ import {
   isTrueKeyword,
 } from "../helpers/ast-helper";
 import {
-  SkittlesExpression,
-  SkittlesExpressionType,
   SkittlesInterfaces,
-  SkittlesOperator,
   SkittlesType,
   SkittlesTypeKind,
 } from "../types/skittles-contract";
+import {
+  SkittlesExpression,
+  SkittlesExpressionType,
+  SkittlesOperator,
+} from "../types/skittles-expression";
 import {
   SkittlesStatement,
   SkittlesStatementType,

@@ -1,4 +1,5 @@
-import { SkittlesExpression, SkittlesType } from "./skittles-contract";
+import { SkittlesType } from "./skittles-contract";
+import { SkittlesExpression } from "./skittles-expression";
 
 export enum SkittlesStatementType {
   StorageUpdate = "Storage Update",

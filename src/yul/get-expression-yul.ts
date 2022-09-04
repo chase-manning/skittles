@@ -1,10 +1,10 @@
+import { SkittlesTypeKind } from "../types/skittles-contract";
 import {
   SkittlesBinaryExpression,
   SkittlesExpression,
   SkittlesExpressionType,
   SkittlesOperator,
-  SkittlesTypeKind,
-} from "../types/skittles-contract";
+} from "../types/skittles-expression";
 import { evmDialects } from "./yul-constants";
 
 const getBinaryYul = (expression: SkittlesBinaryExpression): string => {

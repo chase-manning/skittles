@@ -1,4 +1,4 @@
-import { SkittlesExpressionType } from "../types/skittles-contract";
+import { SkittlesExpressionType } from "../types/skittles-expression";
 import {
   SkittlesCallStatement,
   SkittlesIfStatement,

@@ -2,10 +2,10 @@ import { YulSection } from "../data/yul-template";
 import { getVariables } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
 import SkittlesContract, {
-  SkittlesExpressionType,
   SkittlesTypeKind,
   SkittlesVariable,
 } from "../types/skittles-contract";
+import { SkittlesExpressionType } from "../types/skittles-expression";
 import {
   SkittlesStatement,
   SkittlesStatementType,

@@ -23,11 +23,13 @@ import {
   isTrueKeyword,
 } from "../helpers/ast-helper";
 import {
-  SkittlesExpression,
-  SkittlesExpressionType,
   SkittlesInterfaces,
   SkittlesTypeKind,
 } from "../types/skittles-contract";
+import {
+  SkittlesExpression,
+  SkittlesExpressionType,
+} from "../types/skittles-expression";
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 
