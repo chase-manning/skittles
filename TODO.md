@@ -1,4 +1,3 @@
-- Add ability to extend interfaces
 - Add support for events
 - Add support for using impored variables (e.g. `ZERO_ADDRESS`)
 - Add suppor for conditional expressions `a ? b : c`

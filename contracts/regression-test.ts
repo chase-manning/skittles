@@ -3,12 +3,17 @@ import { address, block, chain, msg, tx } from "../src/types/core-types";
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
 
+interface IRegressionTest {
+  balance: number;
+  addBalance(amount: number): void;
+}
+
 interface NumberAndAddress {
   number: number;
   address: address;
 }
 
-export class RegressionTest {
+export class RegressionTest implements IRegressionTest {
   private _privatebalance: number = 111;
   protected _protectedBalance: number = 345;
   balance: number = 1;
