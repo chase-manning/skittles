@@ -110,15 +110,17 @@ const _addStorageAccess = (
 const addStorageAccess = (
   yul: string[],
   property: SkittlesVariable,
-  contract: SkittlesContract,
-  isConstructor?: boolean
+  contract: SkittlesContract
 ) => {
   return _addStorageAccess(
-    yul,
+    _addStorageAccess(
+      yul,
+      property,
+      YulSection.ConstructorStorageAccess,
+      contract
+    ),
     property,
-    isConstructor
-      ? YulSection.ConstructorStorageAccess
-      : YulSection.StorageAccess,
+    YulSection.StorageAccess,
     contract
   );
 };

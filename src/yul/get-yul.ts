@@ -23,9 +23,7 @@ const getYul = (contract: SkittlesContract, abi: Abi) => {
   contract.variables.forEach((property: SkittlesVariable) => {
     yul = addPropertyDispatcher(yul, abi, property);
     let r = addStorageLayout(yul, property, contract, slot);
-    r = addStorageLayout(r.yul, property, contract, slot, true);
     yul = addStorageAccess(r.yul, property, contract);
-    yul = addStorageAccess(yul, property, contract, true);
     yul = addValueInitializations(yul, property, slot);
     slot = r.slot;
   });

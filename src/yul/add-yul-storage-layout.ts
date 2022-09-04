@@ -70,16 +70,21 @@ const addStorageLayout = (
   yul: string[],
   property: SkittlesVariable,
   contract: SkittlesContract,
-  slot: number,
-  constructor?: boolean
+  slot: number
 ): StorageLayoutResponse => {
-  return _addStorageLayout(
+  const response = _addStorageLayout(
     yul,
     property,
     contract,
-    constructor
-      ? YulSection.ConstructorStorageLayout
-      : YulSection.StorageLayout,
+    YulSection.ConstructorStorageLayout,
+    slot
+  );
+
+  return _addStorageLayout(
+    response.yul,
+    property,
+    contract,
+    YulSection.StorageLayout,
     slot
   );
 };

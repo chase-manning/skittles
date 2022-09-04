@@ -1,5 +1,3 @@
-- Split up skittles class
-- change all the constructor yuls to be like the neat functions one
 - Add ability to extend interfaces
 - Add support for events
 - Add support for using impored variables (e.g. `ZERO_ADDRESS`)
