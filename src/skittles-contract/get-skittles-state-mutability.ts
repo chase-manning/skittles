@@ -2,20 +2,20 @@ import SkittlesContract, {
   SkittlesMethod,
   SkittlesStatementType,
   SkittlesTypeKind,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 
 const getMethod = (
   target: string,
-  skittlesClass: SkittlesContract
+  contract: SkittlesContract
 ): SkittlesMethod => {
-  const method = skittlesClass.methods.find((m) => m.name === target);
+  const method = contract.methods.find((m) => m.name === target);
   if (!method) throw new Error(`Method ${target} not found`);
   return method;
 };
 
 const methodModifiesState = (
   method: SkittlesMethod,
-  skittlesClass: SkittlesContract
+  contract: SkittlesContract
 ): boolean => {
   if (method.returns.kind === SkittlesTypeKind.Void) return true;
   for (const statement of method.statements) {
@@ -23,20 +23,18 @@ const methodModifiesState = (
     if (statementType === SkittlesStatementType.MappingUpdate) return true;
     if (statementType === SkittlesStatementType.StorageUpdate) return true;
     if (statementType === SkittlesStatementType.Call) {
-      const target = getMethod(statement.target, skittlesClass);
-      if (methodModifiesState(target, skittlesClass)) return true;
+      const target = getMethod(statement.target, contract);
+      if (methodModifiesState(target, contract)) return true;
     }
   }
   return false;
 };
 
-const getStateMutability = (
-  skittlesClass: SkittlesContract
-): SkittlesContract => {
-  for (let method of skittlesClass.methods) {
-    method.view = !methodModifiesState(method, skittlesClass);
+const getStateMutability = (contract: SkittlesContract): SkittlesContract => {
+  for (let method of contract.methods) {
+    method.view = !methodModifiesState(method, contract);
   }
-  return skittlesClass;
+  return contract;
 };
 
 export default getStateMutability;

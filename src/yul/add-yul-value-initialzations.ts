@@ -1,6 +1,6 @@
 import { YulSection } from "../data/yul-template";
 import { addToSection } from "../helpers/yul-helper";
-import { SkittlesTypeKind, SkittlesVariable } from "../types/skittles-class";
+import { SkittlesTypeKind, SkittlesVariable } from "../types/skittles-contract";
 import getExpressionYul from "./get-expression-yul";
 
 const addValueInitializations = (

@@ -27,7 +27,7 @@ import {
   SkittlesExpressionType,
   SkittlesInterfaces,
   SkittlesTypeKind,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 

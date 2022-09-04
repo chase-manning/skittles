@@ -5,7 +5,7 @@ import SkittlesContract, {
   SkittlesType,
   SkittlesTypeKind,
   SkittlesVariable,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 
 const getTypeString = (type: SkittlesType): string => {
   return type.kind;
@@ -103,11 +103,11 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
   };
 };
 
-const getAbi = (skittlesClass: SkittlesContract): Abi => {
+const getAbi = (contract: SkittlesContract): Abi => {
   return [
-    ...getConstructorAbi(skittlesClass.constructor),
-    ...skittlesClass.variables.filter((p) => !p.private).map(getPropertyAbi),
-    ...skittlesClass.methods.filter((p) => !p.private).map(getMethodAbi),
+    ...getConstructorAbi(contract.constructor),
+    ...contract.variables.filter((p) => !p.private).map(getPropertyAbi),
+    ...contract.methods.filter((p) => !p.private).map(getMethodAbi),
   ];
 };
 

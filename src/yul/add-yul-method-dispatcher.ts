@@ -5,7 +5,7 @@ import {
   SkittlesMethod,
   SkittlesParameter,
   SkittlesTypeKind,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import { decoderFunctions, returnFunctions } from "./yul-constants";
 
 const addMethodDispatcher = (

@@ -4,7 +4,10 @@ import {
   isNodeImmutable,
   isNodePrivate,
 } from "../helpers/ast-helper";
-import { SkittlesInterfaces, SkittlesVariable } from "../types/skittles-class";
+import {
+  SkittlesInterfaces,
+  SkittlesVariable,
+} from "../types/skittles-contract";
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
 

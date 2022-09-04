@@ -4,7 +4,7 @@ import {
   SkittlesInterfaces,
   SkittlesType,
   SkittlesTypeKind,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 
 const stringType: SkittlesType = { kind: SkittlesTypeKind.String };
 const addressType: SkittlesType = { kind: SkittlesTypeKind.Address };

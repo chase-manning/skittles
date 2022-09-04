@@ -3,7 +3,7 @@ import { getNodeName } from "../helpers/ast-helper";
 import {
   SkittlesConstructor,
   SkittlesInterfaces,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getSkittlesStatements from "./get-skittles-statements";
 import getSkittlesType from "./get-skittles-type";
 

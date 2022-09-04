@@ -4,7 +4,7 @@ import {
   SkittlesMethod,
   SkittlesParameter,
   SkittlesTypeKind,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getBlockYul from "./get-block-yul";
 
 const addMethodFunction = (yul: string[], method: SkittlesMethod) => {

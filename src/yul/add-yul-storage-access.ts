@@ -7,14 +7,14 @@ import SkittlesContract, {
   SkittlesStatementType,
   SkittlesTypeKind,
   SkittlesVariable,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getExpressionYul from "./get-expression-yul";
 
 const _addStorageAccess = (
   yul: string[],
   property: SkittlesVariable,
   section: YulSection,
-  skittlesClass: SkittlesContract
+  contract: SkittlesContract
 ) => {
   const { name, type } = property;
   const initial = `_${name.substring(0, 1)}`;
@@ -22,11 +22,11 @@ const _addStorageAccess = (
   if (property.immutable) {
     let { value } = property;
     if (!value) {
-      if (!skittlesClass.constructor) {
+      if (!contract.constructor) {
         throw new Error("No constructor to get storage value");
       }
 
-      skittlesClass.constructor.statements.forEach(
+      contract.constructor.statements.forEach(
         (statement: SkittlesStatement) => {
           const { statementType } = statement;
           if (statementType === SkittlesStatementType.StorageUpdate) {
@@ -110,7 +110,7 @@ const _addStorageAccess = (
 const addStorageAccess = (
   yul: string[],
   property: SkittlesVariable,
-  skittlesClass: SkittlesContract,
+  contract: SkittlesContract,
   isConstructor?: boolean
 ) => {
   return _addStorageAccess(
@@ -119,7 +119,7 @@ const addStorageAccess = (
     isConstructor
       ? YulSection.ConstructorStorageAccess
       : YulSection.StorageAccess,
-    skittlesClass
+    contract
   );
 };
 

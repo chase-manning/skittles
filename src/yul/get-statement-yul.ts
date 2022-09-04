@@ -10,7 +10,7 @@ import {
   SkittlesThrowStatement,
   SkittlesVariableDeclarationStatement,
   SkittlesVariableUpdateStatement,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getExpressionYul from "./get-expression-yul";
 
 const getStorageUpdateYul = (

@@ -38,7 +38,7 @@ import {
   SkittlesStatementType,
   SkittlesType,
   SkittlesTypeKind,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
 

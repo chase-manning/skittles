@@ -10,7 +10,7 @@ import {
   SkittlesInterface,
   SkittlesInterfaces,
   SkittlesParameter,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getSkittlesType from "./get-skittles-type";
 
 const getElements = (node: InterfaceDeclaration): SkittlesParameter[] => {

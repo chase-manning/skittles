@@ -4,19 +4,19 @@ import { addToSection } from "../helpers/yul-helper";
 import SkittlesContract, {
   SkittlesTypeKind,
   SkittlesVariable,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 
 const _addStorageLayout = (
   yul: string[],
   property: SkittlesVariable,
-  skittlesClass: SkittlesContract,
+  contract: SkittlesContract,
   section: YulSection,
   slot: number
 ): StorageLayoutResponse => {
   if (property.immutable) return { yul, slot: slot + 1 };
   const { name, type } = property;
   if (type.kind === SkittlesTypeKind.Mapping) {
-    const matchingMappings = skittlesClass.variables.filter((v) => {
+    const matchingMappings = contract.variables.filter((v) => {
       return (
         v.type.kind === SkittlesTypeKind.Mapping &&
         v.type.inputs.length === type.inputs.length
@@ -71,14 +71,14 @@ interface StorageLayoutResponse {
 const addStorageLayout = (
   yul: string[],
   property: SkittlesVariable,
-  skittlesClass: SkittlesContract,
+  contract: SkittlesContract,
   slot: number,
   constructor?: boolean
 ): StorageLayoutResponse => {
   return _addStorageLayout(
     yul,
     property,
-    skittlesClass,
+    contract,
     constructor
       ? YulSection.ConstructorStorageLayout
       : YulSection.StorageLayout,

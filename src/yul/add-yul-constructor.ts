@@ -5,7 +5,7 @@ import SkittlesContract, {
   SkittlesStatement,
   SkittlesStatementType,
   SkittlesVariable,
-} from "../types/skittles-class";
+} from "../types/skittles-contract";
 import getBlockYul from "./get-block-yul";
 
 const getParameters = (
@@ -23,14 +23,14 @@ const getParameters = (
   ];
 };
 
-const addConstructor = (yul: string[], skittlesClass: SkittlesContract) => {
-  const { constructor } = skittlesClass;
+const addConstructor = (yul: string[], contract: SkittlesContract) => {
+  const { constructor } = contract;
   if (!constructor) return yul;
   let { parameters, statements } = constructor;
   statements = statements.filter((statement: SkittlesStatement) => {
     const { statementType } = statement;
     if (statementType !== SkittlesStatementType.StorageUpdate) return true;
-    const variable = skittlesClass.variables.find(
+    const variable = contract.variables.find(
       (v: SkittlesVariable) => v.name === statement.variable
     );
     if (!variable)
@@ -38,7 +38,7 @@ const addConstructor = (yul: string[], skittlesClass: SkittlesContract) => {
     return !variable.immutable;
   });
   return addToSection(yul, YulSection.Constructor, [
-    ...getParameters(parameters, skittlesClass.name),
+    ...getParameters(parameters, contract.name),
     ...getBlockYul(statements),
   ]);
 };

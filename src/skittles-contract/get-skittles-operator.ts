@@ -1,5 +1,5 @@
 import { SyntaxKind } from "typescript";
-import { SkittlesOperator } from "../types/skittles-class";
+import { SkittlesOperator } from "../types/skittles-contract";
 
 const getSkittlesOperator = (syntaxKind: SyntaxKind): SkittlesOperator => {
   switch (syntaxKind) {
