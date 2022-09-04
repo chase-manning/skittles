@@ -1,6 +1,3 @@
-- remove the Skittles prefix on all types
-- Split up `getSkittlesStatement` steps
-- Lots of duplication in `getSkittlesStatement` expression statement handling
 - Split up skittles class
 - change all the constructor yuls to be like the neat functions one
 - Add ability to extend interfaces
