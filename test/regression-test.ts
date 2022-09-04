@@ -24,9 +24,9 @@ describe("Regression Test", () => {
 
   it("Should have second contract", async () => {
     const Factory = await getSkittlesFactory(walletA, "SecondRegressionTest");
-    regressionTest = await Factory.deploy();
-    await regressionTest.deployed();
-    expect(await regressionTest.variable()).to.equal(1);
+    const secondRegressionTest = await Factory.deploy();
+    await secondRegressionTest.deployed();
+    expect(await secondRegressionTest.variable()).to.equal(1);
   });
 
   it("Should not have view for _privatebalance", async () => {
