@@ -3,7 +3,7 @@ import getAbi from "../abi/get-abi";
 import getBytecode from "../bytecode/get-bytecode";
 import addDependencies from "../dependencies/add-dependencies";
 import { getAllContractFiles, writeFile } from "../helpers/file-helper";
-import getSkittlesClass from "../skittles-contract/get-skittles-contract";
+import getSkittlesContracts from "../skittles-contract/get-skittles-contracts";
 import SkittlesContract from "../types/skittles-contract";
 import getYul from "../yul/get-yul";
 
@@ -16,7 +16,13 @@ const doTask = (task: string, fn: () => any) => {
 
 const skittlesCompile = () => {
   const files = doTask("Loading Contracts", () => getAllContractFiles());
-  const classes = doTask("Processing", () => files.map(getSkittlesClass));
+  const classes = doTask("Processing", () => {
+    const contracts: SkittlesContract[] = [];
+    files.forEach((file: string) => {
+      contracts.push(...getSkittlesContracts(file));
+    });
+    return contracts;
+  });
   classes.forEach((contract: SkittlesContract) => {
     const { name } = contract;
     doTask(`Compiling ${name}`, () => {

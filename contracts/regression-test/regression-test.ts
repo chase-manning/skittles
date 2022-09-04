@@ -1,12 +1,8 @@
-import { address, block, chain, msg, tx } from "../src/types/core-types";
+import { address, block, chain, msg, tx } from "../../src/types/core-types";
+import { IRegressionTest } from "./regression-test-interface";
 
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
-
-interface IRegressionTest {
-  balance: number;
-  addBalance(amount: number): void;
-}
 
 interface NumberAndAddress {
   number: number;
@@ -155,3 +151,21 @@ export class RegressionTest implements IRegressionTest {
   getOr = (value: boolean): boolean => value || false;
   getNot = (value: boolean): boolean => !value;
 }
+
+export class SecondRegressionTest {
+  variable: number = 1;
+}
+
+// export class RegressionTestChild extends RegressionTest {
+//   constructor() {
+//     super(123);
+//   }
+
+//   getProtectedView(): number {
+//     return this._protectedView();
+//   }
+
+//   setProtectedBalance(): void {
+//     this._protectedFunction();
+//   }
+// }

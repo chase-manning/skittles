@@ -14,18 +14,16 @@ import {
   SyntaxKind,
 } from "typescript";
 
-export const getClassNode = (node: Node): ClassDeclaration => {
-  if (isClassDeclaration(node)) {
-    return node;
-  }
-  let classNode: ClassDeclaration | undefined = undefined;
+export const getClassNodes = (node: Node): ClassDeclaration[] => {
+  if (isClassDeclaration(node)) return [node];
+
+  let classNodes: ClassDeclaration[] = [];
   forEachChild(node, (child) => {
     if (isClassDeclaration(child)) {
-      classNode = child;
+      classNodes.push(child);
     }
   });
-  if (!classNode) throw new Error("Could not find class");
-  return classNode;
+  return classNodes;
 };
 
 export const getNodeName = (node: Node): string => {

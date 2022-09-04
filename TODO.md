@@ -1,3 +1,4 @@
+- Add test for extending contract to regression test (There is already something for this down the bottom)
 - Add support for events
 - Add support for using impored variables (e.g. `ZERO_ADDRESS`)
 - Add suppor for conditional expressions `a ? b : c`
@@ -20,8 +21,6 @@
 
 === CAN MAKE REPO PUBLIC ===
 
-- support files with no classes
-- support files with two classes
 - Change to getting function signatures with this: https://github.com/FuelLabs/yulp/blob/620d04acb060a7a817e2cfc6da4c9b4d9c7fcef0/src/yulplus.ne#L40
 - Performance improvements
 - use web workers for concurrency:
