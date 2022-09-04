@@ -1,10 +1,8 @@
 import { YulSection } from "../data/yul-template";
 import { getVariables } from "../helpers/string-helper";
 import { addToSection } from "../helpers/yul-helper";
-import SkittlesContract, {
-  SkittlesTypeKind,
-  SkittlesVariable,
-} from "../types/skittles-contract";
+import SkittlesContract, { SkittlesVariable } from "../types/skittles-contract";
+import { SkittlesTypeKind } from "../types/skittles-type";
 
 const _addStorageLayout = (
   yul: string[],

@@ -1,4 +1,5 @@
-import { SkittlesInterface, SkittlesType } from "./skittles-contract";
+import { SkittlesInterface } from "./skittles-contract";
+import { SkittlesType } from "./skittles-type";
 
 export enum SkittlesOperator {
   Plus,

@@ -1,4 +1,4 @@
-import { SkittlesTypeKind } from "../types/skittles-contract";
+import { SkittlesTypeKind } from "../types/skittles-type";
 import {
   SkittlesBinaryExpression,
   SkittlesExpression,

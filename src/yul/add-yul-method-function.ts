@@ -1,10 +1,7 @@
 import { YulSection } from "../data/yul-template";
 import { addToSection } from "../helpers/yul-helper";
-import {
-  SkittlesMethod,
-  SkittlesParameter,
-  SkittlesTypeKind,
-} from "../types/skittles-contract";
+import { SkittlesMethod, SkittlesParameter } from "../types/skittles-contract";
+import { SkittlesTypeKind } from "../types/skittles-type";
 import getBlockYul from "./get-block-yul";
 
 const addMethodFunction = (yul: string[], method: SkittlesMethod) => {

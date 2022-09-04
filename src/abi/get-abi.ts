@@ -2,10 +2,9 @@ import { Abi, AbiFunction } from "../types/abi-types";
 import SkittlesContract, {
   SkittlesConstructor,
   SkittlesMethod,
-  SkittlesType,
-  SkittlesTypeKind,
   SkittlesVariable,
 } from "../types/skittles-contract";
+import { SkittlesType, SkittlesTypeKind } from "../types/skittles-type";
 
 const getTypeString = (type: SkittlesType): string => {
   return type.kind;

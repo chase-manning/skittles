@@ -1,10 +1,7 @@
 import { isAddress } from "ethers/lib/utils";
 import { isArrayTypeNode, Node, SyntaxKind } from "typescript";
-import {
-  SkittlesInterfaces,
-  SkittlesType,
-  SkittlesTypeKind,
-} from "../types/skittles-contract";
+import { SkittlesInterfaces } from "../types/skittles-contract";
+import { SkittlesType, SkittlesTypeKind } from "../types/skittles-type";
 
 const stringType: SkittlesType = { kind: SkittlesTypeKind.String };
 const addressType: SkittlesType = { kind: SkittlesTypeKind.Address };

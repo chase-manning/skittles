@@ -1,11 +1,8 @@
 import { YulSection } from "../data/yul-template";
 import getSelector from "../helpers/selector-helper";
 import { addToSection } from "../helpers/yul-helper";
-import {
-  SkittlesMethod,
-  SkittlesParameter,
-  SkittlesTypeKind,
-} from "../types/skittles-contract";
+import { SkittlesMethod, SkittlesParameter } from "../types/skittles-contract";
+import { SkittlesTypeKind } from "../types/skittles-type";
 import { decoderFunctions, returnFunctions } from "./yul-constants";
 
 const addMethodDispatcher = (

@@ -34,11 +34,8 @@ import {
   isPlusEquals,
   isTrueKeyword,
 } from "../helpers/ast-helper";
-import {
-  SkittlesInterfaces,
-  SkittlesType,
-  SkittlesTypeKind,
-} from "../types/skittles-contract";
+import { SkittlesInterfaces } from "../types/skittles-contract";
+import { SkittlesType, SkittlesTypeKind } from "../types/skittles-type";
 import {
   SkittlesExpression,
   SkittlesExpressionType,

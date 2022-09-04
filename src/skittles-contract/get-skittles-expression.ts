@@ -22,10 +22,8 @@ import {
   isFalseKeyword,
   isTrueKeyword,
 } from "../helpers/ast-helper";
-import {
-  SkittlesInterfaces,
-  SkittlesTypeKind,
-} from "../types/skittles-contract";
+import { SkittlesInterfaces } from "../types/skittles-contract";
+import { SkittlesTypeKind } from "../types/skittles-type";
 import {
   SkittlesExpression,
   SkittlesExpressionType,
