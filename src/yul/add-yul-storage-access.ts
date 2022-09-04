@@ -90,6 +90,7 @@ const _addStorageAccess = (
       `}`,
       `function ${name}Push(value) {`,
       `let length := ${name}LengthStorage()`,
+      `if gt(length, 18446744073709551614) { revert(0, 0) }`,
       `sstore(add(length, ${name}ArrayPos()), value)`,
       `sstore(${name}LengthPos(), add(length, 1))`,
       `}`,
