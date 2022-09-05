@@ -7,7 +7,6 @@
 
 === UNISWAP V2 DONE ===
 
-- Add support for safeMul https://github.com/Uniswap/v2-core/blob/master/contracts/libraries/SafeMath.sol#L14
 - Add config for things like running optimizer
 - Add smarter compiling with cache and only update chagned contracts
 - Add strict eslinting for typescript files and include in init and docs
