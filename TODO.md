@@ -1,5 +1,6 @@
+- Fix local globals constants
+- Fix duplication in get consntants
 - Add support for using global constants (e.g. `ZERO_ADDRESS`) for one line arrow functions
-- Add support for importing global constants
 - Add support for events
 - Add suppor for conditional expressions `a ? b : c`
 - Add support for multiple variable assignments at once

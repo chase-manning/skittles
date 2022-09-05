@@ -46,7 +46,7 @@ const getSkittlesContracts = (file: string): SkittlesContract[] => {
       });
     }
 
-    const constants = getSkittlesConstants(ast, interfaces);
+    const constants = getSkittlesConstants(ast, interfaces, file);
 
     const contract: SkittlesContract = {
       classExtensions,

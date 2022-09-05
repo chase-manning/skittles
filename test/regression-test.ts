@@ -369,7 +369,15 @@ describe("Regression Test", () => {
     expect(await regressionTest.variableUpdates()).to.equal(14);
   });
 
-  it("Should get zero address from constant", async () => {
-    expect(await regressionTest.getZeroAddress()).to.equal(ZERO_ADDRESS);
+  it("Should get zero address from import", async () => {
+    expect(await regressionTest.getZeroAddressFromImport()).to.equal(
+      ZERO_ADDRESS
+    );
+  });
+
+  it("Should get other address from constant", async () => {
+    expect(await regressionTest.getOtherAddresFromConstant()).to.equal(
+      "0x00000000000000000000000000000000000000123"
+    );
   });
 });

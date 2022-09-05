@@ -1,11 +1,11 @@
 import { address, block, chain, msg, tx } from "../../src/types/core-types";
 import { IRegressionTest } from "./regression-test-interface";
-// import { ZERO_ADDRESS } from "../../src/data/constants";
+import { ZERO_ADDRESS } from "../../src/data/constants";
 
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
 
-const ZERO_ADDRESS: string = "0x0000000000000000000000000000000000000000";
+// const OTHER_ADDRESS: string = "0x00000000000000000000000000000000000000123";
 
 interface NumberAndAddress {
   number: number;
@@ -132,9 +132,13 @@ export class RegressionTest implements IRegressionTest {
     return x;
   }
 
-  getZeroAddress = (): address => {
+  getZeroAddressFromImport = (): address => {
     return ZERO_ADDRESS;
   };
+
+  // getOtherAddresFromConstant = (): address => {
+  //   return OTHER_ADDRESS;
+  // };
 
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
