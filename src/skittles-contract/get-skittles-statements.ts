@@ -2,6 +2,7 @@ import {
   BinaryExpression,
   Expression,
   ExpressionStatement,
+  Identifier,
   IfStatement,
   isBinaryExpression,
   isBlock,
@@ -325,6 +326,19 @@ const getVariableStatement = (
   };
 };
 
+const getIdentifierStatement = (
+  statement: Identifier,
+  returnType: SkittlesType,
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
+): SkittlesStatement => {
+  return {
+    statementType: SkittlesStatementType.Return,
+    type: returnType,
+    value: getSkittlesExpression(statement, interfaces, constants),
+  };
+};
+
 const getSkittlesStatement = (
   node: Node,
   returnType: SkittlesType,
@@ -355,6 +369,9 @@ const getSkittlesStatement = (
   }
   if (isVariableStatement(node)) {
     return getVariableStatement(node, interfaces, constants);
+  }
+  if (isIdentifier(node)) {
+    return getIdentifierStatement(node, returnType, interfaces, constants);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
