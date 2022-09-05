@@ -140,6 +140,8 @@ export class RegressionTest implements IRegressionTest {
     return OTHER_ADDRESS;
   };
 
+  getZeroAddressWithOneLine = (): address => ZERO_ADDRESS;
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;

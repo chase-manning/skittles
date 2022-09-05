@@ -380,4 +380,10 @@ describe("Regression Test", () => {
       "0x106EebF11F34ECCcaD59c1CA9398d828765f64f8"
     );
   });
+
+  it("Should get zero address with one line", async () => {
+    expect(await regressionTest.getZeroAddressWithOneLine()).to.equal(
+      ZERO_ADDRESS
+    );
+  });
 });
