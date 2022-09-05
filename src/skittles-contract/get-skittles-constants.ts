@@ -7,10 +7,11 @@ import {
 } from "typescript";
 import getAst from "../ast/get-ast";
 import { getNodeName } from "../helpers/ast-helper";
-import { SkittlesInterfaces } from "../types/skittles-contract";
-import { SkittlesExpression } from "../types/skittles-expression";
+import {
+  SkittlesConstants,
+  SkittlesInterfaces,
+} from "../types/skittles-contract";
 import getSkittlesExpression from "./get-skittles-expression";
-import fs from "fs";
 
 const relativePathToAbsolute = (path: string, sourcePath: string) => {
   const sourcePathParts = sourcePath.split("/");
@@ -26,12 +27,39 @@ const relativePathToAbsolute = (path: string, sourcePath: string) => {
   return newPathParts.join("/") + ".ts";
 };
 
+const addConstantsFromAst = (
+  ast: SourceFile,
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants,
+  varNames?: string[]
+): SkittlesConstants => {
+  forEachChild(ast, (child) => {
+    if (isVariableStatement(child)) {
+      const { declarations } = child.declarationList;
+      declarations.forEach((declaration) => {
+        const { name, initializer } = declaration;
+        if (initializer) {
+          if (!varNames || varNames.includes(getNodeName(name))) {
+            const variableName: string = getNodeName(name);
+            constants[variableName] = getSkittlesExpression(
+              initializer,
+              interfaces,
+              constants
+            );
+          }
+        }
+      });
+    }
+  });
+  return constants;
+};
+
 const getSkittlesConstants = (
   ast: SourceFile,
   interfaces: SkittlesInterfaces,
   sourceFile: string
 ) => {
-  const constants: Record<string, SkittlesExpression> = {};
+  let constants: SkittlesConstants = {};
   forEachChild(ast, (child) => {
     // Handling imports
     if (isImportDeclaration(child)) {
@@ -50,39 +78,11 @@ const getSkittlesConstants = (
         getNodeName(element.name)
       );
       // TODO there is some duplication here with the below
-      forEachChild(ast, (child) => {
-        if (isVariableStatement(child)) {
-          const { declarations } = child.declarationList;
-          declarations.forEach((declaration) => {
-            const { name, initializer } = declaration;
-            if (initializer && varNames.includes(getNodeName(name))) {
-              const variableName: string = getNodeName(name);
-              constants[variableName] = getSkittlesExpression(
-                initializer,
-                interfaces,
-                constants
-              );
-            }
-          });
-        }
-      });
+      constants = addConstantsFromAst(ast, interfaces, constants, varNames);
     }
 
     // Handling if it's a global constant
-    if (isVariableStatement(child)) {
-      const { declarations } = child.declarationList;
-      declarations.forEach((declaration) => {
-        const { name, initializer } = declaration;
-        if (initializer) {
-          const variableName: string = getNodeName(name);
-          constants[variableName] = getSkittlesExpression(
-            initializer,
-            interfaces,
-            constants
-          );
-        }
-      });
-    }
+    constants = addConstantsFromAst(ast, interfaces, constants);
   });
   return constants;
 };
