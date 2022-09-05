@@ -377,7 +377,7 @@ describe("Regression Test", () => {
 
   it("Should get other address from constant", async () => {
     expect(await regressionTest.getOtherAddresFromConstant()).to.equal(
-      "0x00000000000000000000000000000000000000123"
+      "0x106EebF11F34ECCcaD59c1CA9398d828765f64f8"
     );
   });
 });

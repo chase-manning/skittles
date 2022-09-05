@@ -5,7 +5,7 @@ import { ZERO_ADDRESS } from "../../src/data/constants";
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
 
-// const OTHER_ADDRESS: string = "0x00000000000000000000000000000000000000123";
+const OTHER_ADDRESS: address = "0x106EebF11F34ECCcaD59c1CA9398d828765f64f8";
 
 interface NumberAndAddress {
   number: number;
@@ -136,9 +136,9 @@ export class RegressionTest implements IRegressionTest {
     return ZERO_ADDRESS;
   };
 
-  // getOtherAddresFromConstant = (): address => {
-  //   return OTHER_ADDRESS;
-  // };
+  getOtherAddresFromConstant = (): address => {
+    return OTHER_ADDRESS;
+  };
 
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
