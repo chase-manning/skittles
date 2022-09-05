@@ -142,6 +142,22 @@ export class RegressionTest implements IRegressionTest {
 
   getZeroAddressWithOneLine = (): address => ZERO_ADDRESS;
 
+  revertUnsafeMul = (): void => {
+    let meow =
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991 *
+      9007199254740991;
+  };
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;

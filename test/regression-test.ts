@@ -386,4 +386,14 @@ describe("Regression Test", () => {
       ZERO_ADDRESS
     );
   });
+
+  it("Should error from mul overflow", async () => {
+    let errored = false;
+    try {
+      await regressionTest.revertUnsafeMul();
+    } catch {
+      errored = true;
+    }
+    expect(errored).to.equal(true);
+  });
 });
