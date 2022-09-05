@@ -1,6 +1,6 @@
-- Add test for extending contract to regression test (There is already something for this down the bottom)
+- Add support for using global constants (e.g. `ZERO_ADDRESS`) for one line arrow functions
+- Add support for importing global constants
 - Add support for events
-- Add support for using impored variables (e.g. `ZERO_ADDRESS`)
 - Add suppor for conditional expressions `a ? b : c`
 - Add support for multiple variable assignments at once
 - Add ability to deploy contracts
@@ -21,6 +21,8 @@
 
 === CAN MAKE REPO PUBLIC ===
 
+- Add support for `super()` and passing values to extended contracts
+- Remove ignore logic
 - Change to getting function signatures with this: https://github.com/FuelLabs/yulp/blob/620d04acb060a7a817e2cfc6da4c9b4d9c7fcef0/src/yulplus.ne#L40
 - Performance improvements
 - use web workers for concurrency:

@@ -1,6 +1,7 @@
 import { ConstructorDeclaration, ParameterDeclaration } from "typescript";
 import { getNodeName } from "../helpers/ast-helper";
 import {
+  SkittlesConstants,
   SkittlesConstructor,
   SkittlesInterfaces,
 } from "../types/skittles-contract";
@@ -9,7 +10,8 @@ import getSkittlesType from "./get-skittles-type";
 
 const getSkittlesConstructor = (
   astConstructor: ConstructorDeclaration,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesConstructor => {
   return {
     parameters: astConstructor.parameters.map(
@@ -23,7 +25,8 @@ const getSkittlesConstructor = (
     statements: getSkittlesStatements(
       astConstructor.body,
       getSkittlesType(astConstructor.type, interfaces),
-      interfaces
+      interfaces,
+      constants
     ),
   };
 };

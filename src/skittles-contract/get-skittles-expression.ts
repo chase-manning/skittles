@@ -22,7 +22,10 @@ import {
   isFalseKeyword,
   isTrueKeyword,
 } from "../helpers/ast-helper";
-import { SkittlesInterfaces } from "../types/skittles-contract";
+import {
+  SkittlesConstants,
+  SkittlesInterfaces,
+} from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
 import {
   SkittlesExpression,
@@ -32,8 +35,17 @@ import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 
 const getIdentifierExpression = (
-  expression: Identifier
+  expression: Identifier,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
+  // Handling if it's a global constant
+  const variable = expression.escapedText;
+  if (variable && constants[variable]) {
+    const constant = constants[variable];
+    if (constant) return constant;
+  }
+
+  // Handling if it's some local variable
   return {
     expressionType: SkittlesExpressionType.Variable,
     value: expression.escapedText,
@@ -54,7 +66,8 @@ const getLiteralExpression = (
 
 const getPropertyAccessExpression = (
   expression: PropertyAccessExpression,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
   if (expression.expression.kind === SyntaxKind.PropertyAccessExpression) {
     const property = getNodeName(expression);
@@ -62,7 +75,11 @@ const getPropertyAccessExpression = (
       case "length":
         return {
           expressionType: SkittlesExpressionType.Length,
-          value: getSkittlesExpression(expression.expression, interfaces),
+          value: getSkittlesExpression(
+            expression.expression,
+            interfaces,
+            constants
+          ),
         };
       default:
         throw new Error(`Unknown property access property: ${property}`);
@@ -107,24 +124,28 @@ const getPropertyAccessExpression = (
 
 const getBinaryExpression = (
   expression: BinaryExpression,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
   return {
     expressionType: SkittlesExpressionType.Binary,
-    left: getSkittlesExpression(expression.left, interfaces),
-    right: getSkittlesExpression(expression.right, interfaces),
+    left: getSkittlesExpression(expression.left, interfaces, constants),
+    right: getSkittlesExpression(expression.right, interfaces, constants),
     operator: getSkittlesOperator(expression.operatorToken.kind),
   };
 };
 
 const getElementAccessExpression = (
   expression: ElementAccessExpression,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
   let e: Expression = expression;
   const items: SkittlesExpression[] = [];
   while (isElementAccessExpression(e)) {
-    items.unshift(getSkittlesExpression(e.argumentExpression, interfaces));
+    items.unshift(
+      getSkittlesExpression(e.argumentExpression, interfaces, constants)
+    );
     e = e.expression;
   }
 
@@ -137,11 +158,12 @@ const getElementAccessExpression = (
 
 const getPrefixUnaryExpression = (
   expression: PrefixUnaryExpression,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
   return {
     expressionType: SkittlesExpressionType.Not,
-    value: getSkittlesExpression(expression.operand, interfaces),
+    value: getSkittlesExpression(expression.operand, interfaces, constants),
   };
 };
 
@@ -161,42 +183,44 @@ const getThisExpression = (): SkittlesExpression => {
 
 const getNewExpression = (
   expression: NewExpression,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
   return {
     expressionType: SkittlesExpressionType.Deploy,
     contract: getNodeName(expression.expression),
     parameters:
       expression.arguments?.map((arg) =>
-        getSkittlesExpression(arg, interfaces)
+        getSkittlesExpression(arg, interfaces, constants)
       ) || [],
   };
 };
 
 const getSkittlesExpression = (
   expression: Expression,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesExpression => {
   if (isIdentifier(expression)) {
-    return getIdentifierExpression(expression);
+    return getIdentifierExpression(expression, constants);
   }
   if (isLiteralExpression(expression)) {
     return getLiteralExpression(expression, interfaces);
   }
   if (isPropertyAccessExpression(expression)) {
-    return getPropertyAccessExpression(expression, interfaces);
+    return getPropertyAccessExpression(expression, interfaces, constants);
   }
   if (isBinaryExpression(expression)) {
-    return getBinaryExpression(expression, interfaces);
+    return getBinaryExpression(expression, interfaces, constants);
   }
   if (isElementAccessExpression(expression)) {
-    return getElementAccessExpression(expression, interfaces);
+    return getElementAccessExpression(expression, interfaces, constants);
   }
   if (isParenthesizedExpression(expression)) {
-    return getSkittlesExpression(expression.expression, interfaces);
+    return getSkittlesExpression(expression.expression, interfaces, constants);
   }
   if (isPrefixUnaryExpression(expression)) {
-    return getPrefixUnaryExpression(expression, interfaces);
+    return getPrefixUnaryExpression(expression, interfaces, constants);
   }
   if (isTrueKeyword(expression)) {
     return getBooleanExpression(true);
@@ -208,7 +232,7 @@ const getSkittlesExpression = (
     return getThisExpression();
   }
   if (isNewExpression(expression)) {
-    return getNewExpression(expression, interfaces);
+    return getNewExpression(expression, interfaces, constants);
   }
 
   throw new Error(`Unknown expression type: ${expression.kind}`);

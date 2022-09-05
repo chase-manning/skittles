@@ -9,8 +9,7 @@ const addDependencies = (
   });
   if (dependencyClasses.length === 0) return contract;
 
-  const { name, constructor, methods, interfaces, variables, classExtensions } =
-    contract;
+  const { methods, interfaces, variables, classExtensions } = contract;
 
   dependencyClasses.forEach((dependencyClass) => {
     const {
@@ -28,9 +27,7 @@ const addDependencies = (
   });
 
   return {
-    classExtensions,
-    name,
-    constructor,
+    ...contract,
     methods,
     interfaces,
     variables,

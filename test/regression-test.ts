@@ -4,6 +4,7 @@ import { Contract } from "ethers";
 import { isAddress } from "ethers/lib/utils";
 import getSkittlesFactory from "../src/testing/get-skittles-factory";
 import { address } from "../src/types/core-types";
+import { ZERO_ADDRESS } from "../src/data/constants";
 
 let regressionTest: Contract;
 let walletA: any;
@@ -366,5 +367,9 @@ describe("Regression Test", () => {
 
   it("Should update variable", async () => {
     expect(await regressionTest.variableUpdates()).to.equal(14);
+  });
+
+  it("Should get zero address from constant", async () => {
+    expect(await regressionTest.getZeroAddress()).to.equal(ZERO_ADDRESS);
   });
 });

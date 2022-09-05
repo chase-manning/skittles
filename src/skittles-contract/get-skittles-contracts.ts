@@ -11,6 +11,7 @@ import {
   isVariable,
 } from "../helpers/ast-helper";
 import SkittlesContract from "../types/skittles-contract";
+import getSkittlesConstants from "./get-skittles-constants";
 import getSkittlesConstructor from "./get-skittles-constructor";
 import getSkittlesInterfaces from "./get-skittles-interfaces";
 import getSkittlesMethod from "./get-skittles-method";
@@ -45,17 +46,24 @@ const getSkittlesContracts = (file: string): SkittlesContract[] => {
       });
     }
 
-    const contract = {
+    const constants = getSkittlesConstants(ast, interfaces);
+
+    const contract: SkittlesContract = {
       classExtensions,
+      constants,
       interfaces,
       name: getNodeName(classNode),
       constructor: astConstructor
-        ? getSkittlesConstructor(astConstructor, interfaces)
+        ? getSkittlesConstructor(astConstructor, interfaces, constants)
         : undefined,
-      variables: astVariables.map((v) => getSkittlesProperty(v, interfaces)),
+      variables: astVariables.map((v) =>
+        getSkittlesProperty(v, interfaces, constants)
+      ),
       methods: [
-        ...astMethods.map((m) => getSkittlesMethod(m, interfaces)),
-        ...astArrowFunctions.map((f) => getSkittlesMethod(f, interfaces)),
+        ...astMethods.map((m) => getSkittlesMethod(m, interfaces, constants)),
+        ...astArrowFunctions.map((f) =>
+          getSkittlesMethod(f, interfaces, constants)
+        ),
       ],
     };
 

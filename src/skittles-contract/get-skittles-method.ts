@@ -11,6 +11,7 @@ import {
 } from "typescript";
 import { getNodeName, isNodePrivate } from "../helpers/ast-helper";
 import {
+  SkittlesConstants,
   SkittlesInterfaces,
   SkittlesMethod,
   SkittlesParameter,
@@ -36,7 +37,8 @@ const getSkittlesParameters = (
 
 const getSkittlesMethod = (
   astMethod: MethodDeclaration | PropertyDeclaration,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesMethod => {
   // Is normal function
   if (isMethodDeclaration(astMethod)) {
@@ -49,7 +51,8 @@ const getSkittlesMethod = (
       statements: getSkittlesStatements(
         astMethod.body,
         getSkittlesType(astMethod.type, interfaces),
-        interfaces
+        interfaces,
+        constants
       ),
     };
   }
@@ -66,7 +69,8 @@ const getSkittlesMethod = (
       statements: getSkittlesStatements(
         arrowFunction.body as Statement,
         getSkittlesType(astMethod.type, interfaces),
-        interfaces
+        interfaces,
+        constants
       ),
     };
   }

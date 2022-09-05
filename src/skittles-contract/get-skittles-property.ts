@@ -5,6 +5,7 @@ import {
   isNodePrivate,
 } from "../helpers/ast-helper";
 import {
+  SkittlesConstants,
   SkittlesInterfaces,
   SkittlesVariable,
 } from "../types/skittles-contract";
@@ -13,12 +14,13 @@ import getSkittlesType from "./get-skittles-type";
 
 const getSkittlesProperty = (
   astProperty: PropertyDeclaration,
-  interfaces: SkittlesInterfaces
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
 ): SkittlesVariable => {
   if (!astProperty.type) throw new Error("Could not get property type");
   const initializer = astProperty.initializer;
   const value = initializer
-    ? getSkittlesExpression(initializer, interfaces)
+    ? getSkittlesExpression(initializer, interfaces, constants)
     : undefined;
   return {
     name: getNodeName(astProperty),

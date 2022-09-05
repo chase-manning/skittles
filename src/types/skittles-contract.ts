@@ -36,8 +36,11 @@ export interface SkittlesInterface {
 
 export type SkittlesInterfaces = Record<string, SkittlesInterface>;
 
+export type SkittlesConstants = Record<string, SkittlesExpression>;
+
 interface SkittlesContract {
   classExtensions: string[];
+  constants: SkittlesConstants;
   interfaces: SkittlesInterfaces;
   name: string;
   constructor?: SkittlesConstructor;
