@@ -37,3 +37,5 @@
 - Change to the same output format as Hardhat
 
 === UNFORMATTED ===
+
+- Stop hardhat cache from being generated

@@ -10,6 +10,7 @@ import {
   isPropertyArrowFunction,
   isVariable,
 } from "../helpers/ast-helper";
+import SkittlesCache from "../types/skittles-cache";
 import SkittlesContract from "../types/skittles-contract";
 import getSkittlesConstants from "./get-skittles-constants";
 import getSkittlesConstructor from "./get-skittles-constructor";
@@ -18,7 +19,17 @@ import getSkittlesMethod from "./get-skittles-method";
 import getSkittlesProperty from "./get-skittles-property";
 import getStateMutability from "./get-skittles-state-mutability";
 
-const getSkittlesContracts = (file: string): SkittlesContract[] => {
+const getSkittlesContracts = (
+  file: string,
+  hash: number,
+  cache: SkittlesCache
+): SkittlesContract[] => {
+  // Returning from cache if still valid
+  if (cache.files && cache.files[file] && cache.files[file].hash === hash) {
+    return cache.files[file].contracts;
+  }
+
+  // Gettings contracts if cache not valid
   const ast = getAst(file);
   const interfaces = getSkittlesInterfaces(ast);
 

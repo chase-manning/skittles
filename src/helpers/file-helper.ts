@@ -32,7 +32,7 @@ export const getAllContractFiles = (): string[] => {
 
 const DIR = "build";
 
-export const writeFile = (
+export const writeBuildFile = (
   fileName: string,
   content: string,
   subDirectory?: string
@@ -42,10 +42,9 @@ export const writeFile = (
   fs.writeFileSync(`${directory}/${fileName}`, content);
 };
 
-export const readFile = (fileName: string, subDirectory?: string): string => {
-  const directory = subDirectory ? `${DIR}/${subDirectory}` : DIR;
+export const readFile = (filePath: string): string => {
   try {
-    return fs.readFileSync(`${directory}/${fileName}`, "utf8");
+    return fs.readFileSync(filePath, "utf8");
   } catch (e) {
     return "{}";
   }
