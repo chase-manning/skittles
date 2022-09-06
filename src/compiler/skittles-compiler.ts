@@ -2,8 +2,14 @@ import ora from "ora";
 import getAbi from "../abi/get-abi";
 import getBytecode from "../bytecode/get-bytecode";
 import addDependencies from "../dependencies/add-dependencies";
-import { getAllContractFiles, writeFile } from "../helpers/file-helper";
+import {
+  getAllContractFiles,
+  readFile,
+  writeFile,
+} from "../helpers/file-helper";
+import { hashString } from "../helpers/string-helper";
 import getSkittlesContracts from "../skittles-contract/get-skittles-contracts";
+import SkittlesCache from "../types/skittles-cache";
 import SkittlesContract from "../types/skittles-contract";
 import getYul from "../yul/get-yul";
 
@@ -16,23 +22,41 @@ const doTask = (task: string, fn: () => any) => {
 
 const skittlesCompile = () => {
   const files = doTask("Loading Contracts", () => getAllContractFiles());
-  const classes = doTask("Processing", () => {
-    const contracts: SkittlesContract[] = [];
+  const oldCache = JSON.parse(readFile("cache.json"));
+  const contracts = doTask("Processing", () => {
+    const newCache: SkittlesCache = { files: {} };
+    const contracts_: SkittlesContract[] = [];
     files.forEach((file: string) => {
-      contracts.push(...getSkittlesContracts(file));
+      let filesContracts: SkittlesContract[] = [];
+      const fileContent = readFile(file);
+      const hash = hashString(fileContent);
+      if (
+        oldCache &&
+        oldCache.files &&
+        oldCache.files[file] &&
+        oldCache.files[file].hash === hash
+      ) {
+        const cache = oldCache.files[file];
+        filesContracts = cache.contracts;
+      } else {
+        filesContracts = getSkittlesContracts(file);
+      }
+      contracts_.push(...filesContracts);
+      newCache.files[file] = { hash, contracts: filesContracts };
     });
-    return contracts;
+    writeFile("cache.json", JSON.stringify(newCache, null, 2));
+    return contracts_;
   });
-  classes.forEach((contract: SkittlesContract) => {
+  contracts.forEach((contract: SkittlesContract) => {
     const { name } = contract;
     doTask(`Compiling ${name}`, () => {
-      const newClass = addDependencies(contract, classes);
+      const newClass = addDependencies(contract, contracts);
       const abi = getAbi(newClass);
-      writeFile("abi", name, JSON.stringify(abi, null, 2));
+      writeFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
       const yul = getYul(newClass, abi);
-      writeFile("yul", name, yul);
+      writeFile(`${name}.yul`, yul, "yul");
       const bytecode = getBytecode(name, yul);
-      writeFile("bytecode", name, bytecode);
+      writeFile(`${name}.bytecode`, bytecode, "bytecode");
     });
   });
 };

@@ -14,6 +14,7 @@ const getConstructorAbi = (
   constructor?: SkittlesConstructor
 ): AbiFunction[] => {
   if (!constructor) return [];
+  constructor.parameters = constructor.parameters || [];
   return [
     {
       type: "constructor",

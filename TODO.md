@@ -7,6 +7,7 @@
 
 === UNISWAP V2 DONE ===
 
+- Change get AST to use file string (I think we already get it a couple of times, so stops a double read)
 - Add config for things like running optimizer
 - Add smarter compiling with cache and only update chagned contracts
 - Add strict eslinting for typescript files and include in init and docs

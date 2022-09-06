@@ -29,6 +29,9 @@ const addConstructor = (yul: string[], contract: SkittlesContract) => {
   const { constructor } = contract;
   if (!constructor) return yul;
   let { parameters, statements } = constructor;
+  parameters = parameters || [];
+  statements = statements || [];
+
   statements = statements.filter((statement: SkittlesStatement) => {
     const { statementType } = statement;
     if (statementType !== SkittlesStatementType.StorageUpdate) return true;

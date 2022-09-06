@@ -32,10 +32,23 @@ export const getAllContractFiles = (): string[] => {
 
 const DIR = "build";
 
-export const writeFile = (type: string, fileName: string, content: string) => {
-  const directory = `${DIR}/${type}`;
+export const writeFile = (
+  fileName: string,
+  content: string,
+  subDirectory?: string
+) => {
+  const directory = subDirectory ? `${DIR}/${subDirectory}` : DIR;
   fs.mkdirSync(directory, { recursive: true });
-  fs.writeFileSync(`${directory}/${fileName}.${type}`, content);
+  fs.writeFileSync(`${directory}/${fileName}`, content);
+};
+
+export const readFile = (fileName: string, subDirectory?: string): string => {
+  const directory = subDirectory ? `${DIR}/${subDirectory}` : DIR;
+  try {
+    return fs.readFileSync(`${directory}/${fileName}`, "utf8");
+  } catch (e) {
+    return "{}";
+  }
 };
 
 // Delete all files and directories in the given directory
