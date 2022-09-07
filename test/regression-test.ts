@@ -1,10 +1,13 @@
-import { expect } from "chai";
+import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { isAddress } from "ethers/lib/utils";
 import getSkittlesFactory from "../src/testing/get-skittles-factory";
 import { address } from "../src/types/core-types";
 import { ZERO_ADDRESS } from "../src/data/constants";
+import { solidity } from "ethereum-waffle";
+
+chai.use(solidity);
 
 let regressionTest: Contract;
 let walletA: any;
@@ -388,12 +391,6 @@ describe("Regression Test", () => {
   });
 
   it("Should error from mul overflow", async () => {
-    let errored = false;
-    try {
-      await regressionTest.revertUnsafeMul();
-    } catch {
-      errored = true;
-    }
-    expect(errored).to.equal(true);
+    await expect(regressionTest.revertUnsafeMul()).to.be.reverted;
   });
 });

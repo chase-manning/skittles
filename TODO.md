@@ -12,8 +12,6 @@
 - add init function
 - add readme
 - add normal repo things
-- Clean up the way we're testing for reverts
-- Fix annoying issue with some Javascript showing
 
 === CAN MAKE REPO PUBLIC ===
 
