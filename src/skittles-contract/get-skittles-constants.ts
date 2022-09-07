@@ -5,7 +5,7 @@ import {
   isVariableStatement,
   SourceFile,
 } from "typescript";
-import getAst from "../ast/get-ast";
+import { getAstFromFileName } from "../ast/get-ast";
 import { getNodeName } from "../helpers/ast-helper";
 import {
   SkittlesConstants,
@@ -67,7 +67,7 @@ const getSkittlesConstants = (
       const module = getNodeName(child.moduleSpecifier);
       if (module === "skittles") return;
       const modifiedModule = relativePathToAbsolute(module, sourceFile);
-      const ast = getAst(modifiedModule);
+      const childAst = getAstFromFileName(modifiedModule);
       if (!importClause) throw new Error("Could not get import clause");
       const { namedBindings } = importClause;
       if (!namedBindings) throw new Error("Could not get named bindings");
@@ -78,7 +78,12 @@ const getSkittlesConstants = (
         getNodeName(element.name)
       );
       // TODO there is some duplication here with the below
-      constants = addConstantsFromAst(ast, interfaces, constants, varNames);
+      constants = addConstantsFromAst(
+        childAst,
+        interfaces,
+        constants,
+        varNames
+      );
     }
 
     // Handling if it's a global constant

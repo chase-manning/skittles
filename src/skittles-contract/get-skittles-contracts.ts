@@ -3,7 +3,7 @@ import {
   isPropertyDeclaration,
   isConstructorDeclaration,
 } from "typescript";
-import getAst from "../ast/get-ast";
+import { getAstFromFile } from "../ast/get-ast";
 import {
   getClassNodes,
   getNodeName,
@@ -22,7 +22,8 @@ import getStateMutability from "./get-skittles-state-mutability";
 const getSkittlesContracts = (
   file: string,
   hash: number,
-  cache: SkittlesCache
+  cache: SkittlesCache,
+  sourceFile: string
 ): SkittlesContract[] => {
   // Returning from cache if still valid
   if (cache.files && cache.files[file] && cache.files[file].hash === hash) {
@@ -30,7 +31,7 @@ const getSkittlesContracts = (
   }
 
   // Gettings contracts if cache not valid
-  const ast = getAst(file);
+  const ast = getAstFromFile(sourceFile);
   const interfaces = getSkittlesInterfaces(ast);
 
   const classNodes = getClassNodes(ast);

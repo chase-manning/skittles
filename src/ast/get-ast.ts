@@ -1,20 +1,13 @@
-import {
-  createProgram,
-  ModuleKind,
-  ScriptTarget,
-  SourceFile,
-} from "typescript";
+import { readFileSync } from "fs";
+import ts, { ScriptTarget, SourceFile } from "typescript";
 
-const getAst = (file: string): SourceFile => {
-  let program = createProgram([file], {
-    allowJs: true,
-    target: ScriptTarget.ES5,
-    module: ModuleKind.CommonJS,
-  });
+export const getAstFromFileName = (file: string): SourceFile => {
+  const fileString = readFileSync(file, "utf8");
+  return getAstFromFile(fileString);
+};
 
-  const ast = program.getSourceFile(file);
+export const getAstFromFile = (file: string): SourceFile => {
+  const ast = ts.createSourceFile("x.ts", file, ScriptTarget.ES5);
   if (!ast) throw new Error("Could not get AST");
   return ast;
 };
-
-export default getAst;

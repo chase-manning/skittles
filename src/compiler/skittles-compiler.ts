@@ -29,9 +29,9 @@ const skittlesCompile = () => {
     files.forEach((file: string) => {
       const fileContent = readFile(file);
       const hash = hashString(fileContent);
-      const filesContracts = getSkittlesContracts(file, hash, cache);
-      contracts_.push(...filesContracts);
-      newCache.files[file] = { hash, contracts: filesContracts };
+      const sc = getSkittlesContracts(file, hash, cache, fileContent);
+      contracts_.push(...sc);
+      newCache.files[file] = { hash, contracts: sc };
     });
     writeBuildFile("cache.json", JSON.stringify(newCache, null, 2));
     return contracts_;
