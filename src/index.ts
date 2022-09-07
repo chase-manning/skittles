@@ -9,11 +9,15 @@ import skittlesCompile from "./compiler/skittles-compiler";
 import { ZERO_ADDRESS } from "./data/constants";
 
 yargs
-  .command("compile", "Compile all TypeScript files", async () => {
-    logSkittles();
-    skittlesCompile();
-  })
-  .command("clean", "Clears the cache and deletes all builds", () => {
+  .command(
+    "compile",
+    "Compile all TypeScript files",
+    async (): Promise<void> => {
+      logSkittles();
+      skittlesCompile();
+    }
+  )
+  .command("clean", "Clears the cache and deletes all builds", (): void => {
     clearDirectory("./build");
   })
   .parse();
