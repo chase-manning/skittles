@@ -34,4 +34,4 @@
 === UNFORMATTED ===
 
 - Change the build output to be a bit cleaner, don't output every file, maybe output it in a shared json, maybe make abi a `.json`, don't output `.yul`, add config for optionally exporting `.yul` or some other way to debug.
-- Fix issue with console hanging after each command
+- The solc compiler can compile multiple contracts at once, it might be better to do that? https://www.npmjs.com/package/solc

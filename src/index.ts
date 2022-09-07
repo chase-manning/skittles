@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env node --wasm-dynamic-tiering
 
 import yargs from "yargs";
 import { clearDirectory } from "./helpers/file-helper";
@@ -32,3 +32,5 @@ export {
   getSkittlesFactory,
   ZERO_ADDRESS,
 };
+
+process.exit();
