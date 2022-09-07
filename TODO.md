@@ -17,7 +17,6 @@
 
 - Add support for `super()` and passing values to extended contracts
 - Remove ignore logic
-- Change to getting function signatures with this: https://github.com/FuelLabs/yulp/blob/620d04acb060a7a817e2cfc6da4c9b4d9c7fcef0/src/yulplus.ne#L40
 - Performance improvements
 - use web workers for concurrency:
   - https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
@@ -34,5 +33,5 @@
 
 === UNFORMATTED ===
 
-- Stop hardhat cache from being generated
 - Change the build output to be a bit cleaner, don't output every file, maybe output it in a shared json, maybe make abi a `.json`, don't output `.yul`, add config for optionally exporting `.yul` or some other way to debug.
+- Fix issue with console hanging after each command

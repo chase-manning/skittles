@@ -14,7 +14,7 @@
     "build": "tsc -p .",
     "refresh": "rm -rf ./node_modules ./package-lock.json && yarn",
     "local": "sudo yarn global add && skittles",
-    "test": "yarn compile && hardhat test",
+    "test": "yarn compile && hardhat test --no-compile",
     "prepublishOnly": "yarn test"
   },
   "repository": {
