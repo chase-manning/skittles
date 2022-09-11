@@ -77,7 +77,6 @@ const getSkittlesConstants = (
       const varNames = namedBindings.elements.map((element) =>
         getNodeName(element.name)
       );
-      // TODO there is some duplication here with the below
       constants = addConstantsFromAst(
         childAst,
         interfaces,
