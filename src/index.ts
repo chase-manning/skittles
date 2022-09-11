@@ -32,5 +32,3 @@ export {
   getSkittlesFactory,
   ZERO_ADDRESS,
 };
-
-process.exit();
