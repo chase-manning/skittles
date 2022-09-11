@@ -77,7 +77,7 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
           );
       }
     default:
-      throw new Error("Unsupported expression");
+      throw new Error(`Unsupported expression: ${expression.expressionType}`);
   }
 };
 
