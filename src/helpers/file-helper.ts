@@ -52,6 +52,8 @@ export const readFile = (filePath: string): string => {
 
 // Delete all files and directories in the given directory
 export const clearDirectory = (directory: string) => {
+  if (!fs.existsSync(directory)) return;
+
   const files = fs.readdirSync(directory);
   for (const file of files) {
     const filePath = path.join(directory, file);
