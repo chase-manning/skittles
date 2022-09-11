@@ -1,5 +1,9 @@
+- Cleanup `extractConditionalExpressionStatements` function so it doesn't have duplicate function calls
+- Handle Handle expressions within expressions in the `extractConditionalExpressions` functions
+- Add option to clear cache for when testing
+- Add tests for all types of conditional statements
+- Add tests for other variable types of conditional statements (e.g. strings)
 - Add support for events
-- Add suppor for conditional expressions `a ? b : c`
 - Add support for multiple variable assignments at once
 - Add ability to deploy contracts
 - Fix issue with revert messages not showing
@@ -7,6 +11,7 @@
 
 === UNISWAP V2 DONE ===
 
+- Include dependencies in cache refresh
 - Add config for things like running optimizer
 - Add strict eslinting for typescript files and include in init and docs
 - add init function
@@ -17,11 +22,8 @@
 
 - Add support for `super()` and passing values to extended contracts
 - Remove ignore logic
-- Performance improvements
-- use web workers for concurrency:
-  - https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
-  - https://github.com/mdn/dom-examples/tree/main/web-workers/simple-web-worker
 - Add immutable (readonly) setting for evaluated values using `setimmutable`
+- Performance improvements
 
 ==================================================================================================
 

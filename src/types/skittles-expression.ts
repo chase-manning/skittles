@@ -31,10 +31,18 @@ export enum SkittlesExpressionType {
   Length = "Length",
   This = "This",
   Deploy = "Deploy",
+  Conditional = "Conditional",
 }
 
 export interface SkittlesBaseExpression {
   expressionType: SkittlesExpressionType;
+}
+
+export interface SkittlesConditionalExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Conditional;
+  condition: SkittlesExpression;
+  trueValue: SkittlesExpression;
+  falseValue: SkittlesExpression;
 }
 
 export interface SkittlesDeployExpression extends SkittlesBaseExpression {
@@ -109,4 +117,5 @@ export type SkittlesExpression =
   | SkittlesBinaryExpression
   | SkittlesVariableExpression
   | SkittlesValueExpression
-  | SkittlesStorageExpression;
+  | SkittlesStorageExpression
+  | SkittlesConditionalExpression;

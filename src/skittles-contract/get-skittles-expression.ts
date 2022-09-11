@@ -1,9 +1,11 @@
 import {
   BinaryExpression,
+  ConditionalExpression,
   ElementAccessExpression,
   Expression,
   Identifier,
   isBinaryExpression,
+  isConditionalExpression,
   isElementAccessExpression,
   isIdentifier,
   isLiteralExpression,
@@ -196,6 +198,31 @@ const getNewExpression = (
   };
 };
 
+const getConditionalExpression = (
+  expression: ConditionalExpression,
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
+): SkittlesExpression => {
+  return {
+    expressionType: SkittlesExpressionType.Conditional,
+    condition: getSkittlesExpression(
+      expression.condition,
+      interfaces,
+      constants
+    ),
+    trueValue: getSkittlesExpression(
+      expression.whenTrue,
+      interfaces,
+      constants
+    ),
+    falseValue: getSkittlesExpression(
+      expression.whenFalse,
+      interfaces,
+      constants
+    ),
+  };
+};
+
 const getSkittlesExpression = (
   expression: Expression,
   interfaces: SkittlesInterfaces,
@@ -233,6 +260,9 @@ const getSkittlesExpression = (
   }
   if (isNewExpression(expression)) {
     return getNewExpression(expression, interfaces, constants);
+  }
+  if (isConditionalExpression(expression)) {
+    return getConditionalExpression(expression, interfaces, constants);
   }
 
   throw new Error(`Unknown expression type: ${expression.kind}`);

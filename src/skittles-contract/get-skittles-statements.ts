@@ -7,6 +7,7 @@ import {
   isBinaryExpression,
   isBlock,
   isCallExpression,
+  isConditionalExpression,
   isElementAccessExpression,
   isExpressionStatement,
   isIdentifier,
@@ -51,6 +52,7 @@ import {
 } from "../types/skittles-statement";
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
+import extractConditionalExpressionStatements from "./extract-conditional-expression-statements";
 
 const isNotIgnored = (statement: SkittlesStatement): boolean => {
   return statement.statementType !== SkittlesStatementType.Ignore;
@@ -65,14 +67,20 @@ const getSkittlesStatements = (
   if (!block) return [];
   if (isBlock(block)) {
     const { statements } = block;
-    return statements
-      .map((statement: Node) =>
-        getSkittlesStatement(statement, returnType, interfaces, constants)
-      )
-      .filter(isNotIgnored);
+    const skittlesStatements: SkittlesStatement[] = [];
+    statements.forEach((statement) => {
+      const skittlesStatement = getSkittlesStatement(
+        statement,
+        returnType,
+        interfaces,
+        constants
+      );
+      skittlesStatements.push(...skittlesStatement);
+    });
+    return skittlesStatements.filter(isNotIgnored);
   }
   return [
-    getSkittlesStatement(block, returnType, interfaces, constants),
+    ...getSkittlesStatement(block, returnType, interfaces, constants),
   ].filter(isNotIgnored);
 };
 
@@ -144,6 +152,9 @@ const getReturnValue = (
     };
   }
   if (isIdentifier(expression)) {
+    return getSkittlesExpression(expression, interfaces, constants);
+  }
+  if (isConditionalExpression(expression)) {
     return getSkittlesExpression(expression, interfaces, constants);
   }
   throw new Error(`Unknown return expression type: ${expression.kind}`);
@@ -339,7 +350,7 @@ const getIdentifierStatement = (
   };
 };
 
-const getSkittlesStatement = (
+const getBaseSkittlesStatement = (
   node: Node,
   returnType: SkittlesType,
   interfaces: SkittlesInterfaces,
@@ -374,6 +385,21 @@ const getSkittlesStatement = (
     return getIdentifierStatement(node, returnType, interfaces, constants);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
+};
+
+const getSkittlesStatement = (
+  node: Node,
+  returnType: SkittlesType,
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
+): SkittlesStatement[] => {
+  const base = getBaseSkittlesStatement(
+    node,
+    returnType,
+    interfaces,
+    constants
+  );
+  return extractConditionalExpressionStatements(base);
 };
 
 export default getSkittlesStatements;
