@@ -417,4 +417,11 @@ describe("Regression Test", () => {
   it("Should get string", async () => {
     expect(await regressionTest.getString()).to.equal("Meow");
   });
+
+  it("Should get nested conditional statements", async () => {
+    expect(await regressionTest.getNestedConditionals(1, 2, 3)).to.equal(4);
+    expect(await regressionTest.getNestedConditionals(1, 3, 2)).to.equal(3);
+    expect(await regressionTest.getNestedConditionals(3, 1, 2)).to.equal(1);
+    expect(await regressionTest.getNestedConditionals(2, 1, 3)).to.equal(2);
+  });
 });

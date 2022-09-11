@@ -153,6 +153,10 @@ export class RegressionTest implements IRegressionTest {
 
   getNumberFromArrowFunction = (): number => 123;
 
+  getNestedConditionals = (a: number, b: number, c: number): number => {
+    return a > b ? (a > c ? 1 : 2) : b > c ? 3 : 4;
+  };
+
   getString = (): string => {
     return "Meow";
   };
