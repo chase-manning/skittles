@@ -1,5 +1,6 @@
 import {
   BinaryExpression,
+  ConditionalExpression,
   Expression,
   ExpressionStatement,
   Identifier,
@@ -350,6 +351,19 @@ const getIdentifierStatement = (
   };
 };
 
+const getConditionalExpressionStatement = (
+  statement: ConditionalExpression,
+  returnType: SkittlesType,
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
+): SkittlesStatement => {
+  return {
+    statementType: SkittlesStatementType.Return,
+    type: returnType,
+    value: getSkittlesExpression(statement, interfaces, constants),
+  };
+};
+
 const getBaseSkittlesStatement = (
   node: Node,
   returnType: SkittlesType,
@@ -383,6 +397,14 @@ const getBaseSkittlesStatement = (
   }
   if (isIdentifier(node)) {
     return getIdentifierStatement(node, returnType, interfaces, constants);
+  }
+  if (isConditionalExpression(node)) {
+    return getConditionalExpressionStatement(
+      node,
+      returnType,
+      interfaces,
+      constants
+    );
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
