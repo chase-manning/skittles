@@ -1,7 +1,6 @@
 import { address } from "../../src/types/core-types";
 
 // TODO Add events
-// TODO Refactor token assignments to use conditional expressions a ? b : c
 // TODO Increase line length and refactor to assing token0 and token1 at the same time
 // TODO Change to using ZERO_ADDRESS import
 
@@ -24,12 +23,8 @@ export class UniswapV2Factory {
     if (tokenA === tokenB) {
       throw new Error("UniswapV2: IDENTICAL_ADDRESSES");
     }
-    let token0 = tokenA;
-    let token1 = tokenB;
-    if (tokenA > tokenB) {
-      token0 = tokenB;
-      token1 = tokenA;
-    }
+    let token0 = tokenA > tokenB ? tokenB : tokenA;
+    let token1 = tokenA > tokenB ? tokenA : tokenB;
     if (token0 === "0x0000000000000000000000000000000000000000") {
       throw new Error("UniswapV2: ZERO_ADDRESS");
     }
