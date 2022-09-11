@@ -6,7 +6,6 @@ import {
   SkittlesStatement,
   SkittlesStatementType,
 } from "../types/skittles-statement";
-import { SkittlesTypeKind } from "../types/skittles-type";
 
 interface ExtractedData {
   variableDeclarations: SkittlesStatement[];
@@ -25,13 +24,7 @@ const extractConditionalExpressions = (
         {
           statementType: SkittlesStatementType.VariableDeclaration,
           variable: variableName,
-          value: {
-            expressionType: SkittlesExpressionType.Value,
-            value: "0",
-            type: {
-              kind: SkittlesTypeKind.Number,
-            },
-          },
+          value: expression.falseValue,
         },
         {
           statementType: SkittlesStatementType.If,
@@ -43,13 +36,7 @@ const extractConditionalExpressions = (
               value: expression.trueValue,
             },
           ],
-          else: [
-            {
-              statementType: SkittlesStatementType.VariableUpdate,
-              variable: variableName,
-              value: expression.falseValue,
-            },
-          ],
+          else: [],
         },
       ],
       extractedExpression: {
