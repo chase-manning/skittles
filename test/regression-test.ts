@@ -393,4 +393,9 @@ describe("Regression Test", () => {
   it("Should error from mul overflow", async () => {
     await expect(regressionTest.revertUnsafeMul()).to.be.reverted;
   });
+
+  it("Should get conditional statements", async () => {
+    expect(await regressionTest.getConditionalStatements(1, 2)).to.equal(321);
+    expect(await regressionTest.getConditionalStatements(2, 1)).to.equal(123);
+  });
 });

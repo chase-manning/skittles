@@ -142,6 +142,10 @@ export class RegressionTest implements IRegressionTest {
 
   getZeroAddressWithOneLine = (): address => ZERO_ADDRESS;
 
+  getConditionalStatements = (a: number, b: number): number => {
+    return a > b ? 123 : 321;
+  };
+
   revertUnsafeMul = (): void => {
     let meow =
       9007199254740991 *
