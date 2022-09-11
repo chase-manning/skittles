@@ -398,4 +398,23 @@ describe("Regression Test", () => {
     expect(await regressionTest.getConditionalStatements(1, 2)).to.equal(321);
     expect(await regressionTest.getConditionalStatements(2, 1)).to.equal(123);
   });
+
+  it("Should get conditional statements arrow", async () => {
+    let result = await regressionTest.getConditionalStatementsArrow(1, 2);
+    expect(result).to.equal("woof");
+    result = await regressionTest.getConditionalStatementsArrow(2, 1);
+    expect(result).to.equal("Meow");
+  });
+
+  it("Should get string from arrow function", async () => {
+    expect(await regressionTest.getStringFromArrowFunction()).to.equal("Meow");
+  });
+
+  it("Should get number from arrow function", async () => {
+    expect(await regressionTest.getNumberFromArrowFunction()).to.equal(123);
+  });
+
+  it("Should get string", async () => {
+    expect(await regressionTest.getString()).to.equal("Meow");
+  });
 });

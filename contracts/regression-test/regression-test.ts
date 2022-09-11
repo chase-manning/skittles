@@ -146,6 +146,17 @@ export class RegressionTest implements IRegressionTest {
     return a > b ? 123 : 321;
   };
 
+  getConditionalStatementsArrow = (a: number, b: number): string =>
+    a > b ? "Meow" : "woof";
+
+  getStringFromArrowFunction = (): string => "Meow";
+
+  getNumberFromArrowFunction = (): number => 123;
+
+  getString = (): string => {
+    return "Meow";
+  };
+
   revertUnsafeMul = (): void => {
     let meow =
       9007199254740991 *
