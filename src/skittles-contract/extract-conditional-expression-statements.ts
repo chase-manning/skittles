@@ -60,24 +60,30 @@ const extractConditionalExpressions = (
   expression: SkittlesExpression
 ): ExtractedData => {
   if (expression.expressionType === SkittlesExpressionType.Conditional) {
+    const conditionData = extractConditionalExpressions(expression.condition);
+    const trueData = extractConditionalExpressions(expression.trueValue);
+    const falseData = extractConditionalExpressions(expression.falseValue);
     const variableName = `conditionalExpression${Math.floor(
       Math.random() * 1000000000
     )}`;
     return {
       variableDeclarations: [
+        ...conditionData.variableDeclarations,
+        ...trueData.variableDeclarations,
+        ...falseData.variableDeclarations,
         {
           statementType: SkittlesStatementType.VariableDeclaration,
           variable: variableName,
-          value: expression.falseValue,
+          value: falseData.extractedExpression,
         },
         {
           statementType: SkittlesStatementType.If,
-          condition: expression.condition,
+          condition: conditionData.extractedExpression,
           then: [
             {
               statementType: SkittlesStatementType.VariableUpdate,
               variable: variableName,
-              value: expression.trueValue,
+              value: trueData.extractedExpression,
             },
           ],
           else: [],
