@@ -1,8 +1,6 @@
-- Cleanup `extractConditionalExpressionStatements` function so it doesn't have duplicate function calls
 - Handle Handle expressions within expressions in the `extractConditionalExpressions` functions
 - Add option to clear cache for when testing
-- Add tests for all types of conditional statements
-- Add tests for other variable types of conditional statements (e.g. strings)
+
 - Add support for events
 - Add support for multiple variable assignments at once
 - Add ability to deploy contracts
