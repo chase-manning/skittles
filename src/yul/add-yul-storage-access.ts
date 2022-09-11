@@ -45,17 +45,6 @@ const _addStorageAccess = (
       );
     }
     if (!value) throw new Error("No storage update to get storage value");
-    if (
-      type.kind === SkittlesTypeKind.String &&
-      value.expressionType === SkittlesExpressionType.Value
-    ) {
-      const expression = getExpressionYul(value);
-      return addToSection(yul, section, [
-        `function ${name}Storage() -> ${initial} {`,
-        `${initial} := add(${expression}, ${(expression.length - 2) * 2})`,
-        `}`,
-      ]);
-    }
     return addToSection(yul, section, [
       `function ${name}Storage() -> ${initial} {`,
       `${initial} := ${getExpressionYul(value)}`,
