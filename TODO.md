@@ -1,5 +1,3 @@
-- Add option to clear cache for when testing
-
 - Add support for events
 - Add support for multiple variable assignments at once
 - Add ability to deploy contracts

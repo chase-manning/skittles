@@ -11,7 +11,7 @@
     "start": "yarn run build && node ./lib/index.js help",
     "compile": "yarn run build && node ./lib/index.js compile",
     "create": "yarn run build && yarn run test",
-    "build": "tsc -p .",
+    "build": "tsc -p . && node ./lib/index.js clean",
     "refresh": "rm -rf ./node_modules ./package-lock.json && yarn",
     "local": "sudo yarn global add && skittles",
     "test": "yarn compile && hardhat test --no-compile",
