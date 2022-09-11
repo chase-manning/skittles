@@ -406,6 +406,14 @@ const getBaseSkittlesStatement = (
       constants
     );
   }
+  if (isLiteralExpression(node)) {
+    return getReturnStatement(
+      node as Expression,
+      returnType,
+      interfaces,
+      constants
+    );
+  }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
 
