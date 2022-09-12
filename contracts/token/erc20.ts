@@ -1,5 +1,5 @@
 import { address, msg } from "../../src/types/core-types";
-// import IERC20 from "./ierc20";
+import { IERC20 } from "./ierc20";
 
 // TODO Move events to interrace
 
@@ -16,7 +16,7 @@ import { address, msg } from "../../src/types/core-types";
 // }
 
 // export class ERC20 implements IERC20 {
-export class ERC20 {
+export class ERC20 implements IERC20 {
   readonly decimals: number = 18;
   readonly symbol: string = "TEST";
   readonly name: string = "TEST ERC20";
