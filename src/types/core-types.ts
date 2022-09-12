@@ -64,3 +64,7 @@ export class tx {
     return "0x0000000000000000000000000000000000000000";
   }
 }
+
+export interface SkittlesEvent<Type> {
+  emit(data: Type): void;
+}
