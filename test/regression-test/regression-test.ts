@@ -2,9 +2,9 @@ import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
 import { isAddress } from "ethers/lib/utils";
-import getSkittlesFactory from "../src/testing/get-skittles-factory";
-import { address } from "../src/types/core-types";
-import { ZERO_ADDRESS } from "../src/data/constants";
+import getSkittlesFactory from "../../src/testing/get-skittles-factory";
+import { address } from "../../src/types/core-types";
+import { ZERO_ADDRESS } from "../../src/data/constants";
 import { solidity } from "ethereum-waffle";
 
 chai.use(solidity);
@@ -179,7 +179,7 @@ describe("Regression Test", () => {
 
   it("Should get Block", async () => {
     const block = Number((await regressionTest.getBlock()).toString());
-    expect(block).to.be.greaterThan(5);
+    expect(block).to.be.greaterThan(3);
     expect(block).to.be.lessThan(100);
   });
 
