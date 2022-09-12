@@ -1,6 +1,12 @@
 - Add support for events
+- Move events into separate functions and call them
+- Move has to directly embedded so we don't do an unessicary variable declaration
+- Verify we get the same hash as the solidity compiler for the event selector
+- Add events to Abi
+- Add regression tests for events
 - Add support for default exports and imports of interfaces and update them
 - Add support for default export and imports of contracts and update them
+- Add support for initialising an event inline
 - Remove constructor from ERC20, and add a ERC20 wrapper just for testing
 - Add support for multiple variable assignments at once
 - Add ability to deploy contracts
@@ -35,3 +41,9 @@
 
 - Change the build output to be a bit cleaner, don't output every file, maybe output it in a shared json, maybe make abi a `.json`, don't output `.yul`, add config for optionally exporting `.yul` or some other way to debug.
 - The solc compiler can compile multiple contracts at once, it might be better to do that? https://www.npmjs.com/package/solc
+- Add support for struct (or type) inputs for functions. e.g. `doThing(data: DataType)`
+- Add support for passing event data through as an constant `const data: DataType = {meow: 2};` and `this.coolEvent.emit(data)`
+- Add event indexing
+- Events show as `transferEvent` instead of `Transfer` which looks cleaner. Is this a problem?
+- Add events to all contracts
+- Add tests for all contract events (note we are missing some for ERC20)
