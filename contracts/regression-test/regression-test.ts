@@ -1,4 +1,11 @@
-import { address, block, chain, msg, tx } from "../../src/types/core-types";
+import {
+  address,
+  block,
+  chain,
+  msg,
+  SkittlesEvent,
+  tx,
+} from "../../src/types/core-types";
 import { IRegressionTest } from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
 
@@ -10,6 +17,11 @@ const OTHER_ADDRESS: address = "0x106EebF11F34ECCcaD59c1CA9398d828765f64f8";
 interface NumberAndAddress {
   number: number;
   address: address;
+}
+
+interface TestEventType {
+  testNumber: number;
+  testAddress: address;
 }
 
 export class RegressionTest implements IRegressionTest {
@@ -27,6 +39,8 @@ export class RegressionTest implements IRegressionTest {
 
   private _balances: Record<address, number>;
   private _approvals: Record<address, Record<address, number>>;
+
+  TestEvent: SkittlesEvent<TestEventType>;
 
   constructor(init_: number) {
     this.age = 46;
@@ -175,6 +189,13 @@ export class RegressionTest implements IRegressionTest {
       9007199254740991 *
       9007199254740991 *
       9007199254740991;
+  };
+
+  emitEvent = (testNumber2: number, testAddress: address): void => {
+    this.TestEvent.emit({
+      testAddress,
+      testNumber: testNumber2,
+    });
   };
 
   // Testing EVM OP Codes

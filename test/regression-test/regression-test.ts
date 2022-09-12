@@ -424,4 +424,12 @@ describe("Regression Test", () => {
     expect(await regressionTest.getNestedConditionals(3, 1, 2)).to.equal(1);
     expect(await regressionTest.getNestedConditionals(2, 1, 3)).to.equal(2);
   });
+
+  it("Should fire event", async () => {
+    const testNumber = 123;
+    const testAddress = walletA.address;
+    await expect(regressionTest.emitEvent(testNumber, testAddress))
+      .to.emit(regressionTest, "TestEvent")
+      .withArgs(testNumber, testAddress);
+  });
 });
