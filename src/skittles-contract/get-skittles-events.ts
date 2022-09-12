@@ -30,7 +30,9 @@ const getSkittlesEvents = (
       throw new Error("Could type arguments not interface");
     }
 
-    const params = interfaces[parametersInterface.typeName.escapedText];
+    const interfaceName = parametersInterface.typeName.escapedText;
+    const params = interfaces[interfaceName];
+    if (!params) throw new Error(`Could not find interface: ${interfaceName}`);
     events.push({
       label: getNodeName(astProperty.name),
       parameters: params.elements,
