@@ -15,7 +15,6 @@ interface ApprovalEvent {
   amount: number;
 }
 
-// export class ERC20 implements IERC20 {
 export class ERC20 implements IERC20 {
   readonly decimals: number = 18;
   readonly symbol: string = "TEST";
@@ -26,7 +25,7 @@ export class ERC20 implements IERC20 {
   allowance: Record<address, Record<address, number>>;
 
   transferEvent: SkittlesEvent<TransferEvent>;
-  // approvalEvent: SkittlesEvent<ApprovalEvent>;
+  approvalEvent: SkittlesEvent<ApprovalEvent>;
 
   constructor(mintAmount_: number) {
     this.balanceOf[msg.sender] = mintAmount_;
@@ -35,7 +34,7 @@ export class ERC20 implements IERC20 {
 
   approve(spender: address, amount: number): boolean {
     this.allowance[msg.sender][spender] = amount;
-    // this.approvalEvent.emit({ owner: msg.sender, spender, amount });
+    this.approvalEvent.emit({ owner: msg.sender, spender, amount });
     return true;
   }
 
