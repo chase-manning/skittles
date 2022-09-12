@@ -13,6 +13,8 @@ const _addStorageLayout = (
 ): StorageLayoutResponse => {
   if (property.immutable) return { yul, slot: slot + 1 };
   const { name, type } = property;
+
+  // Handling Mappings
   if (type.kind === SkittlesTypeKind.Mapping) {
     const matchingMappings = contract.variables.filter((v) => {
       return (
@@ -41,6 +43,8 @@ const _addStorageLayout = (
       slot,
     };
   }
+
+  // Handling Arrays
   if (type.kind === SkittlesTypeKind.Array) {
     yul = addToSection(yul, section, [
       `function ${name}LengthPos() -> p { p := ${slot} }`,
@@ -53,6 +57,8 @@ const _addStorageLayout = (
       slot: slot + 2 ** 64,
     };
   }
+
+  // Handle normal variables
   return {
     yul: addToSection(yul, section, [
       `function ${name}Pos() -> p { p := ${slot} }`,

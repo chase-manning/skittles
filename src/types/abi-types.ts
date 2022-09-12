@@ -1,3 +1,16 @@
+export interface AbiEventInput {
+  indexed: boolean;
+  name: string;
+  type: string;
+}
+
+export interface AbiEvent {
+  anonymous: boolean;
+  inputs: AbiEventInput[];
+  name: string;
+  type: "event";
+}
+
 export interface AbiParameter {
   name: string;
   type: string;
@@ -11,4 +24,4 @@ export interface AbiFunction {
   stateMutability: "view" | "payable" | "nonpayable" | "pure";
 }
 
-export type Abi = AbiFunction[];
+export type Abi = (AbiFunction | AbiEvent)[];

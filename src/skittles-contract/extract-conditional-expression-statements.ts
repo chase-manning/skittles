@@ -49,6 +49,10 @@ const statementExpressionConfig: Record<string, StatementExpressionConfig> = {
     expressions: ["value"],
     expressionLists: [],
   },
+  "Emit Event": {
+    expressions: [],
+    expressionLists: ["values"],
+  },
 };
 
 interface ExtractedData {

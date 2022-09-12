@@ -1,4 +1,3 @@
-import { interfaces } from "mocha";
 import {
   forEachChild,
   isArrowFunction,
@@ -12,6 +11,7 @@ import {
 import { getNodeName, isNodePrivate } from "../helpers/ast-helper";
 import {
   SkittlesConstants,
+  SkittlesEventType,
   SkittlesInterfaces,
   SkittlesMethod,
   SkittlesParameter,
@@ -38,7 +38,8 @@ const getSkittlesParameters = (
 const getSkittlesMethod = (
   astMethod: MethodDeclaration | PropertyDeclaration,
   interfaces: SkittlesInterfaces,
-  constants: SkittlesConstants
+  constants: SkittlesConstants,
+  events: SkittlesEventType[]
 ): SkittlesMethod => {
   // Is normal function
   if (isMethodDeclaration(astMethod)) {
@@ -52,7 +53,8 @@ const getSkittlesMethod = (
         astMethod.body,
         getSkittlesType(astMethod.type, interfaces),
         interfaces,
-        constants
+        constants,
+        events
       ),
     };
   }
@@ -70,7 +72,8 @@ const getSkittlesMethod = (
         arrowFunction.body as Statement,
         getSkittlesType(astMethod.type, interfaces),
         interfaces,
-        constants
+        constants,
+        events
       ),
     };
   }

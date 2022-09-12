@@ -20,6 +20,7 @@ import {
   isPropertyAccessExpression,
   isPropertyAssignment,
   isReturnStatement,
+  isShorthandPropertyAssignment,
   isThrowStatement,
   isVariableStatement,
   Node,
@@ -39,7 +40,9 @@ import {
 } from "../helpers/ast-helper";
 import {
   SkittlesConstants,
+  SkittlesEventType,
   SkittlesInterfaces,
+  SkittlesValue,
 } from "../types/skittles-contract";
 import { SkittlesType, SkittlesTypeKind } from "../types/skittles-type";
 import {
@@ -63,7 +66,8 @@ const getSkittlesStatements = (
   block: Statement | undefined,
   returnType: SkittlesType,
   interfaces: SkittlesInterfaces,
-  constants: SkittlesConstants
+  constants: SkittlesConstants,
+  events: SkittlesEventType[]
 ): SkittlesStatement[] => {
   if (!block) return [];
   if (isBlock(block)) {
@@ -74,14 +78,15 @@ const getSkittlesStatements = (
         statement,
         returnType,
         interfaces,
-        constants
+        constants,
+        events
       );
       skittlesStatements.push(...skittlesStatement);
     });
     return skittlesStatements.filter(isNotIgnored);
   }
   return [
-    ...getSkittlesStatement(block, returnType, interfaces, constants),
+    ...getSkittlesStatement(block, returnType, interfaces, constants, events),
   ].filter(isNotIgnored);
 };
 
@@ -206,7 +211,8 @@ const getAssignmentValue = (
 const getExpressionStatement = (
   statement: ExpressionStatement,
   interfaces: SkittlesInterfaces,
-  constants: SkittlesConstants
+  constants: SkittlesConstants,
+  events: SkittlesEventType[]
 ): SkittlesStatement => {
   const { expression } = statement;
   if (isBinaryExpression(expression)) {
@@ -249,9 +255,66 @@ const getExpressionStatement = (
   if (isCallExpression(expression)) {
     const callExpression = expression.expression;
     if (isPropertyAccessExpression(callExpression)) {
+      const target = getNodeName(callExpression);
+
+      // Handle events
+      if (target === "emit") {
+        const eventName = getNodeName(callExpression.expression);
+        const event = events.find((event) => event.label === eventName);
+        if (!event) throw new Error(`Could not find event ${eventName}`);
+
+        const args: SkittlesValue[] = [];
+        expression.arguments.forEach((argument) => {
+          if (isObjectLiteralExpression(argument)) {
+            argument.properties.forEach((property) => {
+              if (isPropertyAssignment(property)) {
+                args.push({
+                  name: getNodeName(property.name),
+                  value: getSkittlesExpression(
+                    property.initializer,
+                    interfaces,
+                    constants
+                  ),
+                });
+              } else if (isShorthandPropertyAssignment(property)) {
+                args.push({
+                  name: getNodeName(property.name),
+                  value: getSkittlesExpression(
+                    property.name,
+                    interfaces,
+                    constants
+                  ),
+                });
+              } else {
+                throw new Error(
+                  `Unknown argument property type: ${property.kind}`
+                );
+              }
+            });
+            return {
+              type: SkittlesStatementType.EmitEvent,
+              event,
+              args,
+            };
+          }
+          throw new Error(`Unknown argument type: ${argument.kind}`);
+        });
+
+        return {
+          statementType: SkittlesStatementType.EmitEvent,
+          event,
+          values: event.parameters.map((parameter) => {
+            const arg = args.find((arg) => arg.name === parameter.name);
+            if (!arg) throw new Error(`Could not find arg ${parameter.name}`);
+            return arg.value;
+          }),
+        };
+      }
+
+      // Handle other calls
       return {
         statementType: SkittlesStatementType.Call,
-        target: getNodeName(callExpression),
+        target,
         element: getSkittlesExpression(
           callExpression.expression,
           interfaces,
@@ -275,7 +338,8 @@ const getExpressionStatement = (
 const getIfStatement = (
   statement: IfStatement,
   interfaces: SkittlesInterfaces,
-  constants: SkittlesConstants
+  constants: SkittlesConstants,
+  events: SkittlesEventType[]
 ): SkittlesStatement => {
   const { expression, thenStatement, elseStatement } = statement;
   if (!thenStatement) throw new Error("If statement has no then statement");
@@ -288,7 +352,8 @@ const getIfStatement = (
         kind: SkittlesTypeKind.Void,
       },
       interfaces,
-      constants
+      constants,
+      events
     ),
     else: getSkittlesStatements(
       elseStatement,
@@ -296,7 +361,8 @@ const getIfStatement = (
         kind: SkittlesTypeKind.Void,
       },
       interfaces,
-      constants
+      constants,
+      events
     ),
   };
 };
@@ -368,10 +434,11 @@ const getBaseSkittlesStatement = (
   node: Node,
   returnType: SkittlesType,
   interfaces: SkittlesInterfaces,
-  constants: SkittlesConstants
+  constants: SkittlesConstants,
+  events: SkittlesEventType[]
 ): SkittlesStatement => {
   if (isExpressionStatement(node)) {
-    return getExpressionStatement(node, interfaces, constants);
+    return getExpressionStatement(node, interfaces, constants, events);
   }
   if (isReturnStatement(node)) {
     const { expression } = node;
@@ -379,7 +446,7 @@ const getBaseSkittlesStatement = (
     return getReturnStatement(expression, returnType, interfaces, constants);
   }
   if (isIfStatement(node)) {
-    return getIfStatement(node, interfaces, constants);
+    return getIfStatement(node, interfaces, constants, events);
   }
   if (isThrowStatement(node)) {
     return getThrowStatement(node, interfaces, constants);
@@ -421,13 +488,15 @@ const getSkittlesStatement = (
   node: Node,
   returnType: SkittlesType,
   interfaces: SkittlesInterfaces,
-  constants: SkittlesConstants
+  constants: SkittlesConstants,
+  events: SkittlesEventType[]
 ): SkittlesStatement[] => {
   const base = getBaseSkittlesStatement(
     node,
     returnType,
     interfaces,
-    constants
+    constants,
+    events
   );
   return extractConditionalExpressionStatements(base);
 };

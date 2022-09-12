@@ -10,9 +10,19 @@ export interface SkittlesVariable {
   immutable: boolean;
 }
 
+export interface SkittlesEventType {
+  label: string;
+  parameters: SkittlesParameter[];
+}
+
 export interface SkittlesParameter {
   name: string;
   type: SkittlesType;
+}
+
+export interface SkittlesValue {
+  name: string;
+  value: SkittlesExpression;
 }
 
 export interface SkittlesMethod {
@@ -40,6 +50,7 @@ export type SkittlesConstants = Record<string, SkittlesExpression>;
 
 interface SkittlesContract {
   classExtensions: string[];
+  events: SkittlesEventType[];
   constants: SkittlesConstants;
   interfaces: SkittlesInterfaces;
   name: string;

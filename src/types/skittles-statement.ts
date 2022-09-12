@@ -1,3 +1,4 @@
+import { SkittlesEventType } from "./skittles-contract";
 import { SkittlesExpression } from "./skittles-expression";
 import { SkittlesType } from "./skittles-type";
 
@@ -11,10 +12,17 @@ export enum SkittlesStatementType {
   Throw = "Throw",
   Ignore = "Ignore",
   VariableDeclaration = "Variable Declaration",
+  EmitEvent = "Emit Event",
 }
 
 export interface SkittlesBaseStatement {
   statementType: SkittlesStatementType;
+}
+
+export interface SkittlesEmitEventStatement extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.EmitEvent;
+  event: SkittlesEventType;
+  values: SkittlesExpression[];
 }
 
 export interface SkittlesVariableDeclarationStatement
@@ -73,6 +81,7 @@ export interface SkittlesReturnStatement extends SkittlesBaseStatement {
 }
 
 export type SkittlesStatement =
+  | SkittlesEmitEventStatement
   | SkittlesVariableUpdateStatement
   | SkittlesVariableDeclarationStatement
   | SkittlesIgnoreStatement

@@ -15,10 +15,11 @@ const _addStorageAccess = (
   property: SkittlesVariable,
   section: YulSection,
   contract: SkittlesContract
-) => {
+): string[] => {
   const { name, type } = property;
   const initial = `_${name.substring(0, 1)}`;
 
+  // Handling Immutable variables
   if (property.immutable) {
     let { value } = property;
     if (!value) {
@@ -52,6 +53,7 @@ const _addStorageAccess = (
     ]);
   }
 
+  // Handling Mappings
   if (type.kind === SkittlesTypeKind.Mapping) {
     const vars = getVariables(type.inputs.length);
     return addToSection(yul, section, [
@@ -64,6 +66,7 @@ const _addStorageAccess = (
     ]);
   }
 
+  // Handling Arrays
   if (type.kind === SkittlesTypeKind.Array) {
     return addToSection(yul, section, [
       `function ${name}LengthStorage() -> ${initial} {`,
@@ -86,6 +89,7 @@ const _addStorageAccess = (
     ]);
   }
 
+  // Handling normal variables
   return addToSection(yul, section, [
     `function ${name}Storage() -> ${initial} {`,
     `${initial} := sload(${name}Pos())`,

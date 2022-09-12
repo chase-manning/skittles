@@ -1,5 +1,6 @@
 import { utils } from "ethers";
 import { AbiParameter } from "../types/abi-types";
+import { SkittlesEventType } from "../types/skittles-contract";
 
 const exampleValues: Record<string, any> = {
   uint256: 1,
@@ -8,7 +9,7 @@ const exampleValues: Record<string, any> = {
   address: "0x1234567890123456789012345678901234567890",
 };
 
-const getSelector = (abi: any[], func: string) => {
+export const getFunctionSelector = (abi: any[], func: string): string => {
   const iface = new utils.Interface(abi);
   const abiFunction = abi.find((f) => f.name === func);
   if (!abiFunction) throw new Error(`Could not find function ${func}`);
@@ -19,4 +20,11 @@ const getSelector = (abi: any[], func: string) => {
   return data.substring(0, 10);
 };
 
-export default getSelector;
+export const getEventSelector = (event: SkittlesEventType): string => {
+  const eventString = `event ${event.label}(${event.parameters
+    .map((p) => `${p.type.kind} ${p.name}`)
+    .join(", ")})`;
+  const iface = new utils.Interface([eventString]);
+  const sigHash = iface.events[Object.keys(iface.events)[0]].format("sighash");
+  return utils.keccak256(utils.toUtf8Bytes(sigHash));
+};

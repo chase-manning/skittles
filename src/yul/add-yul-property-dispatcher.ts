@@ -1,5 +1,5 @@
 import { YulSection } from "../data/yul-template";
-import getSelector from "../helpers/selector-helper";
+import { getFunctionSelector } from "../helpers/selector-helper";
 import { addToSection } from "../helpers/yul-helper";
 import { SkittlesVariable } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
@@ -12,8 +12,9 @@ const addPropertyDispatcher = (
 ): string[] => {
   if (property.private) return yul;
   const { name, type } = property;
-  const selector = getSelector(abi, name);
+  const selector = getFunctionSelector(abi, name);
 
+  // Handling Mappings
   if (type.kind === SkittlesTypeKind.Mapping) {
     const inputTypes = type.inputs.map((input) => {
       return input.kind;
@@ -27,6 +28,7 @@ const addPropertyDispatcher = (
     ]);
   }
 
+  // Handling Arrays
   if (type.kind === SkittlesTypeKind.Array) {
     return addToSection(yul, YulSection.Dispatchers, [
       `case ${selector} /* "${name}(uint256)" */ {`,
@@ -37,6 +39,7 @@ const addPropertyDispatcher = (
     ]);
   }
 
+  // Handle normal variables
   return addToSection(yul, YulSection.Dispatchers, [
     `case ${selector} /* "${name}()" */ {`,
     `${returnFunctions[type.kind]}(${name}Storage())`,

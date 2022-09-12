@@ -1,6 +1,8 @@
+import { getEventSelector } from "../helpers/selector-helper";
 import { SkittlesExpressionType } from "../types/skittles-expression";
 import {
   SkittlesCallStatement,
+  SkittlesEmitEventStatement,
   SkittlesIfStatement,
   SkittlesMappingUpdateStatement,
   SkittlesReturnStatement,
@@ -108,6 +110,18 @@ const getVariableUpdateYul = (
   return [`${variable}Var := ${getExpressionYul(value)}`];
 };
 
+const getEmitEventYul = (statement: SkittlesEmitEventStatement): string[] => {
+  const { event, values } = statement;
+  const hashVarName = `${event.label}Hash`;
+  return [
+    `let ${hashVarName} := ${getEventSelector(event)}`,
+    ...values.map(
+      (v, index: number) => `mstore(${index * 32}, ${getExpressionYul(v)})`
+    ),
+    `log1(0, ${32 * values.length}, ${hashVarName})`,
+  ];
+};
+
 const getStatementYul = (statement: SkittlesStatement): string[] => {
   switch (statement.statementType) {
     case SkittlesStatementType.StorageUpdate:
@@ -126,8 +140,10 @@ const getStatementYul = (statement: SkittlesStatement): string[] => {
       return getVariableDeclarationYul(statement);
     case SkittlesStatementType.VariableUpdate:
       return getVariableUpdateYul(statement);
+    case SkittlesStatementType.EmitEvent:
+      return getEmitEventYul(statement);
     default:
-      throw new Error(`Unsupported statement type ${statement}`);
+      throw new Error(`Unsupported statement type ${statement.statementType}`);
   }
 };
 

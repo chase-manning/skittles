@@ -1,6 +1,7 @@
-import { Abi, AbiFunction } from "../types/abi-types";
+import { Abi, AbiEvent, AbiFunction } from "../types/abi-types";
 import SkittlesContract, {
   SkittlesConstructor,
+  SkittlesEventType,
   SkittlesMethod,
   SkittlesVariable,
 } from "../types/skittles-contract";
@@ -103,8 +104,24 @@ const getMethodAbi = (method: SkittlesMethod): AbiFunction => {
   };
 };
 
+const getEventAbi = (event: SkittlesEventType): AbiEvent => {
+  return {
+    anonymous: false,
+    inputs: event.parameters.map((i) => {
+      return {
+        indexed: false,
+        name: i.name,
+        type: getTypeString(i.type),
+      };
+    }),
+    name: event.label,
+    type: "event",
+  };
+};
+
 const getAbi = (contract: SkittlesContract): Abi => {
   return [
+    ...contract.events.map(getEventAbi),
     ...getConstructorAbi(contract.constructor),
     ...contract.variables.filter((p) => !p.private).map(getPropertyAbi),
     ...contract.methods.filter((p) => !p.private).map(getMethodAbi),

@@ -1,5 +1,5 @@
 import { YulSection } from "../data/yul-template";
-import getSelector from "../helpers/selector-helper";
+import { getFunctionSelector } from "../helpers/selector-helper";
 import { addToSection } from "../helpers/yul-helper";
 import { SkittlesMethod, SkittlesParameter } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
@@ -12,7 +12,7 @@ const addMethodDispatcher = (
 ): string[] => {
   if (method.private) return yul;
   const { name, parameters, returns } = method;
-  const selector = getSelector(abi, name);
+  const selector = getFunctionSelector(abi, name);
 
   if (returns.kind === SkittlesTypeKind.Mapping) {
     throw new Error("Unexpected type kind 5");

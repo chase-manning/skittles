@@ -14,10 +14,11 @@ import SkittlesCache from "../types/skittles-cache";
 import SkittlesContract from "../types/skittles-contract";
 import getSkittlesConstants from "./get-skittles-constants";
 import getSkittlesConstructor from "./get-skittles-constructor";
+import getSkittlesEvents from "./get-skittles-events";
 import getSkittlesInterfaces from "./get-skittles-interfaces";
 import getSkittlesMethod from "./get-skittles-method";
-import getSkittlesProperty from "./get-skittles-property";
 import getStateMutability from "./get-skittles-state-mutability";
+import getSkittlesVariables from "./get-skittles-variables";
 
 const getSkittlesContracts = (
   file: string,
@@ -60,21 +61,26 @@ const getSkittlesContracts = (
 
     const constants = getSkittlesConstants(ast, interfaces, file);
 
+    const events = getSkittlesEvents(astVariables, interfaces);
+
+    const variables = getSkittlesVariables(astVariables, interfaces, constants);
+
     const contract: SkittlesContract = {
       classExtensions,
       constants,
       interfaces,
+      events,
       name: getNodeName(classNode),
       constructor: astConstructor
-        ? getSkittlesConstructor(astConstructor, interfaces, constants)
+        ? getSkittlesConstructor(astConstructor, interfaces, constants, events)
         : undefined,
-      variables: astVariables.map((v) =>
-        getSkittlesProperty(v, interfaces, constants)
-      ),
+      variables,
       methods: [
-        ...astMethods.map((m) => getSkittlesMethod(m, interfaces, constants)),
+        ...astMethods.map((m) =>
+          getSkittlesMethod(m, interfaces, constants, events)
+        ),
         ...astArrowFunctions.map((f) =>
-          getSkittlesMethod(f, interfaces, constants)
+          getSkittlesMethod(f, interfaces, constants, events)
         ),
       ],
     };
