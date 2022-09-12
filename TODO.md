@@ -1,6 +1,3 @@
-- Add events to ERC20
-- Add tests for ERC20 events
-- Events show as `transferEvent` instead of `Transfer` which looks cleaner. Is this a problem?
 - Add regression tests for events
 - Add events to all contracts
 - Add tests for all contract events (note we are missing some for ERC20)
@@ -41,6 +38,7 @@
 - Extend everything from a contract class for things like `Contract.address` and stuff
 - Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat
+- Should events need to be store in the class?
 
 === UNFORMATTED ===
 

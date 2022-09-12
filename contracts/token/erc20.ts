@@ -24,8 +24,8 @@ export class ERC20 implements IERC20 {
   balanceOf: Record<address, number>;
   allowance: Record<address, Record<address, number>>;
 
-  transferEvent: SkittlesEvent<TransferEvent>;
-  approvalEvent: SkittlesEvent<ApprovalEvent>;
+  Transfer: SkittlesEvent<TransferEvent>;
+  Approval: SkittlesEvent<ApprovalEvent>;
 
   constructor(mintAmount_: number) {
     this.balanceOf[msg.sender] = mintAmount_;
@@ -34,7 +34,7 @@ export class ERC20 implements IERC20 {
 
   approve(spender: address, amount: number): boolean {
     this.allowance[msg.sender][spender] = amount;
-    this.approvalEvent.emit({ owner: msg.sender, spender, amount });
+    this.Approval.emit({ owner: msg.sender, spender, amount });
     return true;
   }
 
@@ -54,6 +54,6 @@ export class ERC20 implements IERC20 {
   private _transfer(from: address, to: address, amount: number): void {
     this.balanceOf[to] += amount;
     this.balanceOf[from] -= amount;
-    this.transferEvent.emit({ from, to, amount });
+    this.Transfer.emit({ from, to, amount });
   }
 }
