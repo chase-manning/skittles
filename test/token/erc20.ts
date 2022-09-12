@@ -70,26 +70,23 @@ describe("ERC20", () => {
 
   it("Should set approval for B", async () => {
     const amount = 33;
-    // await expect(token.approve(walletB.address, amount);)
-    //   .to.emit(token, "Transfer")
-    //   .withArgs(walletA.address, walletB.address, amount);
-    await token.approve(walletB.address, amount);
+    await expect(token.approve(walletB.address, amount))
+      .to.emit(token, "approvalEvent")
+      .withArgs(walletA.address, walletB.address, amount);
     const allowance = await token.allowance(walletA.address, walletB.address);
     expect(allowance).to.equal(amount);
   });
 
   it("Should set approval and transfer", async () => {
     const amount = 5;
-    // await expect(token.connect(walletB).approve(walletA.address, amount)) THIS IS CRAP
-    //   .to.emit(token, "approveEvent")
-    //   .withArgs(walletB.address, walletA.address, amount);
-    await token.connect(walletB).approve(walletA.address, amount);
+    await expect(token.connect(walletB).approve(walletA.address, amount))
+      .to.emit(token, "approvalEvent")
+      .withArgs(walletB.address, walletA.address, amount);
     const bBalanceBefore = await token.balanceOf(walletB.address);
     const cBalanceBefore = await token.balanceOf(walletC.address);
-    // await expect(token.connect(walletB).approve(walletA.address, amount)) THIS IS CRAP
-    //   .to.emit(token, "approveEvent")
-    //   .withArgs(walletB.address, walletA.address, amount);
-    await token.transferFrom(walletB.address, walletC.address, amount);
+    await expect(token.transferFrom(walletB.address, walletC.address, amount))
+      .to.emit(token, "transferEvent")
+      .withArgs(walletB.address, walletC.address, amount);
     const bBalanceAfter = await token.balanceOf(walletB.address);
     expect(bBalanceAfter).to.equal(bBalanceBefore - amount);
     const cBalanceAfter = await token.balanceOf(walletC.address);
