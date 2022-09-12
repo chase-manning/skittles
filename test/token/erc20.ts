@@ -1,8 +1,11 @@
-import { expect } from "chai";
+import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
+import { solidity } from "ethereum-waffle";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import getSkittlesFactory from "../src/testing/get-skittles-factory";
+import getSkittlesFactory from "../../src/testing/get-skittles-factory";
+
+chai.use(solidity);
 
 const WALLET_A_AMOUNT = 100;
 
@@ -51,8 +54,10 @@ describe("ERC20", () => {
 
   it("A should transfer to B", async () => {
     const amount = 10;
-    const tx = await token.transfer(walletB.address, amount);
-    expect(tx.hash).to.be.a("string");
+    // await expect(token.transfer(walletB.address, amount))
+    //   .to.emit(token, "Transfer")
+    //   .withArgs(walletA.address, walletB.address, amount);
+    await token.transfer(walletB.address, amount);
     const bBalance = await token.balanceOf(walletB.address);
     const aBalance = await token.balanceOf(walletA.address);
     expect(bBalance).to.equal(amount);
@@ -65,17 +70,27 @@ describe("ERC20", () => {
   });
 
   it("Should set approval for B", async () => {
-    await token.approve(walletB.address, 33);
+    const amount = 33;
+    // await expect(token.approve(walletB.address, amount);)
+    //   .to.emit(token, "Transfer")
+    //   .withArgs(walletA.address, walletB.address, amount);
+    await token.approve(walletB.address, amount);
     const allowance = await token.allowance(walletA.address, walletB.address);
-    expect(allowance).to.equal(33);
+    expect(allowance).to.equal(amount);
   });
 
   it("Should set approval and transfer", async () => {
-    await token.connect(walletB).approve(walletA.address, 5);
+    const amount = 5;
+    // await expect(token.connect(walletB).approve(walletA.address, amount))
+    //   .to.emit(token, "Transfer")
+    //   .withArgs(walletB.address, walletA.address, amount);
+    await token.connect(walletB).approve(walletA.address, amount);
     const bBalanceBefore = await token.balanceOf(walletB.address);
     const cBalanceBefore = await token.balanceOf(walletC.address);
-    await token.transferFrom(walletB.address, walletC.address, 5);
-    expect(await token.balanceOf(walletB.address)).to.equal(bBalanceBefore - 5);
-    expect(await token.balanceOf(walletC.address)).to.equal(cBalanceBefore + 5);
+    await token.transferFrom(walletB.address, walletC.address, amount);
+    const bBalanceAfter = await token.balanceOf(walletB.address);
+    expect(bBalanceAfter).to.equal(bBalanceBefore - amount);
+    const cBalanceAfter = await token.balanceOf(walletC.address);
+    expect(cBalanceAfter).to.equal(cBalanceBefore + amount);
   });
 });
