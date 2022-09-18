@@ -10,6 +10,7 @@ import {
   isCallExpression,
   isConditionalExpression,
   isElementAccessExpression,
+  isParenthesizedExpression,
   isExpressionStatement,
   isIdentifier,
   isIfStatement,
@@ -50,10 +51,7 @@ import {
   SkittlesExpressionType,
   SkittlesOperator,
 } from "../types/skittles-expression";
-import {
-  SkittlesStatement,
-  SkittlesStatementType,
-} from "../types/skittles-statement";
+import { SkittlesStatement, SkittlesStatementType } from "../types/skittles-statement";
 import getSkittlesExpression from "./get-skittles-expression";
 import getSkittlesType from "./get-skittles-type";
 import extractConditionalExpressionStatements from "./extract-conditional-expression-statements";
@@ -85,9 +83,9 @@ const getSkittlesStatements = (
     });
     return skittlesStatements.filter(isNotIgnored);
   }
-  return [
-    ...getSkittlesStatement(block, returnType, interfaces, constants, events),
-  ].filter(isNotIgnored);
+  return [...getSkittlesStatement(block, returnType, interfaces, constants, events)].filter(
+    isNotIgnored
+  );
 };
 
 const getReturnValue = (
@@ -203,9 +201,7 @@ const getAssignmentValue = (
       right: getSkittlesExpression(expression.right, interfaces, constants),
     };
   }
-  throw new Error(
-    `Unknown binary expression: ${expression.operatorToken.kind}`
-  );
+  throw new Error(`Unknown binary expression: ${expression.operatorToken.kind}`);
 };
 
 const getExpressionStatement = (
@@ -270,25 +266,15 @@ const getExpressionStatement = (
               if (isPropertyAssignment(property)) {
                 args.push({
                   name: getNodeName(property.name),
-                  value: getSkittlesExpression(
-                    property.initializer,
-                    interfaces,
-                    constants
-                  ),
+                  value: getSkittlesExpression(property.initializer, interfaces, constants),
                 });
               } else if (isShorthandPropertyAssignment(property)) {
                 args.push({
                   name: getNodeName(property.name),
-                  value: getSkittlesExpression(
-                    property.name,
-                    interfaces,
-                    constants
-                  ),
+                  value: getSkittlesExpression(property.name, interfaces, constants),
                 });
               } else {
-                throw new Error(
-                  `Unknown argument property type: ${property.kind}`
-                );
+                throw new Error(`Unknown argument property type: ${property.kind}`);
               }
             });
             return {
@@ -315,11 +301,7 @@ const getExpressionStatement = (
       return {
         statementType: SkittlesStatementType.Call,
         target,
-        element: getSkittlesExpression(
-          callExpression.expression,
-          interfaces,
-          constants
-        ),
+        element: getSkittlesExpression(callExpression.expression, interfaces, constants),
         parameters: expression.arguments.map((e) =>
           getSkittlesExpression(e, interfaces, constants)
         ),
@@ -377,8 +359,7 @@ const getThrowStatement = (
     const args = expression.arguments;
     if (!args) throw new Error("Throw statement has no arguments");
     if (args.length === 0) throw new Error("Throw statement has no arguments");
-    if (args.length > 1)
-      throw new Error("Throw statement has too many arguments");
+    if (args.length > 1) throw new Error("Throw statement has too many arguments");
     return {
       statementType: SkittlesStatementType.Throw,
       error: getSkittlesExpression(args[0], interfaces, constants),
@@ -452,12 +433,7 @@ const getBaseSkittlesStatement = (
     return getThrowStatement(node, interfaces, constants);
   }
   if (isExpression(node)) {
-    return getReturnStatement(
-      node as Expression,
-      returnType,
-      interfaces,
-      constants
-    );
+    return getReturnStatement(node as Expression, returnType, interfaces, constants);
   }
   if (isVariableStatement(node)) {
     return getVariableStatement(node, interfaces, constants);
@@ -466,20 +442,13 @@ const getBaseSkittlesStatement = (
     return getIdentifierStatement(node, returnType, interfaces, constants);
   }
   if (isConditionalExpression(node)) {
-    return getConditionalExpressionStatement(
-      node,
-      returnType,
-      interfaces,
-      constants
-    );
+    return getConditionalExpressionStatement(node, returnType, interfaces, constants);
   }
   if (isLiteralExpression(node)) {
-    return getReturnStatement(
-      node as Expression,
-      returnType,
-      interfaces,
-      constants
-    );
+    return getReturnStatement(node as Expression, returnType, interfaces, constants);
+  }
+  if (isParenthesizedExpression(node)) {
+    return getReturnStatement(node.expression, returnType, interfaces, constants);
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };
@@ -491,13 +460,7 @@ const getSkittlesStatement = (
   constants: SkittlesConstants,
   events: SkittlesEventType[]
 ): SkittlesStatement[] => {
-  const base = getBaseSkittlesStatement(
-    node,
-    returnType,
-    interfaces,
-    constants,
-    events
-  );
+  const base = getBaseSkittlesStatement(node, returnType, interfaces, constants, events);
   return extractConditionalExpressionStatements(base);
 };
 
