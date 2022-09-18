@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
-import SkittlesCache from "../types/skittles-cache";
+import SkittlesCache, { FileCache } from "../types/skittles-cache";
+import { FileData } from "../compiler/get-file-data";
 
 const CONTRCT_PATH = "./contracts";
 
@@ -27,6 +28,26 @@ export const getAllTypescriptFiles = () => {
         !file.endsWith(".spec.ts")
     )
     .map((file) => path.resolve(file));
+};
+
+export const updateCache = (fileData: FileData[]) => {
+  const files: Record<string, FileCache> = {};
+  fileData.forEach((file) => {
+    files[file.path] = {
+      hash: file.hash,
+      dependencies: file.dependencies,
+      ast: file.ast,
+      contracts: file.contracts,
+      interfaces: file.interfaces,
+      constants: file.constants,
+    };
+  });
+
+  const cache: SkittlesCache = {
+    version: "1",
+    files,
+  };
+  writeBuildFile("cache.json", JSON.stringify(cache, null, 2));
 };
 
 const DIR = "build";
