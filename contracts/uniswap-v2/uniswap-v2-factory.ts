@@ -1,8 +1,7 @@
 import { ZERO_ADDRESS } from "../../src/data/constants";
 import { address } from "../../src/types/core-types";
 
-// TODO Add events
-// TODO Increase line length and refactor to assing token0 and token1 at the same time
+// Refactor to assing token0 and token1 at the same time
 
 export class UniswapV2Factory {
   feeTo: address;
