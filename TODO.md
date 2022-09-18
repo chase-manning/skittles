@@ -1,4 +1,3 @@
-- Move hash to directly embedded so we don't do an unessicary variable declaration
 - Verify we get the same hash as the solidity compiler for the event selector
 - Test emitting all types
 
