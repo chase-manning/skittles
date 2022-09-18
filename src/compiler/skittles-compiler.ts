@@ -1,17 +1,10 @@
 import ora from "ora";
 import getAbi from "../abi/get-abi";
 import getBytecode from "../bytecode/get-bytecode";
-import addDependencies from "../dependencies/add-dependencies";
-import {
-  getAllContractFiles,
-  readFile,
-  writeBuildFile,
-} from "../helpers/file-helper";
-import { hashString } from "../helpers/string-helper";
-import getSkittlesContracts from "../skittles-contract/get-skittles-contracts";
-import SkittlesCache from "../types/skittles-cache";
+import { readFile, writeBuildFile } from "../helpers/file-helper";
 import SkittlesContract from "../types/skittles-contract";
 import getYul from "../yul/get-yul";
+import getFileData, { FileData } from "./get-file-data";
 
 const doTask = (task: string, fn: () => any) => {
   const spinner = ora(task).start();
@@ -21,31 +14,24 @@ const doTask = (task: string, fn: () => any) => {
 };
 
 const skittlesCompile = () => {
-  const files = doTask("Loading Contracts", () => getAllContractFiles());
-  const contracts = doTask("Processing", () => {
-    const cache = JSON.parse(readFile("build/cache.json"));
-    const newCache: SkittlesCache = { files: {} };
-    const contracts_: SkittlesContract[] = [];
-    files.forEach((file: string) => {
-      const fileContent = readFile(file);
-      const hash = hashString(fileContent);
-      const sc = getSkittlesContracts(file, hash, cache, fileContent);
-      contracts_.push(...sc);
-      newCache.files[file] = { hash, contracts: sc };
-    });
-    writeBuildFile("cache.json", JSON.stringify(newCache, null, 2));
-    return contracts_;
-  });
-  contracts.forEach((contract: SkittlesContract) => {
-    const { name } = contract;
-    doTask(`Compiling ${name}`, () => {
-      const newClass = addDependencies(contract, contracts);
-      const abi = getAbi(newClass);
-      writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
-      const yul = getYul(newClass, abi);
-      writeBuildFile(`${name}.yul`, yul, "yul");
-      const bytecode = getBytecode(name, yul);
-      writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
+  // Loading cache
+  const cache = JSON.parse(readFile("build/cache.json"));
+
+  // Getting file data
+  const fileData: FileData[] = doTask("Processing Files", () => getFileData(cache));
+
+  // Compiling Contracts
+  fileData.forEach((fd) => {
+    fd.contracts.forEach((contract: SkittlesContract) => {
+      const { name } = contract;
+      doTask(`Compiling ${name}`, () => {
+        const abi = getAbi(contract);
+        writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
+        const yul = getYul(contract, abi);
+        writeBuildFile(`${name}.yul`, yul, "yul");
+        const bytecode = getBytecode(name, yul);
+        writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
+      });
     });
   });
 };

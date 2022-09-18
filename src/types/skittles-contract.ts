@@ -49,7 +49,7 @@ export type SkittlesInterfaces = Record<string, SkittlesInterface>;
 export type SkittlesConstants = Record<string, SkittlesExpression>;
 
 interface SkittlesContract {
-  classExtensions: string[];
+  extensions: string[];
   events: SkittlesEventType[];
   constants: SkittlesConstants;
   interfaces: SkittlesInterfaces;

@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import SkittlesCache from "../types/skittles-cache";
 
 const CONTRCT_PATH = "./contracts";
 
@@ -16,27 +17,21 @@ export const getAllFilesInDirectory = (dir: string) => {
   return files;
 };
 
-export const getAllContractFiles = (): string[] => {
+export const getAllTypescriptFiles = () => {
   return getAllFilesInDirectory(CONTRCT_PATH)
-    .filter((file) => {
-      return fs.statSync(file).isFile();
-    })
-    .filter((file) => {
-      return (
+    .filter(
+      (file) =>
+        fs.statSync(file).isFile() &&
         file.endsWith(".ts") &&
         !file.endsWith(".d.ts") &&
         !file.endsWith(".spec.ts")
-      );
-    });
+    )
+    .map((file) => path.resolve(file));
 };
 
 const DIR = "build";
 
-export const writeBuildFile = (
-  fileName: string,
-  content: string,
-  subDirectory?: string
-) => {
+export const writeBuildFile = (fileName: string, content: string, subDirectory?: string) => {
   const directory = subDirectory ? `${DIR}/${subDirectory}` : DIR;
   fs.mkdirSync(directory, { recursive: true });
   fs.writeFileSync(`${directory}/${fileName}`, content);
@@ -70,8 +65,12 @@ export const getContractName = (fileName: string) => {
   const file = fs.readFileSync(fileName, { encoding: "utf8" });
   const contractIndex = file.indexOf("class");
   if (contractIndex === -1) throw new Error(`No contract in file ${file}`);
-  return file.substring(
-    contractIndex + 6,
-    file.indexOf(" ", contractIndex + 6)
-  );
+  return file.substring(contractIndex + 6, file.indexOf(" ", contractIndex + 6));
+};
+
+export const relativePathToAbsolute = (importPath: string, sourcePath: string) => {
+  if (importPath.startsWith(".")) {
+    return path.resolve(path.dirname(sourcePath), importPath) + ".ts";
+  }
+  return importPath;
 };
