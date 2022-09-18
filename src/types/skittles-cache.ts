@@ -2,7 +2,6 @@ import { SourceFile } from "typescript";
 import SkittlesContract, { SkittlesConstants, SkittlesInterfaces } from "./skittles-contract";
 
 export interface FileCache {
-  path: string;
   hash: number;
   dependencies: string[];
   ast: SourceFile;
