@@ -1,5 +1,11 @@
 import { address } from "../../src/types/core-types";
 
+export interface TransferEvent {
+  from: address;
+  to: address;
+  amount: number;
+}
+
 export interface IERC20 {
   decimals: number;
   symbol: string;

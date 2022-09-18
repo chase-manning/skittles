@@ -1,13 +1,5 @@
 import { address, msg, SkittlesEvent } from "../../src/types/core-types";
-import { IERC20 } from "./ierc20";
-
-// TODO Move events to interrace
-
-interface TransferEvent {
-  from: address;
-  to: address;
-  amount: number;
-}
+import { IERC20, TransferEvent } from "./ierc20";
 
 interface ApprovalEvent {
   owner: address;
