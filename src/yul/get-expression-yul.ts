@@ -73,9 +73,7 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
         case SkittlesExpressionType.Storage:
           return `${value.variable}LengthStorage()`;
         default:
-          throw new Error(
-            `Unsupported length expression type ${value.expressionType}`
-          );
+          throw new Error(`Unsupported length expression type ${value.expressionType}`);
       }
     default:
       throw new Error(`Unsupported expression: ${expression.expressionType}`);

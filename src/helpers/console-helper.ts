@@ -18,24 +18,12 @@ export const logSkittles = () => {
   lines.forEach((line) => {
     console.log(
       chalk.hex("#de3c3c")(line.substring(0, letterBreakpoints[0])) +
-        chalk.hex("#deb53c")(
-          line.substring(letterBreakpoints[0], letterBreakpoints[1])
-        ) +
-        chalk.hex("#8dde3c")(
-          line.substring(letterBreakpoints[1], letterBreakpoints[2])
-        ) +
-        chalk.hex("#3cde64")(
-          line.substring(letterBreakpoints[2], letterBreakpoints[3])
-        ) +
-        chalk.hex("#3cdede")(
-          line.substring(letterBreakpoints[3], letterBreakpoints[4])
-        ) +
-        chalk.hex("#3c64de")(
-          line.substring(letterBreakpoints[4], letterBreakpoints[5])
-        ) +
-        chalk.hex("#8d3cde")(
-          line.substring(letterBreakpoints[5], letterBreakpoints[6])
-        ) +
+        chalk.hex("#deb53c")(line.substring(letterBreakpoints[0], letterBreakpoints[1])) +
+        chalk.hex("#8dde3c")(line.substring(letterBreakpoints[1], letterBreakpoints[2])) +
+        chalk.hex("#3cde64")(line.substring(letterBreakpoints[2], letterBreakpoints[3])) +
+        chalk.hex("#3cdede")(line.substring(letterBreakpoints[3], letterBreakpoints[4])) +
+        chalk.hex("#3c64de")(line.substring(letterBreakpoints[4], letterBreakpoints[5])) +
+        chalk.hex("#8d3cde")(line.substring(letterBreakpoints[5], letterBreakpoints[6])) +
         chalk.hex("#de3cb5")(line.substring(letterBreakpoints[6]))
     );
   });

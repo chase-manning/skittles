@@ -25,8 +25,7 @@ export interface SkittlesEmitEventStatement extends SkittlesBaseStatement {
   values: SkittlesExpression[];
 }
 
-export interface SkittlesVariableDeclarationStatement
-  extends SkittlesBaseStatement {
+export interface SkittlesVariableDeclarationStatement extends SkittlesBaseStatement {
   statementType: SkittlesStatementType.VariableDeclaration;
   variable: string;
   value: SkittlesExpression;

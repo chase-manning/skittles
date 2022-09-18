@@ -4,10 +4,7 @@ import { addToSection } from "../helpers/yul-helper";
 import SkittlesContract, { SkittlesVariable } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
 import { SkittlesExpressionType } from "../types/skittles-expression";
-import {
-  SkittlesStatement,
-  SkittlesStatementType,
-} from "../types/skittles-statement";
+import { SkittlesStatement, SkittlesStatementType } from "../types/skittles-statement";
 import getExpressionYul from "./get-expression-yul";
 
 const _addStorageAccess = (
@@ -27,23 +24,19 @@ const _addStorageAccess = (
         throw new Error("No constructor to get storage value");
       }
 
-      contract.constructor.statements.forEach(
-        (statement: SkittlesStatement) => {
-          const { statementType } = statement;
-          if (statementType === SkittlesStatementType.StorageUpdate) {
-            if (statement.variable === name) {
-              if (
-                statement.value.expressionType !== SkittlesExpressionType.Value
-              ) {
-                throw new Error(
-                  "Issue setting readonly from constructor `setimmutable` not implemented yet"
-                );
-              }
-              value = statement.value;
+      contract.constructor.statements.forEach((statement: SkittlesStatement) => {
+        const { statementType } = statement;
+        if (statementType === SkittlesStatementType.StorageUpdate) {
+          if (statement.variable === name) {
+            if (statement.value.expressionType !== SkittlesExpressionType.Value) {
+              throw new Error(
+                "Issue setting readonly from constructor `setimmutable` not implemented yet"
+              );
             }
+            value = statement.value;
           }
         }
-      );
+      });
     }
     if (!value) throw new Error("No storage update to get storage value");
     return addToSection(yul, section, [
@@ -106,12 +99,7 @@ const addStorageAccess = (
   contract: SkittlesContract
 ) => {
   return _addStorageAccess(
-    _addStorageAccess(
-      yul,
-      property,
-      YulSection.ConstructorStorageAccess,
-      contract
-    ),
+    _addStorageAccess(yul, property, YulSection.ConstructorStorageAccess, contract),
     property,
     YulSection.StorageAccess,
     contract

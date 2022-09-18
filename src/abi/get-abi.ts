@@ -11,9 +11,7 @@ const getTypeString = (type: SkittlesType): string => {
   return type.kind;
 };
 
-const getConstructorAbi = (
-  constructor?: SkittlesConstructor
-): AbiFunction[] => {
+const getConstructorAbi = (constructor?: SkittlesConstructor): AbiFunction[] => {
   if (!constructor) return [];
   constructor.parameters = constructor.parameters || [];
   return [

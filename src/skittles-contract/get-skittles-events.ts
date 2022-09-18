@@ -1,9 +1,6 @@
 import { PropertyDeclaration, SyntaxKind, TypeNode } from "typescript";
 import { getNodeName } from "../helpers/ast-helper";
-import {
-  SkittlesEventType,
-  SkittlesInterfaces,
-} from "../types/skittles-contract";
+import { SkittlesEventType, SkittlesInterfaces } from "../types/skittles-contract";
 
 export const isEvent = (type: TypeNode): boolean => {
   const { kind } = type;

@@ -15,9 +15,7 @@ import {
 } from "../types/skittles-statement";
 import getExpressionYul from "./get-expression-yul";
 
-const getStorageUpdateYul = (
-  statement: SkittlesStorageUpdateStatement
-): string[] => {
+const getStorageUpdateYul = (statement: SkittlesStorageUpdateStatement): string[] => {
   const { variable, value } = statement;
   return [`${variable}Set(${getExpressionYul(value)})`];
 };
@@ -34,31 +32,21 @@ const getReturnYul = (statement: SkittlesReturnStatement): string[] => {
   return [`v := ${getExpressionYul(value)}`];
 };
 
-const getMappingUpdateYul = (
-  statement: SkittlesMappingUpdateStatement
-): string[] => {
+const getMappingUpdateYul = (statement: SkittlesMappingUpdateStatement): string[] => {
   const { variable, items, value } = statement;
   const variables = items.map((item) => getExpressionYul(item));
-  return [
-    `${variable}Set(${variables.join(", ")}, ${getExpressionYul(value)})`,
-  ];
+  return [`${variable}Set(${variables.join(", ")}, ${getExpressionYul(value)})`];
 };
 
 const getCallYul = (statement: SkittlesCallStatement): string[] => {
   const { target, parameters, element } = statement;
   switch (element.expressionType) {
     case SkittlesExpressionType.This:
-      return [
-        `${target}Function(${parameters.map(getExpressionYul).join(", ")})`,
-      ];
+      return [`${target}Function(${parameters.map(getExpressionYul).join(", ")})`];
     case SkittlesExpressionType.Storage:
       switch (target) {
         case "push":
-          return [
-            `${element.variable}Push(${parameters
-              .map(getExpressionYul)
-              .join()})`,
-          ];
+          return [`${element.variable}Push(${parameters.map(getExpressionYul).join()})`];
         default:
           throw new Error(`Unsupported storage function ${target}`);
       }
@@ -96,16 +84,12 @@ const getThrowYul = (statement: SkittlesThrowStatement): string[] => {
   return [`revert256(${getExpressionYul(error)})`];
 };
 
-const getVariableDeclarationYul = (
-  statement: SkittlesVariableDeclarationStatement
-): string[] => {
+const getVariableDeclarationYul = (statement: SkittlesVariableDeclarationStatement): string[] => {
   const { variable, value } = statement;
   return [`let ${variable}Var := ${getExpressionYul(value)}`];
 };
 
-const getVariableUpdateYul = (
-  statement: SkittlesVariableUpdateStatement
-): string[] => {
+const getVariableUpdateYul = (statement: SkittlesVariableUpdateStatement): string[] => {
   const { variable, value } = statement;
   return [`${variable}Var := ${getExpressionYul(value)}`];
 };
@@ -115,9 +99,7 @@ const getEmitEventYul = (statement: SkittlesEmitEventStatement): string[] => {
   const hashVarName = `${event.label}Hash`;
   return [
     `let ${hashVarName} := ${getEventSelector(event)}`,
-    ...values.map(
-      (v, index: number) => `mstore(${index * 32}, ${getExpressionYul(v)})`
-    ),
+    ...values.map((v, index: number) => `mstore(${index * 32}, ${getExpressionYul(v)})`),
     `log1(0, ${32 * values.length}, ${hashVarName})`,
   ];
 };

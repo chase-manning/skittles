@@ -18,8 +18,7 @@ const _addStorageLayout = (
   if (type.kind === SkittlesTypeKind.Mapping) {
     const matchingMappings = contract.variables.filter((v) => {
       return (
-        v.type.kind === SkittlesTypeKind.Mapping &&
-        v.type.inputs.length === type.inputs.length
+        v.type.kind === SkittlesTypeKind.Mapping && v.type.inputs.length === type.inputs.length
       );
     });
     const index = matchingMappings.findIndex((v) => v.name === property.name);
@@ -28,9 +27,7 @@ const _addStorageLayout = (
     const extraVars = variables.split(", ").slice(1);
     const extraVarsYul = [
       `mstore(0, p)`,
-      ...extraVars.map(
-        (v: string, index: number) => `mstore(0x${index * 20}, ${v})`
-      ),
+      ...extraVars.map((v: string, index: number) => `mstore(0x${index * 20}, ${v})`),
       `p := keccak256(0, 0x${type.inputs.length * 20})`,
     ];
     return {
@@ -46,12 +43,8 @@ const _addStorageLayout = (
 
   // Handling Arrays
   if (type.kind === SkittlesTypeKind.Array) {
-    yul = addToSection(yul, section, [
-      `function ${name}LengthPos() -> p { p := ${slot} }`,
-    ]);
-    yul = addToSection(yul, section, [
-      `function ${name}ArrayPos() -> p { p := ${slot + 1} }`,
-    ]);
+    yul = addToSection(yul, section, [`function ${name}LengthPos() -> p { p := ${slot} }`]);
+    yul = addToSection(yul, section, [`function ${name}ArrayPos() -> p { p := ${slot + 1} }`]);
     return {
       yul,
       slot: slot + 2 ** 64,
@@ -60,9 +53,7 @@ const _addStorageLayout = (
 
   // Handle normal variables
   return {
-    yul: addToSection(yul, section, [
-      `function ${name}Pos() -> p { p := ${slot} }`,
-    ]),
+    yul: addToSection(yul, section, [`function ${name}Pos() -> p { p := ${slot} }`]),
     slot: slot + 1,
   };
 };
@@ -86,13 +77,7 @@ const addStorageLayout = (
     slot
   );
 
-  return _addStorageLayout(
-    response.yul,
-    property,
-    contract,
-    YulSection.StorageLayout,
-    slot
-  );
+  return _addStorageLayout(response.yul, property, contract, YulSection.StorageLayout, slot);
 };
 
 export default addStorageLayout;

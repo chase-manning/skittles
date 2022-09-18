@@ -5,11 +5,7 @@ import { SkittlesVariable } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
 import { decoderFunctions, returnFunctions } from "./yul-constants";
 
-const addPropertyDispatcher = (
-  yul: string[],
-  abi: any[],
-  property: SkittlesVariable
-): string[] => {
+const addPropertyDispatcher = (yul: string[], abi: any[], property: SkittlesVariable): string[] => {
   if (property.private) return yul;
   const { name, type } = property;
   const selector = getFunctionSelector(abi, name);
@@ -32,9 +28,7 @@ const addPropertyDispatcher = (
   if (type.kind === SkittlesTypeKind.Array) {
     return addToSection(yul, YulSection.Dispatchers, [
       `case ${selector} /* "${name}(uint256)" */ {`,
-      `${
-        returnFunctions[type.itemType.kind]
-      }(${name}IndexStorage(decodeAsUint(0)))`,
+      `${returnFunctions[type.itemType.kind]}(${name}IndexStorage(decodeAsUint(0)))`,
       `}`,
     ]);
   }

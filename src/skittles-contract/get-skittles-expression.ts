@@ -19,20 +19,10 @@ import {
   PropertyAccessExpression,
   SyntaxKind,
 } from "typescript";
-import {
-  getNodeName,
-  isFalseKeyword,
-  isTrueKeyword,
-} from "../helpers/ast-helper";
-import {
-  SkittlesConstants,
-  SkittlesInterfaces,
-} from "../types/skittles-contract";
+import { getNodeName, isFalseKeyword, isTrueKeyword } from "../helpers/ast-helper";
+import { SkittlesConstants, SkittlesInterfaces } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
-import {
-  SkittlesExpression,
-  SkittlesExpressionType,
-} from "../types/skittles-expression";
+import { SkittlesExpression, SkittlesExpressionType } from "../types/skittles-expression";
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 
@@ -77,11 +67,7 @@ const getPropertyAccessExpression = (
       case "length":
         return {
           expressionType: SkittlesExpressionType.Length,
-          value: getSkittlesExpression(
-            expression.expression,
-            interfaces,
-            constants
-          ),
+          value: getSkittlesExpression(expression.expression, interfaces, constants),
         };
       default:
         throw new Error(`Unknown property access property: ${property}`);
@@ -111,17 +97,14 @@ const getPropertyAccessExpression = (
           type: {
             kind: SkittlesTypeKind.Number,
           },
-          value:
-            "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          value: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         };
       }
       throw new Error(`Could not get value for ${element}`);
     }
     throw new Error(`Unknown environment: ${environment}`);
   }
-  throw new Error(
-    `Property access expression not supported ${expression.kind}`
-  );
+  throw new Error(`Property access expression not supported ${expression.kind}`);
 };
 
 const getBinaryExpression = (
@@ -145,9 +128,7 @@ const getElementAccessExpression = (
   let e: Expression = expression;
   const items: SkittlesExpression[] = [];
   while (isElementAccessExpression(e)) {
-    items.unshift(
-      getSkittlesExpression(e.argumentExpression, interfaces, constants)
-    );
+    items.unshift(getSkittlesExpression(e.argumentExpression, interfaces, constants));
     e = e.expression;
   }
 
@@ -192,9 +173,7 @@ const getNewExpression = (
     expressionType: SkittlesExpressionType.Deploy,
     contract: getNodeName(expression.expression),
     parameters:
-      expression.arguments?.map((arg) =>
-        getSkittlesExpression(arg, interfaces, constants)
-      ) || [],
+      expression.arguments?.map((arg) => getSkittlesExpression(arg, interfaces, constants)) || [],
   };
 };
 
@@ -205,21 +184,9 @@ const getConditionalExpression = (
 ): SkittlesExpression => {
   return {
     expressionType: SkittlesExpressionType.Conditional,
-    condition: getSkittlesExpression(
-      expression.condition,
-      interfaces,
-      constants
-    ),
-    trueValue: getSkittlesExpression(
-      expression.whenTrue,
-      interfaces,
-      constants
-    ),
-    falseValue: getSkittlesExpression(
-      expression.whenFalse,
-      interfaces,
-      constants
-    ),
+    condition: getSkittlesExpression(expression.condition, interfaces, constants),
+    trueValue: getSkittlesExpression(expression.whenTrue, interfaces, constants),
+    falseValue: getSkittlesExpression(expression.whenFalse, interfaces, constants),
   };
 };
 

@@ -1,9 +1,5 @@
 import { PropertyDeclaration } from "typescript";
-import {
-  getNodeName,
-  isNodeImmutable,
-  isNodePrivate,
-} from "../helpers/ast-helper";
+import { getNodeName, isNodeImmutable, isNodePrivate } from "../helpers/ast-helper";
 import {
   SkittlesConstants,
   SkittlesInterfaces,

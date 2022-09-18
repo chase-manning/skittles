@@ -1,7 +1,4 @@
-import SkittlesContract, {
-  SkittlesMethod,
-  SkittlesVariable,
-} from "../types/skittles-contract";
+import SkittlesContract, { SkittlesMethod, SkittlesVariable } from "../types/skittles-contract";
 
 import { Abi } from "../types/abi-types";
 import formatYul from "./format-yul";

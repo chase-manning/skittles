@@ -10,9 +10,7 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   const returnVariables = () => {
     if (returns.kind === SkittlesTypeKind.Void) return "";
     if (returns.kind === SkittlesTypeKind.Interface) {
-      return `-> ${returns.interface.elements
-        .map((e) => `_${e.name}Var`)
-        .join(", ")} `;
+      return `-> ${returns.interface.elements.map((e) => `_${e.name}Var`).join(", ")} `;
     }
     return "-> v ";
   };

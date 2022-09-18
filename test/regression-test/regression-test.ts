@@ -151,10 +151,7 @@ describe("Regression Test", () => {
 
   it("Should set approval", async () => {
     await regressionTest.setApproval(walletB.address, 7);
-    const approval = await regressionTest.getApproval(
-      walletA.address,
-      walletB.address
-    );
+    const approval = await regressionTest.getApproval(walletA.address, walletB.address);
     expect(approval).to.equal(7);
   });
 
@@ -170,9 +167,7 @@ describe("Regression Test", () => {
   });
 
   it("Should get Difficulty", async () => {
-    const difficulty = Number(
-      (await regressionTest.getDifficulty()).toString()
-    );
+    const difficulty = Number((await regressionTest.getDifficulty()).toString());
     expect(difficulty).to.be.greaterThan(10_000);
     expect(difficulty).to.be.lessThan(1_000_000);
   });
@@ -314,9 +309,7 @@ describe("Regression Test", () => {
   });
 
   it("Should get public mapping", async () => {
-    expect(await regressionTest.publicMapping(walletA.address)).to.equal(
-      7890 * 2
-    );
+    expect(await regressionTest.publicMapping(walletA.address)).to.equal(7890 * 2);
   });
 
   it("Should get public nested mapping", async () => {
@@ -336,12 +329,9 @@ describe("Regression Test", () => {
       number: number;
       address: address;
     }
-    const response: NumberAndAddress =
-      await regressionTest.getNumberAndAddress();
+    const response: NumberAndAddress = await regressionTest.getNumberAndAddress();
     expect(response.number).to.equal(123);
-    expect(response.address).to.equal(
-      "0x1234567890123456789012345678901234567890"
-    );
+    expect(response.address).to.equal("0x1234567890123456789012345678901234567890");
   });
 
   it("Should error getting address from empty array", async () => {
@@ -373,9 +363,7 @@ describe("Regression Test", () => {
   });
 
   it("Should get zero address from import", async () => {
-    expect(await regressionTest.getZeroAddressFromImport()).to.equal(
-      ZERO_ADDRESS
-    );
+    expect(await regressionTest.getZeroAddressFromImport()).to.equal(ZERO_ADDRESS);
   });
 
   it("Should get other address from constant", async () => {
@@ -385,9 +373,7 @@ describe("Regression Test", () => {
   });
 
   it("Should get zero address with one line", async () => {
-    expect(await regressionTest.getZeroAddressWithOneLine()).to.equal(
-      ZERO_ADDRESS
-    );
+    expect(await regressionTest.getZeroAddressWithOneLine()).to.equal(ZERO_ADDRESS);
   });
 
   it("Should error from mul overflow", async () => {

@@ -2,19 +2,13 @@ import SkittlesContract, { SkittlesMethod } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
 import { SkittlesStatementType } from "../types/skittles-statement";
 
-const getMethod = (
-  target: string,
-  contract: SkittlesContract
-): SkittlesMethod => {
+const getMethod = (target: string, contract: SkittlesContract): SkittlesMethod => {
   const method = contract.methods.find((m) => m.name === target);
   if (!method) throw new Error(`Method ${target} not found`);
   return method;
 };
 
-const methodModifiesState = (
-  method: SkittlesMethod,
-  contract: SkittlesContract
-): boolean => {
+const methodModifiesState = (method: SkittlesMethod, contract: SkittlesContract): boolean => {
   if (method.returns.kind === SkittlesTypeKind.Void) return true;
   for (const statement of method.statements) {
     const { statementType } = statement;

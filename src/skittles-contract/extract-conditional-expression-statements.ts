@@ -1,11 +1,5 @@
-import {
-  SkittlesExpression,
-  SkittlesExpressionType,
-} from "../types/skittles-expression";
-import {
-  SkittlesStatement,
-  SkittlesStatementType,
-} from "../types/skittles-statement";
+import { SkittlesExpression, SkittlesExpressionType } from "../types/skittles-expression";
+import { SkittlesStatement, SkittlesStatementType } from "../types/skittles-statement";
 
 interface StatementExpressionConfig {
   expressions: string[];
@@ -60,16 +54,12 @@ interface ExtractedData {
   extractedExpression: SkittlesExpression;
 }
 
-const extractConditionalExpressions = (
-  expression: SkittlesExpression
-): ExtractedData => {
+const extractConditionalExpressions = (expression: SkittlesExpression): ExtractedData => {
   if (expression.expressionType === SkittlesExpressionType.Conditional) {
     const conditionData = extractConditionalExpressions(expression.condition);
     const trueData = extractConditionalExpressions(expression.trueValue);
     const falseData = extractConditionalExpressions(expression.falseValue);
-    const variableName = `conditionalExpression${Math.floor(
-      Math.random() * 1000000000
-    )}`;
+    const variableName = `conditionalExpression${Math.floor(Math.random() * 1000000000)}`;
     return {
       variableDeclarations: [
         ...conditionData.variableDeclarations,
@@ -117,13 +107,11 @@ const getNewStatements = (
     statement[expression] = data.extractedExpression;
   });
   config.expressionLists.forEach((expressionList) => {
-    statement[expressionList].forEach(
-      (expression: SkittlesExpression, index: number) => {
-        const data = extractConditionalExpressions(expression);
-        newStatements.push(...data.variableDeclarations);
-        statement[expressionList][index] = data.extractedExpression;
-      }
-    );
+    statement[expressionList].forEach((expression: SkittlesExpression, index: number) => {
+      const data = extractConditionalExpressions(expression);
+      newStatements.push(...data.variableDeclarations);
+      statement[expressionList][index] = data.extractedExpression;
+    });
   });
   newStatements.push(statement);
   return newStatements;
@@ -143,9 +131,7 @@ const extractConditionalExpressionStatements = (
 ): SkittlesStatement[] => {
   const config = statementExpressionConfig[statement.statementType];
   if (!config)
-    throw new Error(
-      `missing extract conditional expression statements config ${statement}`
-    );
+    throw new Error(`missing extract conditional expression statements config ${statement}`);
   return getNewStatements(statement, config);
 };
 

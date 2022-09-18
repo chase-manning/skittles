@@ -13,9 +13,7 @@ export const getFunctionSelector = (abi: any[], func: string): string => {
   const iface = new utils.Interface(abi);
   const abiFunction = abi.find((f) => f.name === func);
   if (!abiFunction) throw new Error(`Could not find function ${func}`);
-  const params = abiFunction.inputs.map(
-    (input: AbiParameter) => exampleValues[input.type]
-  );
+  const params = abiFunction.inputs.map((input: AbiParameter) => exampleValues[input.type]);
   const data = iface.encodeFunctionData(func, params);
   return data.substring(0, 10);
 };

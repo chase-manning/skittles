@@ -16,14 +16,12 @@ const getSkittlesConstructor = (
   events: SkittlesEventType[]
 ): SkittlesConstructor => {
   return {
-    parameters: astConstructor.parameters.map(
-      (parameter: ParameterDeclaration) => {
-        return {
-          name: getNodeName(parameter),
-          type: getSkittlesType(parameter.type, interfaces),
-        };
-      }
-    ),
+    parameters: astConstructor.parameters.map((parameter: ParameterDeclaration) => {
+      return {
+        name: getNodeName(parameter),
+        type: getSkittlesType(parameter.type, interfaces),
+      };
+    }),
     statements: getSkittlesStatements(
       astConstructor.body,
       getSkittlesType(astConstructor.type, interfaces),

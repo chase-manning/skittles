@@ -19,10 +19,7 @@ import {
 import getSkittlesStatements from "./get-skittles-statements";
 import getSkittlesType from "./get-skittles-type";
 
-const getSkittlesParameters = (
-  node: Node,
-  interfaces: SkittlesInterfaces
-): SkittlesParameter[] => {
+const getSkittlesParameters = (node: Node, interfaces: SkittlesInterfaces): SkittlesParameter[] => {
   const inputs: SkittlesParameter[] = [];
   forEachChild(node, (node) => {
     if (isParameter(node)) {

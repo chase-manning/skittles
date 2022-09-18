@@ -5,11 +5,7 @@ import { SkittlesMethod, SkittlesParameter } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
 import { decoderFunctions, returnFunctions } from "./yul-constants";
 
-const addMethodDispatcher = (
-  yul: string[],
-  abi: any[],
-  method: SkittlesMethod
-): string[] => {
+const addMethodDispatcher = (yul: string[], abi: any[], method: SkittlesMethod): string[] => {
   if (method.private) return yul;
   const { name, parameters, returns } = method;
   const selector = getFunctionSelector(abi, name);
@@ -19,8 +15,7 @@ const addMethodDispatcher = (
   }
   const functionInputs = parameters
     .map(
-      (input: SkittlesParameter, index: number) =>
-        `${decoderFunctions[input.type.kind]}(${index})`
+      (input: SkittlesParameter, index: number) => `${decoderFunctions[input.type.kind]}(${index})`
     )
     .join(", ");
 
@@ -38,9 +33,7 @@ const addMethodDispatcher = (
     if (returns.kind === SkittlesTypeKind.Void) {
       return [`${name}Function(${functionInputs})`];
     }
-    return [
-      `${returnFunctions[returns.kind]}(${name}Function(${functionInputs}))`,
-    ];
+    return [`${returnFunctions[returns.kind]}(${name}Function(${functionInputs}))`];
   };
 
   return addToSection(yul, YulSection.Dispatchers, [
