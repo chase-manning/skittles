@@ -6,13 +6,16 @@ import {
   isBinaryExpression,
   isClassDeclaration,
   isElementAccessExpression,
+  isImportDeclaration,
   isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isPropertyDeclaration,
   Node,
   PropertyDeclaration,
+  SourceFile,
   SyntaxKind,
 } from "typescript";
+import { relativePathToAbsolute } from "./file-helper";
 
 export const getClassNodes = (node: Node): ClassDeclaration[] => {
   if (isClassDeclaration(node)) return [node];
@@ -55,10 +58,7 @@ export const isFalseKeyword = (node: Node): boolean => {
 export const isNodePrivate = (node: Node): boolean => {
   let isPrivate = false;
   forEachChild(node, (node) => {
-    if (
-      node.kind === SyntaxKind.PrivateKeyword ||
-      node.kind === SyntaxKind.ProtectedKeyword
-    ) {
+    if (node.kind === SyntaxKind.PrivateKeyword || node.kind === SyntaxKind.ProtectedKeyword) {
       isPrivate = true;
     }
   });
@@ -94,4 +94,17 @@ export const isExpression = (node: Node): boolean => {
     isElementAccessExpression(node) ||
     isPrefixUnaryExpression(node)
   );
+};
+
+export const getDependencies = (ast: SourceFile, sourceFile: string): string[] => {
+  let dependencies: string[] = [];
+  forEachChild(ast, (child) => {
+    if (!isImportDeclaration(child)) return;
+    const module = getNodeName(child.moduleSpecifier);
+    if (module === "skittles") return;
+    const absolutePath = relativePathToAbsolute(module, sourceFile);
+    if (absolutePath.includes("core-types.ts")) return; // TODO Remove this
+    dependencies.push(absolutePath);
+  });
+  return dependencies;
 };
