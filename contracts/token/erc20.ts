@@ -1,11 +1,5 @@
 import { address, msg, SkittlesEvent } from "../../src/types/core-types";
-import { IERC20, TransferEvent } from "./ierc20";
-
-interface ApprovalEvent {
-  owner: address;
-  spender: address;
-  amount: number;
-}
+import { ApprovalEvent, IERC20, TransferEvent } from "./ierc20";
 
 export class ERC20 implements IERC20 {
   readonly decimals: number = 18;

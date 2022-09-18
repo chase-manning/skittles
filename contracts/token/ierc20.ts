@@ -6,6 +6,12 @@ export interface TransferEvent {
   amount: number;
 }
 
+export interface ApprovalEvent {
+  owner: address;
+  spender: address;
+  amount: number;
+}
+
 export interface IERC20 {
   decimals: number;
   symbol: string;
