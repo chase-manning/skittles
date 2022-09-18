@@ -1,6 +1,3 @@
-- Add events to all contracts
-- Add tests for all contract events (note we are missing some for ERC20)
-- Move events into separate functions and call them
 - Move hash to directly embedded so we don't do an unessicary variable declaration
 - Verify we get the same hash as the solidity compiler for the event selector
 - Test emitting all types

@@ -10,6 +10,7 @@ import addMethodDispatcher from "./add-yul-method-dispatcher";
 import addMethodFunction from "./add-yul-method-function";
 import addStorageAccess from "./add-yul-storage-access";
 import addValueInitializations from "./add-yul-value-initialzations";
+import addEvents from "./add-yul-events";
 
 const getYul = (contract: SkittlesContract, abi: Abi) => {
   // Getting base data
@@ -33,6 +34,9 @@ const getYul = (contract: SkittlesContract, abi: Abi) => {
     yul = addMethodDispatcher(yul, abi, method);
     yul = addMethodFunction(yul, method);
   });
+
+  // Adding events
+  yul = addEvents(yul, contract.events);
 
   // Formatting
   return formatYul(yul);

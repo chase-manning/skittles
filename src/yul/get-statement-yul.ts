@@ -96,12 +96,7 @@ const getVariableUpdateYul = (statement: SkittlesVariableUpdateStatement): strin
 
 const getEmitEventYul = (statement: SkittlesEmitEventStatement): string[] => {
   const { event, values } = statement;
-  const hashVarName = `${event.label}Hash`;
-  return [
-    `let ${hashVarName} := ${getEventSelector(event)}`,
-    ...values.map((v, index: number) => `mstore(${index * 32}, ${getExpressionYul(v)})`),
-    `log1(0, ${32 * values.length}, ${hashVarName})`,
-  ];
+  return [`emit${event.label}Event(${values.map(getExpressionYul).join(", ")})`];
 };
 
 const getStatementYul = (statement: SkittlesStatement): string[] => {
