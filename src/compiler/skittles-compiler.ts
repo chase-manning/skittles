@@ -1,7 +1,7 @@
 import ora from "ora";
 import getAbi from "../abi/get-abi";
 import getBytecode from "../bytecode/get-bytecode";
-import { readFile, writeBuildFile } from "../helpers/file-helper";
+import { readFile, updateCache, writeBuildFile } from "../helpers/file-helper";
 import SkittlesContract from "../types/skittles-contract";
 import getYul from "../yul/get-yul";
 import getFileData, { FileData } from "./get-file-data";
@@ -19,6 +19,9 @@ const skittlesCompile = () => {
 
   // Getting file data
   const fileData: FileData[] = doTask("Processing Files", () => getFileData(cache));
+
+  // Updating cache
+  updateCache(fileData);
 
   // Compiling Contracts
   fileData.forEach((fd) => {

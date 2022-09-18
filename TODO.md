@@ -1,7 +1,5 @@
-- Save new cache again
-- Check cache version and delete if old
-- Run some tests where the cache isn't cleared
-- Add support for importing events from another file
+- Add test for implements and extends on the same contract
+
 - Add events to all contracts
 - Add tests for all contract events (note we are missing some for ERC20)
 - Move events into separate functions and call them
@@ -11,6 +9,7 @@
 
 === EVENTS DONE ===
 
+- Check cache version and delete if old
 - Add support for default exports and imports of interfaces and update them
 - Add support for default export and imports of contracts and update them
 - Remove constructor from ERC20, and add a ERC20 wrapper just for testing
@@ -21,7 +20,6 @@
 
 === UNISWAP V2 DONE ===
 
-- Include dependencies in cache refresh
 - Add config for things like running optimizer
 - Add strict eslinting for typescript files and include in init and docs
 - add init function
@@ -30,6 +28,7 @@
 
 === CAN MAKE REPO PUBLIC ===
 
+- change interface and constants dependency imports to only include the explicit imports
 - Add support for `super()` and passing values to extended contracts
 - Remove ignore logic
 - Add immutable (readonly) setting for evaluated values using `setimmutable`
@@ -42,7 +41,7 @@
 - Extend everything from a contract class for things like `Contract.address` and stuff
 - Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat
-- Should events need to be store in the class?
+- Should events need to be store in the class? Maybe could import the object?
 
 === UNFORMATTED ===
 
@@ -52,34 +51,3 @@
 - Add support for passing event data through as an constant `const data: DataType = {meow: 2};` and `this.coolEvent.emit(data)`
 - Add event indexing
 - Add support for initialising an event inline
-- change interface and constants dependency imports to only include the explicit imports
-- There's an issue with the absolute function, causing issues with the file data duplicates
-
-```
-  'contracts/regression-test/regression-test-interface.ts',
-  'contracts/regression-test/regression-test.ts',
-  'contracts/token/erc20.ts',
-  'contracts/token/ierc20.ts',
-  'contracts/uniswap-v2/interfaces/uniswap-v2-erc20-interface.ts',
-  'contracts/uniswap-v2/test/uniswap-v2-test-erc20.ts',
-  'contracts/uniswap-v2/uniswap-v2-erc20.ts',
-  'contracts/uniswap-v2/uniswap-v2-factory.ts',
-  'contracts/uniswap-v2/uniswap-v2-pair.ts',
-  'src/types/core-types.ts',
-  'contracts/regression-test/./regression-test-interface.ts',
-  'src/data/constants.ts',
-  'src/types/core-types.ts',
-  'contracts/token/./ierc20.ts',
-  'src/types/core-types.ts',
-  'src/types/core-types.ts',
-  'src/types/core-types.ts',
-  'src/types/core-types.ts',
-  'contracts/uniswap-v2/./interfaces/uniswap-v2-erc20-interface.ts',
-  'src/data/constants.ts',
-  'src/types/core-types.ts',
-  'src/types/core-types.ts',
-  'contracts/src/types/core-types.ts',
-  'contracts/src/types/core-types.ts'
-```
-
-- Add test for implements and extends on the same contract
