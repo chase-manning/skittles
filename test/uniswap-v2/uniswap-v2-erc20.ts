@@ -38,18 +38,16 @@ describe("Uniswap V2 ERC20", () => {
   });
 
   it("approve", async () => {
-    //     await expect(token.approve(other.address, TEST_AMOUNT))
-    //       .to.emit(token, "Approval")
-    //       .withArgs(wallet.address, other.address, TEST_AMOUNT);
-    await token.approve(other.address, TEST_AMOUNT);
+    await expect(token.approve(other.address, TEST_AMOUNT))
+      .to.emit(token, "Approval")
+      .withArgs(wallet.address, other.address, TEST_AMOUNT);
     expect(await token.allowance(wallet.address, other.address)).to.eq(TEST_AMOUNT);
   });
 
   it("transfer", async () => {
-    //     await expect(token.transfer(other.address, TEST_AMOUNT))
-    //       .to.emit(token, "Transfer")
-    //       .withArgs(wallet.address, other.address, TEST_AMOUNT);
-    await token.transfer(other.address, TEST_AMOUNT);
+    await expect(token.transfer(other.address, TEST_AMOUNT))
+      .to.emit(token, "Transfer")
+      .withArgs(wallet.address, other.address, TEST_AMOUNT);
     expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
     expect(await token.balanceOf(other.address)).to.eq(TEST_AMOUNT);
   });
@@ -61,14 +59,9 @@ describe("Uniswap V2 ERC20", () => {
 
   it("transferFrom", async () => {
     await token.approve(other.address, TEST_AMOUNT);
-    //     await expect(
-    //       token
-    //         .connect(other)
-    //         .transferFrom(wallet.address, other.address, TEST_AMOUNT)
-    //     )
-    //       .to.emit(token, "Transfer")
-    //       .withArgs(wallet.address, other.address, TEST_AMOUNT);
-    await token.connect(other).transferFrom(wallet.address, other.address, TEST_AMOUNT);
+    await expect(token.connect(other).transferFrom(wallet.address, other.address, TEST_AMOUNT))
+      .to.emit(token, "Transfer")
+      .withArgs(wallet.address, other.address, TEST_AMOUNT);
     expect(await token.allowance(wallet.address, other.address)).to.eq(0);
     expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
     expect(await token.balanceOf(other.address)).to.eq(TEST_AMOUNT);
@@ -76,14 +69,9 @@ describe("Uniswap V2 ERC20", () => {
 
   it("transferFrom:max", async () => {
     await token.approve(other.address, MAX_UINT256);
-    //     await expect(
-    //       token
-    //         .connect(other)
-    //         .transferFrom(wallet.address, other.address, TEST_AMOUNT)
-    //     )
-    //       .to.emit(token, "Transfer")
-    //       .withArgs(wallet.address, other.address, TEST_AMOUNT);
-    await token.connect(other).transferFrom(wallet.address, other.address, TEST_AMOUNT);
+    await expect(token.connect(other).transferFrom(wallet.address, other.address, TEST_AMOUNT))
+      .to.emit(token, "Transfer")
+      .withArgs(wallet.address, other.address, TEST_AMOUNT);
     expect(await token.allowance(wallet.address, other.address)).to.eq(MAX_UINT256);
     expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
     expect(await token.balanceOf(other.address)).to.eq(TEST_AMOUNT); //

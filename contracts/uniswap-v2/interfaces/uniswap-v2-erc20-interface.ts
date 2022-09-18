@@ -1,5 +1,17 @@
 import { address } from "../../../src/types/core-types";
 
+export interface ApprovalEvent {
+  owner: address;
+  spender: address;
+  value: number;
+}
+
+export interface TransferEvent {
+  from: address;
+  to: address;
+  value: number;
+}
+
 export interface IUniswapV2ERC20 {
   name: string;
   symbol: string;

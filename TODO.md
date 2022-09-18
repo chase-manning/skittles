@@ -1,5 +1,3 @@
-- Add test for implements and extends on the same contract
-
 - Add events to all contracts
 - Add tests for all contract events (note we are missing some for ERC20)
 - Move events into separate functions and call them
