@@ -1,11 +1,4 @@
-import {
-  address,
-  block,
-  chain,
-  msg,
-  SkittlesEvent,
-  tx,
-} from "../../src/types/core-types";
+import { address, block, chain, msg, SkittlesEvent, tx } from "../../src/types/core-types";
 import { IRegressionTest } from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
 
@@ -160,8 +153,7 @@ export class RegressionTest implements IRegressionTest {
     return a > b ? 123 : 321;
   };
 
-  getConditionalStatementsArrow = (a: number, b: number): string =>
-    a > b ? "Meow" : "woof";
+  getConditionalStatementsArrow = (a: number, b: number): string => (a > b ? "Meow" : "woof");
 
   getStringFromArrowFunction = (): string => "Meow";
 
