@@ -1,3 +1,7 @@
+- Save new cache again
+- Check cache version and delete if old
+- Run some tests where the cache isn't cleared
+- Add support for importing events from another file
 - Add events to all contracts
 - Add tests for all contract events (note we are missing some for ERC20)
 - Move events into separate functions and call them
@@ -48,3 +52,34 @@
 - Add support for passing event data through as an constant `const data: DataType = {meow: 2};` and `this.coolEvent.emit(data)`
 - Add event indexing
 - Add support for initialising an event inline
+- change interface and constants dependency imports to only include the explicit imports
+- There's an issue with the absolute function, causing issues with the file data duplicates
+
+```
+  'contracts/regression-test/regression-test-interface.ts',
+  'contracts/regression-test/regression-test.ts',
+  'contracts/token/erc20.ts',
+  'contracts/token/ierc20.ts',
+  'contracts/uniswap-v2/interfaces/uniswap-v2-erc20-interface.ts',
+  'contracts/uniswap-v2/test/uniswap-v2-test-erc20.ts',
+  'contracts/uniswap-v2/uniswap-v2-erc20.ts',
+  'contracts/uniswap-v2/uniswap-v2-factory.ts',
+  'contracts/uniswap-v2/uniswap-v2-pair.ts',
+  'src/types/core-types.ts',
+  'contracts/regression-test/./regression-test-interface.ts',
+  'src/data/constants.ts',
+  'src/types/core-types.ts',
+  'contracts/token/./ierc20.ts',
+  'src/types/core-types.ts',
+  'src/types/core-types.ts',
+  'src/types/core-types.ts',
+  'src/types/core-types.ts',
+  'contracts/uniswap-v2/./interfaces/uniswap-v2-erc20-interface.ts',
+  'src/data/constants.ts',
+  'src/types/core-types.ts',
+  'src/types/core-types.ts',
+  'contracts/src/types/core-types.ts',
+  'contracts/src/types/core-types.ts'
+```
+
+- Add test for implements and extends on the same contract
