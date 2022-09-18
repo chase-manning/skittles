@@ -213,6 +213,17 @@ export class RegressionTest implements IRegressionTest {
   getNot = (value: boolean): boolean => !value;
 }
 
-export class SecondRegressionTest {
+class BaseSecondRegressionTest {
+  meow: number;
+}
+
+interface ISecondRegressionTest {
+  variable: number;
+}
+
+export class SecondRegressionTest
+  extends BaseSecondRegressionTest
+  implements ISecondRegressionTest
+{
   variable: number = 1;
 }
