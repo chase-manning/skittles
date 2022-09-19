@@ -29,6 +29,9 @@ import {
   SyntaxKind,
   ThrowStatement,
   VariableStatement,
+  isArrayBindingPattern,
+  isBindingElement,
+  isArrayLiteralExpression,
 } from "typescript";
 import {
   getNodeName,
@@ -380,15 +383,43 @@ const getVariableStatement = (
   constants: SkittlesConstants
 ): SkittlesStatement[] => {
   const { declarationList } = statement;
-  return declarationList.declarations.map((declaration) => {
+  const statements: SkittlesStatement[] = [];
+  declarationList.declarations.forEach((declaration) => {
     const { name, initializer } = declaration;
     if (!initializer) throw new Error("Variable statement has no initializer");
-    return {
-      statementType: SkittlesStatementType.VariableDeclaration,
-      variable: getNodeName(name),
-      value: getSkittlesExpression(initializer, interfaces, constants),
-    };
+
+    // Handling normal variable assignments
+    if (isIdentifier(name)) {
+      statements.push({
+        statementType: SkittlesStatementType.VariableDeclaration,
+        variable: getNodeName(name),
+        value: getSkittlesExpression(initializer, interfaces, constants),
+      });
+      return;
+    }
+
+    // handling array binding, e.g. `const [a, b] = [1, 2]`
+    if (isArrayBindingPattern(name)) {
+      if (!isArrayLiteralExpression(initializer)) {
+        throw new Error("Unsupported array binding value");
+      }
+      name.elements.forEach((element, index) => {
+        if (isBindingElement(element)) {
+          statements.push({
+            statementType: SkittlesStatementType.VariableDeclaration,
+            variable: getNodeName(element.name),
+            value: getSkittlesExpression(initializer.elements[index], interfaces, constants),
+          });
+          return;
+        }
+        throw new Error("Unsupported array binding element");
+      });
+      return;
+    }
+
+    throw new Error(`Not implemented variable statement handling ${name.kind}`);
   });
+  return statements;
 };
 
 const getIdentifierStatement = (
