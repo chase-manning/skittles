@@ -432,4 +432,11 @@ describe("Regression Test", () => {
     expect(response[1]).to.equal(2);
     expect(response[2]).to.equal(3);
   });
+
+  it("Should get variable declaration list", async () => {
+    const response = await regressionTest.getVariableDeclarationList();
+    expect(response[0]).to.equal(7);
+    expect(response[1]).to.equal(8);
+    expect(response[2]).to.equal(9);
+  });
 });

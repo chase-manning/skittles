@@ -207,6 +207,11 @@ export class RegressionTest implements IRegressionTest {
     return { a: 1, b: 2, c: 3 };
   };
 
+  getVariableDeclarationList = (): ABC => {
+    const [a, b, c] = [7, 8, 9];
+    return { a, b, c };
+  };
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;
