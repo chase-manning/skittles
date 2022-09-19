@@ -1,5 +1,3 @@
-- Arrow function returning interface broken ` multipleVariableAssignments = (): ABC => {`
-- Support returning inline objects ` return { a, b, c };` instead of ` return { a: a, b: b, c: c };`
 - Add support for array deconstructing `const [stooge1, stooge2, stooge3] = ["moe", "curly", "larry"]`
 - Add ability to set multiple variables at once `a = b = c = 4`
 - Add ability to deploy contracts

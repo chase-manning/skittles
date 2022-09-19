@@ -138,15 +138,21 @@ const getReturnValue = (
     }
 
     expression.properties.forEach((property) => {
-      if (!isPropertyAssignment(property)) {
-        throw new Error("Could not get return statement expression");
+      if (isPropertyAssignment(property)) {
+        values[getNodeName(property.name)] = getSkittlesExpression(
+          property.initializer,
+          interfaces,
+          constants
+        );
+      } else if (isShorthandPropertyAssignment(property)) {
+        values[getNodeName(property.name)] = getSkittlesExpression(
+          property.name,
+          interfaces,
+          constants
+        );
+      } else {
+        throw new Error("Unknown object literal property type");
       }
-
-      values[getNodeName(property.name)] = getSkittlesExpression(
-        property.initializer,
-        interfaces,
-        constants
-      );
     });
 
     return {
