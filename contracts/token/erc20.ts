@@ -13,11 +13,6 @@ export class ERC20 implements IERC20 {
   Transfer: SkittlesEvent<TransferEvent>;
   Approval: SkittlesEvent<ApprovalEvent>;
 
-  constructor(mintAmount_: number) {
-    this.balanceOf[msg.sender] = mintAmount_;
-    this.totalSupply = mintAmount_;
-  }
-
   approve(spender: address, amount: number): boolean {
     this.allowance[msg.sender][spender] = amount;
     this.Approval.emit({ owner: msg.sender, spender, amount });

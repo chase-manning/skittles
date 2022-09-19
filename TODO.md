@@ -1,4 +1,3 @@
-- Remove constructor from ERC20, and add a ERC20 wrapper just for testing
 - Add support for multiple variable assignments at once
 - Add ability to deploy contracts
 - Fix issue with revert messages not showing

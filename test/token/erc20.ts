@@ -21,7 +21,7 @@ describe("ERC20", () => {
     walletB = signers[1];
     walletC = signers[2];
 
-    const Token = await getSkittlesFactory(walletA, "ERC20");
+    const Token = await getSkittlesFactory(walletA, "MockERC20");
     token = await Token.deploy(100);
     await token.deployed();
   });
