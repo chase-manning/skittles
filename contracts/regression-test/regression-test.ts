@@ -203,6 +203,10 @@ export class RegressionTest implements IRegressionTest {
     return { a: a, b: b, c: c };
   }
 
+  arrowFunctionReturningInterface = (): ABC => {
+    return { a: 1, b: 2, c: 3 };
+  };
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;

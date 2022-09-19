@@ -425,4 +425,11 @@ describe("Regression Test", () => {
     expect(response[1]).to.equal(2);
     expect(response[2]).to.equal(3);
   });
+
+  it("Should return interface with arrow function", async () => {
+    const response = await regressionTest.arrowFunctionReturningInterface();
+    expect(response[0]).to.equal(1);
+    expect(response[1]).to.equal(2);
+    expect(response[2]).to.equal(3);
+  });
 });
