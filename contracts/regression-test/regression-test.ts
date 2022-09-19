@@ -1,5 +1,5 @@
 import { address, block, chain, msg, SkittlesEvent, tx } from "../../src/types/core-types";
-import { IRegressionTest } from "./regression-test-interface";
+import IRegressionTest from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
 
 // This contract is used for regression testing and intends to implement all compile features

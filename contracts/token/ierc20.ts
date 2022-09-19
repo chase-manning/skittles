@@ -12,7 +12,7 @@ export interface ApprovalEvent {
   amount: number;
 }
 
-export interface IERC20 {
+export default interface IERC20 {
   decimals: number;
   symbol: string;
   name: string;
