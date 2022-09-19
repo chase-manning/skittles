@@ -418,4 +418,11 @@ describe("Regression Test", () => {
       .to.emit(regressionTest, "TestEvent")
       .withArgs(testNumber, testAddress);
   });
+
+  it("Should get multiple variable assignments", async () => {
+    const response = await regressionTest.multipleVariableAssignments();
+    expect(response[0]).to.equal(1);
+    expect(response[1]).to.equal(2);
+    expect(response[2]).to.equal(3);
+  });
 });

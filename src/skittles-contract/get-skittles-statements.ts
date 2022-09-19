@@ -372,17 +372,17 @@ const getVariableStatement = (
   statement: VariableStatement,
   interfaces: SkittlesInterfaces,
   constants: SkittlesConstants
-): SkittlesStatement => {
+): SkittlesStatement[] => {
   const { declarationList } = statement;
-  if (declarationList.declarations.length !== 1)
-    throw new Error("Variable statement has too many declarations");
-  const { name, initializer } = declarationList.declarations[0];
-  if (!initializer) throw new Error("Variable statement has no initializer");
-  return {
-    statementType: SkittlesStatementType.VariableDeclaration,
-    variable: getNodeName(name),
-    value: getSkittlesExpression(initializer, interfaces, constants),
-  };
+  return declarationList.declarations.map((declaration) => {
+    const { name, initializer } = declaration;
+    if (!initializer) throw new Error("Variable statement has no initializer");
+    return {
+      statementType: SkittlesStatementType.VariableDeclaration,
+      variable: getNodeName(name),
+      value: getSkittlesExpression(initializer, interfaces, constants),
+    };
+  });
 };
 
 const getIdentifierStatement = (
@@ -417,38 +417,38 @@ const getBaseSkittlesStatement = (
   interfaces: SkittlesInterfaces,
   constants: SkittlesConstants,
   events: SkittlesEventType[]
-): SkittlesStatement => {
+): SkittlesStatement[] => {
   if (isExpressionStatement(node)) {
-    return getExpressionStatement(node, interfaces, constants, events);
+    return [getExpressionStatement(node, interfaces, constants, events)];
   }
   if (isReturnStatement(node)) {
     const { expression } = node;
     if (!expression) throw new Error("Return statement has no expression");
-    return getReturnStatement(expression, returnType, interfaces, constants);
+    return [getReturnStatement(expression, returnType, interfaces, constants)];
   }
   if (isIfStatement(node)) {
-    return getIfStatement(node, interfaces, constants, events);
+    return [getIfStatement(node, interfaces, constants, events)];
   }
   if (isThrowStatement(node)) {
-    return getThrowStatement(node, interfaces, constants);
+    return [getThrowStatement(node, interfaces, constants)];
   }
   if (isExpression(node)) {
-    return getReturnStatement(node as Expression, returnType, interfaces, constants);
+    return [getReturnStatement(node as Expression, returnType, interfaces, constants)];
   }
   if (isVariableStatement(node)) {
     return getVariableStatement(node, interfaces, constants);
   }
   if (isIdentifier(node)) {
-    return getIdentifierStatement(node, returnType, interfaces, constants);
+    return [getIdentifierStatement(node, returnType, interfaces, constants)];
   }
   if (isConditionalExpression(node)) {
-    return getConditionalExpressionStatement(node, returnType, interfaces, constants);
+    return [getConditionalExpressionStatement(node, returnType, interfaces, constants)];
   }
   if (isLiteralExpression(node)) {
-    return getReturnStatement(node as Expression, returnType, interfaces, constants);
+    return [getReturnStatement(node as Expression, returnType, interfaces, constants)];
   }
   if (isParenthesizedExpression(node)) {
-    return getReturnStatement(node.expression, returnType, interfaces, constants);
+    return [getReturnStatement(node.expression, returnType, interfaces, constants)];
   }
   throw new Error(`Unknown statement type: ${node.kind}`);
 };

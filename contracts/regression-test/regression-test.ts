@@ -12,6 +12,12 @@ interface NumberAndAddress {
   address: address;
 }
 
+interface ABC {
+  a: number;
+  b: number;
+  c: number;
+}
+
 interface TestEventType {
   testNumber: number;
   testAddress: address;
@@ -189,6 +195,13 @@ export class RegressionTest implements IRegressionTest {
       testNumber: testNumber2,
     });
   };
+
+  multipleVariableAssignments(): ABC {
+    let a = 1,
+      b = 2,
+      c = 3;
+    return { a: a, b: b, c: c };
+  }
 
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;

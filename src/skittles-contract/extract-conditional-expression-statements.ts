@@ -127,12 +127,16 @@ const getNewStatements = (
  * @returns A new list of statements, where the conditional expressions have been extracted
  */
 const extractConditionalExpressionStatements = (
-  statement: SkittlesStatement
+  statements: SkittlesStatement[]
 ): SkittlesStatement[] => {
-  const config = statementExpressionConfig[statement.statementType];
-  if (!config)
-    throw new Error(`missing extract conditional expression statements config ${statement}`);
-  return getNewStatements(statement, config);
+  return statements
+    .map((statement) => {
+      const config = statementExpressionConfig[statement.statementType];
+      if (!config)
+        throw new Error(`missing extract conditional expression statements config ${statement}`);
+      return getNewStatements(statement, config);
+    })
+    .flat();
 };
 
 export default extractConditionalExpressionStatements;
