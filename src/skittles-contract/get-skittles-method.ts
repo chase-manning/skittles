@@ -67,7 +67,7 @@ const getSkittlesMethod = (
       parameters: getSkittlesParameters(arrowFunction, interfaces),
       statements: getSkittlesStatements(
         arrowFunction.body as Statement,
-        getSkittlesType(astMethod.type, interfaces),
+        getSkittlesType(arrowFunction.type, interfaces),
         interfaces,
         constants,
         events
