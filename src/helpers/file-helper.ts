@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import SkittlesCache, { FileCache } from "../types/skittles-cache";
 import { FileData } from "../compiler/get-file-data";
+import { CACHE_VERSION } from "../data/constants";
 
 const CONTRCT_PATH = "./contracts";
 
@@ -44,7 +45,7 @@ export const updateCache = (fileData: FileData[]) => {
   });
 
   const cache: SkittlesCache = {
-    version: "1",
+    version: CACHE_VERSION,
     files,
   };
   writeBuildFile("cache.json", JSON.stringify(cache, null, 2));

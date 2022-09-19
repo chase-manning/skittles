@@ -1,5 +1,6 @@
 import { SourceFile } from "typescript";
 import { getAstFromFile } from "../ast/get-ast";
+import { CACHE_VERSION } from "../data/constants";
 import { getDependencies } from "../helpers/ast-helper";
 import { getAllTypescriptFiles, readFile } from "../helpers/file-helper";
 import { hashString } from "../helpers/string-helper";
@@ -26,6 +27,8 @@ export interface FileData {
 
 const getFileCache = (cache: SkittlesCache, filePath: string): FileCache | null => {
   if (!cache) return null;
+  if (!cache.version) return null;
+  if (cache.version !== CACHE_VERSION) return null;
   if (!cache.files) return null;
   if (!cache.files[filePath]) return null;
   return cache.files[filePath];

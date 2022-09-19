@@ -1,9 +1,3 @@
-- Verify we get the same hash as the solidity compiler for the event selector
-- Test emitting all types
-
-=== EVENTS DONE ===
-
-- Check cache version and delete if old
 - Add support for default exports and imports of interfaces and update them
 - Add support for default export and imports of contracts and update them
 - Remove constructor from ERC20, and add a ERC20 wrapper just for testing
