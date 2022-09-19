@@ -200,7 +200,7 @@ export class RegressionTest implements IRegressionTest {
     let a = 1,
       b = 2,
       c = 3;
-    return { a: a, b: b, c: c };
+    return { a, b, c };
   }
 
   arrowFunctionReturningInterface = (): ABC => {
