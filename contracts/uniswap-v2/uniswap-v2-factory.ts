@@ -22,8 +22,7 @@ export class UniswapV2Factory {
     if (tokenA === tokenB) {
       throw new Error("UniswapV2: IDENTICAL_ADDRESSES");
     }
-    let token0 = tokenA > tokenB ? tokenB : tokenA;
-    let token1 = tokenA > tokenB ? tokenA : tokenB;
+    let [token0, token1] = tokenA > tokenB ? [tokenB, tokenA] : [tokenA, tokenB];
     if (token0 === ZERO_ADDRESS) {
       throw new Error("UniswapV2: ZERO_ADDRESS");
     }
