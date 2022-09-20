@@ -400,21 +400,47 @@ const getVariableStatement = (
 
     // handling array binding, e.g. `const [a, b] = [1, 2]`
     if (isArrayBindingPattern(name)) {
-      if (!isArrayLiteralExpression(initializer)) {
-        throw new Error("Unsupported array binding value");
+      if (isArrayLiteralExpression(initializer)) {
+        name.elements.forEach((element, index) => {
+          if (isBindingElement(element)) {
+            statements.push({
+              statementType: SkittlesStatementType.VariableDeclaration,
+              variable: getNodeName(element.name),
+              value: getSkittlesExpression(initializer.elements[index], interfaces, constants),
+            });
+            return;
+          }
+          throw new Error("Unsupported array binding element");
+        });
+        return;
       }
-      name.elements.forEach((element, index) => {
-        if (isBindingElement(element)) {
-          statements.push({
-            statementType: SkittlesStatementType.VariableDeclaration,
-            variable: getNodeName(element.name),
-            value: getSkittlesExpression(initializer.elements[index], interfaces, constants),
-          });
-          return;
-        }
-        throw new Error("Unsupported array binding element");
-      });
-      return;
+      if (isConditionalExpression(initializer)) {
+        name.elements.forEach((element, index) => {
+          const { whenTrue, whenFalse } = initializer;
+          if (!isArrayLiteralExpression(whenTrue)) {
+            throw new Error("Unsupported array binding element for whenTrue");
+          }
+          if (!isArrayLiteralExpression(whenFalse)) {
+            throw new Error("Unsupported array binding element for whenFalse");
+          }
+          if (isBindingElement(element)) {
+            statements.push({
+              statementType: SkittlesStatementType.VariableDeclaration,
+              variable: getNodeName(element.name),
+              value: {
+                expressionType: SkittlesExpressionType.Conditional,
+                condition: getSkittlesExpression(initializer.condition, interfaces, constants),
+                trueValue: getSkittlesExpression(whenTrue.elements[index], interfaces, constants),
+                falseValue: getSkittlesExpression(whenFalse.elements[index], interfaces, constants),
+              },
+            });
+            return;
+          }
+          throw new Error("Unsupported array binding element");
+        });
+        return;
+      }
+      throw new Error("Unsupported array binding initializer");
     }
 
     throw new Error(`Not implemented variable statement handling ${name.kind}`);
