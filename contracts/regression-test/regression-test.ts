@@ -18,6 +18,11 @@ interface ABC {
   c: number;
 }
 
+interface AB {
+  a: number;
+  b: number;
+}
+
 interface TestEventType {
   testNumber: number;
   testAddress: address;
@@ -210,6 +215,11 @@ export class RegressionTest implements IRegressionTest {
   getVariableDeclarationList = (): ABC => {
     const [a, b, c] = [7, 8, 9];
     return { a, b, c };
+  };
+
+  getConditionalVariableDeclarationList = (first: number, second: number): AB => {
+    let [a, b] = first > second ? [second, first] : [first, second];
+    return { a, b };
   };
 
   // Testing EVM OP Codes

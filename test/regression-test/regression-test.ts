@@ -439,4 +439,13 @@ describe("Regression Test", () => {
     expect(response[1]).to.equal(8);
     expect(response[2]).to.equal(9);
   });
+
+  it("Should get conditional variable declaration list", async () => {
+    const response = await regressionTest.getConditionalVariableDeclarationList(9, 8);
+    expect(response[0]).to.equal(8);
+    expect(response[1]).to.equal(9);
+    const response2 = await regressionTest.getConditionalVariableDeclarationList(1, 2);
+    expect(response2[0]).to.equal(1);
+    expect(response2[1]).to.equal(2);
+  });
 });
