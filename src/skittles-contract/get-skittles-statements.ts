@@ -183,6 +183,19 @@ const getReturnValue = (
         ),
       };
     }
+    if (isIdentifier(callExpression)) {
+      const target = getNodeName(callExpression);
+      return {
+        expressionType: SkittlesExpressionType.Call,
+        target,
+        element: {
+          expressionType: SkittlesExpressionType.External,
+        },
+        parameters: expression.arguments.map((e) =>
+          getSkittlesExpression(e, interfaces, constants)
+        ),
+      };
+    }
     throw new Error(`Unknown return call expression type ${callExpression.kind}`);
   }
   throw new Error(`Unknown return expression type: ${expression.kind}`);

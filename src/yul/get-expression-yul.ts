@@ -56,8 +56,10 @@ const getCallYul = (expression: SkittlesCallExpression): string => {
         default:
           throw new Error(`Unsupported storage function ${target}`);
       }
+    case SkittlesExpressionType.External:
+      return `${target}ExternalFunction(${parameters.map(getExpressionYul).join(", ")})`;
     default:
-      throw new Error(`Unsupported expression type ${element}`);
+      throw new Error(`Unsupported expression type ${element.expressionType}`);
   }
 };
 

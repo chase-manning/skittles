@@ -1,5 +1,9 @@
 import { SourceFile } from "typescript";
-import SkittlesContract, { SkittlesConstants, SkittlesInterfaces } from "./skittles-contract";
+import SkittlesContract, {
+  SkittlesConstants,
+  SkittlesInterfaces,
+  SkittlesMethod,
+} from "./skittles-contract";
 
 export interface FileCache {
   hash: number;
@@ -8,6 +12,7 @@ export interface FileCache {
   contracts: SkittlesContract[];
   interfaces: SkittlesInterfaces;
   constants: SkittlesConstants;
+  functions: SkittlesMethod[];
 }
 
 interface SkittlesCache {

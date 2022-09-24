@@ -41,6 +41,7 @@ export const updateCache = (fileData: FileData[]) => {
       contracts: file.contracts,
       interfaces: file.interfaces,
       constants: file.constants,
+      functions: file.functions,
     };
   });
 

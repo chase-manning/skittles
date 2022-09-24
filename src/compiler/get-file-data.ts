@@ -6,11 +6,13 @@ import { getAllTypescriptFiles, readFile } from "../helpers/file-helper";
 import { hashString } from "../helpers/string-helper";
 import getSkittlesConstants from "../skittles-contract/get-skittles-constants";
 import getSkittlesContracts from "../skittles-contract/get-skittles-contracts";
+import getSkittlesFunctions from "../skittles-contract/get-skittles-functions";
 import getSkittlesInterfaces from "../skittles-contract/get-skittles-interfaces";
 import SkittlesCache, { FileCache } from "../types/skittles-cache";
 import SkittlesContract, {
   SkittlesConstants,
   SkittlesInterfaces,
+  SkittlesMethod,
 } from "../types/skittles-contract";
 
 export interface FileData {
@@ -22,6 +24,7 @@ export interface FileData {
   ast: SourceFile;
   constants: SkittlesConstants;
   interfaces: SkittlesInterfaces;
+  functions: SkittlesMethod[];
   contracts: SkittlesContract[];
 }
 
@@ -56,6 +59,7 @@ const getData = (cache: SkittlesCache, filePaths: string[], filesAdded: string[]
       constants: {},
       interfaces: {},
       contracts: [],
+      functions: [],
     });
   });
 
@@ -148,12 +152,40 @@ const getFileData = (cache: SkittlesCache): FileData[] => {
     };
   });
 
+  // Gets functions
+  const fdWithFunctions = fdWithConstantDependencies.map((data) => {
+    const fc = getFileCache(cache, data.path);
+    const functions =
+      data.changed || !fc
+        ? getSkittlesFunctions(data.ast, data.interfaces, data.constants, [])
+        : fc.functions;
+    return {
+      ...data,
+      functions,
+    };
+  });
+  const fdWithFunctionDependencies = fdWithFunctions.map((data) => {
+    if (!data.changed) return data;
+    const functions = data.functions;
+    data.dependencies.forEach((dep) => {
+      const depData = fdWithFunctions.find((f) => f.path === dep);
+      if (!depData) throw new Error(`Dependency ${dep} not found`);
+      depData.functions.forEach((func) => {
+        functions.push(func);
+      });
+    });
+    return {
+      ...data,
+      functions,
+    };
+  });
+
   // Gets contracts
-  const fdWithContracts = fdWithConstantDependencies.map((data) => {
+  const fdWithContracts = fdWithFunctionDependencies.map((data) => {
     const fc = getFileCache(cache, data.path);
     const contracts =
       data.changed || !fc
-        ? getSkittlesContracts(data.ast, data.interfaces, data.constants)
+        ? getSkittlesContracts(data.ast, data.interfaces, data.constants, data.functions)
         : fc.contracts;
     return {
       ...data,
@@ -161,6 +193,7 @@ const getFileData = (cache: SkittlesCache): FileData[] => {
     };
   });
 
+  // Add extensions to contracts
   const fdWithContractExtensions = fdWithContracts.map((data) => {
     if (!data.changed) return data;
     const contracts = data.contracts.map((contract) => {
