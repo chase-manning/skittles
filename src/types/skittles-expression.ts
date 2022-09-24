@@ -34,10 +34,16 @@ export enum SkittlesExpressionType {
   Deploy = "Deploy",
   Conditional = "Conditional",
   Call = "Call",
+  Hash = "Hash",
 }
 
 export interface SkittlesBaseExpression {
   expressionType: SkittlesExpressionType;
+}
+
+export interface SkittlesHashExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Hash;
+  inputs: SkittlesExpression[];
 }
 
 export interface SkittlesCallExpression extends SkittlesBaseExpression {
@@ -120,6 +126,7 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesHashExpression
   | SkittlesCallExpression
   | SkittlesDeployExpression
   | SkittlesThisExpression

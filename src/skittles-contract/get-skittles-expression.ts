@@ -200,10 +200,20 @@ const getCallExpression = (
   expression: CallExpression,
   interfaces: SkittlesInterfaces,
   constants: SkittlesConstants
-): SkittlesCallExpression => {
+): SkittlesExpression => {
   const callExpression = expression.expression;
+  const target = getNodeName(callExpression);
+
+  // Hash Function
+  if (target === "hash") {
+    return {
+      expressionType: SkittlesExpressionType.Hash,
+      inputs: expression.arguments.map((e) => getSkittlesExpression(e, interfaces, constants)),
+    };
+  }
+
+  // Internal Functions
   if (isPropertyAccessExpression(callExpression)) {
-    const target = getNodeName(callExpression);
     return {
       expressionType: SkittlesExpressionType.Call,
       target,
@@ -211,8 +221,9 @@ const getCallExpression = (
       parameters: expression.arguments.map((e) => getSkittlesExpression(e, interfaces, constants)),
     };
   }
+
+  // External Functions
   if (isIdentifier(callExpression)) {
-    const target = getNodeName(callExpression);
     return {
       expressionType: SkittlesExpressionType.Call,
       target,
@@ -222,6 +233,7 @@ const getCallExpression = (
       parameters: expression.arguments.map((e) => getSkittlesExpression(e, interfaces, constants)),
     };
   }
+
   throw new Error(`Unknown return call expression type ${callExpression.kind}`);
 };
 

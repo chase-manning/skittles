@@ -97,6 +97,9 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
       }
     case SkittlesExpressionType.Call:
       return getCallYul(expression);
+    case SkittlesExpressionType.Hash:
+      const { inputs } = expression;
+      return `hash${inputs.length}Vars(${inputs.map(getExpressionYul).join(", ")})`;
     default:
       throw new Error(`Unsupported expression: ${expression.expressionType}`);
   }
