@@ -454,7 +454,7 @@ describe("Regression Test", () => {
     expect(response2[1]).to.equal(2);
   });
 
-  // it("Should return internal function", async () => {
-  //   expect(await regressionTest.returnInternalFunction()).to.equal(20);
-  // });
+  it("Should return internal function", async () => {
+    expect(await regressionTest.returnInternalFunction()).to.equal(20);
+  });
 });

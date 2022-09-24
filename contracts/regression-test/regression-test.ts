@@ -230,9 +230,9 @@ export class RegressionTest implements IRegressionTest {
     return { a, b };
   };
 
-  // returnInternalFunction = () => {
-  //   return returnTwenty();
-  // };
+  returnInternalFunction = (): number => {
+    return returnTwenty();
+  };
 
   // TODO Returning an internal function
 
