@@ -1,8 +1,7 @@
-import { getEventSelector } from "../helpers/selector-helper";
 import { SkittlesExpressionType } from "../types/skittles-expression";
 import {
-  SkittlesCallStatement,
   SkittlesEmitEventStatement,
+  SkittlesExpressionStatement,
   SkittlesIfStatement,
   SkittlesMappingUpdateStatement,
   SkittlesReturnStatement,
@@ -38,21 +37,9 @@ const getMappingUpdateYul = (statement: SkittlesMappingUpdateStatement): string[
   return [`${variable}Set(${variables.join(", ")}, ${getExpressionYul(value)})`];
 };
 
-const getCallYul = (statement: SkittlesCallStatement): string[] => {
-  const { target, parameters, element } = statement;
-  switch (element.expressionType) {
-    case SkittlesExpressionType.This:
-      return [`${target}Function(${parameters.map(getExpressionYul).join(", ")})`];
-    case SkittlesExpressionType.Storage:
-      switch (target) {
-        case "push":
-          return [`${element.variable}Push(${parameters.map(getExpressionYul).join()})`];
-        default:
-          throw new Error(`Unsupported storage function ${target}`);
-      }
-    default:
-      throw new Error(`Unsupported expression type ${element}`);
-  }
+const getExpressionStatementYul = (statement: SkittlesExpressionStatement): string[] => {
+  const { expression } = statement;
+  return [`${getExpressionYul(expression)}`];
 };
 
 const getIfYul = (statement: SkittlesIfStatement): string[] => {
@@ -107,8 +94,8 @@ const getStatementYul = (statement: SkittlesStatement): string[] => {
       return getReturnYul(statement);
     case SkittlesStatementType.MappingUpdate:
       return getMappingUpdateYul(statement);
-    case SkittlesStatementType.Call:
-      return getCallYul(statement);
+    case SkittlesStatementType.Expression:
+      return getExpressionStatementYul(statement);
     case SkittlesStatementType.If:
       return getIfYul(statement);
     case SkittlesStatementType.Throw:

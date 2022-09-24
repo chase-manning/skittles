@@ -308,12 +308,15 @@ const getExpressionStatement = (
 
       // Handle other calls
       return {
-        statementType: SkittlesStatementType.Call,
-        target,
-        element: getSkittlesExpression(callExpression.expression, interfaces, constants),
-        parameters: expression.arguments.map((e) =>
-          getSkittlesExpression(e, interfaces, constants)
-        ),
+        statementType: SkittlesStatementType.Expression,
+        expression: {
+          expressionType: SkittlesExpressionType.Call,
+          target,
+          element: getSkittlesExpression(callExpression.expression, interfaces, constants),
+          parameters: expression.arguments.map((e) =>
+            getSkittlesExpression(e, interfaces, constants)
+          ),
+        },
       };
     }
     if (callExpression.kind === SyntaxKind.SuperKeyword) {

@@ -1,6 +1,7 @@
 import { SkittlesTypeKind } from "../types/skittles-type";
 import {
   SkittlesBinaryExpression,
+  SkittlesCallExpression,
   SkittlesExpression,
   SkittlesExpressionType,
   SkittlesOperator,
@@ -43,6 +44,23 @@ const getBinaryYul = (expression: SkittlesBinaryExpression): string => {
   }
 };
 
+const getCallYul = (expression: SkittlesCallExpression): string => {
+  const { target, parameters, element } = expression;
+  switch (element.expressionType) {
+    case SkittlesExpressionType.This:
+      return `${target}Function(${parameters.map(getExpressionYul).join(", ")})`;
+    case SkittlesExpressionType.Storage:
+      switch (target) {
+        case "push":
+          return `${element.variable}Push(${parameters.map(getExpressionYul).join()})`;
+        default:
+          throw new Error(`Unsupported storage function ${target}`);
+      }
+    default:
+      throw new Error(`Unsupported expression type ${element}`);
+  }
+};
+
 const getExpressionYul = (expression: SkittlesExpression): string => {
   switch (expression.expressionType) {
     case SkittlesExpressionType.Not:
@@ -75,6 +93,8 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
         default:
           throw new Error(`Unsupported length expression type ${value.expressionType}`);
       }
+    case SkittlesExpressionType.Call:
+      return getCallYul(expression);
     default:
       throw new Error(`Unsupported expression: ${expression.expressionType}`);
   }

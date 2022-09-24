@@ -23,10 +23,6 @@ const statementExpressionConfig: Record<string, StatementExpressionConfig> = {
     expressions: ["value"],
     expressionLists: [],
   },
-  Call: {
-    expressions: ["element"],
-    expressionLists: ["parameters"],
-  },
   If: {
     expressions: ["condition"],
     expressionLists: ["then", "else"],
@@ -46,6 +42,10 @@ const statementExpressionConfig: Record<string, StatementExpressionConfig> = {
   "Emit Event": {
     expressions: [],
     expressionLists: ["values"],
+  },
+  Expression: {
+    expressions: ["expression"],
+    expressionLists: [],
   },
 };
 

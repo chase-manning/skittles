@@ -30,12 +30,21 @@ export enum SkittlesExpressionType {
   Interface = "Interface",
   Length = "Length",
   This = "This",
+  External = "External",
   Deploy = "Deploy",
   Conditional = "Conditional",
+  Call = "Call",
 }
 
 export interface SkittlesBaseExpression {
   expressionType: SkittlesExpressionType;
+}
+
+export interface SkittlesCallExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.Call;
+  target: string;
+  element: SkittlesExpression;
+  parameters: SkittlesExpression[];
 }
 
 export interface SkittlesConditionalExpression extends SkittlesBaseExpression {
@@ -53,6 +62,10 @@ export interface SkittlesDeployExpression extends SkittlesBaseExpression {
 
 export interface SkittlesThisExpression extends SkittlesBaseExpression {
   expressionType: SkittlesExpressionType.This;
+}
+
+export interface SkittlesExternalExpression extends SkittlesBaseExpression {
+  expressionType: SkittlesExpressionType.External;
 }
 
 export interface SkittlesLengthExpression extends SkittlesBaseExpression {
@@ -107,8 +120,10 @@ export interface SkittlesStorageExpression extends SkittlesBaseExpression {
 }
 
 export type SkittlesExpression =
+  | SkittlesCallExpression
   | SkittlesDeployExpression
   | SkittlesThisExpression
+  | SkittlesExternalExpression
   | SkittlesLengthExpression
   | SkittlesInterfaceExpression
   | SkittlesNotExpression
