@@ -170,6 +170,21 @@ const getReturnValue = (
   if (isConditionalExpression(expression)) {
     return getSkittlesExpression(expression, interfaces, constants);
   }
+  if (isCallExpression(expression)) {
+    const callExpression = expression.expression;
+    if (isPropertyAccessExpression(callExpression)) {
+      const target = getNodeName(callExpression);
+      return {
+        expressionType: SkittlesExpressionType.Call,
+        target,
+        element: getSkittlesExpression(callExpression.expression, interfaces, constants),
+        parameters: expression.arguments.map((e) =>
+          getSkittlesExpression(e, interfaces, constants)
+        ),
+      };
+    }
+    throw new Error(`Unknown return call expression type ${callExpression.kind}`);
+  }
   throw new Error(`Unknown return expression type: ${expression.kind}`);
 };
 
