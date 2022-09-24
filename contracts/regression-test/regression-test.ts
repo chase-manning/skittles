@@ -28,6 +28,10 @@ interface TestEventType {
   testAddress: address;
 }
 
+function returnTwenty(): number {
+  return 20;
+}
+
 export class RegressionTest implements IRegressionTest {
   private _privatebalance: number = 111;
   protected _protectedBalance: number = 345;
@@ -89,6 +93,10 @@ export class RegressionTest implements IRegressionTest {
 
   getUsersBalance(user: address): number {
     return this._balances[user];
+  }
+
+  getUsersBalanceWrapper(user: address): number {
+    return this.getUsersBalance(user);
   }
 
   getWeirdCondition(value: number): number {
@@ -221,6 +229,22 @@ export class RegressionTest implements IRegressionTest {
     let [a, b] = first > second ? [second, first] : [first, second];
     return { a, b };
   };
+
+  // returnInternalFunction = () => {
+  //   return returnTwenty();
+  // };
+
+  // TODO Returning an internal function
+
+  // TODO Returning an internal const function
+
+  // TODO Returning an external function
+
+  // TODO Passing params to function
+
+  // TODO Set variable as internal function
+
+  // TODO Calling an internal function
 
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;

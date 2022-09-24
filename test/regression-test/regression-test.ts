@@ -123,6 +123,11 @@ describe("Regression Test", () => {
     expect(balance).to.equal(7890);
   });
 
+  it("Should call function via internal wrapper", async () => {
+    const balance = await regressionTest.getUsersBalanceWrapper(walletA.address);
+    expect(balance).to.equal(7890);
+  });
+
   it("Should add 7 to balance", async () => {
     await regressionTest.addBalance(7);
     const balance = await regressionTest.balance();
@@ -448,4 +453,8 @@ describe("Regression Test", () => {
     expect(response2[0]).to.equal(1);
     expect(response2[1]).to.equal(2);
   });
+
+  // it("Should return internal function", async () => {
+  //   expect(await regressionTest.returnInternalFunction()).to.equal(20);
+  // });
 });
