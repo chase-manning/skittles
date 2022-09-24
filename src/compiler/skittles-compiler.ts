@@ -15,10 +15,18 @@ const doTask = (task: string, fn: () => any) => {
   return response;
 };
 
+const getConfig = (): SkittlesConfig => {
+  try {
+    return require("../../skittles.config.ts");
+  } catch {
+    throw new Error("No skittles.config.ts file found");
+  }
+};
+
 const skittlesCompile = () => {
   // Loading cache and config
   const cache = JSON.parse(readFile("build/cache.json"));
-  const config: SkittlesConfig = require("../../skittles.config.ts");
+  const config = getConfig();
 
   // Getting file data
   const fileData: FileData[] = doTask("Processing Files", () => getFileData(cache));
