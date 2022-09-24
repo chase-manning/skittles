@@ -1,8 +1,6 @@
 import { ZERO_ADDRESS } from "../../src/data/constants";
 import { address } from "../../src/types/core-types";
 
-// Refactor to assing token0 and token1 at the same time
-
 class UniswapV2Factory {
   feeTo: address;
   feeToSetter: address;
