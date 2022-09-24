@@ -2,7 +2,17 @@
 
 import yargs from "yargs";
 import { clearDirectory } from "./helpers/file-helper";
-import { SkittlesEvent, address, self, block, chain, msg, tx, hash } from "./types/core-types";
+import {
+  SkittlesEvent,
+  address,
+  self,
+  block,
+  chain,
+  msg,
+  tx,
+  hash,
+  bytes,
+} from "./types/core-types";
 import getSkittlesFactory from "./testing/get-skittles-factory";
 import { logSkittles } from "./helpers/console-helper";
 import skittlesCompile from "./compiler/skittles-compiler";
@@ -20,6 +30,7 @@ yargs
 
 export {
   address,
+  bytes,
   self,
   block,
   chain,

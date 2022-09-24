@@ -1,4 +1,5 @@
 export type address = string;
+export type bytes = string;
 
 export const self: address = "0x00000000006c3852cbEf3e08E8dF289169EdE581";
 
@@ -122,6 +123,6 @@ export interface SkittlesConfig {
   };
 }
 
-export const hash = (...args: (string | number | address | boolean)[]): address => {
-  return "0x0000000000000000000000000000000000000000000000000000000000000000";
+export const hash = (...args: (number | address | boolean | bytes)[]): bytes => {
+  return "123";
 };

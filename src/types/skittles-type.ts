@@ -9,6 +9,7 @@ export enum SkittlesTypeKind {
   Number = "uint256",
   Boolean = "bool",
   Array = "array",
+  Bytes = "bytes32",
 }
 
 export interface SkittlesBaseType {
@@ -17,6 +18,7 @@ export interface SkittlesBaseType {
 
 export interface SkittleSimpleType extends SkittlesBaseType {
   kind:
+    | SkittlesTypeKind.Bytes
     | SkittlesTypeKind.String
     | SkittlesTypeKind.Address
     | SkittlesTypeKind.Boolean

@@ -2,6 +2,7 @@ export const decoderFunctions: Record<string, string> = {
   address: "decodeAsAddress",
   uint256: "decodeAsUint",
   bool: "decodeAsUint",
+  bytes32: "decodeAsUint",
 };
 
 export const returnFunctions: Record<string, string> = {
@@ -10,6 +11,7 @@ export const returnFunctions: Record<string, string> = {
   address: "return256",
   string: "returnString",
   array: "returnArray",
+  bytes32: "return256",
 };
 
 export const evmDialects: Record<string, Record<string, string>> = {

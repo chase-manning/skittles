@@ -8,6 +8,7 @@ const addressType: SkittlesType = { kind: SkittlesTypeKind.Address };
 const uint256Type: SkittlesType = { kind: SkittlesTypeKind.Number };
 const boolType: SkittlesType = { kind: SkittlesTypeKind.Boolean };
 const voidType: SkittlesType = { kind: SkittlesTypeKind.Void };
+const bytesType: SkittlesType = { kind: SkittlesTypeKind.Bytes };
 
 const getSkittlesType = (
   type: Node | undefined,
@@ -44,6 +45,8 @@ const getSkittlesType = (
       switch (escapedText) {
         case "address":
           return addressType;
+        case "bytes":
+          return bytesType;
         case "Record":
           let record = type as any;
           const inputs: SkittlesType[] = [];
