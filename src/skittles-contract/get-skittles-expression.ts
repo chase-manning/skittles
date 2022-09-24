@@ -1,10 +1,12 @@
 import {
   BinaryExpression,
+  CallExpression,
   ConditionalExpression,
   ElementAccessExpression,
   Expression,
   Identifier,
   isBinaryExpression,
+  isCallExpression,
   isConditionalExpression,
   isElementAccessExpression,
   isIdentifier,
@@ -22,7 +24,11 @@ import {
 import { getNodeName, isFalseKeyword, isTrueKeyword } from "../helpers/ast-helper";
 import { SkittlesConstants, SkittlesInterfaces } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
-import { SkittlesExpression, SkittlesExpressionType } from "../types/skittles-expression";
+import {
+  SkittlesCallExpression,
+  SkittlesExpression,
+  SkittlesExpressionType,
+} from "../types/skittles-expression";
 import getSkittlesOperator from "./get-skittles-operator";
 import getSkittlesType from "./get-skittles-type";
 
@@ -190,6 +196,35 @@ const getConditionalExpression = (
   };
 };
 
+const getCallExpression = (
+  expression: CallExpression,
+  interfaces: SkittlesInterfaces,
+  constants: SkittlesConstants
+): SkittlesCallExpression => {
+  const callExpression = expression.expression;
+  if (isPropertyAccessExpression(callExpression)) {
+    const target = getNodeName(callExpression);
+    return {
+      expressionType: SkittlesExpressionType.Call,
+      target,
+      element: getSkittlesExpression(callExpression.expression, interfaces, constants),
+      parameters: expression.arguments.map((e) => getSkittlesExpression(e, interfaces, constants)),
+    };
+  }
+  if (isIdentifier(callExpression)) {
+    const target = getNodeName(callExpression);
+    return {
+      expressionType: SkittlesExpressionType.Call,
+      target,
+      element: {
+        expressionType: SkittlesExpressionType.External,
+      },
+      parameters: expression.arguments.map((e) => getSkittlesExpression(e, interfaces, constants)),
+    };
+  }
+  throw new Error(`Unknown return call expression type ${callExpression.kind}`);
+};
+
 const getSkittlesExpression = (
   expression: Expression,
   interfaces: SkittlesInterfaces,
@@ -230,6 +265,9 @@ const getSkittlesExpression = (
   }
   if (isConditionalExpression(expression)) {
     return getConditionalExpression(expression, interfaces, constants);
+  }
+  if (isCallExpression(expression)) {
+    return getCallExpression(expression, interfaces, constants);
   }
 
   throw new Error(`Unknown expression type: ${expression.kind}`);
