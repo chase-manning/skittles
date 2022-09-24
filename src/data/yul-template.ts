@@ -1,3 +1,5 @@
+import { ALPHABET } from "./constants";
+
 export enum YulSection {
   Constructor = "constructor",
   Dispatchers = "dispatchers",
@@ -52,6 +54,19 @@ const utilityFunctions: string[] = [
   `length := and(length, 0x7f)`,
   `}`,
   `}`,
+
+  // Hash functions (max support of 10 currently)
+  ...Array.from({ length: 10 }, (_, i) => i + 1)
+    .map((i) => {
+      const vars = [...Array(i).keys()].map((j) => ALPHABET[j]);
+      return [
+        `function hash${i}Vars(${vars.join(", ")}) -> result {`,
+        ...vars.map((v, j) => `mstore(${j * 32}, ${v})`),
+        `result := keccak256(0, ${i * 32})`,
+        `}`,
+      ];
+    })
+    .flat(),
 ];
 
 const yulTemplate: string[] = [

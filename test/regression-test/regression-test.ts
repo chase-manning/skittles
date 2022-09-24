@@ -1,7 +1,7 @@
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
-import { isAddress } from "ethers/lib/utils";
+import { isAddress, keccak256, solidityKeccak256 } from "ethers/lib/utils";
 import getSkittlesFactory from "../../src/testing/get-skittles-factory";
 import { address } from "../../src/types/core-types";
 import { ZERO_ADDRESS } from "../../src/data/constants";
@@ -472,5 +472,26 @@ describe("Regression Test", () => {
 
   it("Should get function with params", async () => {
     expect(await regressionTest.returnFunctionWithParams(1, 2)).to.equal(3);
+  });
+
+  it("Should get single value number hash", async () => {
+    const oneHash = await regressionTest.getSingleValueNumberHash(1);
+    expect(oneHash).to.equal(solidityKeccak256(["uint256"], [1]));
+    const bigHash = await regressionTest.getSingleValueNumberHash(182131923);
+    expect(bigHash).to.equal(solidityKeccak256(["uint256"], [182131923]));
+  });
+
+  it("Should get multi value number hash", async () => {
+    const hash = await regressionTest.getMultiValueNumberHash(1, 6, 7, 99);
+    expect(hash).to.equal(
+      solidityKeccak256(["uint256", "uint256", "uint256", "uint256"], [1, 6, 7, 99])
+    );
+  });
+
+  it("Should get multi value mixed hash", async () => {
+    const ADDRESS = "0x1234567890123456789012345678901234567890";
+    const BYTES = solidityKeccak256(["uint256"], [1]);
+    const hash = await regressionTest.getMultiValueMixedhash(1, ADDRESS, false, BYTES);
+    expect(hash).to.equal("0xf52d5960df99e05e8cd851ce87801f71ad08ded62db6a08aec68ba3927dfde39");
   });
 });

@@ -1,4 +1,13 @@
-import { address, block, chain, msg, SkittlesEvent, tx } from "../../src/types/core-types";
+import {
+  address,
+  block,
+  bytes,
+  chain,
+  hash,
+  msg,
+  SkittlesEvent,
+  tx,
+} from "../../src/types/core-types";
 import IRegressionTest from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
 import { functionWithParams, returnFifty, returnFourty } from "./regression-test-library";
@@ -253,6 +262,18 @@ export class RegressionTest implements IRegressionTest {
 
   returnFunctionWithParams = (a: number, b: number): number => {
     return functionWithParams(a, b);
+  };
+
+  getSingleValueNumberHash = (a: number): bytes => {
+    return hash(a);
+  };
+
+  getMultiValueNumberHash = (a: number, b: number, c: number, d: number): bytes => {
+    return hash(a, b, c, d);
+  };
+
+  getMultiValueMixedhash = (a: number, b: address, c: boolean, d: bytes): bytes => {
+    return hash(a, b, c, d);
   };
 
   // Testing EVM OP Codes

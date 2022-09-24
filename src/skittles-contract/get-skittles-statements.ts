@@ -171,32 +171,7 @@ const getReturnValue = (
     return getSkittlesExpression(expression, interfaces, constants);
   }
   if (isCallExpression(expression)) {
-    const callExpression = expression.expression;
-    if (isPropertyAccessExpression(callExpression)) {
-      const target = getNodeName(callExpression);
-      return {
-        expressionType: SkittlesExpressionType.Call,
-        target,
-        element: getSkittlesExpression(callExpression.expression, interfaces, constants),
-        parameters: expression.arguments.map((e) =>
-          getSkittlesExpression(e, interfaces, constants)
-        ),
-      };
-    }
-    if (isIdentifier(callExpression)) {
-      const target = getNodeName(callExpression);
-      return {
-        expressionType: SkittlesExpressionType.Call,
-        target,
-        element: {
-          expressionType: SkittlesExpressionType.External,
-        },
-        parameters: expression.arguments.map((e) =>
-          getSkittlesExpression(e, interfaces, constants)
-        ),
-      };
-    }
-    throw new Error(`Unknown return call expression type ${callExpression.kind}`);
+    return getSkittlesExpression(expression, interfaces, constants);
   }
   throw new Error(`Unknown return expression type: ${expression.kind}`);
 };
@@ -289,7 +264,6 @@ const getExpressionStatement = (
     const callExpression = expression.expression;
     if (isPropertyAccessExpression(callExpression)) {
       const target = getNodeName(callExpression);
-
       // Handle events
       if (target === "emit") {
         const eventName = getNodeName(callExpression.expression);
@@ -333,26 +307,18 @@ const getExpressionStatement = (
           }),
         };
       }
-
-      // Handle other calls
-      return {
-        statementType: SkittlesStatementType.Expression,
-        expression: {
-          expressionType: SkittlesExpressionType.Call,
-          target,
-          element: getSkittlesExpression(callExpression.expression, interfaces, constants),
-          parameters: expression.arguments.map((e) =>
-            getSkittlesExpression(e, interfaces, constants)
-          ),
-        },
-      };
     }
     if (callExpression.kind === SyntaxKind.SuperKeyword) {
       return {
         statementType: SkittlesStatementType.Ignore,
       };
     }
-    throw new Error(`Unknown call expression type: ${callExpression.kind}`);
+
+    // Handle other calls
+    return {
+      statementType: SkittlesStatementType.Expression,
+      expression: getSkittlesExpression(expression, interfaces, constants),
+    };
   }
   throw new Error("Not implemented expression statement handling");
 };
