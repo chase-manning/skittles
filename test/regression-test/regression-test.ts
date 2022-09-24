@@ -123,6 +123,11 @@ describe("Regression Test", () => {
     expect(balance).to.equal(7890);
   });
 
+  it("Should call function via internal wrapper", async () => {
+    const balance = await regressionTest.getUsersBalanceWrapper(walletA.address);
+    expect(balance).to.equal(7890);
+  });
+
   it("Should add 7 to balance", async () => {
     await regressionTest.addBalance(7);
     const balance = await regressionTest.balance();
@@ -447,6 +452,26 @@ describe("Regression Test", () => {
     const response2 = await regressionTest.getConditionalVariableDeclarationList(1, 2);
     expect(response2[0]).to.equal(1);
     expect(response2[1]).to.equal(2);
+  });
+
+  it("Should return internal function", async () => {
+    expect(await regressionTest.returnInternalFunction()).to.equal(20);
+  });
+
+  it("Should return internal arrow function", async () => {
+    expect(await regressionTest.returnInternalArrowFunction()).to.equal(30);
+  });
+
+  it("Should return external function", async () => {
+    expect(await regressionTest.returnExternalFunction()).to.equal(50);
+  });
+
+  it("Should return external arrow function", async () => {
+    expect(await regressionTest.returnExternalArrowFunction()).to.equal(40);
+  });
+
+  it("Should get function with params", async () => {
+    expect(await regressionTest.returnFunctionWithParams(1, 2)).to.equal(3);
   });
 
   it("Should get single value number hash", async () => {

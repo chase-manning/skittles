@@ -57,6 +57,7 @@ interface SkittlesContract {
   constructor?: SkittlesConstructor;
   variables: SkittlesVariable[];
   methods: SkittlesMethod[];
+  functions: SkittlesMethod[];
 }
 
 export default SkittlesContract;

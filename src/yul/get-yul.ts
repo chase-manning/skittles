@@ -35,6 +35,11 @@ const getYul = (contract: SkittlesContract, abi: Abi) => {
     yul = addMethodFunction(yul, method);
   });
 
+  // Adding functions
+  contract.functions.forEach((method: SkittlesMethod) => {
+    yul = addMethodFunction(yul, method, true);
+  });
+
   // Adding events
   yul = addEvents(yul, contract.events);
 

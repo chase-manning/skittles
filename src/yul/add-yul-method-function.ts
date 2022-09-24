@@ -4,7 +4,7 @@ import { SkittlesMethod, SkittlesParameter } from "../types/skittles-contract";
 import { SkittlesTypeKind } from "../types/skittles-type";
 import getBlockYul from "./get-block-yul";
 
-const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
+const addMethodFunction = (yul: string[], method: SkittlesMethod, external?: boolean) => {
   const { name, parameters, returns, statements } = method;
 
   const returnVariables = () => {
@@ -16,7 +16,7 @@ const addMethodFunction = (yul: string[], method: SkittlesMethod) => {
   };
 
   const yuls = [
-    `function ${name}Function(${parameters
+    `function ${name}${external ? "External" : ""}Function(${parameters
       .map((input: SkittlesParameter) => `${input.name}Var`)
       .join(", ")}) ${returnVariables()}{`,
     ...getBlockYul(statements),

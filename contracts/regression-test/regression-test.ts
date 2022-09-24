@@ -1,6 +1,7 @@
 import { address, block, chain, hash, msg, SkittlesEvent, tx } from "../../src/types/core-types";
 import IRegressionTest from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
+import { functionWithParams, returnFifty, returnFourty } from "./regression-test-library";
 
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
@@ -27,6 +28,14 @@ interface TestEventType {
   testNumber: number;
   testAddress: address;
 }
+
+function returnTwenty(): number {
+  return 20;
+}
+
+const returnThirty = (): number => {
+  return 30;
+};
 
 export class RegressionTest implements IRegressionTest {
   private _privatebalance: number = 111;
@@ -89,6 +98,10 @@ export class RegressionTest implements IRegressionTest {
 
   getUsersBalance(user: address): number {
     return this._balances[user];
+  }
+
+  getUsersBalanceWrapper(user: address): number {
+    return this.getUsersBalance(user);
   }
 
   getWeirdCondition(value: number): number {
@@ -220,6 +233,26 @@ export class RegressionTest implements IRegressionTest {
   getConditionalVariableDeclarationList = (first: number, second: number): AB => {
     let [a, b] = first > second ? [second, first] : [first, second];
     return { a, b };
+  };
+
+  returnInternalFunction = (): number => {
+    return returnTwenty();
+  };
+
+  returnInternalArrowFunction = (): number => {
+    return returnThirty();
+  };
+
+  returnExternalFunction(): number {
+    return returnFifty();
+  }
+
+  returnExternalArrowFunction(): number {
+    return returnFourty();
+  }
+
+  returnFunctionWithParams = (a: number, b: number): number => {
+    return functionWithParams(a, b);
   };
 
   getSingleValueNumberHash = (a: number): address => {

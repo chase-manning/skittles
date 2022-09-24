@@ -7,7 +7,7 @@ export enum SkittlesStatementType {
   Return = "Return",
   MappingUpdate = "Mapping Update",
   VariableUpdate = "Variable Update",
-  Call = "Call",
+  Expression = "Expression",
   If = "If",
   Throw = "Throw",
   Ignore = "Ignore",
@@ -47,11 +47,9 @@ export interface SkittlesIfStatement extends SkittlesBaseStatement {
   else: SkittlesStatement[];
 }
 
-export interface SkittlesCallStatement extends SkittlesBaseStatement {
-  statementType: SkittlesStatementType.Call;
-  target: string;
-  element: SkittlesExpression;
-  parameters: SkittlesExpression[];
+export interface SkittlesExpressionStatement extends SkittlesBaseStatement {
+  statementType: SkittlesStatementType.Expression;
+  expression: SkittlesExpression;
 }
 
 export interface SkittlesMappingUpdateStatement extends SkittlesBaseStatement {
@@ -86,7 +84,7 @@ export type SkittlesStatement =
   | SkittlesIgnoreStatement
   | SkittlesThrowStatement
   | SkittlesIfStatement
-  | SkittlesCallStatement
+  | SkittlesExpressionStatement
   | SkittlesMappingUpdateStatement
   | SkittlesStorageUpdateStatement
   | SkittlesReturnStatement;
