@@ -5,7 +5,7 @@ import IUniswapV2ERC20, {
   TransferEvent,
 } from "./interfaces/uniswap-v2-erc20-interface";
 
-export default class UniswapV2ERC20 implements IUniswapV2ERC20 {
+class UniswapV2ERC20 implements IUniswapV2ERC20 {
   readonly name: string = "Uniswap V2";
   readonly symbol: string = "UNI-V2";
   readonly decimals: number = 18;
@@ -57,3 +57,5 @@ export default class UniswapV2ERC20 implements IUniswapV2ERC20 {
     return true;
   }
 }
+
+export default UniswapV2ERC20;

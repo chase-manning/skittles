@@ -3,7 +3,7 @@ import { address } from "../../src/types/core-types";
 
 // Refactor to assing token0 and token1 at the same time
 
-export class UniswapV2Factory {
+class UniswapV2Factory {
   feeTo: address;
   feeToSetter: address;
 
@@ -29,7 +29,9 @@ export class UniswapV2Factory {
     if (this.getPair[token0][token1] !== ZERO_ADDRESS) {
       throw new Error("UniswapV2: PAIR_EXISTS");
     }
-    // const pair = new UniswapV2Pair();
+    // const pair = new Uniswa();
     // pair.initialize(token0, token1);
   }
 }
+
+export default UniswapV2Factory;

@@ -12,7 +12,7 @@ export interface TransferEvent {
   value: number;
 }
 
-export default interface IUniswapV2ERC20 {
+interface IUniswapV2ERC20 {
   name: string;
   symbol: string;
   decimals: number;
@@ -23,3 +23,5 @@ export default interface IUniswapV2ERC20 {
   transfer(to: address, amount: number): boolean;
   transferFrom(from: address, to: address, amount: number): boolean;
 }
+
+export default IUniswapV2ERC20;

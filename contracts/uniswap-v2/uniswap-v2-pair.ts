@@ -10,7 +10,7 @@ interface Reserves {
   blockTimestampLast: number;
 }
 
-export class UniswapV2Pair {
+class UniswapV2Pair {
   readonly MINIMUM_LIQUIDITY: number = 10 ** 3;
 
   factory: address;
@@ -38,3 +38,5 @@ export class UniswapV2Pair {
     this.token1 = token1;
   }
 }
+
+export default UniswapV2Pair;
