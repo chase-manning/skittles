@@ -1,4 +1,3 @@
-- Add hash support (we have some progress in `hash` branch)
 - Add ability to deploy contracts
 - Fix issue with revert messages not showing
 - add uniswap V2 implementation
@@ -38,3 +37,4 @@
 - Add event indexing
 - Add support for initialising an event inline
 - Cleanup get-file-data (Change so always using the same var, move stuff into new functions, remove dependency adding duplications)
+- Add support for hashing strings
