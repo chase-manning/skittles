@@ -457,4 +457,20 @@ describe("Regression Test", () => {
   it("Should return internal function", async () => {
     expect(await regressionTest.returnInternalFunction()).to.equal(20);
   });
+
+  it("Should return internal arrow function", async () => {
+    expect(await regressionTest.returnInternalArrowFunction()).to.equal(30);
+  });
+
+  it("Should return external function", async () => {
+    expect(await regressionTest.returnExternalFunction()).to.equal(50);
+  });
+
+  it("Should return external arrow function", async () => {
+    expect(await regressionTest.returnExternalArrowFunction()).to.equal(40);
+  });
+
+  it("Should get function with params", async () => {
+    expect(await regressionTest.returnFunctionWithParams(1, 2)).to.equal(3);
+  });
 });

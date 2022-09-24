@@ -1,9 +1,11 @@
+- Add hash support (we have some progress in `hash` branch)
 - Add ability to deploy contracts
 - Fix issue with revert messages not showing
 - add uniswap V2 implementation
 
 === UNISWAP V2 DONE ===
 
+- Add eslinting for package and general code styling improvements
 - Add strict eslinting for typescript files and include in init and docs
 - add init function
 - add readme
@@ -35,3 +37,4 @@
 - Add support for passing event data through as an constant `const data: DataType = {meow: 2};` and `this.coolEvent.emit(data)`
 - Add event indexing
 - Add support for initialising an event inline
+- Cleanup get-file-data (Change so always using the same var, move stuff into new functions, remove dependency adding duplications)

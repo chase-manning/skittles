@@ -1,6 +1,7 @@
 import { address, block, chain, msg, SkittlesEvent, tx } from "../../src/types/core-types";
 import IRegressionTest from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
+import { functionWithParams, returnFifty, returnFourty } from "./regression-test-library";
 
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
@@ -31,6 +32,10 @@ interface TestEventType {
 function returnTwenty(): number {
   return 20;
 }
+
+const returnThirty = (): number => {
+  return 30;
+};
 
 export class RegressionTest implements IRegressionTest {
   private _privatebalance: number = 111;
@@ -234,17 +239,21 @@ export class RegressionTest implements IRegressionTest {
     return returnTwenty();
   };
 
-  // TODO Returning an internal function
+  returnInternalArrowFunction = (): number => {
+    return returnThirty();
+  };
 
-  // TODO Returning an internal const function
+  returnExternalFunction(): number {
+    return returnFifty();
+  }
 
-  // TODO Returning an external function
+  returnExternalArrowFunction(): number {
+    return returnFourty();
+  }
 
-  // TODO Passing params to function
-
-  // TODO Set variable as internal function
-
-  // TODO Calling an internal function
+  returnFunctionWithParams = (a: number, b: number): number => {
+    return functionWithParams(a, b);
+  };
 
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
