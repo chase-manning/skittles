@@ -1,16 +1,14 @@
-- Add support for array deconstructing `const [stooge1, stooge2, stooge3] = ["moe", "curly", "larry"]`
-- Add ability to set multiple variables at once `a = b = c = 4`
 - Add ability to deploy contracts
 - Fix issue with revert messages not showing
 - add uniswap V2 implementation
 
 === UNISWAP V2 DONE ===
 
-- Add config for things like running optimizer
 - Add strict eslinting for typescript files and include in init and docs
 - add init function
 - add readme
 - add normal repo things
+- change exports to have sub directorys, e.g. `skittles/constants` or `skittles/config`
 
 === CAN MAKE REPO PUBLIC ===
 

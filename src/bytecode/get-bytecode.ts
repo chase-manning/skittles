@@ -1,6 +1,8 @@
+import { SkittlesConfig } from "../types/core-types";
+
 const solc = require("solc");
 
-const getBytecode = (className: string, content: string) => {
+const getBytecode = (className: string, content: string, config: SkittlesConfig) => {
   const input = {
     language: "Yul",
     sources: {
@@ -9,6 +11,7 @@ const getBytecode = (className: string, content: string) => {
       },
     },
     settings: {
+      optimizer: config.optimizer,
       outputSelection: {
         "*": {
           "*": ["*"],
