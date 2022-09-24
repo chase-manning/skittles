@@ -1,5 +1,5 @@
 import { ZERO_ADDRESS } from "../../src/data/constants";
-import { address } from "../../src/types/core-types";
+import { address, hash } from "../../src/types/core-types";
 
 class UniswapV2Factory {
   feeTo: address;
@@ -27,6 +27,7 @@ class UniswapV2Factory {
     if (this.getPair[token0][token1] !== ZERO_ADDRESS) {
       throw new Error("UniswapV2: PAIR_EXISTS");
     }
+    const salt = hash(token0, token1);
     // const pair = new Uniswa();
     // pair.initialize(token0, token1);
   }
