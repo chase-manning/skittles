@@ -448,4 +448,11 @@ describe("Regression Test", () => {
     expect(response2[0]).to.equal(1);
     expect(response2[1]).to.equal(2);
   });
+
+  it("Should get single value number hash", async () => {
+    const oneHash = await regressionTest.getSingleValueNumberHash(1);
+    expect(oneHash).to.equal("5fe7f977e71dba2ea1a68e21057beebb9be2ac30c6410aa38d4f3fbe41dcffd2");
+    const bigHash = await regressionTest.getSingleValueNumberHash(182131923);
+    expect(bigHash).to.equal("5194a9b8cac673d628b67bc79ffddc534f7ae2dd711a930dbee278ce98a904b5");
+  });
 });

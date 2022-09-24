@@ -121,3 +121,7 @@ export interface SkittlesConfig {
     };
   };
 }
+
+export const hash = (...args: (string | number | address | boolean)[]): address => {
+  return "0x0000000000000000000000000000000000000000000000000000000000000000";
+};

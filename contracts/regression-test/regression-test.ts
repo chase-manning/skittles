@@ -1,4 +1,4 @@
-import { address, block, chain, msg, SkittlesEvent, tx } from "../../src/types/core-types";
+import { address, block, chain, hash, msg, SkittlesEvent, tx } from "../../src/types/core-types";
 import IRegressionTest from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
 
@@ -220,6 +220,10 @@ export class RegressionTest implements IRegressionTest {
   getConditionalVariableDeclarationList = (first: number, second: number): AB => {
     let [a, b] = first > second ? [second, first] : [first, second];
     return { a, b };
+  };
+
+  getSingleValueNumberHash = (a: number): address => {
+    return hash(a);
   };
 
   // Testing EVM OP Codes
