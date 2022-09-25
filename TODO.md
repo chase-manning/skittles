@@ -1,4 +1,9 @@
+- Extend everything from a contract class for things like `Contract.address` and stuff
+- Add support for getting an addresses `Account`
+- Change compile to only compile contracts that extend `SkittlesContract`
 - Add ability to deploy contracts
+- Add ability to deploy contract with constructor
+- Order all the unformatted tassk
 - Fix issue with revert messages not showing
 - add uniswap V2 implementation
 
@@ -23,7 +28,6 @@
 
 === IDEAS ===
 
-- Extend everything from a contract class for things like `Contract.address` and stuff
 - Change the tests to return actual contract types for the contract
 - Change to the same output format as Hardhat
 - Should events need to be store in the class? Maybe could import the object?
@@ -38,3 +42,13 @@
 - Add support for initialising an event inline
 - Cleanup get-file-data (Change so always using the same var, move stuff into new functions, remove dependency adding duplications)
 - Add support for hashing strings
+- Add support for `create2` opcode, and change `UniswapV2Factory` to use this with the token salts https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Factory.sol#L29
+- Implement `SkittlesContract` `balance`
+- Implement `SkittlesContract` `code`
+- Implement `SkittlesContract` `codehash`
+- Implement `SkittlesContract` `transfer`
+- Implement `SkittlesContract` `send`
+- Implement `SkittlesContract` `call`
+- Implement `SkittlesContract` `delegatecall`
+- Implement `SkittlesContract` `staticcall`
+- Add natspec comments for all the core types

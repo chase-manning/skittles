@@ -5,13 +5,14 @@ import { clearDirectory } from "./helpers/file-helper";
 import {
   SkittlesEvent,
   address,
-  self,
   block,
   chain,
   msg,
   tx,
   hash,
   bytes,
+  SkittlesContract,
+  Account,
 } from "./types/core-types";
 import getSkittlesFactory from "./testing/get-skittles-factory";
 import { logSkittles } from "./helpers/console-helper";
@@ -31,7 +32,6 @@ yargs
 export {
   address,
   bytes,
-  self,
   block,
   chain,
   msg,
@@ -40,4 +40,6 @@ export {
   ZERO_ADDRESS,
   SkittlesEvent,
   hash,
+  SkittlesContract,
+  Account,
 };

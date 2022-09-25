@@ -34,4 +34,7 @@ export const evmDialects: Record<string, Record<string, string>> = {
     gasPrice: "gasprice()",
     origin: "origin()",
   },
+  this: {
+    address: "address()",
+  },
 };

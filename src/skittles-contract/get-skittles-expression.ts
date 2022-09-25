@@ -62,6 +62,23 @@ const getLiteralExpression = (
   };
 };
 
+const getSkittlesContractPropertyExpression = (
+  expression: PropertyAccessExpression
+): SkittlesExpression => {
+  if (!isIdentifier(expression.expression)) {
+    throw new Error("Expected identifier");
+  }
+  const environment = expression.expression.escapedText;
+  const element = getNodeName(expression.name);
+  if (element === "address") {
+    return {
+      expressionType: SkittlesExpressionType.Variable,
+      value: environment,
+    };
+  }
+  throw new Error(`Unknown contract property: ${element}`);
+};
+
 const getPropertyAccessExpression = (
   expression: PropertyAccessExpression,
   interfaces: SkittlesInterfaces,
@@ -80,9 +97,17 @@ const getPropertyAccessExpression = (
     }
   }
   if (expression.expression.kind === SyntaxKind.ThisKeyword) {
+    const variable = getNodeName(expression);
+    if (variable === "address") {
+      return {
+        expressionType: SkittlesExpressionType.EvmDialect,
+        environment: "this",
+        variable: "address",
+      };
+    }
     return {
       expressionType: SkittlesExpressionType.Storage,
-      variable: getNodeName(expression),
+      variable,
     };
   }
   if (expression.expression.kind === SyntaxKind.Identifier) {
@@ -107,6 +132,9 @@ const getPropertyAccessExpression = (
         };
       }
       throw new Error(`Could not get value for ${element}`);
+    }
+    if (["address"].includes(environment)) {
+      return getSkittlesContractPropertyExpression(expression);
     }
     throw new Error(`Unknown environment: ${environment}`);
   }
