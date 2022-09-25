@@ -1,5 +1,5 @@
 import { msg } from "../../src/types/core-types";
-import { ERC20 } from "./erc20";
+import ERC20 from "./erc20";
 
 export class MockERC20 extends ERC20 {
   constructor(mintAmount_: number) {

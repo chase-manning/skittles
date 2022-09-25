@@ -1,7 +1,8 @@
 import { ZERO_ADDRESS } from "../../src/data/constants";
-import { address, hash } from "../../src/types/core-types";
+import { address, SkittlesContract } from "../../src/types/core-types";
+// import UniswapV2Pair from "./uniswap-v2-pair";
 
-class UniswapV2Factory {
+class UniswapV2Factory extends SkittlesContract {
   feeTo: address;
   feeToSetter: address;
 
@@ -9,6 +10,7 @@ class UniswapV2Factory {
   allPairs: address[];
 
   constructor(feeToSetter: address) {
+    super();
     this.feeToSetter = feeToSetter;
   }
 
@@ -27,8 +29,7 @@ class UniswapV2Factory {
     if (this.getPair[token0][token1] !== ZERO_ADDRESS) {
       throw new Error("UniswapV2: PAIR_EXISTS");
     }
-    const salt = hash(token0, token1);
-    // const pair = new Uniswa();
+    // const pair = new UniswapV2Pair();
     // pair.initialize(token0, token1);
   }
 }

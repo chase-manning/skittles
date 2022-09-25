@@ -1,4 +1,4 @@
-import { address } from "../../src/types/core-types";
+import { address, SkittlesContract } from "../../src/types/core-types";
 
 // TODO Extend the ERC20 contract
 // TODO Extend interface
@@ -10,7 +10,7 @@ interface Reserves {
   blockTimestampLast: number;
 }
 
-class UniswapV2Pair {
+class UniswapV2Pair extends SkittlesContract {
   readonly MINIMUM_LIQUIDITY: number = 10 ** 3;
 
   factory: address;

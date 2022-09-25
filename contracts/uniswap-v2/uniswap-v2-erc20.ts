@@ -1,11 +1,11 @@
 import { ZERO_ADDRESS } from "../../src/data/constants";
-import { address, msg, SkittlesEvent } from "../../src/types/core-types";
+import { address, msg, SkittlesContract, SkittlesEvent } from "../../src/types/core-types";
 import IUniswapV2ERC20, {
   ApprovalEvent,
   TransferEvent,
 } from "./interfaces/uniswap-v2-erc20-interface";
 
-class UniswapV2ERC20 implements IUniswapV2ERC20 {
+class UniswapV2ERC20 extends SkittlesContract implements IUniswapV2ERC20 {
   readonly name: string = "Uniswap V2";
   readonly symbol: string = "UNI-V2";
   readonly decimals: number = 18;

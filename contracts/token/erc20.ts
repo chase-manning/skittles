@@ -1,7 +1,7 @@
-import { address, msg, SkittlesEvent } from "../../src/types/core-types";
+import { address, msg, SkittlesContract, SkittlesEvent } from "../../src/types/core-types";
 import IERC20, { ApprovalEvent, TransferEvent } from "./ierc20";
 
-export class ERC20 implements IERC20 {
+class ERC20 extends SkittlesContract implements IERC20 {
   readonly decimals: number = 18;
   readonly symbol: string = "TEST";
   readonly name: string = "TEST ERC20";
@@ -38,3 +38,5 @@ export class ERC20 implements IERC20 {
     this.Transfer.emit({ from, to, amount });
   }
 }
+
+export default ERC20;
