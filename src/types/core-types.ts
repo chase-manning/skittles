@@ -1,8 +1,6 @@
 export type address = string;
 export type bytes = string;
 
-export const self: address = "0x00000000006c3852cbEf3e08E8dF289169EdE581";
-
 export class block {
   // Current block miner’s address
   static get coinbase(): address {
@@ -126,3 +124,55 @@ export interface SkittlesConfig {
 export const hash = (...args: (number | address | boolean | bytes)[]): bytes => {
   return "123";
 };
+
+export class SkittlesContract {
+  // Address of the contract
+  address: address = "0x0000000000000000000000000000000000000000";
+
+  // // balance of the Address in Wei
+  // balance: number = 0;
+
+  // // code at the Contract (can be empty)
+  // code: bytes = "";
+
+  // // code at the Contract (can be empty)
+  // codehash: bytes = "";
+
+  // // send given amount of Wei to Address, reverts on failure, forwards 2300 gas stipend, not adjustable
+  // transfer(value: number): void {}
+
+  // // send given amount of Wei to Address, returns false on failure, forwards 2300 gas stipend, not adjustable
+  // send(value: number): boolean {
+  //   return Math.random() > 0.5;
+  // }
+
+  // // issue low-level CALL with the given payload, returns success condition and return data, forwards all available gas, adjustable
+  // call(bytes: bytes): { bool: boolean; bytes: bytes } {
+  //   return {
+  //     bool: Math.random() > 0.5,
+  //     bytes: "123",
+  //   };
+  // }
+
+  // // issue low-level DELEGATECALL with the given payload, returns success condition and return data, forwards all available gas, adjustable
+  // delegatecall(bytes: bytes): { bool: boolean; bytes: bytes } {
+  //   return {
+  //     bool: Math.random() > 0.5,
+  //     bytes: "123",
+  //   };
+  // }
+
+  // // issue low-level STATICCALL with the given payload, returns success condition and return data, forwards all available gas, adjustable
+  // staticcall(bytes: bytes): { bool: boolean; bytes: bytes } {
+  //   return {
+  //     bool: Math.random() > 0.5,
+  //     bytes: "123",
+  //   };
+  // }
+}
+
+export class Account extends SkittlesContract {
+  constructor(address: address) {
+    super();
+  }
+}
