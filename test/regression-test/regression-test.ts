@@ -494,4 +494,8 @@ describe("Regression Test", () => {
     const hash = await regressionTest.getMultiValueMixedhash(1, ADDRESS, false, BYTES);
     expect(hash).to.equal("0xf52d5960df99e05e8cd851ce87801f71ad08ded62db6a08aec68ba3927dfde39");
   });
+
+  it("Should get contract address", async () => {
+    expect(await regressionTest.getContractAddress()).to.equal(regressionTest.address);
+  });
 });

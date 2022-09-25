@@ -5,6 +5,7 @@ import {
   chain,
   hash,
   msg,
+  SkittlesContract,
   SkittlesEvent,
   tx,
 } from "../../src/types/core-types";
@@ -46,7 +47,7 @@ const returnThirty = (): number => {
   return 30;
 };
 
-export class RegressionTest implements IRegressionTest {
+export class RegressionTest extends SkittlesContract implements IRegressionTest {
   private _privatebalance: number = 111;
   protected _protectedBalance: number = 345;
   balance: number = 1;
@@ -65,6 +66,7 @@ export class RegressionTest implements IRegressionTest {
   TestEvent: SkittlesEvent<TestEventType>;
 
   constructor(init_: number) {
+    super();
     this.age = 46;
     this.init = init_;
     this._balances[msg.sender] = init_;
@@ -276,6 +278,15 @@ export class RegressionTest implements IRegressionTest {
     return hash(a, b, c, d);
   };
 
+  getContractAddress = (): address => {
+    return this.address;
+  };
+
+  // deployContract = (): address => {
+  //   const contract = new RegressionTestChild();
+  //   return contract.address;
+  // };
+
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;
   getDifficulty = (): number => block.difficulty;
@@ -299,7 +310,7 @@ export class RegressionTest implements IRegressionTest {
   getNot = (value: boolean): boolean => !value;
 }
 
-class BaseSecondRegressionTest {
+class BaseSecondRegressionTest extends SkittlesContract {
   meow: number;
 }
 
