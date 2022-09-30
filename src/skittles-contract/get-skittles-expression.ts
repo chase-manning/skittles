@@ -84,20 +84,19 @@ const getPropertyAccessExpression = (
   interfaces: SkittlesInterfaces,
   constants: SkittlesConstants
 ): SkittlesExpression => {
+  const variable = getNodeName(expression);
   if (expression.expression.kind === SyntaxKind.PropertyAccessExpression) {
-    const property = getNodeName(expression);
-    switch (property) {
+    switch (variable) {
       case "length":
         return {
           expressionType: SkittlesExpressionType.Length,
           value: getSkittlesExpression(expression.expression, interfaces, constants),
         };
       default:
-        throw new Error(`Unknown property access property: ${property}`);
+        throw new Error(`Unknown property access property: ${variable}`);
     }
   }
   if (expression.expression.kind === SyntaxKind.ThisKeyword) {
-    const variable = getNodeName(expression);
     if (variable === "address") {
       return {
         expressionType: SkittlesExpressionType.EvmDialect,
@@ -117,12 +116,11 @@ const getPropertyAccessExpression = (
       return {
         expressionType: SkittlesExpressionType.EvmDialect,
         environment: environment,
-        variable: getNodeName(expression),
+        variable: variable,
       };
     }
     if (environment === "Number") {
-      const element = getNodeName(expression.name);
-      if (element === "MAX_SAFE_INTEGER" || element === "MAX_VALUE") {
+      if (variable === "MAX_SAFE_INTEGER" || variable === "MAX_VALUE") {
         return {
           expressionType: SkittlesExpressionType.Value,
           type: {
@@ -131,9 +129,9 @@ const getPropertyAccessExpression = (
           value: "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         };
       }
-      throw new Error(`Could not get value for ${element}`);
+      throw new Error(`Could not get value for ${variable}`);
     }
-    if (["address"].includes(environment)) {
+    if (["address"].includes(variable)) {
       return getSkittlesContractPropertyExpression(expression);
     }
     throw new Error(`Unknown environment: ${environment}`);
