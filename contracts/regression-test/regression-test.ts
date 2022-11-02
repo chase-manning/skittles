@@ -12,6 +12,7 @@ import {
 import IRegressionTest from "./regression-test-interface";
 import { ZERO_ADDRESS } from "../../src/data/constants";
 import { functionWithParams, returnFifty, returnFourty } from "./regression-test-library";
+import RegressionTestChild from "./regression-test-child";
 
 // This contract is used for regression testing and intends to implement all compile features
 // It should NOT be used as an example of a contract implementation using Skittles
@@ -282,10 +283,12 @@ export class RegressionTest extends SkittlesContract implements IRegressionTest 
     return this.address;
   };
 
-  // deployContract = (): address => {
-  //   const contract = new RegressionTestChild();
-  //   return contract.address;
-  // };
+  deployContract = (): address => {
+    const contract = new RegressionTestChild();
+    return contract.address;
+  };
+
+  // TODO Test returning the address of the deployed contract
 
   // Testing EVM OP Codes
   getCoinbase = (): address => block.coinbase;

@@ -1,8 +1,9 @@
-- Extend everything from a contract class for things like `Contract.address` and stuff
+- Add ability to deploy contracts
+- Add ability to deploy contract with constructor and params
+- Add check that deploy was successful (returns 0 when fails, probably need to move logic into a deploy function and call that)
+- Implement `SkittlesContract` `balance`
 - Add support for getting an addresses `Account`
 - Change compile to only compile contracts that extend `SkittlesContract`
-- Add ability to deploy contracts
-- Add ability to deploy contract with constructor
 - Order all the unformatted tassk
 - Fix issue with revert messages not showing
 - add uniswap V2 implementation
@@ -43,7 +44,6 @@
 - Cleanup get-file-data (Change so always using the same var, move stuff into new functions, remove dependency adding duplications)
 - Add support for hashing strings
 - Add support for `create2` opcode, and change `UniswapV2Factory` to use this with the token salts https://github.com/Uniswap/v2-core/blob/master/contracts/UniswapV2Factory.sol#L29
-- Implement `SkittlesContract` `balance`
 - Implement `SkittlesContract` `code`
 - Implement `SkittlesContract` `codehash`
 - Implement `SkittlesContract` `transfer`
@@ -52,3 +52,7 @@
 - Implement `SkittlesContract` `delegatecall`
 - Implement `SkittlesContract` `staticcall`
 - Add natspec comments for all the core types
+- Add support for sending Wei when deploying contract
+- Refacor these `x = y ? j : l` to instead just be a function call, that way we don't need to iterate through everything and extract stuff.
+- Fix issue with memory collisions using `mstore(x)` from sub functions
+- Remove the duplication in yul template with constructor and normal versions of everything and having to add them twice

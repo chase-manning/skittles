@@ -100,6 +100,11 @@ const getExpressionYul = (expression: SkittlesExpression): string => {
     case SkittlesExpressionType.Hash:
       const { inputs } = expression;
       return `hash${inputs.length}Vars(${inputs.map(getExpressionYul).join(", ")})`;
+    case SkittlesExpressionType.Deploy:
+      if (expression.parameters.length > 0) {
+        throw new Error("Deploying contracts with parameters is not supported");
+      }
+      return `deployContract${expression.contract}()`;
     default:
       throw new Error(`Unsupported expression: ${expression.expressionType}`);
   }

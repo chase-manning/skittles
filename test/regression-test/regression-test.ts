@@ -1,7 +1,7 @@
 import chai, { expect } from "chai";
 import { ethers } from "hardhat";
 import { Contract } from "ethers";
-import { isAddress, keccak256, solidityKeccak256 } from "ethers/lib/utils";
+import { isAddress, solidityKeccak256 } from "ethers/lib/utils";
 import getSkittlesFactory from "../../src/testing/get-skittles-factory";
 import { address } from "../../src/types/core-types";
 import { ZERO_ADDRESS } from "../../src/data/constants";
@@ -497,5 +497,15 @@ describe("Regression Test", () => {
 
   it("Should get contract address", async () => {
     expect(await regressionTest.getContractAddress()).to.equal(regressionTest.address);
+  });
+
+  it("Should deploy contract", async () => {
+    const contractAddress = await regressionTest.deployContract();
+    expect(contractAddress).to.not.equal(ZERO_ADDRESS);
+    expect(contractAddress).to.not.equal(regressionTest.address);
+    const ABI = `[{ "type": "function", "name": "value", "inputs": [], "outputs": [ { "name": "", "type": "uint256" } ], "stateMutability": "view" } ]`;
+    const contract = new Contract(contractAddress, ABI, ethers.provider);
+    const value = await contract.value();
+    expect(value).to.equal(10);
   });
 });

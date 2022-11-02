@@ -5,6 +5,8 @@ import getBytecode from "../bytecode/get-bytecode";
 import { readFile, updateCache, writeBuildFile } from "../helpers/file-helper";
 import { SkittlesConfig } from "../types/core-types";
 import SkittlesContract from "../types/skittles-contract";
+import addObjects from "../yul/add-yul-objects";
+import formatYul from "../yul/format-yul";
 import getYul from "../yul/get-yul";
 import getFileData, { FileData } from "./get-file-data";
 
@@ -35,15 +37,18 @@ const skittlesCompile = () => {
   updateCache(fileData);
 
   // Compiling Contracts
+  let yuls: Record<string, string[]> = {};
   fileData.forEach((fd) => {
     fd.contracts.forEach((contract: SkittlesContract) => {
       const { name } = contract;
       doTask(`Compiling ${name}`, () => {
         const abi = getAbi(contract);
         writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
-        const yul = getYul(contract, abi);
-        writeBuildFile(`${name}.yul`, yul, "yul");
-        const bytecode = getBytecode(name, yul, config);
+        const yul = getYul(contract, abi, yuls);
+        yuls[name] = yul;
+        const formattedYul = formatYul(yul);
+        writeBuildFile(`${name}.yul`, formattedYul, "yul");
+        const bytecode = getBytecode(name, formattedYul, config);
         writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
       });
     });

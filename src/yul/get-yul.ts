@@ -1,7 +1,6 @@
 import SkittlesContract, { SkittlesMethod, SkittlesVariable } from "../types/skittles-contract";
 
 import { Abi } from "../types/abi-types";
-import formatYul from "./format-yul";
 import { getBaseYul } from "../helpers/yul-helper";
 import addStorageLayout from "./add-yul-storage-layout";
 import addConstructor from "./add-yul-constructor";
@@ -11,8 +10,9 @@ import addMethodFunction from "./add-yul-method-function";
 import addStorageAccess from "./add-yul-storage-access";
 import addValueInitializations from "./add-yul-value-initialzations";
 import addEvents from "./add-yul-events";
+import addObjects from "./add-yul-objects";
 
-const getYul = (contract: SkittlesContract, abi: Abi) => {
+const getYul = (contract: SkittlesContract, abi: Abi, yuls: Record<string, string[]>) => {
   // Getting base data
   let yul = getBaseYul(contract.name);
 
@@ -43,8 +43,9 @@ const getYul = (contract: SkittlesContract, abi: Abi) => {
   // Adding events
   yul = addEvents(yul, contract.events);
 
-  // Formatting
-  return formatYul(yul);
+  yul = addObjects(contract.name, yul, yuls);
+
+  return yul;
 };
 
 export default getYul;
