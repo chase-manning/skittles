@@ -88,13 +88,21 @@ export class Token {
 Create a `skittles.config.ts` file in your project root:
 
 ```typescript
-export default {
-  contracts: {
-    outDir: "./dist",
-    sourceDir: "./contracts"
-  }
+import { SkittlesConfig } from "skittles/types/core-types";
+
+const config: SkittlesConfig = {
+  optimizer: {
+    enabled: true,
+    runs: 200,
+  },
 };
+
+export default config;
 ```
+
+The configuration options include:
+- `optimizer.enabled`: Enable/disable the optimizer
+- `optimizer.runs`: Number of runs for the optimizer (default: 200)
 
 ## Development Status
 
