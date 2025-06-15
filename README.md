@@ -27,12 +27,22 @@ Writing smart contracts in Solidity can be challenging for developers coming fro
 ## Installation
 
 ```bash
+# Using npm
 npm install skittles
-# or
+
+# Using Yarn
 yarn add skittles
+
+# Global install
+npm i -g skittles
 ```
 
 ## Quick Start
+
+Your projects should be structured like:
+
+- `contracts/` - All of your contracts, e.g. `erc20.ts`
+- `skittles.config.ts` - Configuration file
 
 Here's a simple example of a Skittles smart contract:
 
@@ -90,12 +100,15 @@ export class ERC20 {
 }
 ```
 
-## Project Structure
+You can compile with `skittles compile`, you might want to add a script for this in your package.json, e.g.
 
-- `src/` - Core compiler implementation
-- `contracts/` - Example contracts and implementations
-- `test/` - Test suite
-- `skittles.config.ts` - Configuration file
+```json
+  "scripts": {
+    "compile": "skittles compile",
+  },
+```
+
+Or if you installed globally with `npm i -g skittles`, then you can just run `skittles compile` in your terminal.
 
 ## Configuration
 
@@ -118,10 +131,11 @@ The configuration options include:
 
 - `optimizer.enabled`: Enable/disable the optimizer
 - `optimizer.runs`: Number of runs for the optimizer (default: 200)
+- Many more, look in the `SkittlesConfig` type to see full details
 
 ## Development Status
 
-Skittles is currently in active development. While it's broadly functional, some features are still being implemented. Check the [TODO.md](TODO.md) file for the latest status and planned features.
+Skittles is currently in active development. While it's broadly functional, some features are still being implemented. Check the [TODO.md](TODO.md) file for the latest status and planned features. It is not recommended for production use currently.
 
 ## Contributing
 
