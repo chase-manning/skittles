@@ -4,7 +4,7 @@ import SkittlesCache, { FileCache } from "../types/skittles-cache";
 import { FileData } from "../compiler/get-file-data";
 import { CACHE_VERSION } from "../data/constants";
 
-const CONTRCT_PATH = "./contracts";
+const CONTRCT_PATH = path.join(process.cwd(), "contracts");
 
 export const getAllFilesInDirectory = (dir: string) => {
   const files: string[] = [];

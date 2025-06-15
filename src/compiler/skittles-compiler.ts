@@ -7,6 +7,7 @@ import { SkittlesConfig } from "../types/core-types";
 import SkittlesContract from "../types/skittles-contract";
 import getYul from "../yul/get-yul";
 import getFileData, { FileData } from "./get-file-data";
+import path from "path";
 
 const doTask = (task: string, fn: () => any) => {
   const spinner = ora(task).start();
@@ -17,7 +18,7 @@ const doTask = (task: string, fn: () => any) => {
 
 const getConfig = (): SkittlesConfig => {
   try {
-    return require("../../skittles.config.ts");
+    return require(`${process.cwd()}/skittles.config.ts`);
   } catch {
     throw new Error("No skittles.config.ts file found");
   }
@@ -25,7 +26,7 @@ const getConfig = (): SkittlesConfig => {
 
 const skittlesCompile = () => {
   // Loading cache and config
-  const cache = JSON.parse(readFile("build/cache.json"));
+  const cache = JSON.parse(readFile(path.join(process.cwd(), "build/cache.json")));
   const config = getConfig();
 
   // Getting file data
