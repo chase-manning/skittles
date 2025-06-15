@@ -1,11 +1,11 @@
 {
   "name": "skittles",
-  "version": "0.3.0",
+  "version": "0.4.2",
   "description": "TypeScript Smart Contract Language for the EVM",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "bin": {
-    "skittles": "./lib/index.js"
+    "skittles": "lib/index.js"
   },
   "scripts": {
     "start": "yarn run build && node ./lib/index.js help",
@@ -34,14 +34,20 @@
     "ora": "^5.0.0",
     "solc": "^0.8.16",
     "typescript": "^4.7.4",
-    "yargs": "^17.5.1"
-  },
-  "devDependencies": {
+    "yargs": "^17.5.1",
     "@nomiclabs/hardhat-ethers": "^2.1.1",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@typechain/ethers-v5": "^7.2.0",
     "@typechain/hardhat": "^2.3.1",
+    "ts-node": "^10.9.1",
+    "dotenv": "^16.0.1",
+    "typechain": "^5.2.0",
+    "ethereum-waffle": "^3.4.4",
+    "hardhat": "^2.10.2",
+    "hardhat-gas-reporter": "^1.0.8"
+  },
+  "devDependencies": {
     "@types/chai": "^4.3.3",
     "@types/listr": "^0.14.4",
     "@types/mocha": "^9.1.1",
@@ -50,7 +56,6 @@
     "@typescript-eslint/eslint-plugin": "^4.33.0",
     "@typescript-eslint/parser": "^4.33.0",
     "chai": "^4.3.6",
-    "dotenv": "^16.0.1",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-config-standard": "^16.0.3",
@@ -58,15 +63,10 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^3.4.1",
     "eslint-plugin-promise": "^5.2.0",
-    "ethereum-waffle": "^3.4.4",
-    "hardhat": "^2.10.2",
-    "hardhat-gas-reporter": "^1.0.8",
     "prettier": "^2.7.1",
     "prettier-plugin-solidity": "^1.0.0-beta.13",
     "solhint": "^3.3.7",
-    "solidity-coverage": "^0.7.21",
-    "ts-node": "^10.9.1",
-    "typechain": "^5.2.0"
+    "solidity-coverage": "^0.7.21"
   },
   "prettier": {
     "printWidth": 100
