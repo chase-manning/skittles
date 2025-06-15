@@ -37,41 +37,55 @@ yarn add skittles
 Here's a simple example of a Skittles smart contract:
 
 ```typescript
-import { address, SkittlesEvent } from "skittles/types/core-types";
+import { address, msg, SkittlesEvent } from "skittles/lib/types/core-types";
 
-interface TransferEvent {
+export interface TransferEvent {
   from: address;
   to: address;
   amount: number;
 }
 
-export class Token {
-  private _balances: Record<address, number>;
+export interface ApprovalEvent {
+  owner: address;
+  spender: address;
+  amount: number;
+}
+
+export class ERC20 {
+  readonly decimals: number = 18;
+  readonly symbol: string = "TEST";
+  readonly name: string = "TEST ERC20";
+
+  totalSupply: number;
+  balanceOf: Record<address, number>;
+  allowance: Record<address, Record<address, number>>;
+
   Transfer: SkittlesEvent<TransferEvent>;
+  Approval: SkittlesEvent<ApprovalEvent>;
 
-  constructor() {
-    this._balances = {};
-  }
-
-  transfer(to: address, amount: number): boolean {
-    if (this._balances[msg.sender] < amount) {
-      return false;
-    }
-
-    this._balances[msg.sender] -= amount;
-    this._balances[to] += amount;
-
-    this.Transfer.emit({
-      from: msg.sender,
-      to,
-      amount
-    });
-
+  approve(spender: address, amount: number): boolean {
+    this.allowance[msg.sender][spender] = amount;
+    this.Approval.emit({ owner: msg.sender, spender, amount });
     return true;
   }
 
-  balanceOf(account: address): number {
-    return this._balances[account];
+  transfer(to: address, amount: number): boolean {
+    this._transfer(msg.sender, to, amount);
+    return true;
+  }
+
+  transferFrom(from: address, to: address, amount: number): boolean {
+    if (this.allowance[from][msg.sender] !== Number.MAX_VALUE) {
+      this.allowance[from][msg.sender] -= amount;
+    }
+    this._transfer(from, to, amount);
+    return true;
+  }
+
+  private _transfer(from: address, to: address, amount: number): void {
+    this.balanceOf[to] += amount;
+    this.balanceOf[from] -= amount;
+    this.Transfer.emit({ from, to, amount });
   }
 }
 ```
@@ -88,7 +102,7 @@ export class Token {
 Create a `skittles.config.ts` file in your project root:
 
 ```typescript
-import { SkittlesConfig } from "skittles/types/core-types";
+import { SkittlesConfig } from "skittles/lib/types/core-types";
 
 const config: SkittlesConfig = {
   optimizer: {
@@ -101,6 +115,7 @@ export default config;
 ```
 
 The configuration options include:
+
 - `optimizer.enabled`: Enable/disable the optimizer
 - `optimizer.runs`: Number of runs for the optimizer (default: 200)
 
