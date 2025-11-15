@@ -5,6 +5,7 @@ import getBytecode from "../bytecode/get-bytecode";
 import { readFile, updateCache, writeBuildFile } from "../helpers/file-helper";
 import { SkittlesConfig } from "../types/core-types";
 import SkittlesContract from "../types/skittles-contract";
+import SkittlesCache from "../types/skittles-cache";
 import getYul from "../yul/get-yul";
 import getFileData, { FileData } from "./get-file-data";
 import path from "path";
@@ -24,9 +25,46 @@ const getConfig = (): SkittlesConfig => {
   }
 };
 
+const getCache = (): SkittlesCache => {
+  const cachePath = path.join(process.cwd(), "build/cache.json");
+  const cacheContent = readFile(cachePath);
+
+  // If file doesn't exist or is empty, return empty cache
+  if (!cacheContent || cacheContent.trim() === "" || cacheContent === "{}") {
+    return {
+      version: "",
+      files: {},
+    };
+  }
+
+  // Try to parse the cache file
+  try {
+    const parsed = JSON.parse(cacheContent);
+    // Validate basic structure
+    if (typeof parsed === "object" && parsed !== null) {
+      return {
+        version: parsed.version || "",
+        files: parsed.files || {},
+      };
+    }
+    // If structure is invalid, return empty cache
+    return {
+      version: "",
+      files: {},
+    };
+  } catch (error) {
+    // If JSON is malformed, return empty cache
+    // This allows compilation to continue with a fresh cache
+    return {
+      version: "",
+      files: {},
+    };
+  }
+};
+
 const skittlesCompile = () => {
   // Loading cache and config
-  const cache = JSON.parse(readFile(path.join(process.cwd(), "build/cache.json")));
+  const cache = getCache();
   const config = getConfig();
 
   // Getting file data
