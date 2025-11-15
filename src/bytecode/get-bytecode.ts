@@ -26,7 +26,7 @@ const getBytecode = (className: string, content: string, config: SkittlesConfig)
     compiled = JSON.parse(compiledOutput);
   } catch (error: any) {
     throw new Error(
-      `Failed to compile contract "${className}": ${error?.message || "Unknown compilation error"}`
+      `Solc compilation invocation failed for contract "${className}": ${error?.message || "Unknown error during solc invocation or output parsing"}`
     );
   }
 
