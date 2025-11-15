@@ -26,21 +26,24 @@ const getBytecode = (className: string, content: string, config: SkittlesConfig)
     compiled = JSON.parse(compiledOutput);
   } catch (error: any) {
     throw new Error(
-      `Solc compilation invocation failed for contract "${className}": ${error?.message || "Unknown error during solc invocation or output parsing"}`
+      `Failed to compile contract "${className}": ${error?.message || "Unknown compilation error"}`
     );
   }
 
   // Check for compilation errors
-  if (compiled.errors && compiled.errors.length > 0) {
-    const errorMessages = compiled.errors
-      .map((error: any) => {
-        const severity = error.severity || "error";
-        const message = error.message || "Unknown error";
-        const formattedMessage = error.formattedMessage || message;
-        return `[${severity.toUpperCase()}] ${formattedMessage}`;
-      })
-      .join("\n");
-    throw new Error(`Solc compilation failed for contract "${className}":\n${errorMessages}`);
+  if (compiled.errors && Array.isArray(compiled.errors) && compiled.errors.length > 0) {
+    const errors = compiled.errors.filter((e: any) => e.severity === "error");
+    if (errors.length > 0) {
+      const errorMessages = errors
+        .map((error: any) => {
+          const severity = error.severity || "error";
+          const message = error.message || "Unknown error";
+          const formattedMessage = error.formattedMessage || message;
+          return `[${severity.toUpperCase()}] ${formattedMessage}`;
+        })
+        .join("\n");
+      throw new Error(`Solc compilation failed for contract "${className}":\n${errorMessages}`);
+    }
   }
 
   // Check if contracts object exists

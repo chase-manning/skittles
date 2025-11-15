@@ -62,6 +62,41 @@ const getCache = (): SkittlesCache => {
   }
 };
 
+/**
+ * Checks if a contract needs to be recompiled by comparing file hashes and dependencies.
+ */
+const needsRecompilation = (contractName: string, fileData: FileData[]): boolean => {
+  // Check if any file containing this contract or its dependencies has changed
+  const contractFile = fileData.find((fd) => fd.contracts.some((c) => c.name === contractName));
+  if (!contractFile) return true;
+  if (contractFile.changed) return true;
+
+  // Check if any dependency has changed
+  return contractFile.dependencies.some((dep) => {
+    const depFile = fileData.find((f) => f.path === dep);
+    return depFile?.changed || false;
+  });
+};
+
+/**
+ * Collects all contracts that need compilation.
+ */
+const collectContractsToCompile = (
+  fileData: FileData[]
+): Array<{ contract: SkittlesContract; fileData: FileData }> => {
+  const contractsToCompile: Array<{ contract: SkittlesContract; fileData: FileData }> = [];
+
+  fileData.forEach((fd) => {
+    fd.contracts.forEach((contract) => {
+      if (needsRecompilation(contract.name, fileData)) {
+        contractsToCompile.push({ contract, fileData: fd });
+      }
+    });
+  });
+
+  return contractsToCompile;
+};
+
 const skittlesCompile = () => {
   try {
     // Loading cache and config
@@ -80,24 +115,33 @@ const skittlesCompile = () => {
       throw new Error(`Failed to update cache: ${error?.message || "Unknown error"}`);
     }
 
-    // Compiling Contracts
-    fileData.forEach((fd) => {
-      fd.contracts.forEach((contract: SkittlesContract) => {
-        const { name } = contract;
-        doTask(`Compiling ${name}`, () => {
-          try {
-            const abi = getAbi(contract);
-            writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
-            const yul = getYul(contract, abi);
-            writeBuildFile(`${name}.yul`, yul, "yul");
-            const bytecode = getBytecode(name, yul, config);
-            writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
-          } catch (error: any) {
-            throw new Error(
-              `Failed to compile contract "${name}": ${error?.message || "Unknown error"}`
-            );
-          }
-        });
+    // Collect contracts that need compilation (incremental compilation)
+    const contractsToCompile = collectContractsToCompile(fileData);
+
+    if (contractsToCompile.length === 0) {
+      console.log("✓ All contracts are up to date");
+      return;
+    }
+
+    // Compile contracts sequentially (Yul mode only supports one file at a time)
+    // But we still benefit from incremental compilation - only compiling what changed
+    contractsToCompile.forEach(({ contract }, index) => {
+      const { name } = contract;
+      const progress =
+        contractsToCompile.length > 1 ? `[${index + 1}/${contractsToCompile.length}] ` : "";
+      doTask(`${progress}Compiling ${name}`, () => {
+        try {
+          const abi = getAbi(contract);
+          writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
+          const yul = getYul(contract, abi);
+          writeBuildFile(`${name}.yul`, yul, "yul");
+          const bytecode = getBytecode(name, yul, config);
+          writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
+        } catch (error: any) {
+          throw new Error(
+            `Failed to compile contract "${name}": ${error?.message || "Unknown error"}`
+          );
+        }
       });
     });
   } catch (error: any) {
