@@ -70,11 +70,7 @@ const skittlesCompile = () => {
 
     // Getting file data
     const fileData: FileData[] = doTask("Processing Files", () => {
-      try {
-        return getFileData(cache);
-      } catch (error: any) {
-        throw new Error(`Failed to process files: ${error?.message || "Unknown error"}`);
-      }
+      return getFileData(cache);
     });
 
     // Updating cache
