@@ -1,5 +1,4 @@
 import { FileData } from "./get-file-data";
-import { SkittlesConstants, SkittlesInterfaces, SkittlesMethod } from "../types/skittles-contract";
 
 /**
  * Merges dependencies of a specific type from dependency files into the current file data.
@@ -13,12 +12,15 @@ export const mergeDependencies = <T>(
   getDependencyData: (data: FileData) => T,
   mergeFunction: (current: T, dependency: T) => void
 ): FileData[] => {
+  // Create a Map for O(1) lookups instead of O(n) find() operations
+  const fileMap = new Map(fileData.map((f) => [f.path, f]));
+
   return fileData.map((data) => {
     if (!data.changed) return data;
 
     const currentData = getDependencyData(data);
     data.dependencies.forEach((dep) => {
-      const depData = fileData.find((f) => f.path === dep);
+      const depData = fileMap.get(dep);
       if (!depData) {
         throw new Error(`Dependency ${dep} not found`);
       }
