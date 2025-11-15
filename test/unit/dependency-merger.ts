@@ -107,14 +107,26 @@ describe("Dependency Merger", () => {
           true,
           ["/file2.ts"],
           {},
-          { constant1: { expressionType: SkittlesExpressionType.Number, value: 1 } }
+          {
+            constant1: {
+              expressionType: SkittlesExpressionType.Value,
+              type: { kind: SkittlesTypeKind.Number },
+              value: 1,
+            },
+          }
         ),
         createMockFileData(
           "/file2.ts",
           false,
           [],
           {},
-          { constant2: { expressionType: SkittlesExpressionType.Number, value: 2 } }
+          {
+            constant2: {
+              expressionType: SkittlesExpressionType.Value,
+              type: { kind: SkittlesTypeKind.Number },
+              value: 2,
+            },
+          }
         ),
       ];
 
@@ -132,14 +144,26 @@ describe("Dependency Merger", () => {
           false,
           ["/file2.ts"],
           {},
-          { constant1: { expressionType: SkittlesExpressionType.Number, value: 1 } }
+          {
+            constant1: {
+              expressionType: SkittlesExpressionType.Value,
+              type: { kind: SkittlesTypeKind.Number },
+              value: 1,
+            },
+          }
         ),
         createMockFileData(
           "/file2.ts",
           false,
           [],
           {},
-          { constant2: { expressionType: SkittlesExpressionType.Number, value: 2 } }
+          {
+            constant2: {
+              expressionType: SkittlesExpressionType.Value,
+              type: { kind: SkittlesTypeKind.Number },
+              value: 2,
+            },
+          }
         ),
       ];
 
