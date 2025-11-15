@@ -20,7 +20,15 @@ const getBytecode = (className: string, content: string, config: SkittlesConfig)
     },
   };
 
-  const compiled = JSON.parse(solc.compile(JSON.stringify(input)));
+  let compiled: any;
+  try {
+    const compiledOutput = solc.compile(JSON.stringify(input));
+    compiled = JSON.parse(compiledOutput);
+  } catch (error: any) {
+    throw new Error(
+      `Solc compilation invocation failed for contract "${className}": ${error?.message || "Unknown error during solc invocation or output parsing"}`
+    );
+  }
 
   // Check for compilation errors
   if (compiled.errors && compiled.errors.length > 0) {

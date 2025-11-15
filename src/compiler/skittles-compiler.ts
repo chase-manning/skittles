@@ -63,30 +63,46 @@ const getCache = (): SkittlesCache => {
 };
 
 const skittlesCompile = () => {
-  // Loading cache and config
-  const cache = getCache();
-  const config = getConfig();
+  try {
+    // Loading cache and config
+    const cache = getCache();
+    const config = getConfig();
 
-  // Getting file data
-  const fileData: FileData[] = doTask("Processing Files", () => getFileData(cache));
+    // Getting file data
+    const fileData: FileData[] = doTask("Processing Files", () => {
+      return getFileData(cache);
+    });
 
-  // Updating cache
-  updateCache(fileData);
+    // Updating cache
+    try {
+      updateCache(fileData);
+    } catch (error: any) {
+      throw new Error(`Failed to update cache: ${error?.message || "Unknown error"}`);
+    }
 
-  // Compiling Contracts
-  fileData.forEach((fd) => {
-    fd.contracts.forEach((contract: SkittlesContract) => {
-      const { name } = contract;
-      doTask(`Compiling ${name}`, () => {
-        const abi = getAbi(contract);
-        writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
-        const yul = getYul(contract, abi);
-        writeBuildFile(`${name}.yul`, yul, "yul");
-        const bytecode = getBytecode(name, yul, config);
-        writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
+    // Compiling Contracts
+    fileData.forEach((fd) => {
+      fd.contracts.forEach((contract: SkittlesContract) => {
+        const { name } = contract;
+        doTask(`Compiling ${name}`, () => {
+          try {
+            const abi = getAbi(contract);
+            writeBuildFile(`${name}.abi`, JSON.stringify(abi, null, 2), "abi");
+            const yul = getYul(contract, abi);
+            writeBuildFile(`${name}.yul`, yul, "yul");
+            const bytecode = getBytecode(name, yul, config);
+            writeBuildFile(`${name}.bytecode`, bytecode, "bytecode");
+          } catch (error: any) {
+            throw new Error(
+              `Failed to compile contract "${name}": ${error?.message || "Unknown error"}`
+            );
+          }
+        });
       });
     });
-  });
+  } catch (error: any) {
+    throw new Error(`Compilation failed: ${error?.message || "Unknown error"}`);
+  }
 };
 
 export default skittlesCompile;
