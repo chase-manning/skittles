@@ -27,6 +27,9 @@
     "url": "https://github.com/chase-manning/skittles/issues"
   },
   "homepage": "https://github.com/chase-manning/skittles#readme",
+  "engines": {
+    "node": ">=16.0.0 <19.0.0"
+  },
   "dependencies": {
     "chalk": "4.1.2",
     "ethers": "^5.7.0",
