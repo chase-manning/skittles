@@ -14,6 +14,7 @@ import SkittlesContract, {
   SkittlesInterfaces,
   SkittlesMethod,
 } from "../types/skittles-contract";
+import { mergeConstants, mergeFunctions, mergeInterfaces } from "./dependency-merger";
 
 export interface FileData {
   path: string;
@@ -80,6 +81,19 @@ const getBaseFileData = (cache: SkittlesCache): FileData[] => {
   return fileData;
 };
 
+/**
+ * Gets data from cache if available and unchanged, otherwise computes it.
+ */
+const getCachedOrComputed = <T>(
+  cache: SkittlesCache,
+  data: FileData,
+  cacheGetter: (fc: FileCache) => T,
+  computeFn: () => T
+): T => {
+  const fc = getFileCache(cache, data.path);
+  return data.changed || !fc ? computeFn() : cacheGetter(fc);
+};
+
 const getFileData = (cache: SkittlesCache): FileData[] => {
   const baseFileData: FileData[] = getBaseFileData(cache);
 
@@ -103,90 +117,57 @@ const getFileData = (cache: SkittlesCache): FileData[] => {
 
   // Gets interfaces
   const fdWithInterfaces = updatedFileData.map((data) => {
-    const fc = getFileCache(cache, data.path);
-    const interfaces = data.changed || !fc ? getSkittlesInterfaces(data.ast) : fc.interfaces;
+    const interfaces = getCachedOrComputed(
+      cache,
+      data,
+      (fc) => fc.interfaces,
+      () => getSkittlesInterfaces(data.ast)
+    );
     return {
       ...data,
       interfaces,
     };
   });
-  const fdWithInterfaceDependencies = fdWithInterfaces.map((data) => {
-    if (!data.changed) return data;
-    const interfaces = data.interfaces;
-    data.dependencies.forEach((dep) => {
-      const depData = fdWithInterfaces.find((f) => f.path === dep);
-      if (!depData) throw new Error(`Dependency ${dep} not found`);
-      Object.keys(depData.interfaces).forEach((key) => {
-        interfaces[key] = depData.interfaces[key];
-      });
-    });
-    return {
-      ...data,
-      interfaces,
-    };
-  });
+  const fdWithInterfaceDependencies = mergeInterfaces(fdWithInterfaces);
 
   // Gets constants
   const fdWithConstants = fdWithInterfaceDependencies.map((data) => {
-    const fc = getFileCache(cache, data.path);
-    const constants =
-      data.changed || !fc ? getSkittlesConstants(data.ast, data.interfaces) : fc.constants;
+    const constants = getCachedOrComputed(
+      cache,
+      data,
+      (fc) => fc.constants,
+      () => getSkittlesConstants(data.ast, data.interfaces)
+    );
     return {
       ...data,
       constants,
     };
   });
-  const fdWithConstantDependencies = fdWithConstants.map((data) => {
-    if (!data.changed) return data;
-    const constants = data.constants;
-    data.dependencies.forEach((dep) => {
-      const depData = fdWithConstants.find((f) => f.path === dep);
-      if (!depData) throw new Error(`Dependency ${dep} not found`);
-      Object.keys(depData.constants).forEach((key) => {
-        constants[key] = depData.constants[key];
-      });
-    });
-    return {
-      ...data,
-      constants,
-    };
-  });
+  const fdWithConstantDependencies = mergeConstants(fdWithConstants);
 
   // Gets functions
   const fdWithFunctions = fdWithConstantDependencies.map((data) => {
-    const fc = getFileCache(cache, data.path);
-    const functions =
-      data.changed || !fc
-        ? getSkittlesFunctions(data.ast, data.interfaces, data.constants, [])
-        : fc.functions;
+    const functions = getCachedOrComputed(
+      cache,
+      data,
+      (fc) => fc.functions,
+      () => getSkittlesFunctions(data.ast, data.interfaces, data.constants, [])
+    );
     return {
       ...data,
       functions,
     };
   });
-  const fdWithFunctionDependencies = fdWithFunctions.map((data) => {
-    if (!data.changed) return data;
-    const functions = data.functions;
-    data.dependencies.forEach((dep) => {
-      const depData = fdWithFunctions.find((f) => f.path === dep);
-      if (!depData) throw new Error(`Dependency ${dep} not found`);
-      depData.functions.forEach((func) => {
-        functions.push(func);
-      });
-    });
-    return {
-      ...data,
-      functions,
-    };
-  });
+  const fdWithFunctionDependencies = mergeFunctions(fdWithFunctions);
 
   // Gets contracts
   const fdWithContracts = fdWithFunctionDependencies.map((data) => {
-    const fc = getFileCache(cache, data.path);
-    const contracts =
-      data.changed || !fc
-        ? getSkittlesContracts(data.ast, data.interfaces, data.constants, data.functions)
-        : fc.contracts;
+    const contracts = getCachedOrComputed(
+      cache,
+      data,
+      (fc) => fc.contracts,
+      () => getSkittlesContracts(data.ast, data.interfaces, data.constants, data.functions)
+    );
     return {
       ...data,
       contracts,
