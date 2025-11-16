@@ -34,7 +34,7 @@ yargs
       return yargs.option("force", {
         alias: "f",
         type: "boolean",
-        description: "Overwrite existing skittles.config.ts if it exists",
+        description: "Overwrite existing skittles.config.ts and contract files if they exist",
       });
     },
     (argv) => {
