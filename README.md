@@ -39,7 +39,29 @@ npm i -g skittles
 
 ## Quick Start
 
-Your projects should be structured like:
+### Initialize a New Project
+
+The easiest way to get started is to use the `init` command:
+
+```bash
+# Initialize a new project
+skittles init
+
+# Overwrite existing files
+skittles init --force
+```
+
+This will:
+
+- Create `skittles.config.ts` with sensible defaults
+- Create `contracts/` directory
+- Add an example ERC20 contract
+- Update `.gitignore` with build artifacts
+- Add `compile` and `clean` scripts to `package.json` (if it exists)
+
+### Manual Setup
+
+If you prefer to set up manually, your projects should be structured like:
 
 - `contracts/` - All of your contracts, e.g. `erc20.ts`
 - `skittles.config.ts` - Configuration file
