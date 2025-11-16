@@ -174,11 +174,6 @@ describe("Init Command", () => {
       // Verify the file wasn't overwritten
       const configContent = fs.readFileSync(path.join(testDir, "skittles.config.ts"), "utf8");
       expect(configContent).to.equal("existing config");
-
-      // Verify contracts directory wasn't created (early exit)
-      const contractsDir = path.join(testDir, "contracts");
-      // Note: This test assumes early exit, but the function might still create contracts
-      // The important part is that config wasn't overwritten
     });
 
     it("should overwrite skittles.config.ts when force is true", () => {
