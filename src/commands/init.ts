@@ -161,7 +161,15 @@ const updatePackageJson = (): void => {
     return; // Skip if package.json doesn't exist
   }
 
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  let packageJson: any = {};
+  try {
+    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  } catch (error: any) {
+    throw new Error(`Failed to parse package.json: ${error?.message || "Unknown error"}`);
+  }
+  if (!packageJson || typeof packageJson !== "object") {
+    throw new Error(`Invalid package.json: ${packageJsonPath}`);
+  }
   if (!packageJson.scripts) {
     packageJson.scripts = {};
   }
