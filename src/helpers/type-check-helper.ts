@@ -129,9 +129,10 @@ export const typeCheckContracts = (config: { typeCheck?: boolean }): void => {
     options: ts.CompilerOptions,
     containingSourceFile?: ts.SourceFile
   ): (ts.ResolvedModule | undefined)[] => {
-    // First try the original resolver
+    // First try the original resolver for all modules
+    let resolved: (ts.ResolvedModule | undefined)[] = [];
     if (originalResolveModuleNames) {
-      const resolved = originalResolveModuleNames(
+      resolved = originalResolveModuleNames(
         moduleNames,
         containingFile,
         reusedNames,
@@ -139,27 +140,15 @@ export const typeCheckContracts = (config: { typeCheck?: boolean }): void => {
         options,
         containingSourceFile
       );
-      // If all modules resolved, return early
-      if (resolved.every((r) => r !== undefined)) {
-        return resolved;
-      }
+    } else {
+      resolved = moduleNames.map(() => undefined);
     }
 
     // For any unresolved modules, try to resolve them manually
-    return moduleNames.map((moduleName) => {
-      // Try standard resolution first
-      if (originalResolveModuleNames) {
-        const standardResolved = originalResolveModuleNames(
-          [moduleName],
-          containingFile,
-          reusedNames,
-          redirectedReference,
-          options,
-          containingSourceFile
-        );
-        if (standardResolved[0]) {
-          return standardResolved[0];
-        }
+    return moduleNames.map((moduleName, index) => {
+      // If already resolved by the original resolver, return it
+      if (resolved[index]) {
+        return resolved[index];
       }
 
       // Handle relative imports (e.g., "../../src/types/core-types")
@@ -209,7 +198,9 @@ export const typeCheckContracts = (config: { typeCheck?: boolean }): void => {
               try {
                 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
                 const mainPath = packageJson.types || packageJson.main || "index.js";
-                const resolved = path.join(nodeModulesPath, mainPath);
+                const resolved = path.isAbsolute(mainPath)
+                  ? mainPath
+                  : path.join(modulePath, mainPath);
                 if (fs.existsSync(resolved)) {
                   resolvedPath = resolved;
                 }
@@ -277,11 +268,8 @@ export const typeCheckContracts = (config: { typeCheck?: boolean }): void => {
   const program = ts.createProgram(Array.from(allFilesSet), compilerOptions, host);
 
   // Get all diagnostics (errors and warnings)
-  const diagnostics = ts
-    .getPreEmitDiagnostics(program)
-    .concat(program.getSemanticDiagnostics())
-    .concat(program.getSyntacticDiagnostics())
-    .concat(program.getDeclarationDiagnostics());
+  // getPreEmitDiagnostics already includes semantic, syntactic, and declaration diagnostics
+  const diagnostics = ts.getPreEmitDiagnostics(program);
 
   // Filter to only show errors (not warnings) and only for contract files
   const errors = diagnostics.filter((diagnostic) => {
