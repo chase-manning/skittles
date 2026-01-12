@@ -4,83 +4,54 @@ import fs from "fs";
 import { getAllTypescriptFiles } from "./file-helper";
 
 /**
- * Finds a tsconfig.json file starting from the given directory and walking up the tree.
- * Returns the path to the tsconfig.json file, or null if not found.
- */
-const findTsConfig = (startDir: string): string | null => {
-  let currentDir = path.resolve(startDir);
-  const root = path.parse(currentDir).root;
-
-  while (currentDir !== root) {
-    const configPath = path.join(currentDir, "tsconfig.json");
-    if (fs.existsSync(configPath)) {
-      return configPath;
-    }
-    currentDir = path.dirname(currentDir);
-  }
-
-  // Check root directory
-  const rootConfigPath = path.join(root, "tsconfig.json");
-  if (fs.existsSync(rootConfigPath)) {
-    return rootConfigPath;
-  }
-
-  return null;
-};
-
-/**
  * Creates a TypeScript compiler options object suitable for contract files.
- * Uses the project's tsconfig.json if found, otherwise uses sensible defaults.
+ * Uses the project's tsconfig.json if found, merging with contract-specific defaults.
+ * When using createProgram with explicit file paths, rootDir/include/exclude are ignored,
+ * so we can safely use the project's config while overriding problematic settings.
  */
 const getCompilerOptions = (projectRoot: string): ts.CompilerOptions => {
-  const tsConfigPath = findTsConfig(projectRoot);
+  // Use TypeScript's built-in function to find tsconfig.json
+  const tsConfigPath = ts.findConfigFile(projectRoot, ts.sys.fileExists, "tsconfig.json");
 
-  if (tsConfigPath) {
-    const configFile = ts.readConfigFile(tsConfigPath, ts.sys.readFile);
-    if (configFile.error) {
-      // If there's an error reading the config, use defaults
-      return getDefaultCompilerOptions();
-    }
+  const defaults = getDefaultCompilerOptions();
 
-    const parsedConfig = ts.parseJsonConfigFileContent(
-      configFile.config,
-      ts.sys,
-      path.dirname(tsConfigPath)
-    );
-
-    if (parsedConfig.errors && parsedConfig.errors.length > 0) {
-      // Filter out errors that are just warnings or don't affect type checking
-      const criticalErrors = parsedConfig.errors.filter(
-        (e) => e.category === ts.DiagnosticCategory.Error
-      );
-      if (criticalErrors.length > 0) {
-        // If there are critical parsing errors, use defaults but log a warning
-        console.warn(
-          `Warning: Errors parsing tsconfig.json, using default compiler options. Errors: ${criticalErrors
-            .map((e) => {
-              const message =
-                typeof e.messageText === "string" ? e.messageText : e.messageText.messageText;
-              return message;
-            })
-            .join(", ")}`
-        );
-        return getDefaultCompilerOptions();
-      }
-    }
-
-    // Merge with defaults to ensure important options are set
-    const mergedOptions = {
-      ...getDefaultCompilerOptions(),
-      ...parsedConfig.options,
-      // Ensure these are always set for contract checking
-      skipLibCheck: parsedConfig.options.skipLibCheck ?? true,
-      moduleResolution: parsedConfig.options.moduleResolution ?? ts.ModuleResolutionKind.NodeJs,
-    };
-
-    return mergedOptions;
+  if (!tsConfigPath) {
+    return defaults;
   }
 
-  return getDefaultCompilerOptions();
+  // Read and parse the config file
+  const configFile = ts.readConfigFile(tsConfigPath, ts.sys.readFile);
+  if (configFile.error) {
+    return defaults;
+  }
+
+  const parsedConfig = ts.parseJsonConfigFileContent(
+    configFile.config,
+    ts.sys,
+    path.dirname(tsConfigPath),
+    undefined,
+    tsConfigPath
+  );
+
+  // Filter out non-critical errors (warnings don't prevent us from using the config)
+  const criticalErrors = parsedConfig.errors?.filter(
+    (e) => e.category === ts.DiagnosticCategory.Error
+  );
+  if (criticalErrors && criticalErrors.length > 0) {
+    return defaults;
+  }
+
+  // Merge project config with defaults, overriding settings that conflict with contract checking
+  return {
+    ...defaults,
+    ...parsedConfig.options,
+    // Override problematic settings - these don't matter when passing files directly to createProgram
+    rootDir: undefined, // Allow contracts outside src/
+    // Keep useful settings from project config (paths, moduleResolution, etc.)
+    // but ensure contract-specific overrides
+    strictPropertyInitialization: false, // Contracts initialize properties at runtime
+    noEmit: true, // We're only type checking, not emitting
+  };
 };
 
 /**
@@ -109,6 +80,10 @@ const getDefaultCompilerOptions = (): ts.CompilerOptions => {
     allowJs: false,
     // Don't emit files, just check types
     noEmit: true,
+    // Don't restrict files to rootDir - contracts can be anywhere
+    rootDir: undefined,
+    // Relax strict property initialization for contracts (properties initialized at runtime in EVM)
+    strictPropertyInitialization: false,
   };
 };
 
@@ -187,6 +162,24 @@ export const typeCheckContracts = (config: { typeCheck?: boolean }): void => {
         }
       }
 
+      // Handle relative imports (e.g., "../../src/types/core-types")
+      if (moduleName.startsWith(".")) {
+        const projectRoot = process.cwd();
+        const containingDir = path.dirname(containingFile);
+        const resolvedPath = path.resolve(containingDir, moduleName);
+
+        // Try with .ts, .d.ts, .js extensions
+        for (const ext of [".ts", ".d.ts", ".js", ""]) {
+          const testPath = resolvedPath + ext;
+          if (fs.existsSync(testPath)) {
+            return {
+              resolvedFileName: testPath,
+              isExternalLibraryImport: false,
+            };
+          }
+        }
+      }
+
       // If module name is "skittles" or starts with "skittles/", try to resolve from node_modules
       if (moduleName === "skittles" || moduleName.startsWith("skittles/")) {
         const projectRoot = process.cwd();
@@ -239,8 +232,49 @@ export const typeCheckContracts = (config: { typeCheck?: boolean }): void => {
     });
   };
 
-  // Create a program with all contract files
-  const program = ts.createProgram(contractFiles, compilerOptions, host);
+  // Collect all dependency files that contracts import (recursively)
+  // TypeScript needs these files to be accessible for type checking
+  const collectDependencies = (filePath: string, visited: Set<string>): void => {
+    if (visited.has(filePath)) return;
+    visited.add(filePath);
+
+    try {
+      const content = fs.readFileSync(filePath, "utf8");
+      const ast = ts.createSourceFile(
+        filePath,
+        content,
+        compilerOptions.target || ts.ScriptTarget.ES2019
+      );
+      ts.forEachChild(ast, (node) => {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+          const moduleName = node.moduleSpecifier.text;
+          // Only collect relative imports (skip node_modules packages)
+          if (moduleName.startsWith(".")) {
+            const containingDir = path.dirname(filePath);
+            const resolvedPath = path.resolve(containingDir, moduleName);
+            // Try with .ts, .d.ts, .js extensions
+            for (const ext of [".ts", ".d.ts", ".js", ""]) {
+              const testPath = resolvedPath + ext;
+              if (fs.existsSync(testPath) && !testPath.includes("node_modules")) {
+                collectDependencies(testPath, visited);
+                break;
+              }
+            }
+          }
+        }
+      });
+    } catch {
+      // Ignore errors reading individual files
+    }
+  };
+
+  const allFilesSet = new Set<string>(contractFiles);
+  contractFiles.forEach((contractFile) => {
+    collectDependencies(contractFile, allFilesSet);
+  });
+
+  // Create a program with contract files and all their dependencies
+  const program = ts.createProgram(Array.from(allFilesSet), compilerOptions, host);
 
   // Get all diagnostics (errors and warnings)
   const diagnostics = ts
