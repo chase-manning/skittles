@@ -9,6 +9,7 @@ import SkittlesCache from "../types/skittles-cache";
 import getYul from "../yul/get-yul";
 import getFileData, { FileData } from "./get-file-data";
 import path from "path";
+import { typeCheckContracts } from "../helpers/type-check-helper";
 
 const doTask = (task: string, fn: () => any) => {
   const spinner = ora(task).start();
@@ -102,6 +103,13 @@ const skittlesCompile = () => {
     // Loading cache and config
     const cache = getCache();
     const config = getConfig();
+
+    // Type checking (if enabled)
+    if (config.typeCheck !== false) {
+      doTask("Type Checking", () => {
+        typeCheckContracts(config);
+      });
+    }
 
     // Getting file data
     const fileData: FileData[] = doTask("Processing Files", () => {

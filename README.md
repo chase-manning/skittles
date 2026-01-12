@@ -151,6 +151,7 @@ export default config;
 
 The configuration options include:
 
+- `typeCheck`: Enable/disable TypeScript type checking before compilation (default: true)
 - `optimizer.enabled`: Enable/disable the optimizer
 - `optimizer.runs`: Number of runs for the optimizer (default: 200)
 - Many more, look in the `SkittlesConfig` type to see full details
