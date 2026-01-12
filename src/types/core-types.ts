@@ -71,6 +71,9 @@ export interface SkittlesEvent<Type> {
 }
 
 export interface SkittlesConfig {
+  // Optional: Type checking settings
+  // Enable TypeScript type checking before compilation (default: true)
+  typeCheck?: boolean;
   // Optional: Optimizer settings
   optimizer?: {
     // Disabled by default.
