@@ -28,6 +28,14 @@ export type Event<
   _T extends Record<string, unknown> = Record<string, unknown>,
 > = SkittlesEvent<_T>;
 
+/**
+ * Wrapper type to mark an event parameter as indexed.
+ * Up to 3 parameters per event can be indexed.
+ *
+ * Usage: `Transfer: SkittlesEvent<{ from: Indexed<address>; to: Indexed<address>; value: number }>;`
+ */
+export type Indexed<T> = T;
+
 // Contract IR types (for advanced users / plugins)
 export type {
   SkittlesContract,
@@ -59,3 +67,20 @@ export const tx = {} as {
   readonly origin: string;
   readonly gasprice: number;
 };
+
+// Solidity built-in functions (stubs for TypeScript type checking)
+export declare function keccak256(...args: unknown[]): string;
+export declare function sha256(...args: unknown[]): string;
+export declare function ecrecover(hash: string, v: number, r: string, s: string): string;
+export declare function addmod(x: number, y: number, k: number): number;
+export declare function mulmod(x: number, y: number, k: number): number;
+
+// abi namespace for encoding/decoding
+export const abi = {} as {
+  encode(...args: unknown[]): string;
+  encodePacked(...args: unknown[]): string;
+  decode(data: string, ...types: unknown[]): unknown;
+};
+
+// gasleft() function
+export declare function gasleft(): number;
