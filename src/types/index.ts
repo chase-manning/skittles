@@ -18,12 +18,30 @@ export interface OptimizerConfig {
 // Contract IR
 // ============================================================
 
+export interface SkittlesStruct {
+  name: string;
+  fields: SkittlesParameter[];
+}
+
+export interface SkittlesEnum {
+  name: string;
+  members: string[];
+}
+
+export interface SkittlesCustomError {
+  name: string;
+  parameters: SkittlesParameter[];
+}
+
 export interface SkittlesContract {
   name: string;
   sourcePath: string;
   variables: SkittlesVariable[];
   functions: SkittlesFunction[];
   events: SkittlesEvent[];
+  structs: SkittlesStruct[];
+  enums: SkittlesEnum[];
+  customErrors: SkittlesCustomError[];
   ctor?: SkittlesConstructor;
   inherits: string[];
 }
@@ -33,6 +51,7 @@ export interface SkittlesVariable {
   type: SkittlesType;
   visibility: Visibility;
   immutable: boolean;
+  constant: boolean;
   initialValue?: Expression;
 }
 
@@ -42,6 +61,8 @@ export interface SkittlesFunction {
   returnType: SkittlesType | null;
   visibility: Visibility;
   stateMutability: StateMutability;
+  isVirtual: boolean;
+  isOverride: boolean;
   body: Statement[];
 }
 
@@ -58,6 +79,7 @@ export interface SkittlesEvent {
 export interface SkittlesParameter {
   name: string;
   type: SkittlesType;
+  indexed?: boolean;
 }
 
 // ============================================================
@@ -74,6 +96,8 @@ export enum SkittlesTypeKind {
   Bytes = "bytes",
   Mapping = "mapping",
   Array = "array",
+  Struct = "struct",
+  Enum = "enum",
   Void = "void",
 }
 
@@ -81,6 +105,8 @@ export interface SkittlesType {
   kind: SkittlesTypeKind;
   keyType?: SkittlesType;
   valueType?: SkittlesType;
+  structName?: string;
+  structFields?: SkittlesParameter[];
 }
 
 export type Visibility = "public" | "private" | "internal" | "external";
@@ -98,6 +124,9 @@ export type Statement =
   | IfStatement
   | ForStatement
   | WhileStatement
+  | DoWhileStatement
+  | BreakStatement
+  | ContinueStatement
   | RevertStatement
   | EmitStatement;
 
@@ -139,9 +168,25 @@ export interface WhileStatement {
   body: Statement[];
 }
 
+export interface DoWhileStatement {
+  kind: "do-while";
+  condition: Expression;
+  body: Statement[];
+}
+
+export interface BreakStatement {
+  kind: "break";
+}
+
+export interface ContinueStatement {
+  kind: "continue";
+}
+
 export interface RevertStatement {
   kind: "revert";
   message?: Expression;
+  customError?: string;
+  customErrorArgs?: Expression[];
 }
 
 export interface EmitStatement {
