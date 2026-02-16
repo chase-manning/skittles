@@ -6,59 +6,29 @@ import {
   Indexed,
 } from "skittles";
 
-/**
- * NotOwner: reverted when a restricted function is called by a non-owner.
- */
 class NotOwner extends Error {
   constructor(caller: address) {
     super("");
   }
 }
 
-/**
- * VaultPaused: reverted when the vault is paused and a deposit/withdraw is attempted.
- */
 class VaultPaused extends Error {
   constructor() {
     super("");
   }
 }
 
-/**
- * InsufficientDeposit: reverted when a withdrawal exceeds the user's deposit.
- */
 class InsufficientDeposit extends Error {
   constructor(account: address, deposited: number, requested: number) {
     super("");
   }
 }
 
-/**
- * Contract status: whether the vault is accepting deposits or not.
- */
 enum VaultStatus {
   Active,
   Paused,
 }
 
-/**
- * A simple ETH staking vault written in Skittles TypeScript.
- *
- * Users deposit ETH and the vault tracks each account's balance.
- * The owner can pause/unpause the vault and withdraw fees.
- *
- * Features demonstrated:
- *   - Enums (VaultStatus)
- *   - Custom errors (NotOwner, VaultPaused, InsufficientDeposit)
- *   - receive() function for accepting plain ETH transfers
- *   - msg.value and msg.sender
- *   - block.timestamp for tracking deposit times
- *   - Constant state variables (static readonly)
- *   - Immutable state variables (readonly)
- *   - Private helper functions
- *   - Event emission with indexed parameters
- *   - Bitwise operators (for fee calculation)
- */
 export class Staking {
   Deposited: SkittlesEvent<{
     account: Indexed<address>;

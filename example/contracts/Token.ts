@@ -5,37 +5,18 @@ import {
   Indexed,
 } from "skittles";
 
-/**
- * InsufficientBalance: reverted when a transfer exceeds the sender's balance.
- */
 class InsufficientBalance extends Error {
   constructor(sender: address, balance: number, required: number) {
     super("");
   }
 }
 
-/**
- * InsufficientAllowance: reverted when transferFrom exceeds the spender's allowance.
- */
 class InsufficientAllowance extends Error {
   constructor(spender: address, allowance: number, required: number) {
     super("");
   }
 }
 
-/**
- * A standard ERC20 token written in Skittles TypeScript.
- *
- * Features demonstrated:
- *   - State variables with visibility modifiers
- *   - Indexed event parameters
- *   - Custom errors (gas efficient reverts)
- *   - Mappings and nested mappings
- *   - Constructor with initial supply minting
- *   - Private helper functions
- *   - Require pattern (if + throw -> require)
- *   - Number.MAX_VALUE (type(uint256).max)
- */
 export class Token {
   Transfer: SkittlesEvent<{
     from: Indexed<address>;
