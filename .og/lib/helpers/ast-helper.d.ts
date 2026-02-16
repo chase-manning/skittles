@@ -1,0 +1,14 @@
+import { BinaryExpression, ClassDeclaration, Node, PropertyDeclaration, SourceFile } from "typescript";
+export declare const getClassNodes: (node: Node) => ClassDeclaration[];
+export declare const getNodeName: (node: Node) => string;
+export declare const isPlusEquals: (expression: BinaryExpression) => boolean;
+export declare const isEquals: (expression: BinaryExpression) => boolean;
+export declare const isMinusEquals: (expression: BinaryExpression) => boolean;
+export declare const isTrueKeyword: (node: Node) => boolean;
+export declare const isFalseKeyword: (node: Node) => boolean;
+export declare const isNodePrivate: (node: Node) => boolean;
+export declare const isNodeImmutable: (node: Node) => boolean;
+export declare const isPropertyArrowFunction: (node: PropertyDeclaration) => boolean;
+export declare const isVariable: (property: PropertyDeclaration) => boolean;
+export declare const isExpression: (node: Node) => boolean;
+export declare const getDependencies: (ast: SourceFile, sourceFile: string) => string[];

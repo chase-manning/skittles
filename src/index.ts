@@ -1,65 +1,43 @@
-#!/usr/bin/env node --wasm-dynamic-tiering
+#!/usr/bin/env node
 
 import yargs from "yargs";
-import { clearDirectory } from "./helpers/file-helper";
-import {
-  SkittlesEvent,
-  address,
-  self,
-  block,
-  chain,
-  msg,
-  tx,
-  hash,
-  bytes,
-} from "./types/core-types";
-import getSkittlesFactory from "./testing/get-skittles-factory";
-import { logSkittles } from "./helpers/console-helper";
-import skittlesCompile from "./compiler/skittles-compiler";
-import { ZERO_ADDRESS } from "./data/constants";
-import { initSkittles } from "./commands/init";
+import { hideBin } from "yargs/helpers";
+import { compileCommand } from "./commands/compile";
+import { cleanCommand } from "./commands/clean";
+import { initCommand } from "./commands/init";
+import { printLogo } from "./utils/console";
 
-yargs
-  .command("compile", "Compile all TypeScript files", async (): Promise<void> => {
-    logSkittles();
-    skittlesCompile();
-  })
-  .command("clean", "Clears the cache and deletes all builds", (): void => {
-    clearDirectory("./build");
-  })
+printLogo();
+
+yargs(hideBin(process.argv))
+  .scriptName("skittles")
+  .usage("$0 <command> [options]")
+  .command(
+    "compile",
+    "Compile TypeScript contracts to EVM bytecode",
+    () => {},
+    async () => {
+      await compileCommand(process.cwd());
+    }
+  )
+  .command(
+    "clean",
+    "Remove build artifacts",
+    () => {},
+    async () => {
+      await cleanCommand(process.cwd());
+    }
+  )
   .command(
     "init",
     "Initialize a new Skittles project",
-    (yargs) => {
-      return yargs.option("force", {
-        alias: "f",
-        type: "boolean",
-        description: "Overwrite existing skittles.config.ts and contract files if they exist",
-      });
-    },
-    (argv) => {
-      try {
-        initSkittles({
-          force: argv.force,
-        });
-      } catch (error: any) {
-        console.error(error?.message || "Failed to initialize project");
-        process.exit(1);
-      }
+    () => {},
+    async () => {
+      await initCommand(process.cwd());
     }
   )
+  .demandCommand(1, "Please specify a command")
+  .strict()
+  .help()
+  .version()
   .parse();
-
-export {
-  address,
-  bytes,
-  self,
-  block,
-  chain,
-  msg,
-  tx,
-  getSkittlesFactory,
-  ZERO_ADDRESS,
-  SkittlesEvent,
-  hash,
-};
