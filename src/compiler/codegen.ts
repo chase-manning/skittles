@@ -10,6 +10,7 @@ import {
   type Expression,
   type IfStatement,
   type RevertStatement,
+  type Visibility,
 } from "../types";
 
 // ============================================================
@@ -38,13 +39,7 @@ export function generateSolidityFile(contracts: SkittlesContract[]): string {
 }
 
 export function generateSolidity(contract: SkittlesContract): string {
-  const parts: string[] = [];
-  parts.push("// SPDX-License-Identifier: MIT");
-  parts.push("pragma solidity ^0.8.20;");
-  parts.push("");
-  parts.push(generateContractBody(contract));
-  parts.push("");
-  return parts.join("\n");
+  return generateSolidityFile([contract]);
 }
 
 function generateContractBody(contract: SkittlesContract): string {
@@ -228,8 +223,10 @@ export function generateExpression(expr: Expression): string {
   switch (expr.kind) {
     case "number-literal":
       return expr.value;
-    case "string-literal":
-      return `"${expr.value}"`;
+    case "string-literal": {
+      const escaped = expr.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      return `"${escaped}"`;
+    }
     case "boolean-literal":
       return expr.value ? "true" : "false";
     case "identifier":
@@ -414,7 +411,7 @@ function negateOperator(op: string): string | null {
 // Visibility mapping (Skittles simplification)
 // ============================================================
 
-function mapVisibility(vis: string): string {
+function mapVisibility(vis: Visibility): string {
   if (vis === "public") return "public";
   return "internal";
 }
