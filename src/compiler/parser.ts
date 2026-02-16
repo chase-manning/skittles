@@ -12,8 +12,6 @@ import type {
   Statement,
   Expression,
   EmitStatement,
-  IfStatement,
-  RevertStatement,
 } from "../types";
 
 // ============================================================
@@ -239,9 +237,9 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     }
 
     if (name === "address") return { kind: "address" as SkittlesTypeKind };
-    if (name === "bytes") return { kind: "bytes32" as SkittlesTypeKind };
+    if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
 
-    return { kind: "uint256" as SkittlesTypeKind };
+    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, Record<K,V>, and T[].`);
   }
 
   if (ts.isArrayTypeNode(node)) {
@@ -261,7 +259,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     case ts.SyntaxKind.VoidKeyword:
       return { kind: "void" as SkittlesTypeKind };
     default:
-      return { kind: "uint256" as SkittlesTypeKind };
+      throw new Error(`Unsupported type node kind: ${ts.SyntaxKind[node.kind]}. Skittles supports number, string, boolean, address, bytes, Record<K,V>, and T[].`);
   }
 }
 
@@ -559,9 +557,12 @@ function tryParseEmitStatement(
  * Uses fixpoint iteration until stable.
  */
 function propagateStateMutability(functions: SkittlesFunction[]): void {
-  const mutMap = new Map<string, "pure" | "view" | "nonpayable">();
+  type Mut = "pure" | "view" | "nonpayable" | "payable";
+  const rank: Record<Mut, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+
+  const mutMap = new Map<string, Mut>();
   for (const f of functions) {
-    mutMap.set(f.name, f.stateMutability as "pure" | "view" | "nonpayable");
+    mutMap.set(f.name, f.stateMutability as Mut);
   }
 
   let changed = true;
@@ -573,12 +574,11 @@ function propagateStateMutability(functions: SkittlesFunction[]): void {
         const calledMut = mutMap.get(methodName);
         if (!calledMut) continue;
 
-        const rank = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
-        const currentRank = rank[f.stateMutability as "pure" | "view" | "nonpayable" | "payable"] ?? 0;
+        const currentRank = rank[f.stateMutability as Mut] ?? 0;
         const calledRank = rank[calledMut];
 
         if (calledRank > currentRank) {
-          f.stateMutability = calledMut;
+          f.stateMutability = calledMut as Mut;
           mutMap.set(f.name, calledMut);
           changed = true;
         }
@@ -587,18 +587,17 @@ function propagateStateMutability(functions: SkittlesFunction[]): void {
   }
 }
 
-function collectThisCalls(stmts: Statement[]): string[] {
-  const names: string[] = [];
-
+/**
+ * Generic AST walker. Calls onExpr for every expression and onStmt for every
+ * statement in the tree. Both callbacks are optional.
+ */
+function walkStatements(
+  stmts: Statement[],
+  onExpr?: (expr: Expression) => void,
+  onStmt?: (stmt: Statement) => void
+): void {
   function walkExpr(expr: Expression): void {
-    if (
-      expr.kind === "call" &&
-      expr.callee.kind === "property-access" &&
-      expr.callee.object.kind === "identifier" &&
-      expr.callee.object.name === "this"
-    ) {
-      names.push(expr.callee.property);
-    }
+    if (onExpr) onExpr(expr);
     switch (expr.kind) {
       case "binary":
         walkExpr(expr.left);
@@ -634,6 +633,7 @@ function collectThisCalls(stmts: Statement[]): string[] {
   }
 
   function walkStmt(stmt: Statement): void {
+    if (onStmt) onStmt(stmt);
     switch (stmt.kind) {
       case "return":
         if (stmt.value) walkExpr(stmt.value);
@@ -669,6 +669,20 @@ function collectThisCalls(stmts: Statement[]): string[] {
   }
 
   stmts.forEach(walkStmt);
+}
+
+function collectThisCalls(stmts: Statement[]): string[] {
+  const names: string[] = [];
+  walkStatements(stmts, (expr) => {
+    if (
+      expr.kind === "call" &&
+      expr.callee.kind === "property-access" &&
+      expr.callee.object.kind === "identifier" &&
+      expr.callee.object.name === "this"
+    ) {
+      names.push(expr.callee.property);
+    }
+  });
   return names;
 }
 
@@ -677,13 +691,11 @@ export function inferStateMutability(body: Statement[]): "pure" | "view" | "nonp
   let writesState = false;
   let usesMsgValue = false;
 
-  function walkExpr(expr: Expression): void {
-    switch (expr.kind) {
-      case "property-access":
-        if (
-          expr.object.kind === "identifier" &&
-          expr.object.name === "this"
-        ) {
+  walkStatements(
+    body,
+    (expr) => {
+      if (expr.kind === "property-access") {
+        if (expr.object.kind === "identifier" && expr.object.name === "this") {
           readsState = true;
         }
         if (
@@ -693,83 +705,27 @@ export function inferStateMutability(body: Statement[]): "pure" | "view" | "nonp
         ) {
           usesMsgValue = true;
         }
-        walkExpr(expr.object);
-        break;
-      case "element-access":
-        walkExpr(expr.object);
-        walkExpr(expr.index);
-        break;
-      case "assignment":
-        if (isStateAccess(expr.target)) writesState = true;
-        walkExpr(expr.target);
-        walkExpr(expr.value);
-        break;
-      case "binary":
-        walkExpr(expr.left);
-        walkExpr(expr.right);
-        break;
-      case "unary":
-        if (
-          (expr.operator === "++" || expr.operator === "--") &&
-          isStateAccess(expr.operand)
-        ) {
-          writesState = true;
-        }
-        walkExpr(expr.operand);
-        break;
-      case "call":
-        if (isStateMutatingCall(expr)) writesState = true;
-        walkExpr(expr.callee);
-        expr.args.forEach(walkExpr);
-        break;
-      case "conditional":
-        walkExpr(expr.condition);
-        walkExpr(expr.whenTrue);
-        walkExpr(expr.whenFalse);
-        break;
-      case "new":
-        expr.args.forEach(walkExpr);
-        break;
-    }
-  }
-
-  function walkStmt(stmt: Statement): void {
-    switch (stmt.kind) {
-      case "return":
-        if (stmt.value) walkExpr(stmt.value);
-        break;
-      case "variable-declaration":
-        if (stmt.initializer) walkExpr(stmt.initializer);
-        break;
-      case "expression":
-        walkExpr(stmt.expression);
-        break;
-      case "if":
-        walkExpr(stmt.condition);
-        stmt.thenBody.forEach(walkStmt);
-        stmt.elseBody?.forEach(walkStmt);
-        break;
-      case "for":
-        if (stmt.initializer) walkStmt(stmt.initializer);
-        if (stmt.condition) walkExpr(stmt.condition);
-        if (stmt.incrementor) walkExpr(stmt.incrementor);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "while":
-        walkExpr(stmt.condition);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "revert":
-        if (stmt.message) walkExpr(stmt.message);
-        break;
-      case "emit":
+      }
+      if (expr.kind === "assignment" && isStateAccess(expr.target)) {
         writesState = true;
-        stmt.args.forEach(walkExpr);
-        break;
+      }
+      if (
+        expr.kind === "unary" &&
+        (expr.operator === "++" || expr.operator === "--") &&
+        isStateAccess(expr.operand)
+      ) {
+        writesState = true;
+      }
+      if (expr.kind === "call" && isStateMutatingCall(expr)) {
+        writesState = true;
+      }
+    },
+    (stmt) => {
+      if (stmt.kind === "emit") {
+        writesState = true;
+      }
     }
-  }
-
-  body.forEach(walkStmt);
+  );
 
   if (usesMsgValue) return "payable";
   if (writesState) return "nonpayable";
