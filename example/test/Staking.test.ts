@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ethers } from "ethers";
-import { createTestEnv, deploy, connectAs, getBalance, TestEnv } from "./helpers";
+import { createTestEnv, deploy, connectAs, TestEnv } from "./helpers";
 
 describe("Staking", () => {
   let env: TestEnv;

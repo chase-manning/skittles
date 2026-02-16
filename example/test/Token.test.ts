@@ -3,7 +3,6 @@ import { ethers } from "ethers";
 import { createTestEnv, deploy, connectAs, TestEnv } from "./helpers";
 
 const INITIAL_SUPPLY = ethers.parseEther("1000000");
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 describe("Token", () => {
   let env: TestEnv;
