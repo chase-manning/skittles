@@ -256,7 +256,7 @@ export interface AbiItem {
   name?: string;
   inputs?: AbiParameter[];
   outputs?: AbiParameter[];
-  stateMutability?: string;
+  stateMutability?: StateMutability;
   anonymous?: boolean;
 }
 
@@ -268,26 +268,8 @@ export interface AbiParameter {
 }
 
 // ============================================================
-// Cache
-// ============================================================
-
-export interface CompilationCache {
-  version: string;
-  files: Record<string, CachedFile>;
-}
-
-export interface CachedFile {
-  hash: string;
-  dependencies: string[];
-  lastCompiled: number;
-}
-
-// ============================================================
 // User contract types (exported for contract authors)
 // ============================================================
 
 export type address = string;
 export type bytes = string;
-export type SkittlesEventType<T extends Record<string, unknown>> = T & {
-  __event: true;
-};
