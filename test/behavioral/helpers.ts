@@ -5,14 +5,7 @@ import {
   generateSolidityFile,
 } from "../../src/compiler/codegen";
 import { compileSolidity } from "../../src/compiler/solc";
-import type { SkittlesConfig } from "../../src/types";
-
-const defaultConfig: Required<SkittlesConfig> = {
-  typeCheck: true,
-  optimizer: { enabled: false, runs: 200 },
-  contractsDir: "contracts",
-  outputDir: "build",
-};
+import { defaultConfig } from "../fixtures";
 
 // ============================================================
 // Test environment: Hardhat JSON-RPC server + ethers.js v6
