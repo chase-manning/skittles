@@ -5,6 +5,7 @@ export interface SolcResult {
   abi: AbiItem[];
   bytecode: string;
   errors: string[];
+  warnings: string[];
 }
 
 /**
@@ -37,19 +38,30 @@ export function compileSolidity(
     },
   };
 
-  const output = JSON.parse(solc.compile(JSON.stringify(input)));
+  let output;
+  try {
+    output = JSON.parse(solc.compile(JSON.stringify(input)));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { abi: [], bytecode: "", errors: [`Solc compilation failed: ${msg}`], warnings: [] };
+  }
+
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   if (output.errors) {
     for (const error of output.errors) {
+      const message = error.formattedMessage || error.message;
       if (error.severity === "error") {
-        errors.push(error.formattedMessage || error.message);
+        errors.push(message);
+      } else if (error.severity === "warning") {
+        warnings.push(message);
       }
     }
   }
 
   if (errors.length > 0) {
-    return { abi: [], bytecode: "", errors };
+    return { abi: [], bytecode: "", errors, warnings };
   }
 
   const contractOutput =
@@ -60,6 +72,7 @@ export function compileSolidity(
       abi: [],
       bytecode: "",
       errors: [`No output found for contract ${contractName}`],
+      warnings,
     };
   }
 
@@ -67,5 +80,6 @@ export function compileSolidity(
     abi: contractOutput.abi || [],
     bytecode: contractOutput.evm?.bytecode?.object || "",
     errors: [],
+    warnings,
   };
 }
