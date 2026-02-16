@@ -100,7 +100,7 @@ describe("integration: functions", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain(
-      "function add(uint256 a, uint256 b) public pure returns (uint256)"
+      "function add(uint256 a, uint256 b) public pure virtual returns (uint256)"
     );
   });
 
@@ -114,7 +114,7 @@ describe("integration: functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function getSupply() public view returns (uint256)");
+    expect(solidity).toContain("function getSupply() public view virtual returns (uint256)");
   });
 
   it("should compile a state-mutating function", () => {
@@ -127,7 +127,7 @@ describe("integration: functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function increment() public {");
+    expect(solidity).toContain("function increment() public virtual {");
     expect(solidity).toContain("count = (count + 1);");
   });
 
@@ -209,7 +209,7 @@ describe("integration: control flow", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function classify(uint256 value) public pure returns (uint256)");
+    expect(solidity).toContain("function classify(uint256 value) public pure virtual returns (uint256)");
     expect(solidity).toContain("(value % 2)");
     expect(solidity).toContain("} else {");
     expect(solidity).toContain("return 43;");
@@ -454,8 +454,8 @@ describe("integration: full token contract", () => {
     expect(solidity).toContain('string public name = "MyToken"');
     expect(solidity).toContain("mapping(address => uint256) internal balances");
     expect(solidity).toContain("constructor(uint256 initialSupply)");
-    expect(solidity).toContain("function balanceOf(address account) public view returns (uint256)");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public returns (bool)");
+    expect(solidity).toContain("function balanceOf(address account) public view virtual returns (uint256)");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual returns (bool)");
     expect(solidity).toContain('require((balances[sender] >= amount), "Insufficient balance")');
     expect(solidity).toContain("balances[sender] -= amount");
     expect(solidity).toContain("balances[to] += amount");
@@ -499,7 +499,7 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function max(uint256 a, uint256 b) public pure returns (uint256)");
+    expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
   });
 
   it("should compile Number.MAX_VALUE as type(uint256).max", () => {
@@ -532,8 +532,8 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public {");
+    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual {");
     expect(solidity).toContain("_transfer(msg.sender, to, amount);");
   });
 
@@ -612,8 +612,8 @@ describe("integration: cross-function mutability propagation", () => {
 
     const { errors, solidity } = compileTS(source);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public {");
+    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual {");
     expect(solidity).not.toContain("view");
   });
 
@@ -743,11 +743,11 @@ describe("integration: full ERC20 with events and allowances", () => {
     expect(solidity).toContain("mapping(address => mapping(address => uint256)) internal allowances;");
 
     // Verify all ERC20 functions
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public returns (bool)");
-    expect(solidity).toContain("function approve(address spender, uint256 amount) public returns (bool)");
-    expect(solidity).toContain("function transferFrom(address from, address to, uint256 amount) public returns (bool)");
-    expect(solidity).toContain("function balanceOf(address account) public view returns (uint256)");
-    expect(solidity).toContain("function allowance(address owner, address spender) public view returns (uint256)");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function approve(address spender, uint256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function transferFrom(address from, address to, uint256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function balanceOf(address account) public view virtual returns (uint256)");
+    expect(solidity).toContain("function allowance(address owner, address spender) public view virtual returns (uint256)");
 
     // Verify emit statements
     expect(solidity).toContain("emit Transfer(sender, to, amount);");
@@ -906,15 +906,15 @@ describe("integration: ultimate combined test", () => {
     expect(solidity).toContain("mapping(address => mapping(address => uint256)) internal allowances;");
 
     // Cross-function propagation: transfer must not be view
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public returns (bool)");
+    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual returns (bool)");
     expect(solidity).not.toMatch(/function transfer\(.*\) public view/);
 
     // Number.MAX_VALUE
     expect(solidity).toContain("type(uint256).max");
 
     // Ternary
-    expect(solidity).toContain("function max(uint256 a, uint256 b) public pure returns (uint256)");
+    expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
 
     // Array operations
     expect(solidity).toContain("holders.push(msg.sender);");
@@ -937,5 +937,501 @@ describe("integration: ultimate combined test", () => {
     const eventNamesABI = abiNames.filter(i => i.type === "event").map(i => i.name);
     expect(eventNamesABI).toContain("Transfer");
     expect(eventNamesABI).toContain("Approval");
+  });
+});
+
+// ============================================================
+// Bitwise operators
+// ============================================================
+
+describe("integration: bitwise operators", () => {
+  it("should compile bitwise AND, OR, XOR, shifts", () => {
+    const { errors, solidity } = compileTS(`
+      class BitOps {
+        public bitwiseAnd(a: number, b: number): number {
+          return a & b;
+        }
+        public bitwiseOr(a: number, b: number): number {
+          return a | b;
+        }
+        public bitwiseXor(a: number, b: number): number {
+          return a ^ b;
+        }
+        public leftShift(a: number, b: number): number {
+          return a << b;
+        }
+        public rightShift(a: number, b: number): number {
+          return a >> b;
+        }
+        public bitwiseNot(a: number): number {
+          return ~a;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(a & b)");
+    expect(solidity).toContain("(a | b)");
+    expect(solidity).toContain("(a ^ b)");
+    expect(solidity).toContain("(a << b)");
+    expect(solidity).toContain("(a >> b)");
+    expect(solidity).toContain("~a");
+  });
+
+  it("should compile bitwise assignment operators", () => {
+    const { errors, solidity } = compileTS(`
+      class BitAssign {
+        public x: number = 0;
+        public ops(): void {
+          this.x &= 0xFF;
+          this.x |= 0x01;
+          this.x ^= 0x10;
+          this.x <<= 2;
+          this.x >>= 1;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("x &= 255");
+    expect(solidity).toContain("x |= 1");
+    expect(solidity).toContain("x ^= 16");
+    expect(solidity).toContain("x <<= 2");
+    expect(solidity).toContain("x >>= 1");
+  });
+});
+
+// ============================================================
+// break, continue, do-while
+// ============================================================
+
+describe("integration: control flow", () => {
+  it("should compile break in a for loop", () => {
+    const { errors, solidity } = compileTS(`
+      class Control {
+        public findFirst(target: number): number {
+          for (let i: number = 0; i < 100; i++) {
+            if (i === target) {
+              break;
+            }
+          }
+          return 0;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("break;");
+  });
+
+  it("should compile continue in a for loop", () => {
+    const { errors, solidity } = compileTS(`
+      class Control {
+        public sumOdds(): number {
+          let total: number = 0;
+          for (let i: number = 0; i < 10; i++) {
+            if (i % 2 === 0) {
+              continue;
+            }
+            total += i;
+          }
+          return total;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("continue;");
+  });
+
+  it("should compile do-while loop", () => {
+    const { errors, solidity } = compileTS(`
+      class Control {
+        public countdown(n: number): number {
+          let i: number = n;
+          do {
+            i -= 1;
+          } while (i > 0);
+          return i;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("do {");
+    expect(solidity).toContain("} while ((i > 0));");
+  });
+});
+
+// ============================================================
+// Multiple variable declarations
+// ============================================================
+
+// ============================================================
+// Indexed event parameters
+// ============================================================
+
+describe("integration: indexed event parameters", () => {
+  it("should compile events with indexed parameters", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        Transfer: SkittlesEvent<{ from: Indexed<address>; to: Indexed<address>; value: number }> = {} as any;
+
+        public transfer(to: address, amount: number): void {
+          this.Transfer.emit(msg.sender, to, amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("event Transfer(address indexed from, address indexed to, uint256 value);");
+  });
+
+  it("should compile events without indexed parameters unchanged", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        Log: SkittlesEvent<{ message: string; value: number }> = {} as any;
+
+        public logIt(): void {
+          this.Log.emit("hello", 42);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("event Log(string message, uint256 value);");
+    expect(solidity).not.toContain("indexed");
+  });
+});
+
+// ============================================================
+// Constant state variables
+// ============================================================
+
+describe("integration: constant state variables", () => {
+  it("should compile static readonly as constant", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        static readonly MAX_SUPPLY: number = 1000000;
+        static readonly TOKEN_NAME: string = "MyToken";
+
+        public getMax(): number {
+          return Token.MAX_SUPPLY;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 public constant MAX_SUPPLY = 1000000;");
+    expect(solidity).toContain('string public constant TOKEN_NAME = "MyToken";');
+  });
+
+  it("should keep readonly (non-static) as immutable", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        readonly owner: address = msg.sender;
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("address public immutable owner");
+  });
+});
+
+// ============================================================
+// Built-in functions
+// ============================================================
+
+describe("integration: built-in functions", () => {
+  it("should compile keccak256 to keccak256(abi.encodePacked(...))", () => {
+    const contracts = parse(`
+      class Hasher {
+        public hash(a: number, b: number): void {
+          let h = keccak256(a, b);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("keccak256(abi.encodePacked(a, b))");
+  });
+
+  it("should compile abi.encodePacked", () => {
+    const contracts = parse(`
+      class Encoder {
+        public encode(a: number, b: number): void {
+          let d = abi.encodePacked(a, b);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("abi.encodePacked(a, b)");
+  });
+
+  it("should compile assert", () => {
+    const { errors, solidity } = compileTS(`
+      class Checker {
+        public check(x: number): void {
+          assert(x > 0);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("assert((x > 0))");
+  });
+
+  it("should compile string.concat", () => {
+    const { errors, solidity } = compileTS(`
+      class Concat {
+        public join(a: string, b: string): string {
+          return string.concat(a, b);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("string.concat(a, b)");
+  });
+});
+
+// ============================================================
+// Structs
+// ============================================================
+
+describe("integration: structs", () => {
+  it("should compile interfaces as Solidity structs", () => {
+    const { errors, solidity } = compileTS(`
+      interface Point {
+        x: number;
+        y: number;
+      }
+
+      class Geometry {
+        public origin: Point;
+
+        public getOrigin(): Point {
+          return this.origin;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("struct Point {");
+    expect(solidity).toContain("uint256 x;");
+    expect(solidity).toContain("uint256 y;");
+    expect(solidity).toContain("Point public origin;");
+    expect(solidity).toContain("returns (Point memory)");
+  });
+
+  it("should use memory annotation for struct parameters", () => {
+    const { errors, solidity } = compileTS(`
+      interface Transfer {
+        from: address;
+        to: address;
+        amount: number;
+      }
+
+      class Bank {
+        public process(t: Transfer): void {
+          let from: address = t.from;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("Transfer memory t");
+  });
+});
+
+// ============================================================
+// Enums
+// ============================================================
+
+describe("integration: enums", () => {
+  it("should compile TypeScript enums to Solidity enums", () => {
+    const { errors, solidity } = compileTS(`
+      enum Status { Pending, Active, Closed }
+
+      class Proposal {
+        public status: Status;
+
+        public activate(): void {
+          this.status = Status.Active;
+        }
+
+        public getStatus(): Status {
+          return this.status;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("enum Status { Pending, Active, Closed }");
+    expect(solidity).toContain("Status public status;");
+    expect(solidity).toContain("returns (Status)");
+  });
+});
+
+// ============================================================
+// virtual / override
+// ============================================================
+
+describe("integration: virtual and override", () => {
+  it("should auto-mark functions as virtual", () => {
+    const { errors, solidity } = compileTS(`
+      class Base {
+        public getValue(): number {
+          return 42;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
+  });
+
+  it("should mark overridden functions with override", () => {
+    const source = `
+      class Base {
+        public getValue(): number {
+          return 42;
+        }
+      }
+
+      class Child extends Base {
+        public override getValue(): number {
+          return 100;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
+    expect(solidity).toContain("function getValue() public pure override returns (uint256)");
+  });
+});
+
+// ============================================================
+// super keyword
+// ============================================================
+
+describe("integration: super keyword", () => {
+  it("should compile super.method() calls", () => {
+    const source = `
+      class Base {
+        public getValue(): number {
+          return 42;
+        }
+      }
+
+      class Child extends Base {
+        public override getValue(): number {
+          let base: number = super.getValue();
+          return base + 1;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    expect(solidity).toContain("super.getValue()");
+  });
+});
+
+// ============================================================
+// receive and fallback
+// ============================================================
+
+describe("integration: receive and fallback", () => {
+  it("should compile receive function", () => {
+    const { errors, solidity } = compileTS(`
+      class Receiver {
+        private total: number = 0;
+
+        public receive(): void {
+          this.total += msg.value;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("receive() external payable {");
+    expect(solidity).toContain("total += msg.value;");
+  });
+
+  it("should compile fallback function", () => {
+    const { errors, solidity } = compileTS(`
+      class Proxy {
+        public fallback(): void {
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("fallback() external payable {");
+  });
+});
+
+// ============================================================
+// Type casting
+// ============================================================
+
+describe("integration: type casting", () => {
+  it("should pass through address() cast", () => {
+    const contracts = parse(`
+      class Caster {
+        public getAddr(): address {
+          return address(this);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("address(this)");
+  });
+});
+
+// ============================================================
+// Custom errors
+// ============================================================
+
+describe("integration: custom errors", () => {
+  it("should compile custom error classes", () => {
+    const { errors, solidity } = compileTS(`
+      class InsufficientBalance extends Error {
+        constructor(available: number, required: number) {
+          super("");
+        }
+      }
+
+      class Token {
+        private balances: Record<address, number> = {};
+
+        public withdraw(amount: number): void {
+          if (this.balances[msg.sender] < amount) {
+            throw new InsufficientBalance(this.balances[msg.sender], amount);
+          }
+          this.balances[msg.sender] -= amount;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("error InsufficientBalance(uint256 available, uint256 required);");
+    expect(solidity).toContain("revert InsufficientBalance(balances[msg.sender], amount);");
+    expect(solidity).not.toContain("require(");
+  });
+
+  it("should still compile regular Error as revert/require", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public check(x: number): void {
+          if (x == 0) {
+            throw new Error("zero");
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('require((x != 0), "zero");');
+  });
+});
+
+describe("integration: multiple variable declarations", () => {
+  it("should compile let a=1, b=2 as separate statements", () => {
+    const { errors, solidity } = compileTS(`
+      class Multi {
+        public test(): number {
+          let a: number = 1, b: number = 2, c: number = 3;
+          return a + b + c;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 a = 1;");
+    expect(solidity).toContain("uint256 b = 2;");
+    expect(solidity).toContain("uint256 c = 3;");
   });
 });
