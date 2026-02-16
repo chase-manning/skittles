@@ -1,0 +1,9 @@
+{
+  "typeCheck": true,
+  "optimizer": {
+    "enabled": true,
+    "runs": 200
+  },
+  "contractsDir": "contracts",
+  "outputDir": "build"
+}

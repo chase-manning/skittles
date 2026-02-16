@@ -1,0 +1,25 @@
+{
+  "name": "skittles-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Example Skittles project: ERC20 Token + ETH Staking Vault",
+  "scripts": {
+    "compile": "skittles compile",
+    "clean": "skittles clean",
+    "typecheck": "tsc --noEmit",
+    "test": "yarn compile && vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "skittles": "file:.."
+  },
+  "devDependencies": {
+    "ethers": "^6.16.0",
+    "hardhat": "^3.1.8",
+    "typescript": "^5.9.3",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
