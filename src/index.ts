@@ -40,4 +40,4 @@ yargs(hideBin(process.argv))
   .strict()
   .help()
   .version()
-  .parse();
+  .parseAsync();
