@@ -1372,6 +1372,18 @@ describe("integration: type casting", () => {
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("address(this)");
   });
+
+  it("should handle angle bracket type assertions transparently", () => {
+    const contracts = parse(`
+      class Caster {
+        public cast(x: number): number {
+          return <number>x;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("return x;");
+  });
 });
 
 // ============================================================
@@ -1416,6 +1428,469 @@ describe("integration: custom errors", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain('require((x != 0), "zero");');
+  });
+});
+
+// ============================================================
+// Arrow function class properties
+// ============================================================
+
+describe("integration: arrow function class properties", () => {
+  it("should compile arrow function properties as methods", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private balances: Record<address, number> = {};
+
+        private _transfer = (from: address, to: address, amount: number): void => {
+          this.balances[from] -= amount;
+          this.balances[to] += amount;
+        }
+
+        public transfer(to: address, amount: number): void {
+          this._transfer(msg.sender, to, amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual {");
+    expect(solidity).toContain("balances[from] -= amount;");
+    expect(solidity).toContain("balances[to] += amount;");
+  });
+
+  it("should compile public arrow function properties", () => {
+    const { errors, solidity } = compileTS(`
+      class Math {
+        public add = (a: number, b: number): number => {
+          return a + b;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function add(uint256 a, uint256 b) public pure virtual returns (uint256)");
+  });
+
+  it("should infer state mutability for arrow function properties", () => {
+    const contracts = parse(`
+      class Counter {
+        public count: number = 0;
+
+        public increment = (): void => {
+          this.count += 1;
+        }
+
+        public getCount = (): number => {
+          return this.count;
+        }
+      }
+    `, "test.ts");
+    const inc = contracts[0].functions.find(f => f.name === "increment");
+    const get = contracts[0].functions.find(f => f.name === "getCount");
+    expect(inc!.stateMutability).toBe("nonpayable");
+    expect(get!.stateMutability).toBe("view");
+  });
+});
+
+// ============================================================
+// Switch/case/default
+// ============================================================
+
+describe("integration: switch/case/default", () => {
+  it("should compile switch/case to if/else if chains", () => {
+    const { errors, solidity } = compileTS(`
+      class Router {
+        public route(action: number): number {
+          switch (action) {
+            case 0:
+              return 100;
+            case 1:
+              return 200;
+            case 2:
+              return 300;
+            default:
+              return 0;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("if (action == 0)");
+    expect(solidity).toContain("return 100;");
+    expect(solidity).toContain("} else if (action == 1)");
+    expect(solidity).toContain("return 200;");
+    expect(solidity).toContain("} else if (action == 2)");
+    expect(solidity).toContain("return 300;");
+    expect(solidity).toContain("} else {");
+    expect(solidity).toContain("return 0;");
+  });
+
+  it("should compile switch without default", () => {
+    const { errors, solidity } = compileTS(`
+      class Handler {
+        public value: number = 0;
+        public handle(code: number): void {
+          switch (code) {
+            case 1:
+              this.value = 10;
+              break;
+            case 2:
+              this.value = 20;
+              break;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("if (code == 1)");
+    expect(solidity).toContain("value = 10;");
+    expect(solidity).toContain("} else if (code == 2)");
+    expect(solidity).toContain("value = 20;");
+  });
+});
+
+// ============================================================
+// Static class methods
+// ============================================================
+
+describe("integration: static class methods", () => {
+  it("should compile static methods as internal functions", () => {
+    const { errors, solidity } = compileTS(`
+      class MathLib {
+        public static add(a: number, b: number): number {
+          return a + b;
+        }
+
+        public static mul(a: number, b: number): number {
+          return a * b;
+        }
+
+        public compute(x: number, y: number): number {
+          return MathLib.add(x, MathLib.mul(x, y));
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function add(uint256 a, uint256 b) internal pure virtual returns (uint256)");
+    expect(solidity).toContain("function mul(uint256 a, uint256 b) internal pure virtual returns (uint256)");
+  });
+});
+
+// ============================================================
+// const declarations
+// ============================================================
+
+describe("integration: const declarations", () => {
+  it("should compile const the same as let", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        public calc(x: number): number {
+          const doubled: number = x * 2;
+          const tripled: number = x * 3;
+          return doubled + tripled;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 doubled = (x * 2);");
+    expect(solidity).toContain("uint256 tripled = (x * 3);");
+    expect(solidity).toContain("return (doubled + tripled);");
+  });
+
+  it("should compile const with type inference", () => {
+    const contracts = parse(`
+      class Test {
+        public getSender(): address {
+          const s: address = msg.sender;
+          return s;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("address s = msg.sender;");
+  });
+});
+
+// ============================================================
+// Void operator
+// ============================================================
+
+describe("integration: void operator", () => {
+  it("should handle void operator by keeping the expression", () => {
+    const contracts = parse(`
+      class Test {
+        public value: number = 0;
+        public doSomething(): void {
+          void (this.value = 5);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("value = 5;");
+  });
+});
+
+// ============================================================
+// Comma operator
+// ============================================================
+
+describe("integration: comma operator", () => {
+  it("should handle comma operator by using the last value", () => {
+    const contracts = parse(`
+      class Test {
+        public getVal(): number {
+          return (1, 2, 3);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("return 3;");
+  });
+});
+
+// ============================================================
+// Getter/setter accessors
+// ============================================================
+
+describe("integration: getter/setter accessors", () => {
+  it("should compile get accessor as view function", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private _balance: number = 0;
+
+        public get balance(): number {
+          return this._balance;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function balance() public view virtual returns (uint256)");
+    expect(solidity).toContain("return _balance;");
+  });
+
+  it("should compile set accessor as mutating function", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private _balance: number = 0;
+
+        public set balance(value: number) {
+          this._balance = value;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function balance(uint256 value) public virtual {");
+    expect(solidity).toContain("_balance = value;");
+  });
+
+  it("should compile paired getter and setter", () => {
+    const { errors, solidity } = compileTS(`
+      class Config {
+        private _threshold: number = 0;
+
+        public get threshold(): number {
+          return this._threshold;
+        }
+
+        public set threshold(val: number) {
+          this._threshold = val;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function threshold() public view virtual returns (uint256)");
+    expect(solidity).toContain("function threshold(uint256 val) public virtual {");
+  });
+});
+
+// ============================================================
+// Null and undefined literals
+// ============================================================
+
+describe("integration: null and undefined", () => {
+  it("should compile null as zero value", () => {
+    const { errors, solidity } = compileTS(`
+      class Nullable {
+        public value: number = 0;
+        public reset(): void {
+          this.value = null as any;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("value = 0;");
+  });
+
+  it("should handle null in comparisons", () => {
+    const contracts = parse(`
+      class Checker {
+        public isZero(x: number): boolean {
+          return x == null as any;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("(x == 0)");
+  });
+});
+
+// ============================================================
+// Delete expressions
+// ============================================================
+
+describe("integration: delete expressions", () => {
+  it("should compile delete on mapping entry", () => {
+    const { errors, solidity } = compileTS(`
+      class Registry {
+        private data: Record<address, number> = {};
+
+        public remove(addr: address): void {
+          delete this.data[addr];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("delete data[addr];");
+  });
+
+  it("should detect delete as state mutation", () => {
+    const contracts = parse(`
+      class Registry {
+        private data: Record<address, number> = {};
+
+        public remove(addr: address): void {
+          delete this.data[addr];
+        }
+      }
+    `, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
+  });
+});
+
+// ============================================================
+// For...of loops
+// ============================================================
+
+describe("integration: for...of loops", () => {
+  it("should compile for...of to indexed for loop", () => {
+    const { errors, solidity } = compileTS(`
+      class Summer {
+        public items: number[] = [];
+
+        public sum(): number {
+          let total: number = 0;
+          for (const item of this.items) {
+            total += item;
+          }
+          return total;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("for (uint256 _i_item = 0; (_i_item < items.length); _i_item++)");
+    expect(solidity).toContain("uint256 item = items[_i_item];");
+    expect(solidity).toContain("total += item;");
+  });
+
+  it("should compile for...of with typed variable", () => {
+    const contracts = parse(`
+      class Registry {
+        public addrs: address[] = [];
+
+        public findAddr(target: address): boolean {
+          for (const addr of this.addrs) {
+            if (addr == target) {
+              return true;
+            }
+          }
+          return false;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("_i_addr");
+    expect(solidity).toContain("addrs[_i_addr]");
+  });
+});
+
+// ============================================================
+// Object literal / struct construction
+// ============================================================
+
+describe("integration: object literal struct construction", () => {
+  it("should compile object literal as struct constructor in variable declaration", () => {
+    const { errors, solidity } = compileTS(`
+      interface Point {
+        x: number;
+        y: number;
+      }
+
+      class Geometry {
+        public createPoint(): Point {
+          let p: Point = { x: 1, y: 2 };
+          return p;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("Point memory p = Point(1, 2);");
+  });
+
+  it("should compile object literal with shorthand properties", () => {
+    const contracts = parse(`
+      interface Point {
+        x: number;
+        y: number;
+      }
+
+      class Geometry {
+        public createPoint(x: number, y: number): Point {
+          let p: Point = { x, y };
+          return p;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("Point memory p = Point(x, y);");
+  });
+});
+
+// ============================================================
+// Template literals
+// ============================================================
+
+describe("integration: template literals", () => {
+  it("should compile template literals to string.concat", () => {
+    const { errors, solidity } = compileTS(`
+      class Greeter {
+        public greet(name: string): string {
+          return \`Hello \${name}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Hello ", name)');
+  });
+
+  it("should compile template literals with multiple expressions", () => {
+    const contracts = parse(`
+      class Formatter {
+        public format(a: string, b: string): string {
+          return \`\${a} and \${b}\`;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('string.concat(a, " and ", b)');
+  });
+
+  it("should compile no-substitution template literals as regular strings", () => {
+    const { errors, solidity } = compileTS(`
+      class Simple {
+        public name: string = \`hello\`;
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string public name = "hello"');
   });
 });
 
