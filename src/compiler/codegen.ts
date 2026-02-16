@@ -11,6 +11,7 @@ import {
   type IfStatement,
   type RevertStatement,
   type Visibility,
+  type SkittlesParameter,
 } from "../types";
 
 // ============================================================
@@ -50,6 +51,24 @@ function generateContractBody(contract: SkittlesContract): string {
       ? ` is ${contract.inherits.join(", ")}`
       : "";
   parts.push(`contract ${contract.name}${inheritance} {`);
+
+  for (const en of contract.enums ?? []) {
+    parts.push(`    enum ${en.name} { ${en.members.join(", ")} }`);
+    parts.push("");
+  }
+
+  for (const ce of contract.customErrors ?? []) {
+    const params = ce.parameters.map((p) => `${generateType(p.type)} ${p.name}`).join(", ");
+    parts.push(`    error ${ce.name}(${params});`);
+  }
+  if ((contract.customErrors ?? []).length > 0) {
+    parts.push("");
+  }
+
+  for (const s of contract.structs ?? []) {
+    parts.push(generateStructDecl(s));
+    parts.push("");
+  }
 
   for (const e of contract.events) {
     parts.push(`    ${generateEventDecl(e)}`);
@@ -93,9 +112,22 @@ function generateContractBody(contract: SkittlesContract): string {
 // Contract elements
 // ============================================================
 
+function generateStructDecl(s: { name: string; fields: SkittlesParameter[] }): string {
+  const lines: string[] = [];
+  lines.push(`    struct ${s.name} {`);
+  for (const f of s.fields) {
+    lines.push(`        ${generateType(f.type)} ${f.name};`);
+  }
+  lines.push("    }");
+  return lines.join("\n");
+}
+
 function generateEventDecl(e: SkittlesEvent): string {
   const params = e.parameters
-    .map((p) => `${generateType(p.type)} ${p.name}`)
+    .map((p) => {
+      const indexed = p.indexed ? " indexed" : "";
+      return `${generateType(p.type)}${indexed} ${p.name}`;
+    })
     .join(", ");
   return `event ${e.name}(${params});`;
 }
@@ -113,23 +145,48 @@ function isValueType(type: SkittlesType): boolean {
 function generateVariable(v: SkittlesVariable): string {
   const type = generateType(v.type);
   const vis = mapVisibility(v.visibility);
-  const immut = v.immutable && isValueType(v.type) ? " immutable" : "";
+  let modifier = "";
+  if (v.constant) {
+    modifier = " constant";
+  } else if (v.immutable && isValueType(v.type)) {
+    modifier = " immutable";
+  }
 
   if (
     v.type.kind === SkittlesTypeKind.Mapping ||
     v.type.kind === SkittlesTypeKind.Array
   ) {
-    return `${type} ${vis}${immut} ${v.name};`;
+    return `${type} ${vis}${modifier} ${v.name};`;
   }
 
   if (v.initialValue) {
-    return `${type} ${vis}${immut} ${v.name} = ${generateExpression(v.initialValue)};`;
+    return `${type} ${vis}${modifier} ${v.name} = ${generateExpression(v.initialValue)};`;
   }
 
-  return `${type} ${vis}${immut} ${v.name};`;
+  return `${type} ${vis}${modifier} ${v.name};`;
 }
 
 function generateFunction(f: SkittlesFunction): string {
+  if (f.name === "receive") {
+    const lines: string[] = [];
+    lines.push("    receive() external payable {");
+    for (const s of f.body) {
+      lines.push(generateStatement(s, "        "));
+    }
+    lines.push("    }");
+    return lines.join("\n");
+  }
+
+  if (f.name === "fallback") {
+    const lines: string[] = [];
+    lines.push("    fallback() external payable {");
+    for (const s of f.body) {
+      lines.push(generateStatement(s, "        "));
+    }
+    lines.push("    }");
+    return lines.join("\n");
+  }
+
   const params = f.parameters
     .map((p) => `${generateParamType(p.type)} ${p.name}`)
     .join(", ");
@@ -138,13 +195,15 @@ function generateFunction(f: SkittlesFunction): string {
   const mut =
     f.stateMutability === "nonpayable" ? "" : f.stateMutability === "payable" ? " payable" : ` ${f.stateMutability}`;
 
+  const virtOverride = f.isOverride ? " override" : f.isVirtual ? " virtual" : "";
+
   let returns = "";
   if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
     returns = ` returns (${generateParamType(f.returnType)})`;
   }
 
   const lines: string[] = [];
-  lines.push(`    function ${f.name}(${params}) ${vis}${mut}${returns} {`);
+  lines.push(`    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns} {`);
   for (const s of f.body) {
     lines.push(generateStatement(s, "        "));
   }
@@ -192,6 +251,10 @@ export function generateType(type: SkittlesType): string {
       return `mapping(${generateType(type.keyType!)} => ${generateType(type.valueType!)})`;
     case SkittlesTypeKind.Array:
       return `${generateType(type.valueType!)}[]`;
+    case SkittlesTypeKind.Struct:
+      return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.Enum:
+      return type.structName ?? "UnknownEnum";
     case SkittlesTypeKind.Void:
       return "";
     default:
@@ -212,6 +275,7 @@ function needsMemoryLocation(type: SkittlesType): boolean {
     SkittlesTypeKind.String,
     SkittlesTypeKind.Bytes,
     SkittlesTypeKind.Array,
+    SkittlesTypeKind.Struct,
   ].includes(type.kind);
 }
 
@@ -258,8 +322,11 @@ export function generateExpression(expr: Expression): string {
       return `${generateExpression(expr.operand)}${expr.operator}`;
     case "assignment":
       return `${generateExpression(expr.target)} ${expr.operator} ${generateExpression(expr.value)}`;
-    case "call":
+    case "call": {
+      const callResult = tryGenerateBuiltinCall(expr);
+      if (callResult) return callResult;
       return `${generateExpression(expr.callee)}(${expr.args.map(generateExpression).join(", ")})`;
+    }
     case "conditional":
       return `(${generateExpression(expr.condition)} ? ${generateExpression(expr.whenTrue)} : ${generateExpression(expr.whenFalse)})`;
     case "new":
@@ -359,7 +426,29 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return lines.join("\n");
     }
 
+    case "do-while": {
+      const lines: string[] = [];
+      lines.push(`${indent}do {`);
+      for (const s of stmt.body) {
+        lines.push(generateStatement(s, inner));
+      }
+      lines.push(
+        `${indent}} while (${generateExpression(stmt.condition)});`
+      );
+      return lines.join("\n");
+    }
+
+    case "break":
+      return `${indent}break;`;
+
+    case "continue":
+      return `${indent}continue;`;
+
     case "revert":
+      if (stmt.customError) {
+        const args = (stmt.customErrorArgs ?? []).map(generateExpression).join(", ");
+        return `${indent}revert ${stmt.customError}(${args});`;
+      }
       if (stmt.message) {
         return `${indent}revert(${generateExpression(stmt.message)});`;
       }
@@ -378,11 +467,16 @@ export function generateStatement(stmt: Statement, indent: string): string {
 // ============================================================
 
 function isRequirePattern(stmt: IfStatement): boolean {
-  return (
+  if (
     stmt.thenBody.length === 1 &&
     stmt.thenBody[0].kind === "revert" &&
     !stmt.elseBody
-  );
+  ) {
+    const revert = stmt.thenBody[0];
+    if (revert.customError) return false;
+    return true;
+  }
+  return false;
 }
 
 function negateExpression(expr: Expression): Expression {
@@ -405,6 +499,59 @@ function negateOperator(op: string): string | null {
     "!=": "==",
   };
   return map[op] ?? null;
+}
+
+// ============================================================
+// Built-in function recognition
+// ============================================================
+
+function getCallName(expr: Expression): string | null {
+  if (expr.kind === "identifier") return expr.name;
+  if (
+    expr.kind === "property-access" &&
+    expr.object.kind === "identifier"
+  ) {
+    return `${expr.object.name}.${expr.property}`;
+  }
+  return null;
+}
+
+function tryGenerateBuiltinCall(expr: {
+  callee: Expression;
+  args: Expression[];
+}): string | null {
+  const name = getCallName(expr.callee);
+  if (!name) return null;
+  const args = expr.args.map(generateExpression).join(", ");
+
+  switch (name) {
+    case "keccak256":
+      return `keccak256(abi.encodePacked(${args}))`;
+    case "sha256":
+      return `sha256(abi.encodePacked(${args}))`;
+    case "abi.encode":
+      return `abi.encode(${args})`;
+    case "abi.encodePacked":
+      return `abi.encodePacked(${args})`;
+    case "abi.decode":
+      return `abi.decode(${args})`;
+    case "ecrecover":
+      return `ecrecover(${args})`;
+    case "addmod":
+      return `addmod(${args})`;
+    case "mulmod":
+      return `mulmod(${args})`;
+    case "assert":
+      return `assert(${args})`;
+    case "gasleft":
+      return `gasleft()`;
+    case "string.concat":
+      return `string.concat(${args})`;
+    case "bytes.concat":
+      return `bytes.concat(${args})`;
+    default:
+      return null;
+  }
 }
 
 // ============================================================
