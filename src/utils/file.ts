@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 
 /**
  * Recursively find all TypeScript files in a directory
@@ -49,13 +48,6 @@ export function removeDirectory(dir: string): void {
   if (fs.existsSync(dir)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-}
-
-/**
- * Compute a hash of file contents for caching
- */
-export function hashFileContents(content: string): string {
-  return crypto.createHash("sha256").update(content).digest("hex");
 }
 
 /**
