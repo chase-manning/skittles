@@ -5,8 +5,9 @@ import {
   SkittlesError,
   Indexed,
 } from "skittles";
+import IToken from "./IToken";
 
-export class Token {
+export class Token implements IToken {
   Transfer: SkittlesEvent<{
     from: Indexed<address>;
     to: Indexed<address>;
