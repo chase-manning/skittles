@@ -14,6 +14,11 @@ import type {
   EmitStatement,
 } from "../types";
 
+// Module-level registries, populated during parse()
+let _knownStructs: Map<string, SkittlesParameter[]> = new Map();
+let _knownEnums: Set<string> = new Set();
+let _knownCustomErrors: Set<string> = new Set();
+
 // ============================================================
 // Main entry
 // ============================================================
@@ -26,15 +31,80 @@ export function parse(source: string, filePath: string): SkittlesContract[] {
     true
   );
 
+  const structs: Map<string, SkittlesParameter[]> = new Map();
+  const enums: Map<string, string[]> = new Map();
   const contracts: SkittlesContract[] = [];
 
   ts.forEachChild(sourceFile, (node) => {
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const fields = parseInterfaceFields(node);
+      structs.set(node.name.text, fields);
+    }
+    if (ts.isEnumDeclaration(node) && node.name) {
+      const members = node.members.map((m) =>
+        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
+      );
+      enums.set(node.name.text, members);
+    }
+  });
+
+  const customErrors: Map<string, SkittlesParameter[]> = new Map();
+
+  _knownStructs = structs;
+  _knownEnums = new Set(enums.keys());
+  _knownCustomErrors = new Set();
+
+  ts.forEachChild(sourceFile, (node) => {
     if (ts.isClassDeclaration(node) && node.name) {
-      contracts.push(parseClass(node, filePath));
+      if (extendsError(node)) {
+        const params = parseErrorClass(node);
+        customErrors.set(node.name.text, params);
+        _knownCustomErrors.add(node.name.text);
+      } else {
+        contracts.push(parseClass(node, filePath, structs, enums, customErrors));
+      }
     }
   });
 
   return contracts;
+}
+
+function extendsError(node: ts.ClassDeclaration): boolean {
+  if (!node.heritageClauses) return false;
+  return node.heritageClauses.some(
+    (clause) =>
+      clause.token === ts.SyntaxKind.ExtendsKeyword &&
+      clause.types.some(
+        (t) => ts.isIdentifier(t.expression) && t.expression.text === "Error"
+      )
+  );
+}
+
+function parseErrorClass(node: ts.ClassDeclaration): SkittlesParameter[] {
+  for (const member of node.members) {
+    if (ts.isConstructorDeclaration(member)) {
+      return member.parameters.map(parseParameter);
+    }
+  }
+  return [];
+}
+
+function parseInterfaceFields(node: ts.InterfaceDeclaration): SkittlesParameter[] {
+  const fields: SkittlesParameter[] = [];
+  for (const member of node.members) {
+    if (
+      ts.isPropertySignature(member) &&
+      member.name &&
+      ts.isIdentifier(member.name)
+    ) {
+      const name = member.name.text;
+      const type: SkittlesType = member.type
+        ? parseType(member.type)
+        : { kind: "uint256" as SkittlesTypeKind };
+      fields.push({ name, type });
+    }
+  }
+  return fields;
 }
 
 // ============================================================
@@ -43,7 +113,10 @@ export function parse(source: string, filePath: string): SkittlesContract[] {
 
 function parseClass(
   node: ts.ClassDeclaration,
-  filePath: string
+  filePath: string,
+  knownStructs: Map<string, SkittlesParameter[]> = new Map(),
+  knownEnums: Map<string, string[]> = new Map(),
+  knownCustomErrors: Map<string, SkittlesParameter[]> = new Map()
 ): SkittlesContract {
   const name = node.name?.text ?? "Unknown";
   const variables: SkittlesVariable[] = [];
@@ -96,12 +169,30 @@ function parseClass(
   // If function A calls this.B(), and B is nonpayable, then A is also nonpayable.
   propagateStateMutability(functions);
 
+  const contractStructs: { name: string; fields: SkittlesParameter[] }[] = [];
+  for (const [sName, fields] of knownStructs) {
+    contractStructs.push({ name: sName, fields });
+  }
+
+  const contractEnums: { name: string; members: string[] }[] = [];
+  for (const [eName, members] of knownEnums) {
+    contractEnums.push({ name: eName, members });
+  }
+
+  const contractCustomErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
+  for (const [cName, params] of knownCustomErrors) {
+    contractCustomErrors.push({ name: cName, parameters: params });
+  }
+
   return {
     name,
     sourcePath: filePath,
     variables,
     functions,
     events,
+    structs: contractStructs,
+    enums: contractEnums,
+    customErrors: contractCustomErrors,
     ctor,
     inherits,
   };
@@ -141,10 +232,25 @@ function tryParseEvent(
       ts.isIdentifier(member.name)
     ) {
       const paramName = member.name.text;
-      const paramType: SkittlesType = member.type
-        ? parseType(member.type)
+      let indexed = false;
+      let typeNode = member.type;
+
+      if (
+        typeNode &&
+        ts.isTypeReferenceNode(typeNode) &&
+        ts.isIdentifier(typeNode.typeName) &&
+        typeNode.typeName.text === "Indexed" &&
+        typeNode.typeArguments &&
+        typeNode.typeArguments.length === 1
+      ) {
+        indexed = true;
+        typeNode = typeNode.typeArguments[0];
+      }
+
+      const paramType: SkittlesType = typeNode
+        ? parseType(typeNode)
         : { kind: "uint256" as SkittlesTypeKind };
-      parameters.push({ name: paramName, type: paramType });
+      parameters.push({ name: paramName, type: paramType, indexed });
     }
   }
 
@@ -160,7 +266,10 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     : { kind: "uint256" as SkittlesTypeKind };
 
   const visibility = getVisibility(node.modifiers);
-  const immutable = hasModifier(node.modifiers, ts.SyntaxKind.ReadonlyKeyword);
+  const isStatic = hasModifier(node.modifiers, ts.SyntaxKind.StaticKeyword);
+  const isReadonly = hasModifier(node.modifiers, ts.SyntaxKind.ReadonlyKeyword);
+  const constant = isStatic && isReadonly;
+  const immutable = !isStatic && isReadonly;
 
   let initialValue: Expression | undefined;
   if (node.initializer) {
@@ -174,7 +283,7 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     }
   }
 
-  return { name, type, visibility, immutable, initialValue };
+  return { name, type, visibility, immutable, constant, initialValue };
 }
 
 function parseMethod(
@@ -193,7 +302,10 @@ function parseMethod(
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
   const stateMutability = inferStateMutability(body);
 
-  return { name, parameters, returnType, visibility, stateMutability, body };
+  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
+  const isVirtual = !isOverride;
+
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
 }
 
 function parseConstructorDecl(
@@ -239,7 +351,22 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     if (name === "address") return { kind: "address" as SkittlesTypeKind };
     if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
 
-    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, Record<K,V>, and T[].`);
+    if (_knownStructs.has(name)) {
+      return {
+        kind: "struct" as SkittlesTypeKind,
+        structName: name,
+        structFields: _knownStructs.get(name),
+      };
+    }
+
+    if (_knownEnums.has(name)) {
+      return {
+        kind: "enum" as SkittlesTypeKind,
+        structName: name,
+      };
+    }
+
+    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, Record<K,V>, T[], interface structs, and enums.`);
   }
 
   if (ts.isArrayTypeNode(node)) {
@@ -290,6 +417,10 @@ export function parseExpression(node: ts.Expression): Expression {
 
   if (node.kind === ts.SyntaxKind.ThisKeyword) {
     return { kind: "identifier", name: "this" };
+  }
+
+  if (node.kind === ts.SyntaxKind.SuperKeyword) {
+    return { kind: "identifier", name: "super" };
   }
 
   if (ts.isPropertyAccessExpression(node)) {
@@ -366,6 +497,14 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isParenthesizedExpression(node)) {
+    return parseExpression(node.expression);
+  }
+
+  if (ts.isAsExpression(node)) {
+    return parseExpression(node.expression);
+  }
+
+  if (ts.isNonNullExpression(node)) {
     return parseExpression(node.expression);
   }
 
@@ -477,17 +616,45 @@ export function parseStatement(
     };
   }
 
+  if (ts.isDoStatement(node)) {
+    return {
+      kind: "do-while",
+      condition: parseExpression(node.expression),
+      body: parseBlock(node.statement, varTypes, eventNames),
+    };
+  }
+
+  if (node.kind === ts.SyntaxKind.BreakStatement) {
+    return { kind: "break" };
+  }
+
+  if (node.kind === ts.SyntaxKind.ContinueStatement) {
+    return { kind: "continue" };
+  }
+
   if (ts.isThrowStatement(node)) {
-    let message: Expression | undefined;
     if (node.expression && ts.isNewExpression(node.expression)) {
+      const errorName = node.expression.expression && ts.isIdentifier(node.expression.expression)
+        ? node.expression.expression.text
+        : "";
+
+      if (errorName !== "Error" && _knownCustomErrors.has(errorName)) {
+        const args = node.expression.arguments
+          ? Array.from(node.expression.arguments).map(parseExpression)
+          : [];
+        return { kind: "revert", customError: errorName, customErrorArgs: args };
+      }
+
+      let message: Expression | undefined;
       if (
         node.expression.arguments &&
         node.expression.arguments.length > 0
       ) {
         message = parseExpression(node.expression.arguments[0]);
       }
+      return { kind: "revert", message };
     }
-    return { kind: "revert", message };
+    return { kind: "revert" };
   }
 
   throw new Error(`Unsupported statement: ${ts.SyntaxKind[node.kind]}`);
@@ -499,7 +666,31 @@ function parseBlock(
   eventNames: Set<string> = new Set()
 ): Statement[] {
   if (ts.isBlock(node)) {
-    return node.statements.map((s) => parseStatement(s, varTypes, eventNames));
+    return node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+  }
+  return parseStatements(node, varTypes, eventNames);
+}
+
+/**
+ * Parse a single TS statement into one or more IR statements.
+ * Multi-declaration variable statements (let a=1, b=2) expand to multiple.
+ */
+function parseStatements(
+  node: ts.Statement,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>
+): Statement[] {
+  if (ts.isVariableStatement(node) && node.declarationList.declarations.length > 1) {
+    return node.declarationList.declarations.map((decl) => {
+      const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+      const explicitType = decl.type ? parseType(decl.type) : undefined;
+      const initializer = decl.initializer
+        ? parseExpression(decl.initializer)
+        : undefined;
+      const type =
+        explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
+      return { kind: "variable-declaration" as const, name, type, initializer };
+    });
   }
   return [parseStatement(node, varTypes, eventNames)];
 }
@@ -661,6 +852,10 @@ function walkStatements(
         break;
       case "revert":
         if (stmt.message) walkExpr(stmt.message);
+        break;
+      case "do-while":
+        walkExpr(stmt.condition);
+        stmt.body.forEach(walkStmt);
         break;
       case "emit":
         stmt.args.forEach(walkExpr);
@@ -853,12 +1048,22 @@ function getBinaryOperator(kind: ts.SyntaxKind): string {
     [ts.SyntaxKind.GreaterThanEqualsToken]: ">=",
     [ts.SyntaxKind.AmpersandAmpersandToken]: "&&",
     [ts.SyntaxKind.BarBarToken]: "||",
+    [ts.SyntaxKind.AmpersandToken]: "&",
+    [ts.SyntaxKind.BarToken]: "|",
+    [ts.SyntaxKind.CaretToken]: "^",
+    [ts.SyntaxKind.LessThanLessThanToken]: "<<",
+    [ts.SyntaxKind.GreaterThanGreaterThanToken]: ">>",
     [ts.SyntaxKind.EqualsToken]: "=",
     [ts.SyntaxKind.PlusEqualsToken]: "+=",
     [ts.SyntaxKind.MinusEqualsToken]: "-=",
     [ts.SyntaxKind.AsteriskEqualsToken]: "*=",
     [ts.SyntaxKind.SlashEqualsToken]: "/=",
     [ts.SyntaxKind.PercentEqualsToken]: "%=",
+    [ts.SyntaxKind.AmpersandEqualsToken]: "&=",
+    [ts.SyntaxKind.BarEqualsToken]: "|=",
+    [ts.SyntaxKind.CaretEqualsToken]: "^=",
+    [ts.SyntaxKind.LessThanLessThanEqualsToken]: "<<=",
+    [ts.SyntaxKind.GreaterThanGreaterThanEqualsToken]: ">>=",
   };
   return map[kind] ?? "?";
 }
@@ -871,6 +1076,11 @@ function isAssignmentOperator(kind: ts.SyntaxKind): boolean {
     ts.SyntaxKind.AsteriskEqualsToken,
     ts.SyntaxKind.SlashEqualsToken,
     ts.SyntaxKind.PercentEqualsToken,
+    ts.SyntaxKind.AmpersandEqualsToken,
+    ts.SyntaxKind.BarEqualsToken,
+    ts.SyntaxKind.CaretEqualsToken,
+    ts.SyntaxKind.LessThanLessThanEqualsToken,
+    ts.SyntaxKind.GreaterThanGreaterThanEqualsToken,
   ].includes(kind);
 }
 
