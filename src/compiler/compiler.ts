@@ -5,7 +5,7 @@ import type {
   BuildArtifact,
 } from "../types";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file";
-import { logInfo, logSuccess, logError } from "../utils/console";
+import { logInfo, logSuccess, logError, logWarning } from "../utils/console";
 import { parse } from "./parser";
 import { generateSolidity, generateSolidityFile } from "./codegen";
 import { compileSolidity } from "./solc";
@@ -65,6 +65,10 @@ export async function compile(
       for (const contract of contracts) {
         // Step 4: Compile Solidity via solc
         const compiled = compileSolidity(contract.name, solidity, config);
+
+        for (const warning of compiled.warnings) {
+          logWarning(warning);
+        }
 
         if (compiled.errors.length > 0) {
           errors.push(...compiled.errors);
