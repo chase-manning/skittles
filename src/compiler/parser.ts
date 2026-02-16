@@ -12,6 +12,7 @@ import type {
   Statement,
   Expression,
   EmitStatement,
+  SwitchCase,
 } from "../types";
 
 // Module-level registries, populated during parse()
@@ -137,14 +138,22 @@ function parseClass(
     }
   }
 
+  // Collect arrow function properties separately so they can be parsed as methods
+  const arrowFnMembers: ts.PropertyDeclaration[] = [];
+
   // First pass: collect state variables and events
   for (const member of node.members) {
     if (ts.isPropertyDeclaration(member)) {
-      const event = tryParseEvent(member);
-      if (event) {
-        events.push(event);
+      // Detect arrow function properties: `private _fn = (...) => { ... }`
+      if (member.initializer && ts.isArrowFunction(member.initializer)) {
+        arrowFnMembers.push(member);
       } else {
-        variables.push(parseProperty(member));
+        const event = tryParseEvent(member);
+        if (event) {
+          events.push(event);
+        } else {
+          variables.push(parseProperty(member));
+        }
       }
     }
   }
@@ -156,12 +165,32 @@ function parseClass(
 
   const eventNames = new Set(events.map((e) => e.name));
 
-  // Second pass: methods and constructor
+  // Second pass: methods (instance and static), constructor, and arrow function properties
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member)) {
-      functions.push(parseMethod(member, varTypes, eventNames));
+      const isStatic = hasModifier(member.modifiers, ts.SyntaxKind.StaticKeyword);
+      const fn = parseMethod(member, varTypes, eventNames);
+      // Static methods are internal pure/view helpers
+      if (isStatic) {
+        fn.visibility = "private";
+      }
+      functions.push(fn);
     } else if (ts.isConstructorDeclaration(member)) {
       ctor = parseConstructorDecl(member, varTypes, eventNames);
+    }
+  }
+
+  // Parse arrow function properties as methods
+  for (const member of arrowFnMembers) {
+    functions.push(parseArrowProperty(member, varTypes, eventNames));
+  }
+
+  // Parse getter/setter accessors as methods
+  for (const member of node.members) {
+    if (ts.isGetAccessorDeclaration(member)) {
+      functions.push(parseGetAccessor(member, varTypes, eventNames));
+    } else if (ts.isSetAccessorDeclaration(member)) {
+      functions.push(parseSetAccessor(member, varTypes, eventNames));
     }
   }
 
@@ -308,6 +337,82 @@ function parseMethod(
   return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
 }
 
+function parseGetAccessor(
+  node: ts.GetAccessorDeclaration,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>
+): SkittlesFunction {
+  const name =
+    node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
+
+  const parameters: SkittlesParameter[] = [];
+  const returnType: SkittlesType | null = node.type
+    ? parseType(node.type)
+    : null;
+  const visibility = getVisibility(node.modifiers);
+  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(body);
+
+  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
+  const isVirtual = !isOverride;
+
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+}
+
+function parseSetAccessor(
+  node: ts.SetAccessorDeclaration,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>
+): SkittlesFunction {
+  const name =
+    node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
+
+  const parameters = node.parameters.map(parseParameter);
+  const returnType: SkittlesType | null = null; // setters don't return
+  const visibility = getVisibility(node.modifiers);
+  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(body);
+
+  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
+  const isVirtual = !isOverride;
+
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+}
+
+function parseArrowProperty(
+  node: ts.PropertyDeclaration,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>
+): SkittlesFunction {
+  const name =
+    node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
+
+  const arrow = node.initializer as ts.ArrowFunction;
+  const parameters = arrow.parameters.map(parseParameter);
+
+  const returnType: SkittlesType | null = arrow.type
+    ? parseType(arrow.type)
+    : null;
+
+  const visibility = getVisibility(node.modifiers);
+
+  let body: Statement[] = [];
+  if (arrow.body) {
+    if (ts.isBlock(arrow.body)) {
+      body = parseBlock(arrow.body, varTypes, eventNames);
+    } else {
+      // Expression body: `() => expr` treated as `() => { return expr; }`
+      body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
+    }
+  }
+
+  const stateMutability = inferStateMutability(body);
+  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
+  const isVirtual = !isOverride;
+
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+}
+
 function parseConstructorDecl(
   node: ts.ConstructorDeclaration,
   varTypes: Map<string, SkittlesType>,
@@ -423,6 +528,16 @@ export function parseExpression(node: ts.Expression): Expression {
     return { kind: "identifier", name: "super" };
   }
 
+  if (node.kind === ts.SyntaxKind.NullKeyword) {
+    return { kind: "number-literal", value: "0" };
+  }
+
+  // undefined → 0 (Solidity zero value)
+  if (node.kind === ts.SyntaxKind.UndefinedKeyword ||
+      (ts.isIdentifier(node) && node.text === "undefined")) {
+    return { kind: "number-literal", value: "0" };
+  }
+
   if (ts.isPropertyAccessExpression(node)) {
     return {
       kind: "property-access",
@@ -441,6 +556,12 @@ export function parseExpression(node: ts.Expression): Expression {
 
   if (ts.isBinaryExpression(node)) {
     const opKind = node.operatorToken.kind;
+
+    // Comma operator: (a, b) → just use the right side (last value)
+    if (opKind === ts.SyntaxKind.CommaToken) {
+      return parseExpression(node.right);
+    }
+
     const operator = getBinaryOperator(opKind);
 
     if (isAssignmentOperator(opKind)) {
@@ -508,6 +629,16 @@ export function parseExpression(node: ts.Expression): Expression {
     return parseExpression(node.expression);
   }
 
+  // Angle bracket type assertion: <Type>value (transparent, like 'as')
+  if (ts.isTypeAssertionExpression(node)) {
+    return parseExpression(node.expression);
+  }
+
+  // void operator: `void expr` → just the expression (value discarded)
+  if (ts.isVoidExpression(node)) {
+    return parseExpression(node.expression);
+  }
+
   if (ts.isConditionalExpression(node)) {
     return {
       kind: "conditional",
@@ -515,6 +646,48 @@ export function parseExpression(node: ts.Expression): Expression {
       whenTrue: parseExpression(node.whenTrue),
       whenFalse: parseExpression(node.whenFalse),
     };
+  }
+
+  // Object literal expressions: { x: 1, y: 2 } → struct construction
+  if (ts.isObjectLiteralExpression(node)) {
+    const properties: { name: string; value: Expression }[] = [];
+    for (const prop of node.properties) {
+      if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
+        properties.push({ name: prop.name.text, value: parseExpression(prop.initializer) });
+      } else if (ts.isShorthandPropertyAssignment(prop)) {
+        properties.push({ name: prop.name.text, value: { kind: "identifier", name: prop.name.text } });
+      }
+    }
+    return { kind: "object-literal", properties };
+  }
+
+  // Template literals: `hello ${name}` → string.concat("hello ", name)
+  if (ts.isTemplateExpression(node)) {
+    const parts: Expression[] = [];
+    if (node.head.text) {
+      parts.push({ kind: "string-literal", value: node.head.text });
+    }
+    for (const span of node.templateSpans) {
+      parts.push(parseExpression(span.expression));
+      if (span.literal.text) {
+        parts.push({ kind: "string-literal", value: span.literal.text });
+      }
+    }
+    // Wrap in string.concat(...)
+    return {
+      kind: "call",
+      callee: {
+        kind: "property-access",
+        object: { kind: "identifier", name: "string" },
+        property: "concat",
+      },
+      args: parts,
+    };
+  }
+
+  // No-substitution template literal: `hello` → "hello"
+  if (ts.isNoSubstitutionTemplateLiteral(node)) {
+    return { kind: "string-literal", value: node.text };
   }
 
   throw new Error(`Unsupported expression: ${ts.SyntaxKind[node.kind]}`);
@@ -554,6 +727,11 @@ export function parseStatement(
   if (ts.isExpressionStatement(node)) {
     const emitStmt = tryParseEmitStatement(node.expression, eventNames);
     if (emitStmt) return emitStmt;
+
+    // Detect delete expressions: `delete this.mapping[key]`
+    if (ts.isDeleteExpression(node.expression)) {
+      return { kind: "delete", target: parseExpression(node.expression.expression) };
+    }
 
     return { kind: "expression", expression: parseExpression(node.expression) };
   }
@@ -630,6 +808,81 @@ export function parseStatement(
 
   if (node.kind === ts.SyntaxKind.ContinueStatement) {
     return { kind: "continue" };
+  }
+
+  if (ts.isForOfStatement(node)) {
+    // Desugar: for (const item of arr) { ... }
+    // →  for (uint256 _i = 0; _i < arr.length; _i++) { T item = arr[_i]; ... }
+    const arrExpr = parseExpression(node.expression);
+    const itemName = ts.isVariableDeclarationList(node.initializer)
+      ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
+      : "_item";
+
+    const itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
+      ? parseType(node.initializer.declarations[0].type)
+      : undefined;
+
+    const indexName = `_i_${itemName}`;
+    const innerBody = parseBlock(node.statement, varTypes, eventNames);
+
+    // Prepend: T item = arr[_i];
+    const itemDecl: Statement = {
+      kind: "variable-declaration",
+      name: itemName,
+      type: itemTypeNode,
+      initializer: {
+        kind: "element-access",
+        object: arrExpr,
+        index: { kind: "identifier", name: indexName },
+      },
+    };
+
+    return {
+      kind: "for",
+      initializer: {
+        kind: "variable-declaration",
+        name: indexName,
+        type: { kind: "uint256" as SkittlesTypeKind },
+        initializer: { kind: "number-literal", value: "0" },
+      },
+      condition: {
+        kind: "binary",
+        operator: "<",
+        left: { kind: "identifier", name: indexName },
+        right: {
+          kind: "property-access",
+          object: arrExpr,
+          property: "length",
+        },
+      },
+      incrementor: {
+        kind: "unary",
+        operator: "++",
+        operand: { kind: "identifier", name: indexName },
+        prefix: false,
+      },
+      body: [itemDecl, ...innerBody],
+    };
+  }
+
+  if (ts.isSwitchStatement(node)) {
+    const discriminant = parseExpression(node.expression);
+    const cases: SwitchCase[] = [];
+    for (const clause of node.caseBlock.clauses) {
+      const body: Statement[] = [];
+      for (const stmt of clause.statements) {
+        // Skip break statements inside switch cases (they are implicit in our if/else conversion)
+        if (stmt.kind === ts.SyntaxKind.BreakStatement) continue;
+        body.push(...parseStatements(stmt, varTypes, eventNames));
+      }
+      if (ts.isCaseClause(clause)) {
+        cases.push({ value: parseExpression(clause.expression), body });
+      } else {
+        // DefaultClause
+        cases.push({ value: undefined, body });
+      }
+    }
+    return { kind: "switch", discriminant, cases };
   }
 
   if (ts.isThrowStatement(node)) {
@@ -820,6 +1073,9 @@ function walkStatements(
       case "new":
         expr.args.forEach(walkExpr);
         break;
+      case "object-literal":
+        expr.properties.forEach((p) => walkExpr(p.value));
+        break;
     }
   }
 
@@ -859,6 +1115,16 @@ function walkStatements(
         break;
       case "emit":
         stmt.args.forEach(walkExpr);
+        break;
+      case "switch":
+        walkExpr(stmt.discriminant);
+        for (const c of stmt.cases) {
+          if (c.value) walkExpr(c.value);
+          c.body.forEach(walkStmt);
+        }
+        break;
+      case "delete":
+        walkExpr(stmt.target);
         break;
     }
   }
@@ -917,6 +1183,9 @@ export function inferStateMutability(body: Statement[]): "pure" | "view" | "nonp
     },
     (stmt) => {
       if (stmt.kind === "emit") {
+        writesState = true;
+      }
+      if (stmt.kind === "delete" && isStateAccess(stmt.target)) {
         writesState = true;
       }
     }
