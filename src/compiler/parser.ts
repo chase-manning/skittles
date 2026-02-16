@@ -24,7 +24,60 @@ let _knownCustomErrors: Set<string> = new Set();
 // Main entry
 // ============================================================
 
-export function parse(source: string, filePath: string): SkittlesContract[] {
+/**
+ * Pre-scan a source file to collect interfaces (structs) and enums
+ * without parsing any classes. Used by the compiler to resolve
+ * cross-file type references.
+ */
+export function collectTypes(source: string, filePath: string): {
+  structs: Map<string, SkittlesParameter[]>;
+  enums: Map<string, string[]>;
+} {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true
+  );
+
+  const structs: Map<string, SkittlesParameter[]> = new Map();
+  const enums: Map<string, string[]> = new Map();
+
+  // Temporarily set module registries so parseType can resolve references
+  const prevStructs = _knownStructs;
+  const prevEnums = _knownEnums;
+  _knownStructs = structs;
+  _knownEnums = new Set();
+
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const fields = parseInterfaceFields(node);
+      structs.set(node.name.text, fields);
+    }
+    if (ts.isEnumDeclaration(node) && node.name) {
+      const members = node.members.map((m) =>
+        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
+      );
+      enums.set(node.name.text, members);
+    }
+  });
+
+  _knownStructs = prevStructs;
+  _knownEnums = prevEnums;
+
+  return { structs, enums };
+}
+
+export interface ExternalTypes {
+  structs?: Map<string, SkittlesParameter[]>;
+  enums?: Map<string, string[]>;
+}
+
+export function parse(
+  source: string,
+  filePath: string,
+  externalTypes?: ExternalTypes
+): SkittlesContract[] {
   const sourceFile = ts.createSourceFile(
     filePath,
     source,
@@ -35,6 +88,18 @@ export function parse(source: string, filePath: string): SkittlesContract[] {
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
   const contracts: SkittlesContract[] = [];
+
+  // Seed with externally resolved types (from other files)
+  if (externalTypes?.structs) {
+    for (const [name, fields] of externalTypes.structs) {
+      structs.set(name, fields);
+    }
+  }
+  if (externalTypes?.enums) {
+    for (const [name, members] of externalTypes.enums) {
+      enums.set(name, members);
+    }
+  }
 
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isInterfaceDeclaration(node) && node.name) {

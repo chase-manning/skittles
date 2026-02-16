@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parse } from "../../src/compiler/parser";
+import { parse, collectTypes } from "../../src/compiler/parser";
 import { generateSolidity, generateSolidityFile } from "../../src/compiler/codegen";
 import { compileSolidity } from "../../src/compiler/solc";
 import { defaultConfig } from "../fixtures";
@@ -1993,5 +1993,109 @@ describe("integration: multiple variable declarations", () => {
     expect(solidity).toContain("uint256 a = 1;");
     expect(solidity).toContain("uint256 b = 2;");
     expect(solidity).toContain("uint256 c = 3;");
+  });
+});
+
+// ============================================================
+// Cross-file type resolution (collectTypes + externalTypes)
+// ============================================================
+
+describe("integration: cross-file type resolution", () => {
+  it("should collect structs from an external source and use them in a contract", () => {
+    const typesSource = `
+      interface Position {
+        x: number;
+        y: number;
+      }
+    `;
+    const contractSource = `
+      class Game {
+        public getOrigin(): Position {
+          let p: Position = { x: 0, y: 0 };
+          return p;
+        }
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "game.ts", { structs, enums });
+    expect(contracts).toHaveLength(1);
+
+    const solidity = generateSolidity(contracts[0]);
+    const result = compileSolidity(contracts[0].name, solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    expect(solidity).toContain("struct Position {");
+    expect(solidity).toContain("uint256 x;");
+    expect(solidity).toContain("uint256 y;");
+    expect(solidity).toContain("function getOrigin() public pure virtual returns (Position memory)");
+    expect(solidity).toContain("Position memory p = Position(0, 0);");
+  });
+
+  it("should collect enums from an external source", () => {
+    const typesSource = `
+      enum Color { Red, Green, Blue }
+    `;
+    const contractSource = `
+      class Palette {
+        public color: Color;
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "palette.ts", { structs, enums });
+    expect(contracts).toHaveLength(1);
+
+    const solidity = generateSolidity(contracts[0]);
+    const result = compileSolidity(contracts[0].name, solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    expect(solidity).toContain("enum Color { Red, Green, Blue }");
+    expect(solidity).toContain("Color public color;");
+  });
+
+  it("should merge external types with local types", () => {
+    const typesSource = `
+      interface Coord {
+        x: number;
+        y: number;
+      }
+    `;
+    const contractSource = `
+      interface Size {
+        width: number;
+        height: number;
+      }
+      class Canvas {
+        public getCoord(): Coord {
+          let c: Coord = { x: 1, y: 2 };
+          return c;
+        }
+        public getSize(): Size {
+          let s: Size = { width: 100, height: 200 };
+          return s;
+        }
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "canvas.ts", { structs, enums });
+    const solidity = generateSolidity(contracts[0]);
+    const result = compileSolidity(contracts[0].name, solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    expect(solidity).toContain("struct Coord {");
+    expect(solidity).toContain("struct Size {");
+  });
+
+  it("collectTypes should return empty maps for files with no interfaces or enums", () => {
+    const source = `
+      class Standalone {
+        public value: number = 0;
+      }
+    `;
+    const { structs, enums } = collectTypes(source, "standalone.ts");
+    expect(structs.size).toBe(0);
+    expect(enums.size).toBe(0);
   });
 });

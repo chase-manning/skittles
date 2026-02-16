@@ -6,7 +6,8 @@ import type {
 } from "../types";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console";
-import { parse } from "./parser";
+import { parse, collectTypes } from "./parser";
+import type { SkittlesParameter } from "../types";
 import { generateSolidity, generateSolidityFile } from "./codegen";
 import { compileSolidity } from "./solc";
 
@@ -43,6 +44,24 @@ export async function compile(
 
   logInfo(`Found ${sourceFiles.length} contract file(s)`);
 
+  // Pre-scan all files to collect shared types (interfaces/structs, enums).
+  // This allows contracts in one file to reference types defined in another.
+  const globalStructs: Map<string, SkittlesParameter[]> = new Map();
+  const globalEnums: Map<string, string[]> = new Map();
+
+  for (const filePath of sourceFiles) {
+    try {
+      const source = readFile(filePath);
+      const { structs, enums } = collectTypes(source, filePath);
+      for (const [name, fields] of structs) globalStructs.set(name, fields);
+      for (const [name, members] of enums) globalEnums.set(name, members);
+    } catch {
+      // Errors will be caught in the main compilation loop below
+    }
+  }
+
+  const externalTypes = { structs: globalStructs, enums: globalEnums };
+
   for (const filePath of sourceFiles) {
     const relativePath = path.relative(projectRoot, filePath);
     logInfo(`Compiling ${relativePath}...`);
@@ -50,7 +69,7 @@ export async function compile(
     try {
       // Step 2: Parse TypeScript into SkittlesContract IR
       const source = readFile(filePath);
-      const contracts: SkittlesContract[] = parse(source, filePath);
+      const contracts: SkittlesContract[] = parse(source, filePath, externalTypes);
 
       // Step 3: Generate Solidity (combine all contracts from same file)
       const solidity =
