@@ -334,6 +334,10 @@ export function generateExpression(expr: Expression): string {
       return `(${generateExpression(expr.condition)} ? ${generateExpression(expr.whenTrue)} : ${generateExpression(expr.whenFalse)})`;
     case "new":
       return `new ${expr.callee}(${expr.args.map(generateExpression).join(", ")})`;
+    case "object-literal": {
+      const values = expr.properties.map((p) => generateExpression(p.value)).join(", ");
+      return values;
+    }
     default:
       return "/* unsupported */";
   }
@@ -356,7 +360,12 @@ export function generateStatement(stmt: Statement, indent: string): string {
     case "variable-declaration": {
       const type = stmt.type ? generateParamType(stmt.type) : "uint256";
       if (stmt.initializer) {
-        return `${indent}${type} ${stmt.name} = ${generateExpression(stmt.initializer)};`;
+        let initExpr = generateExpression(stmt.initializer);
+        // Wrap object literal in struct constructor when the type is a struct
+        if (stmt.initializer.kind === "object-literal" && stmt.type?.kind === SkittlesTypeKind.Struct) {
+          initExpr = `${stmt.type.structName}(${initExpr})`;
+        }
+        return `${indent}${type} ${stmt.name} = ${initExpr};`;
       }
       return `${indent}${type} ${stmt.name};`;
     }
@@ -459,6 +468,42 @@ export function generateStatement(stmt: Statement, indent: string): string {
 
     case "emit":
       return `${indent}emit ${stmt.eventName}(${stmt.args.map(generateExpression).join(", ")});`;
+
+    case "delete":
+      return `${indent}delete ${generateExpression(stmt.target)};`;
+
+    case "switch": {
+      const lines: string[] = [];
+      const discExpr = generateExpression(stmt.discriminant);
+      let first = true;
+      let defaultCase: Statement[] | undefined;
+
+      for (const c of stmt.cases) {
+        if (!c.value) {
+          defaultCase = c.body;
+          continue;
+        }
+        const keyword = first ? "if" : "} else if";
+        lines.push(`${indent}${keyword} (${discExpr} == ${generateExpression(c.value)}) {`);
+        for (const s of c.body) {
+          lines.push(generateStatement(s, inner));
+        }
+        first = false;
+      }
+
+      if (defaultCase) {
+        if (!first) {
+          lines.push(`${indent}} else {`);
+        } else {
+          lines.push(`${indent}{`);
+        }
+        for (const s of defaultCase) {
+          lines.push(generateStatement(s, inner));
+        }
+      }
+      lines.push(`${indent}}`);
+      return lines.join("\n");
+    }
 
     default:
       return `${indent}// unsupported statement`;
