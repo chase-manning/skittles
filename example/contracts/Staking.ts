@@ -3,26 +3,9 @@ import {
   msg,
   block,
   SkittlesEvent,
+  SkittlesError,
   Indexed,
 } from "skittles";
-
-class NotOwner extends Error {
-  constructor(caller: address) {
-    super("");
-  }
-}
-
-class VaultPaused extends Error {
-  constructor() {
-    super("");
-  }
-}
-
-class InsufficientDeposit extends Error {
-  constructor(account: address, deposited: number, requested: number) {
-    super("");
-  }
-}
 
 enum VaultStatus {
   Active,
@@ -42,6 +25,10 @@ export class Staking {
   StatusChanged: SkittlesEvent<{
     newStatus: number;
   }>;
+
+  NotOwner: SkittlesError<{ caller: address }>;
+  VaultPaused: SkittlesError<{}>;
+  InsufficientDeposit: SkittlesError<{ account: address; deposited: number; requested: number }>;
 
   static readonly FEE_BASIS_POINTS: number = 50;
   static readonly BASIS_POINTS_DENOMINATOR: number = 10000;
@@ -69,7 +56,7 @@ export class Staking {
     this._requireActive();
 
     if (this.deposits[msg.sender] < amount) {
-      throw new InsufficientDeposit(
+      throw this.InsufficientDeposit(
         msg.sender,
         this.deposits[msg.sender],
         amount
@@ -119,13 +106,13 @@ export class Staking {
 
   private _requireOwner(): void {
     if (msg.sender != this.owner) {
-      throw new NotOwner(msg.sender);
+      throw this.NotOwner(msg.sender);
     }
   }
 
   private _requireActive(): void {
     if (this.status == VaultStatus.Paused) {
-      throw new VaultPaused();
+      throw this.VaultPaused();
     }
   }
 }

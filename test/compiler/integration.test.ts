@@ -1432,6 +1432,91 @@ describe("integration: custom errors", () => {
 });
 
 // ============================================================
+// Inline custom errors (SkittlesError<{...}>)
+// ============================================================
+
+describe("integration: inline SkittlesError declarations", () => {
+  it("should compile SkittlesError properties as custom error declarations", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        InsufficientBalance: SkittlesError<{ sender: address; balance: number; required: number }>;
+        private balances: Record<address, number> = {};
+
+        public withdraw(amount: number): void {
+          if (this.balances[msg.sender] < amount) {
+            throw this.InsufficientBalance(msg.sender, this.balances[msg.sender], amount);
+          }
+          this.balances[msg.sender] -= amount;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("error InsufficientBalance(address sender, uint256 balance, uint256 required);");
+    expect(solidity).toContain("revert InsufficientBalance(msg.sender, balances[msg.sender], amount);");
+    expect(solidity).not.toContain("require(");
+  });
+
+  it("should compile SkittlesError with no parameters", () => {
+    const { errors, solidity } = compileTS(`
+      class Vault {
+        VaultPaused: SkittlesError<{}>;
+        public status: number = 0;
+
+        public deposit(): void {
+          if (this.status == 1) {
+            throw this.VaultPaused();
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("error VaultPaused();");
+    expect(solidity).toContain("revert VaultPaused();");
+  });
+
+  it("should not include SkittlesError properties as state variables", () => {
+    const contracts = parse(`
+      class Token {
+        NotOwner: SkittlesError<{ caller: address }>;
+        public value: number = 0;
+      }
+    `, "test.ts");
+    expect(contracts[0].variables).toHaveLength(1);
+    expect(contracts[0].variables[0].name).toBe("value");
+    expect(contracts[0].customErrors).toHaveLength(1);
+    expect(contracts[0].customErrors[0].name).toBe("NotOwner");
+  });
+
+  it("should support both old class style and new inline style in same file", () => {
+    const { errors, solidity } = compileTS(`
+      class OldError extends Error {
+        constructor(x: number) {
+          super("");
+        }
+      }
+
+      class Token {
+        NewError: SkittlesError<{ y: number }>;
+        public value: number = 0;
+
+        public testOld(): void {
+          throw new OldError(1);
+        }
+
+        public testNew(): void {
+          throw this.NewError(2);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("error OldError(uint256 x);");
+    expect(solidity).toContain("error NewError(uint256 y);");
+    expect(solidity).toContain("revert OldError(1);");
+    expect(solidity).toContain("revert NewError(2);");
+  });
+});
+
+// ============================================================
 // Arrow function class properties
 // ============================================================
 

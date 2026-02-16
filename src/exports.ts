@@ -29,6 +29,16 @@ export type Event<
 > = SkittlesEvent<_T>;
 
 /**
+ * Error type for declaring Solidity custom errors in Skittles contracts.
+ *
+ * Usage: `NotOwner: SkittlesError<{ caller: address }>;`
+ * Throw: `throw this.NotOwner(msg.sender);`
+ */
+export type SkittlesError<
+  _T extends Record<string, unknown> = Record<string, unknown>,
+> = (...args: unknown[]) => never;
+
+/**
  * Wrapper type to mark an event parameter as indexed.
  * Up to 3 parameters per event can be indexed.
  *

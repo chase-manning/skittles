@@ -141,7 +141,10 @@ function parseClass(
   // Collect arrow function properties separately so they can be parsed as methods
   const arrowFnMembers: ts.PropertyDeclaration[] = [];
 
-  // First pass: collect state variables and events
+  // Inline errors declared via SkittlesError<{...}> on the class
+  const inlineErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
+
+  // First pass: collect state variables, events, and inline errors
   for (const member of node.members) {
     if (ts.isPropertyDeclaration(member)) {
       // Detect arrow function properties: `private _fn = (...) => { ... }`
@@ -151,9 +154,15 @@ function parseClass(
         const event = tryParseEvent(member);
         if (event) {
           events.push(event);
-        } else {
-          variables.push(parseProperty(member));
+          continue;
         }
+        const error = tryParseError(member);
+        if (error) {
+          inlineErrors.push(error);
+          _knownCustomErrors.add(error.name);
+          continue;
+        }
+        variables.push(parseProperty(member));
       }
     }
   }
@@ -211,6 +220,10 @@ function parseClass(
   const contractCustomErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
   for (const [cName, params] of knownCustomErrors) {
     contractCustomErrors.push({ name: cName, parameters: params });
+  }
+  // Add inline SkittlesError<{...}> declarations from this class
+  for (const ie of inlineErrors) {
+    contractCustomErrors.push({ name: ie.name, parameters: ie.parameters });
   }
 
   return {
@@ -280,6 +293,50 @@ function tryParseEvent(
         ? parseType(typeNode)
         : { kind: "uint256" as SkittlesTypeKind };
       parameters.push({ name: paramName, type: paramType, indexed });
+    }
+  }
+
+  return { name, parameters };
+}
+
+// ============================================================
+// Error detection (SkittlesError<{...}>)
+// ============================================================
+
+function tryParseError(
+  node: ts.PropertyDeclaration
+): { name: string; parameters: SkittlesParameter[] } | null {
+  if (!node.type || !ts.isTypeReferenceNode(node.type)) return null;
+
+  const typeName = ts.isIdentifier(node.type.typeName)
+    ? node.type.typeName.text
+    : "";
+  if (typeName !== "SkittlesError") return null;
+
+  const name =
+    node.name && ts.isIdentifier(node.name) ? node.name.text : "Unknown";
+
+  if (!node.type.typeArguments || node.type.typeArguments.length === 0) {
+    return { name, parameters: [] };
+  }
+
+  const typeArg = node.type.typeArguments[0];
+  if (!ts.isTypeLiteralNode(typeArg)) {
+    return { name, parameters: [] };
+  }
+
+  const parameters: SkittlesParameter[] = [];
+  for (const member of typeArg.members) {
+    if (
+      ts.isPropertySignature(member) &&
+      member.name &&
+      ts.isIdentifier(member.name)
+    ) {
+      const paramName = member.name.text;
+      const paramType: SkittlesType = member.type
+        ? parseType(member.type)
+        : { kind: "uint256" as SkittlesTypeKind };
+      parameters.push({ name: paramName, type: paramType });
     }
   }
 
@@ -886,6 +943,7 @@ export function parseStatement(
   }
 
   if (ts.isThrowStatement(node)) {
+    // Pattern: throw new ErrorName(args) (class extends Error style)
     if (node.expression && ts.isNewExpression(node.expression)) {
       const errorName = node.expression.expression && ts.isIdentifier(node.expression.expression)
         ? node.expression.expression.text
@@ -907,6 +965,22 @@ export function parseStatement(
       }
       return { kind: "revert", message };
     }
+
+    // Pattern: throw this.ErrorName(args) (SkittlesError property style)
+    if (node.expression && ts.isCallExpression(node.expression)) {
+      const callee = node.expression.expression;
+      if (
+        ts.isPropertyAccessExpression(callee) &&
+        callee.expression.kind === ts.SyntaxKind.ThisKeyword
+      ) {
+        const errorName = callee.name.text;
+        if (_knownCustomErrors.has(errorName)) {
+          const args = node.expression.arguments.map(parseExpression);
+          return { kind: "revert", customError: errorName, customErrorArgs: args };
+        }
+      }
+    }
+
     return { kind: "revert" };
   }
 

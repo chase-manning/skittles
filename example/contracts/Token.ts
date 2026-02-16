@@ -2,20 +2,9 @@ import {
   address,
   msg,
   SkittlesEvent,
+  SkittlesError,
   Indexed,
 } from "skittles";
-
-class InsufficientBalance extends Error {
-  constructor(sender: address, balance: number, required: number) {
-    super("");
-  }
-}
-
-class InsufficientAllowance extends Error {
-  constructor(spender: address, allowance: number, required: number) {
-    super("");
-  }
-}
 
 export class Token {
   Transfer: SkittlesEvent<{
@@ -28,6 +17,9 @@ export class Token {
     spender: Indexed<address>;
     value: number;
   }>;
+
+  InsufficientBalance: SkittlesError<{ sender: address; balance: number; required: number }>;
+  InsufficientAllowance: SkittlesError<{ spender: address; allowance: number; required: number }>;
 
   public name: string = "Skittles Token";
   public symbol: string = "SKT";
@@ -73,7 +65,7 @@ export class Token {
     let currentAllowance: number = this.allowances[from][msg.sender];
 
     if (currentAllowance < amount) {
-      throw new InsufficientAllowance(msg.sender, currentAllowance, amount);
+      throw this.InsufficientAllowance(msg.sender, currentAllowance, amount);
     }
 
     if (currentAllowance != Number.MAX_VALUE) {
@@ -90,7 +82,7 @@ export class Token {
     amount: number
   ): void {
     if (this.balances[from] < amount) {
-      throw new InsufficientBalance(from, this.balances[from], amount);
+      throw this.InsufficientBalance(from, this.balances[from], amount);
     }
     this.balances[from] -= amount;
     this.balances[to] += amount;
