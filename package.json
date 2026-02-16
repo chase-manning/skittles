@@ -4,9 +4,7 @@
   "description": "TypeScript to Solidity to EVM bytecode compiler",
   "main": "./dist/exports.js",
   "types": "./dist/exports.d.ts",
-  "bin": {
-    "skittles": "./dist/index.js"
-  },
+  "bin": "./dist/index.js",
   "files": [
     "dist"
   ],
