@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parse, collectTypes } from "../../src/compiler/parser";
+import { parse, collectTypes, collectFunctions } from "../../src/compiler/parser";
 import { generateSolidity, generateSolidityFile } from "../../src/compiler/codegen";
 import { compileSolidity } from "../../src/compiler/solc";
 import { defaultConfig } from "../fixtures";
@@ -266,6 +266,72 @@ describe("integration: EVM globals", () => {
     expect(solidity).toContain("owner = msg.sender;");
   });
 
+  it("should compile all block globals", () => {
+    const { errors, solidity } = compileTS(`
+      class BlockInfo {
+        public lastCoinbase: address;
+        public lastPrevrandao: number = 0;
+        public lastGaslimit: number = 0;
+        public lastBasefee: number = 0;
+        public lastNumber: number = 0;
+        public lastTimestamp: number = 0;
+        public lastChainid: number = 0;
+
+        public recordAll(): void {
+          this.lastCoinbase = block.coinbase;
+          this.lastPrevrandao = block.prevrandao;
+          this.lastGaslimit = block.gaslimit;
+          this.lastBasefee = block.basefee;
+          this.lastNumber = block.number;
+          this.lastTimestamp = block.timestamp;
+          this.lastChainid = block.chainid;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("lastCoinbase = block.coinbase;");
+    expect(solidity).toContain("lastPrevrandao = block.prevrandao;");
+    expect(solidity).toContain("lastGaslimit = block.gaslimit;");
+    expect(solidity).toContain("lastBasefee = block.basefee;");
+    expect(solidity).toContain("lastNumber = block.number;");
+    expect(solidity).toContain("lastTimestamp = block.timestamp;");
+    expect(solidity).toContain("lastChainid = block.chainid;");
+  });
+
+  it("should compile all msg globals", () => {
+    const { errors, solidity } = compileTS(`
+      class MsgInfo {
+        public lastSender: address;
+        public lastValue: number = 0;
+
+        public record(): void {
+          this.lastSender = msg.sender;
+          this.lastValue = msg.value;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("lastSender = msg.sender;");
+    expect(solidity).toContain("lastValue = msg.value;");
+  });
+
+  it("should compile all tx globals", () => {
+    const { errors, solidity } = compileTS(`
+      class TxInfo {
+        public lastOrigin: address;
+        public lastGasprice: number = 0;
+
+        public record(): void {
+          this.lastOrigin = tx.origin;
+          this.lastGasprice = tx.gasprice;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("lastOrigin = tx.origin;");
+    expect(solidity).toContain("lastGasprice = tx.gasprice;");
+  });
+
   it("should compile msg.value, block.timestamp, tx.origin", () => {
     const { errors, solidity } = compileTS(`
       class Globals {
@@ -500,6 +566,19 @@ describe("integration: additional features", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
+  });
+
+  it("should compile Number.MAX_SAFE_INTEGER as 9007199254740991", () => {
+    const { errors, solidity } = compileTS(`
+      class SafeInt {
+        public maxSafe: number = 0;
+        public setMaxSafe(): void {
+          this.maxSafe = Number.MAX_SAFE_INTEGER;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("9007199254740991");
   });
 
   it("should compile Number.MAX_VALUE as type(uint256).max", () => {
@@ -1168,6 +1247,22 @@ describe("integration: built-in functions", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("assert((x > 0))");
+  });
+
+  it("should compile hash() as keccak256(abi.encodePacked(...))", () => {
+    const contracts = parse(`
+      class Hasher {
+        public singleHash(a: number): void {
+          let h = hash(a);
+        }
+        public multiHash(a: number, b: address, c: boolean): void {
+          let h = hash(a, b, c);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("keccak256(abi.encodePacked(a))");
+    expect(solidity).toContain("keccak256(abi.encodePacked(a, b, c))");
   });
 
   it("should compile string.concat", () => {
@@ -2097,5 +2192,389 @@ describe("integration: cross-file type resolution", () => {
     const { structs, enums } = collectTypes(source, "standalone.ts");
     expect(structs.size).toBe(0);
     expect(enums.size).toBe(0);
+  });
+});
+
+// ============================================================
+// Standalone / free functions
+// ============================================================
+
+describe("integration: standalone functions", () => {
+  it("should compile file level function declarations as internal helpers", () => {
+    const { errors, solidity } = compileTS(`
+      function add(a: number, b: number): number {
+        return a + b;
+      }
+
+      class Calculator {
+        public calculate(x: number, y: number): number {
+          return add(x, y);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function add(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("function calculate(uint256 x, uint256 y) public pure virtual returns (uint256)");
+    expect(solidity).toContain("return add(x, y);");
+  });
+
+  it("should compile file level arrow functions as internal helpers", () => {
+    const { errors, solidity } = compileTS(`
+      const multiply = (a: number, b: number): number => {
+        return a * b;
+      };
+
+      class Calculator {
+        public calc(x: number, y: number): number {
+          return multiply(x, y);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function multiply(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("return multiply(x, y);");
+  });
+
+  it("should compile file level expression body arrow functions", () => {
+    const { errors, solidity } = compileTS(`
+      const double = (x: number): number => x * 2;
+
+      class Math {
+        public getDouble(n: number): number {
+          return double(n);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function double(uint256 x) internal pure returns (uint256)");
+  });
+});
+
+// ============================================================
+// File level constants
+// ============================================================
+
+describe("integration: file level constants", () => {
+  it("should inline file level constants in expressions", () => {
+    const { errors, solidity } = compileTS(`
+      const ZERO_ADDRESS: address = "0x0000000000000000000000000000000000000000";
+
+      class Registry {
+        public getZero(): address {
+          return ZERO_ADDRESS;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return address(0x0000000000000000000000000000000000000000);");
+  });
+
+  it("should inline numeric file level constants", () => {
+    const { errors, solidity } = compileTS(`
+      const MAX_ITEMS = 100;
+
+      class Limiter {
+        public getMax(): number {
+          return MAX_ITEMS;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return 100;");
+  });
+});
+
+// ============================================================
+// implements keyword
+// ============================================================
+
+// ============================================================
+// Public mapping auto getter
+// ============================================================
+
+describe("integration: public mapping auto getter", () => {
+  it("should generate public mapping with auto getter in ABI", () => {
+    const { errors, solidity, abi } = compileTS(`
+      class Registry {
+        public balances: Record<address, number> = {};
+
+        public deposit(): void {
+          this.balances[msg.sender] += msg.value;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("mapping(address => uint256) public balances;");
+
+    // Verify ABI includes auto generated getter for public mapping
+    const balancesGetter = (abi as any[]).find((i: any) => i.name === "balances" && i.type === "function");
+    expect(balancesGetter).toBeDefined();
+    expect(balancesGetter.inputs).toHaveLength(1);
+    expect(balancesGetter.inputs[0].type).toBe("address");
+    expect(balancesGetter.outputs).toHaveLength(1);
+    expect(balancesGetter.outputs[0].type).toBe("uint256");
+  });
+
+  it("should generate nested public mapping with correct getter signature", () => {
+    const { errors, solidity, abi } = compileTS(`
+      class Token {
+        public allowances: Record<address, Record<address, number>> = {};
+
+        public approve(spender: address, amount: number): void {
+          this.allowances[msg.sender][spender] = amount;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("mapping(address => mapping(address => uint256)) public allowances;");
+
+    // Nested mapping getter takes two address args
+    const getter = (abi as any[]).find((i: any) => i.name === "allowances" && i.type === "function");
+    expect(getter).toBeDefined();
+    expect(getter.inputs).toHaveLength(2);
+    expect(getter.inputs[0].type).toBe("address");
+    expect(getter.inputs[1].type).toBe("address");
+    expect(getter.outputs[0].type).toBe("uint256");
+  });
+});
+
+// ============================================================
+// Boolean return type verification
+// ============================================================
+
+describe("integration: boolean return types", () => {
+  it("should compile boolean return type as returns (bool)", () => {
+    const { errors, solidity } = compileTS(`
+      class BoolTest {
+        public isTrue(): boolean {
+          return true;
+        }
+        public isFalse(): boolean {
+          return false;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function isTrue() public pure virtual returns (bool)");
+    expect(solidity).toContain("function isFalse() public pure virtual returns (bool)");
+    expect(solidity).toContain("return true;");
+    expect(solidity).toContain("return false;");
+  });
+
+  it("should compile boolean parameters and returns correctly through solc", () => {
+    const { errors, solidity, abi } = compileTS(`
+      class BoolContract {
+        public value: boolean = false;
+
+        public check(a: boolean, b: boolean): boolean {
+          return a && b;
+        }
+
+        public toggle(): void {
+          this.value = !this.value;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function check(bool a, bool b) public pure virtual returns (bool)");
+
+    // Verify ABI has correct bool types
+    const checkFn = (abi as any[]).find((i: any) => i.name === "check");
+    expect(checkFn).toBeDefined();
+    expect(checkFn.inputs[0].type).toBe("bool");
+    expect(checkFn.inputs[1].type).toBe("bool");
+    expect(checkFn.outputs[0].type).toBe("bool");
+  });
+});
+
+// ============================================================
+// self / address(this)
+// ============================================================
+
+describe("integration: self keyword", () => {
+  it("should compile self as address(this)", () => {
+    const { errors, solidity } = compileTS(`
+      class SelfAware {
+        public myAddress: address;
+
+        public recordAddress(): void {
+          this.myAddress = self;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("myAddress = address(this);");
+  });
+
+  it("should compile address(this) pass through", () => {
+    const contracts = parse(`
+      class Caster {
+        public getAddr(): address {
+          return address(this);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("address(this)");
+  });
+});
+
+// ============================================================
+// Array destructuring
+// ============================================================
+
+describe("integration: array destructuring", () => {
+  it("should compile const [a, b, c] = [7, 8, 9] as separate declarations", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        public getValues(): number {
+          const [a, b, c] = [7, 8, 9];
+          return a + b + c;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 a = 7;");
+    expect(solidity).toContain("uint256 b = 8;");
+    expect(solidity).toContain("uint256 c = 9;");
+    expect(solidity).toContain("return ((a + b) + c);");
+  });
+
+  it("should compile conditional array destructuring", () => {
+    const { errors, solidity } = compileTS(`
+      class Sorter {
+        public sort(first: number, second: number): number {
+          let [a, b] = first > second ? [second, first] : [first, second];
+          return a + b;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 a = ((first > second) ? second : first);");
+    expect(solidity).toContain("uint256 b = ((first > second) ? first : second);");
+  });
+});
+
+// ============================================================
+// Cross file function imports
+// ============================================================
+
+describe("integration: cross file function imports", () => {
+  it("should use functions collected from another file", () => {
+    const librarySource = `
+      function add(a: number, b: number): number {
+        return a + b;
+      }
+
+      const multiply = (a: number, b: number): number => a * b;
+    `;
+    const contractSource = `
+      class Calculator {
+        public sum(x: number, y: number): number {
+          return add(x, y);
+        }
+        public product(x: number, y: number): number {
+          return multiply(x, y);
+        }
+      }
+    `;
+
+    const { structs, enums } = collectTypes(librarySource, "library.ts");
+    const { functions, constants } = collectFunctions(librarySource, "library.ts");
+
+    const contracts = parse(contractSource, "calc.ts", { structs, enums }, { functions, constants });
+    expect(contracts).toHaveLength(1);
+
+    const solidity = generateSolidity(contracts[0]);
+    const result = compileSolidity(contracts[0].name, solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(solidity).toContain("function add(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("function multiply(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("return add(x, y);");
+    expect(solidity).toContain("return multiply(x, y);");
+  });
+});
+
+// ============================================================
+// Cross file constant imports
+// ============================================================
+
+describe("integration: cross file constant imports", () => {
+  it("should inline constants collected from another file", () => {
+    const constantsSource = `
+      const ZERO_ADDRESS: address = "0x0000000000000000000000000000000000000000";
+      const MAX_SUPPLY = 1000000;
+    `;
+    const contractSource = `
+      class Token {
+        public maxSupply: number = 0;
+
+        public getMax(): number {
+          return MAX_SUPPLY;
+        }
+
+        public getZero(): address {
+          return ZERO_ADDRESS;
+        }
+      }
+    `;
+
+    const { structs, enums } = collectTypes(constantsSource, "constants.ts");
+    const { functions, constants } = collectFunctions(constantsSource, "constants.ts");
+
+    const contracts = parse(contractSource, "token.ts", { structs, enums }, { functions, constants });
+    const solidity = generateSolidity(contracts[0]);
+    const result = compileSolidity(contracts[0].name, solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(solidity).toContain("return 1000000;");
+    expect(solidity).toContain("return address(0x0000000000000000000000000000000000000000);");
+  });
+});
+
+// ============================================================
+// implements keyword
+// ============================================================
+
+describe("integration: implements keyword", () => {
+  it("should accept implements keyword without error", () => {
+    const source = `
+      interface IToken {
+        balance: number;
+      }
+
+      class Token implements IToken {
+        public balance: number = 0;
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(1);
+    expect(contracts[0].name).toBe("Token");
+    // implements does not add to inherits (Solidity has no separate implements)
+    expect(contracts[0].inherits).toEqual([]);
+  });
+
+  it("should accept combined extends and implements", () => {
+    const source = `
+      class Base {
+        public value: number = 0;
+
+        public getValue(): number {
+          return this.value;
+        }
+      }
+
+      class Child extends Base {
+        public override getValue(): number {
+          return this.value + 1;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(2);
+    expect(contracts[1].inherits).toEqual(["Base"]);
+
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 });
