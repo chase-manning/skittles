@@ -1,13 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { compileSolidity } from "../../src/compiler/solc";
 import type { SkittlesConfig } from "../../src/types";
-
-const defaultConfig: Required<SkittlesConfig> = {
-  typeCheck: true,
-  optimizer: { enabled: false, runs: 200 },
-  contractsDir: "contracts",
-  outputDir: "build",
-};
+import { defaultConfig } from "../fixtures";
 
 describe("compileSolidity", () => {
   it("should compile a simple Solidity contract", () => {

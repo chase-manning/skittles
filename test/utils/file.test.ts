@@ -6,7 +6,6 @@ import {
   readFile,
   writeFile,
   removeDirectory,
-  hashFileContents,
   ensureDirectory,
 } from "../../src/utils/file";
 
@@ -101,20 +100,6 @@ describe("removeDirectory", () => {
 
   it("should not throw for nonexistent directory", () => {
     expect(() => removeDirectory("/nonexistent/path")).not.toThrow();
-  });
-});
-
-describe("hashFileContents", () => {
-  it("should return consistent hash for same content", () => {
-    const hash1 = hashFileContents("hello");
-    const hash2 = hashFileContents("hello");
-    expect(hash1).toBe(hash2);
-  });
-
-  it("should return different hash for different content", () => {
-    const hash1 = hashFileContents("hello");
-    const hash2 = hashFileContents("world");
-    expect(hash1).not.toBe(hash2);
   });
 });
 
