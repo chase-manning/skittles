@@ -6,11 +6,7 @@ import {
   SkittlesError,
   Indexed,
 } from "skittles";
-
-enum VaultStatus {
-  Active,
-  Paused,
-}
+import { VaultStatus, StakeInfo } from "./types";
 
 export class Staking {
   Deposited: SkittlesEvent<{
@@ -72,6 +68,15 @@ export class Staking {
     this.totalFees += fee;
 
     this.Withdrawn.emit(msg.sender, payout);
+  }
+
+  public getStakeInfo(account: address): StakeInfo {
+    let info: StakeInfo = {
+      amount: this.deposits[account],
+      timestamp: this.depositTimestamps[account],
+      account: account,
+    };
+    return info;
   }
 
   public getDeposit(account: address): number {
