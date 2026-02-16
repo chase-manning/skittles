@@ -297,6 +297,7 @@ export function generateExpression(expr: Expression): string {
     case "boolean-literal":
       return expr.value ? "true" : "false";
     case "identifier":
+      if (expr.name === "self") return "address(this)";
       return expr.name;
     case "property-access":
       if (
@@ -312,6 +313,14 @@ export function generateExpression(expr: Expression): string {
         expr.property === "MAX_VALUE"
       ) {
         return "type(uint256).max";
+      }
+      // Number.MAX_SAFE_INTEGER → 9007199254740991 (2^53 - 1)
+      if (
+        expr.object.kind === "identifier" &&
+        expr.object.name === "Number" &&
+        expr.property === "MAX_SAFE_INTEGER"
+      ) {
+        return "9007199254740991";
       }
       return `${generateExpression(expr.object)}.${expr.property}`;
     case "element-access":
@@ -573,6 +582,7 @@ function tryGenerateBuiltinCall(expr: {
   const args = expr.args.map(generateExpression).join(", ");
 
   switch (name) {
+    case "hash":
     case "keccak256":
       return `keccak256(abi.encodePacked(${args}))`;
     case "sha256":
