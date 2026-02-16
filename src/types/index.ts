@@ -128,7 +128,9 @@ export type Statement =
   | BreakStatement
   | ContinueStatement
   | RevertStatement
-  | EmitStatement;
+  | EmitStatement
+  | SwitchStatement
+  | DeleteStatement;
 
 export interface ReturnStatement {
   kind: "return";
@@ -195,6 +197,22 @@ export interface EmitStatement {
   args: Expression[];
 }
 
+export interface DeleteStatement {
+  kind: "delete";
+  target: Expression;
+}
+
+export interface SwitchCase {
+  value?: Expression; // undefined means default case
+  body: Statement[];
+}
+
+export interface SwitchStatement {
+  kind: "switch";
+  discriminant: Expression;
+  cases: SwitchCase[];
+}
+
 // ============================================================
 // Expressions
 // ============================================================
@@ -211,7 +229,8 @@ export type Expression =
   | AssignmentExpression
   | CallExpression
   | ConditionalExpression
-  | NewExpression;
+  | NewExpression
+  | ObjectLiteralExpression;
 
 export interface NumberLiteral {
   kind: "number-literal";
@@ -283,6 +302,11 @@ export interface NewExpression {
   kind: "new";
   callee: string;
   args: Expression[];
+}
+
+export interface ObjectLiteralExpression {
+  kind: "object-literal";
+  properties: { name: string; value: Expression }[];
 }
 
 // ============================================================
