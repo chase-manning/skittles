@@ -19,6 +19,7 @@ import type {
 let _knownStructs: Map<string, SkittlesParameter[]> = new Map();
 let _knownEnums: Set<string> = new Set();
 let _knownCustomErrors: Set<string> = new Set();
+let _fileConstants: Map<string, Expression> = new Map();
 
 // ============================================================
 // Main entry
@@ -73,10 +74,16 @@ export interface ExternalTypes {
   enums?: Map<string, string[]>;
 }
 
+export interface ExternalFunctions {
+  functions?: SkittlesFunction[];
+  constants?: Map<string, Expression>;
+}
+
 export function parse(
   source: string,
   filePath: string,
-  externalTypes?: ExternalTypes
+  externalTypes?: ExternalTypes,
+  externalFunctions?: ExternalFunctions
 ): SkittlesContract[] {
   const sourceFile = ts.createSourceFile(
     filePath,
@@ -119,7 +126,49 @@ export function parse(
   _knownStructs = structs;
   _knownEnums = new Set(enums.keys());
   _knownCustomErrors = new Set();
+  _fileConstants = new Map();
 
+  // Collect file level constants (const declarations outside classes)
+  const fileConstants: Map<string, Expression> = new Map();
+  if (externalFunctions?.constants) {
+    for (const [name, expr] of externalFunctions.constants) {
+      fileConstants.set(name, expr);
+    }
+  }
+
+  // Collect file level standalone functions (outside classes)
+  const fileFunctions: SkittlesFunction[] = [];
+  if (externalFunctions?.functions) {
+    fileFunctions.push(...externalFunctions.functions);
+  }
+
+  // Empty varTypes for file level parsing (no state variables)
+  const emptyVarTypes = new Map<string, SkittlesType>();
+  const emptyEventNames = new Set<string>();
+
+  // First: collect file level functions and constants
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      fileFunctions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
+    }
+
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.initializer) {
+          if (ts.isArrowFunction(decl.initializer)) {
+            fileFunctions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
+          } else {
+            fileConstants.set(decl.name.text, parseExpression(decl.initializer));
+          }
+        }
+      }
+    }
+  });
+
+  // Set module level constant registry so parseExpression can inline them
+  _fileConstants = fileConstants;
+
+  // Second: parse classes (with access to file constants and functions)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isClassDeclaration(node) && node.name) {
       if (extendsError(node)) {
@@ -127,12 +176,178 @@ export function parse(
         customErrors.set(node.name.text, params);
         _knownCustomErrors.add(node.name.text);
       } else {
-        contracts.push(parseClass(node, filePath, structs, enums, customErrors));
+        contracts.push(parseClass(node, filePath, structs, enums, customErrors, fileFunctions, fileConstants));
       }
     }
   });
 
   return contracts;
+}
+
+/**
+ * Pre-scan a source file to collect file level functions and constants
+ * without parsing classes. Used by the compiler for cross file resolution.
+ */
+export function collectFunctions(source: string, filePath: string): {
+  functions: SkittlesFunction[];
+  constants: Map<string, Expression>;
+} {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true
+  );
+
+  const functions: SkittlesFunction[] = [];
+  const constants: Map<string, Expression> = new Map();
+  const emptyVarTypes = new Map<string, SkittlesType>();
+  const emptyEventNames = new Set<string>();
+
+  // Need to set up struct/enum registries for type parsing
+  const prevStructs = _knownStructs;
+  const prevEnums = _knownEnums;
+  _knownStructs = new Map();
+  _knownEnums = new Set();
+
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      functions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
+    }
+
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.initializer) {
+          if (ts.isArrowFunction(decl.initializer)) {
+            functions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
+          } else {
+            constants.set(decl.name.text, parseExpression(decl.initializer));
+          }
+        }
+      }
+    }
+  });
+
+  _knownStructs = prevStructs;
+  _knownEnums = prevEnums;
+
+  return { functions, constants };
+}
+
+function parseArrayDestructuring(
+  pattern: ts.ArrayBindingPattern,
+  initializer: ts.Expression,
+  varTypes: Map<string, SkittlesType>
+): Statement[] {
+  const statements: Statement[] = [];
+
+  if (ts.isArrayLiteralExpression(initializer)) {
+    // Direct array literal: const [a, b, c] = [7, 8, 9]
+    for (let i = 0; i < pattern.elements.length; i++) {
+      const elem = pattern.elements[i];
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const init = i < initializer.elements.length
+          ? parseExpression(initializer.elements[i])
+          : undefined;
+        const type = init ? inferType(init, varTypes) : undefined;
+        statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      }
+    }
+  } else if (ts.isConditionalExpression(initializer)) {
+    // Conditional destructuring: let [a, b] = cond ? [x, y] : [y, x]
+    const condition = parseExpression(initializer.condition);
+
+    const trueExprs: Expression[] = ts.isArrayLiteralExpression(initializer.whenTrue)
+      ? initializer.whenTrue.elements.map(parseExpression)
+      : [];
+    const falseExprs: Expression[] = ts.isArrayLiteralExpression(initializer.whenFalse)
+      ? initializer.whenFalse.elements.map(parseExpression)
+      : [];
+
+    for (let i = 0; i < pattern.elements.length; i++) {
+      const elem = pattern.elements[i];
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
+        const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
+        const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
+        const type = inferType(trueVal, varTypes);
+        statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      }
+    }
+  } else {
+    // Fallback: parse as expression and hope for the best
+    for (let i = 0; i < pattern.elements.length; i++) {
+      const elem = pattern.elements[i];
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        statements.push({
+          kind: "variable-declaration" as const,
+          name: elem.name.text,
+          type: undefined,
+          initializer: undefined,
+        });
+      }
+    }
+  }
+
+  return statements;
+}
+
+function parseStandaloneFunction(
+  node: ts.FunctionDeclaration,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>
+): SkittlesFunction {
+  const name = node.name ? node.name.text : "unknown";
+  const parameters = node.parameters.map(parseParameter);
+  const returnType: SkittlesType | null = node.type ? parseType(node.type) : null;
+  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(body);
+
+  return {
+    name,
+    parameters,
+    returnType,
+    visibility: "private",
+    stateMutability,
+    isVirtual: false,
+    isOverride: false,
+    body,
+  };
+}
+
+function parseStandaloneArrowFunction(
+  decl: ts.VariableDeclaration,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>
+): SkittlesFunction {
+  const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+  const arrow = decl.initializer as ts.ArrowFunction;
+  const parameters = arrow.parameters.map(parseParameter);
+  const returnType: SkittlesType | null = arrow.type ? parseType(arrow.type) : null;
+
+  let body: Statement[] = [];
+  if (arrow.body) {
+    if (ts.isBlock(arrow.body)) {
+      body = parseBlock(arrow.body, varTypes, eventNames);
+    } else {
+      body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
+    }
+  }
+
+  const stateMutability = inferStateMutability(body);
+
+  return {
+    name,
+    parameters,
+    returnType,
+    visibility: "private",
+    stateMutability,
+    isVirtual: false,
+    isOverride: false,
+    body,
+  };
 }
 
 function extendsError(node: ts.ClassDeclaration): boolean {
@@ -182,7 +397,9 @@ function parseClass(
   filePath: string,
   knownStructs: Map<string, SkittlesParameter[]> = new Map(),
   knownEnums: Map<string, string[]> = new Map(),
-  knownCustomErrors: Map<string, SkittlesParameter[]> = new Map()
+  knownCustomErrors: Map<string, SkittlesParameter[]> = new Map(),
+  fileFunctions: SkittlesFunction[] = [],
+  fileConstants: Map<string, Expression> = new Map()
 ): SkittlesContract {
   const name = node.name?.text ?? "Unknown";
   const variables: SkittlesVariable[] = [];
@@ -200,6 +417,9 @@ function parseClass(
           }
         }
       }
+      // `implements` is accepted but not added to inherits.
+      // TypeScript enforces the shape constraint at compile time.
+      // Solidity doesn't have a separate `implements` keyword.
     }
   }
 
@@ -265,6 +485,14 @@ function parseClass(
       functions.push(parseGetAccessor(member, varTypes, eventNames));
     } else if (ts.isSetAccessorDeclaration(member)) {
       functions.push(parseSetAccessor(member, varTypes, eventNames));
+    }
+  }
+
+  // Inject file level standalone functions as internal helpers
+  for (const fn of fileFunctions) {
+    // Avoid duplicates if a class method already has the same name
+    if (!functions.some((f) => f.name === fn.name)) {
+      functions.push(fn);
     }
   }
 
@@ -639,6 +867,11 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isIdentifier(node)) {
+    // Inline file level constants
+    const constExpr = _fileConstants.get(node.text);
+    if (constExpr) return constExpr;
+    // `self` is a reserved identifier for address(this)
+    if (node.text === "self") return { kind: "identifier", name: "self" };
     return { kind: "identifier", name: node.text };
   }
 
@@ -1072,17 +1305,26 @@ function parseStatements(
   varTypes: Map<string, SkittlesType>,
   eventNames: Set<string>
 ): Statement[] {
-  if (ts.isVariableStatement(node) && node.declarationList.declarations.length > 1) {
-    return node.declarationList.declarations.map((decl) => {
-      const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
-      const explicitType = decl.type ? parseType(decl.type) : undefined;
-      const initializer = decl.initializer
-        ? parseExpression(decl.initializer)
-        : undefined;
-      const type =
-        explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
-      return { kind: "variable-declaration" as const, name, type, initializer };
-    });
+  if (ts.isVariableStatement(node)) {
+    // Multi declaration: let a=1, b=2, c=3
+    if (node.declarationList.declarations.length > 1) {
+      return node.declarationList.declarations.map((decl) => {
+        const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+        const explicitType = decl.type ? parseType(decl.type) : undefined;
+        const initializer = decl.initializer
+          ? parseExpression(decl.initializer)
+          : undefined;
+        const type =
+          explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
+        return { kind: "variable-declaration" as const, name, type, initializer };
+      });
+    }
+
+    // Array destructuring: const [a, b, c] = [7, 8, 9]
+    const decl = node.declarationList.declarations[0];
+    if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
+      return parseArrayDestructuring(decl.name, decl.initializer, varTypes);
+    }
   }
   return [parseStatement(node, varTypes, eventNames)];
 }
@@ -1351,6 +1593,10 @@ export function inferType(
       return { kind: "string" as SkittlesTypeKind };
     case "boolean-literal":
       return { kind: "bool" as SkittlesTypeKind };
+    case "identifier":
+      if (expr.name === "self")
+        return { kind: "address" as SkittlesTypeKind };
+      return undefined;
     case "property-access":
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
@@ -1361,8 +1607,19 @@ export function inferType(
             return { kind: "address" as SkittlesTypeKind };
           if (expr.property === "value")
             return { kind: "uint256" as SkittlesTypeKind };
+          if (expr.property === "data")
+            return { kind: "bytes" as SkittlesTypeKind };
+          if (expr.property === "sig")
+            return { kind: "bytes32" as SkittlesTypeKind };
         }
         if (expr.object.name === "block") {
+          if (expr.property === "coinbase")
+            return { kind: "address" as SkittlesTypeKind };
+          return { kind: "uint256" as SkittlesTypeKind };
+        }
+        if (expr.object.name === "tx") {
+          if (expr.property === "origin")
+            return { kind: "address" as SkittlesTypeKind };
           return { kind: "uint256" as SkittlesTypeKind };
         }
       }
