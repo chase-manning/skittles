@@ -288,6 +288,9 @@ export function generateExpression(expr: Expression): string {
     case "number-literal":
       return expr.value;
     case "string-literal": {
+      if (/^0x[0-9a-fA-F]{40}$/.test(expr.value)) {
+        return `address(${expr.value})`;
+      }
       const escaped = expr.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       return `"${escaped}"`;
     }
