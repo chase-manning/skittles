@@ -34,8 +34,8 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "chalk": "4",
-    "ora": "5",
+    "chalk": "^4.0.0",
+    "ora": "^5.0.0",
     "solc": "^0.8.33",
     "typescript": "^5.9.3",
     "yargs": "^17.0.0"
