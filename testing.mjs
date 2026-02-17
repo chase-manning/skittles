@@ -49,6 +49,17 @@ function createTestEnv() {
 export function setup() {
   let env;
 
+  function requireEnv() {
+    if (!env) {
+      throw new Error(
+        "skittles/testing: setup() environment is not ready yet. " +
+        "Make sure setup() is called at the top of your describe block " +
+        "and only access its properties inside beforeAll, beforeEach, it, or afterAll hooks."
+      );
+    }
+    return env;
+  }
+
   beforeAll(async () => {
     env = await createTestEnv();
   }, 30_000);
@@ -59,17 +70,17 @@ export function setup() {
 
   return {
     get accounts() {
-      return env.accounts;
+      return requireEnv().accounts;
     },
     get provider() {
-      return env.provider;
+      return requireEnv().provider;
     },
     deploy(contractName, constructorArgs = [], options = {}) {
-      return coreDeploy(env, contractName, constructorArgs, options);
+      return coreDeploy(requireEnv(), contractName, constructorArgs, options);
     },
     connectAs,
     getBalance(address) {
-      return coreGetBalance(env, address);
+      return coreGetBalance(requireEnv(), address);
     },
   };
 }
