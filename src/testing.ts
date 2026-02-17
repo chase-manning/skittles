@@ -107,13 +107,13 @@ export function loadArtifact(
 
   if (!fs.existsSync(abiPath)) {
     throw new Error(
-      `ABI not found for "${contractName}". Did you run "skittles compile" first?\n  Expected: ${abiPath}`
+      `ABI not found for "${contractName}". Did you run "skittles test" (or "skittles compile") first?\n  Expected: ${abiPath}`
     );
   }
 
   if (!fs.existsSync(bytecodePath)) {
     throw new Error(
-      `Bytecode not found for "${contractName}". Did you run "skittles compile" first?\n  Expected: ${bytecodePath}`
+      `Bytecode not found for "${contractName}". Did you run "skittles test" (or "skittles compile") first?\n  Expected: ${bytecodePath}`
     );
   }
 
