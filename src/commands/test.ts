@@ -39,7 +39,7 @@ export async function testCommand(
   // Step 2: Run vitest
   logInfo(watch ? "Starting vitest in watch mode..." : "Running tests...");
 
-  const args = watch ? [] : ["run"];
+  const args = watch ? ["--watch"] : ["run"];
   const child = spawn("npx", ["vitest", ...args], {
     cwd: projectRoot,
     stdio: "inherit",
