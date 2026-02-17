@@ -1,8 +1,14 @@
+<a href="https://skittles.dev/">
+  <img src="https://skittles.dev/banner.png" alt="Skittles" width="100%" />
+</a>
+
 # Skittles
 
-Write Solidity smart contracts in TypeScript.
+Write, Test and Deploy EVM Smart Contracts with TypeScript.
 
 Skittles compiles TypeScript classes to Solidity source code, then to ABI and EVM bytecode. You get TypeScript tooling (autocomplete, type checking, familiar syntax) while targeting the EVM.
+
+Website: [skittles.dev](https://skittles.dev/)
 
 ## Install
 
@@ -56,59 +62,6 @@ export class Token {
 ```
 
 This compiles to a Solidity contract with events, mappings, a constructor, and a transfer function.
-
-## Features
-
-**Types** that map to Solidity: `number` (uint256), `string`, `boolean` (bool), `address`, `bytes`, `Record<K,V>` (mapping), `T[]` (array), interfaces (structs), enums.
-
-**State variables** with visibility (`public`, `private`), `readonly` (immutable), and `static readonly` (constant).
-
-**Functions** with automatic state mutability inference (pure, view, payable), virtual/override, getters/setters, `receive()`, and `fallback()`.
-
-**Events** via `SkittlesEvent<T>` with indexed parameter support.
-
-**Custom errors** via `SkittlesError<T>` or class extends Error.
-
-**Inheritance** with `extends` and `super`.
-
-**Control flow**: if/else, for, while, do/while, for...of, switch/case, ternary.
-
-**EVM globals**: `msg.sender`, `msg.value`, `block.timestamp`, `block.number`, `tx.origin`, and more.
-
-**Built in functions**: `keccak256()`, `sha256()`, `hash()`, `assert()`, `abi.encode()`, `abi.encodePacked()`.
-
-**Cross file support**: shared structs, enums, constants, and functions across contract files.
-
-**Incremental compilation**: only recompiles files that have changed.
-
-## Build Output
-
-```
-build/
-  abi/          # Contract ABIs (JSON)
-  bytecode/     # EVM bytecode
-  solidity/     # Generated Solidity source
-```
-
-## Configuration
-
-Create a `skittles.config.json` in your project root:
-
-```json
-{
-  "contractsDir": "contracts",
-  "outputDir": "build",
-  "typeCheck": true,
-  "optimizer": {
-    "enabled": true,
-    "runs": 200
-  }
-}
-```
-
-## Testing
-
-Skittles generates standard Solidity artifacts (ABI + bytecode), so you can test with any EVM testing tool. The [example project](./example) uses Hardhat and ethers.js with Vitest.
 
 ## Contributing
 
