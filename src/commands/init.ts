@@ -17,6 +17,29 @@ const CONFIG_TEMPLATE = JSON.stringify(
   2
 );
 
+const TSCONFIG_TEMPLATE = JSON.stringify(
+  {
+    compilerOptions: {
+      target: "ES2022",
+      module: "commonjs",
+      lib: ["ES2022"],
+      strict: true,
+      strictPropertyInitialization: false,
+      noUncheckedIndexedAccess: false,
+      esModuleInterop: true,
+      skipLibCheck: true,
+      forceConsistentCasingInFileNames: true,
+      resolveJsonModule: true,
+      outDir: "./dist",
+      rootDir: ".",
+    },
+    include: ["contracts/**/*"],
+    exclude: ["node_modules", "build", "dist"],
+  },
+  null,
+  2
+);
+
 const EXAMPLE_CONTRACT = `import { address, msg } from "skittles";
 
 export class Token {
@@ -72,9 +95,18 @@ export async function initCommand(projectRoot: string): Promise<void> {
     logSuccess("Created contracts/Token.ts");
   }
 
+  // Write tsconfig.json
+  const tsconfigPath = path.join(projectRoot, "tsconfig.json");
+  if (fs.existsSync(tsconfigPath)) {
+    logWarning("tsconfig.json already exists, skipping");
+  } else {
+    writeFile(tsconfigPath, TSCONFIG_TEMPLATE + "\n");
+    logSuccess("Created tsconfig.json");
+  }
+
   // Update .gitignore
   const gitignorePath = path.join(projectRoot, ".gitignore");
-  const gitignoreEntries = ["build/", "node_modules/"];
+  const gitignoreEntries = ["build/", "dist/", "node_modules/"];
 
   if (fs.existsSync(gitignorePath)) {
     const existing = fs.readFileSync(gitignorePath, "utf-8");
