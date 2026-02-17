@@ -197,13 +197,16 @@ export async function compile(
       }
 
       if (compiled.errors.length > 0) {
-        errors.push(...compiled.errors);
+        const contextualErrors = compiled.errors.map(
+          (e) => `${relativePath}: ${e}`
+        );
+        errors.push(...contextualErrors);
       } else {
         for (const contract of contracts) {
           const result = compiled.contracts[contract.name];
 
           if (!result) {
-            errors.push(`No output found for contract ${contract.name}`);
+            errors.push(`${relativePath}:${contract.name}: No output found for contract ${contract.name}`);
             continue;
           }
 
