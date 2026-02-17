@@ -124,10 +124,16 @@ export async function compile(
 
   // Compute a hash of all shared definitions (types, functions, constants).
   // If any shared definition changes, all files must be recompiled.
-  const sharedContent = sourceFiles.map((fp) => {
-    try { return readFile(fp); } catch { return ""; }
-  }).join("\n");
-  const sharedHash = hashString(sharedContent);
+  // We hash the serialized definitions rather than the full concatenated sources
+  // to avoid extra I/O and to prevent over-broad cache invalidation from
+  // unrelated changes (e.g. comments, whitespace, class body edits).
+  const sharedDefinitions = {
+    structs: Array.from(globalStructs.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    enums: Array.from(globalEnums.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    functions: [...globalFunctions].sort((a, b) => a.name.localeCompare(b.name)),
+    constants: Array.from(globalConstants.entries()).sort(([a], [b]) => a.localeCompare(b)),
+  };
+  const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 
   // Load incremental compilation cache
   const cache = loadCache(outputDir);

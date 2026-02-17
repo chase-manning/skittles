@@ -100,7 +100,7 @@ describe("incremental compilation cache", () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it("should invalidate all caches when shared definitions change (new file added)", async () => {
+  it("should compile new file without recompiling unchanged files when no shared defs change", async () => {
     writeContract(projectRoot, "Counter.ts", `
       class Counter {
         public count: number = 0;
@@ -128,11 +128,17 @@ describe("incremental compilation cache", () => {
 
     expect(spy).toHaveBeenCalled();
 
+    // Token.ts is new so it must be compiled
+    const tokenCalls = spy.mock.calls.filter((c) => c[1].includes("Token"));
+    expect(tokenCalls.length).toBeGreaterThan(0);
+
+    // Counter.ts is unchanged and shared definitions did not change,
+    // so it should be served from cache (not recompiled)
     const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
-    expect(counterCalls.length).toBeGreaterThan(0);
+    expect(counterCalls).toHaveLength(0);
   });
 
-  it("should invalidate cache for all files when one file changes (shared hash)", async () => {
+  it("should only recompile the changed file when shared definitions are unchanged", async () => {
     writeContract(projectRoot, "Counter.ts", `
       class Counter {
         public count: number = 0;
@@ -164,10 +170,14 @@ describe("incremental compilation cache", () => {
     expect(result2.success).toBe(true);
     expect(result2.artifacts).toHaveLength(2);
 
-    const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
+    // Token.ts changed, so it must be recompiled
     const tokenCalls = spy.mock.calls.filter((c) => c[1].includes("Token"));
-    expect(counterCalls.length).toBeGreaterThan(0);
     expect(tokenCalls.length).toBeGreaterThan(0);
+
+    // Counter.ts is unchanged and shared definitions did not change,
+    // so it should be served from cache
+    const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
+    expect(counterCalls).toHaveLength(0);
   });
 
   it("should produce identical artifacts from cache as from fresh compilation", async () => {
