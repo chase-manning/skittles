@@ -8,10 +8,12 @@
  * Most users should import from "skittles/testing" which provides the
  * higher level `setup()` function with automatic lifecycle management.
  *
- * Requirements (devDependencies in your project):
+ * Requirements for the core utilities (devDependencies in your project):
  *   - ethers ^6.0.0
  *   - hardhat ^3.0.0
- *   - vitest ^2.0.0
+ *
+ * Additional tooling (used by the higher level ESM wrapper `"skittles/testing"`, not by this core module):
+ *   - vitest ^2.0.0 (or another compatible test runner)
  */
 
 import path from "path";
