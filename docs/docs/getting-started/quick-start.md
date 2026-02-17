@@ -20,9 +20,13 @@ This creates the following files:
 ```
 your-project/
 ├── contracts/
-│   └── Token.ts         # Example ERC20 token contract
-├── skittles.config.json  # Compiler configuration
-└── tsconfig.json         # TypeScript configuration
+│   └── Token.ts           # Example ERC20 token contract
+├── test/
+│   └── Token.test.ts      # Example test using skittles/testing
+├── skittles.config.json   # Compiler configuration
+├── tsconfig.json          # TypeScript configuration
+├── vitest.config.ts       # Test runner configuration
+└── hardhat.config.ts      # In memory EVM configuration
 ```
 
 It also updates your `.gitignore` to exclude `build/`, `dist/`, and `node_modules/`.
@@ -133,9 +137,21 @@ Notice what Skittles did automatically:
 
 ## Testing
 
-Skittles outputs standard ABI and bytecode, so you can test with any EVM testing framework. The recommended setup is [Hardhat](https://hardhat.org/) with [ethers.js](https://docs.ethers.org/) and [Vitest](https://vitest.dev/).
+Skittles includes built in testing utilities. Install the testing dependencies:
 
-See the [Testing Guide](/guide/testing) for a full walkthrough, or check the [example project](https://github.com/chase-manning/skittles/tree/main/example) for a working setup.
+```bash
+npm install --save-dev ethers hardhat vitest
+```
+
+The `skittles init` command scaffolds a test file at `test/Token.test.ts`, a `vitest.config.ts`, and a `hardhat.config.ts`. Run your tests with a single command:
+
+```bash
+npx skittles test
+```
+
+This compiles your contracts and runs the test suite automatically. No separate compile step needed.
+
+See the [Testing Guide](/guide/testing) for a full walkthrough.
 
 ## Next Steps
 

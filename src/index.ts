@@ -5,6 +5,7 @@ import { hideBin } from "yargs/helpers";
 import { compileCommand } from "./commands/compile";
 import { cleanCommand } from "./commands/clean";
 import { initCommand } from "./commands/init";
+import { testCommand } from "./commands/test";
 import { printLogo } from "./utils/console";
 
 printLogo();
@@ -34,6 +35,21 @@ yargs(hideBin(process.argv))
     () => {},
     async () => {
       await initCommand(process.cwd());
+    }
+  )
+  .command(
+    "test",
+    "Compile contracts and run tests with vitest",
+    (yargs) => {
+      return yargs.option("watch", {
+        alias: "w",
+        type: "boolean",
+        description: "Run vitest in watch mode",
+        default: false,
+      });
+    },
+    async (argv) => {
+      await testCommand(process.cwd(), argv.watch as boolean);
     }
   )
   .demandCommand(1, "Please specify a command")

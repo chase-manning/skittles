@@ -7,8 +7,8 @@
     "compile": "skittles compile",
     "clean": "skittles clean",
     "typecheck": "tsc --noEmit",
-    "test": "yarn compile && vitest run",
-    "test:watch": "vitest"
+    "test": "skittles test",
+    "test:watch": "skittles test --watch"
   },
   "dependencies": {
     "skittles": "file:.."
