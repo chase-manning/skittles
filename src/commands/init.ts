@@ -170,7 +170,6 @@ function buildPackageJson(projectName: string): string {
       devDependencies: {
         ethers: "^6.16.0",
         hardhat: "^3.0.0",
-        typescript: "^5.9.0",
         vitest: "^2.0.0",
       },
       engines: {
@@ -201,7 +200,6 @@ export async function initCommand(projectRoot: string): Promise<void> {
       const requiredDevDeps: Record<string, string> = {
         ethers: "^6.16.0",
         hardhat: "^3.0.0",
-        typescript: "^5.9.0",
         vitest: "^2.0.0",
       };
       for (const [dep, version] of Object.entries(requiredDevDeps)) {
