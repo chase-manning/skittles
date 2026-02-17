@@ -41,16 +41,8 @@ export interface TestEnv {
 // Internal helpers
 // ============================================================
 
-/**
- * Preserve a real ESM dynamic import() even when compiled to CommonJS.
- * TypeScript converts `import()` to `require()` in CJS output, which
- * breaks ESM only packages like Hardhat v3. This helper sidesteps
- * that transformation.
- */
-const importModule = new Function(
-  "specifier",
-  "return import(specifier)"
-) as (specifier: string) => Promise<any>;
+/** Dynamic import wrapper for loading ESM packages like Hardhat v3. */
+const importModule = (specifier: string) => import(specifier);
 
 // ============================================================
 // Environment setup

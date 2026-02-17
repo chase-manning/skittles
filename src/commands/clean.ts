@@ -1,7 +1,7 @@
 import path from "path";
-import { removeDirectory } from "../utils/file";
-import { logSuccess, logInfo } from "../utils/console";
-import { loadConfig } from "../config/config";
+import { removeDirectory } from "../utils/file.ts";
+import { logSuccess, logInfo } from "../utils/console.ts";
+import { loadConfig } from "../config/config.ts";
 
 export async function cleanCommand(projectRoot: string): Promise<void> {
   const config = await loadConfig(projectRoot);

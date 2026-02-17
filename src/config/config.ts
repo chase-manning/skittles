@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { pathToFileURL } from "url";
-import type { SkittlesConfig } from "../types";
+import type { SkittlesConfig } from "../types/index.ts";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
 

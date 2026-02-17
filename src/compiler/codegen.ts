@@ -12,7 +12,7 @@ import {
   type RevertStatement,
   type Visibility,
   type SkittlesParameter,
-} from "../types";
+} from "../types/index.ts";
 
 // ============================================================
 // Main entry

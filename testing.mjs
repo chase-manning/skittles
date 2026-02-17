@@ -2,21 +2,16 @@
 // Vitest resolves to this file via the package.json "import" condition.
 
 import { beforeAll, afterAll } from "vitest";
-import testing from "./dist/testing.js";
-
-const {
-  createTestEnv: coreCreateTestEnv,
-  deploy: coreDeploy,
+import {
+  createTestEnv as coreCreateTestEnv,
+  deploy as coreDeploy,
   connectAs,
-  getBalance: coreGetBalance,
+  getBalance as coreGetBalance,
   loadArtifact,
-} = testing;
-
-// Pass native ESM import() so Hardhat (ESM only) loads correctly.
-const nativeImport = (specifier) => import(specifier);
+} from "./dist/testing.js";
 
 function createTestEnv() {
-  return coreCreateTestEnv(nativeImport);
+  return coreCreateTestEnv();
 }
 
 /**
