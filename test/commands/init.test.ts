@@ -79,6 +79,7 @@ describe("initCommand", () => {
 
     const content = fs.readFileSync(gitignorePath, "utf-8");
     expect(content).toContain("build/");
+    expect(content).toContain("dist/");
     expect(content).toContain("node_modules/");
   });
 });

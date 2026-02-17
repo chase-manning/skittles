@@ -106,7 +106,7 @@ export async function initCommand(projectRoot: string): Promise<void> {
 
   // Update .gitignore
   const gitignorePath = path.join(projectRoot, ".gitignore");
-  const gitignoreEntries = ["build/", "node_modules/"];
+  const gitignoreEntries = ["build/", "dist/", "node_modules/"];
 
   if (fs.existsSync(gitignorePath)) {
     const existing = fs.readFileSync(gitignorePath, "utf-8");
