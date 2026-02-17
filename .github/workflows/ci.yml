@@ -31,7 +31,5 @@ jobs:
       - run: yarn build
       - run: yarn install --immutable
         working-directory: example
-      - run: yarn compile
-        working-directory: example
-      - run: npx vitest run
+      - run: yarn test
         working-directory: example
