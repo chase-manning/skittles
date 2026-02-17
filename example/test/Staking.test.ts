@@ -1,31 +1,25 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { ethers } from "ethers";
-import { createTestEnv, deploy, connectAs, TestEnv } from "./helpers";
+import { createTestEnv, deploy, connectAs, TestEnv } from "skittles/testing";
 
 describe("Staking", () => {
   let env: TestEnv;
   let vault: ethers.Contract;
-  let owner: ethers.Signer;
-  let alice: ethers.Signer;
-  let bob: ethers.Signer;
   let ownerAddr: string;
   let aliceAddr: string;
   let bobAddr: string;
 
   beforeAll(async () => {
     env = await createTestEnv();
-    owner = env.accounts[0];
-    alice = env.accounts[1];
-    bob = env.accounts[2];
-    ownerAddr = await owner.getAddress();
-    aliceAddr = await alice.getAddress();
-    bobAddr = await bob.getAddress();
+    ownerAddr = await env.accounts[0].getAddress();
+    aliceAddr = await env.accounts[1].getAddress();
+    bobAddr = await env.accounts[2].getAddress();
 
     vault = await deploy(env, "Staking");
   });
 
   afterAll(async () => {
-    await env.server.close();
+    await env.close();
   });
 
   describe("deployment", () => {
@@ -45,7 +39,7 @@ describe("Staking", () => {
 
   describe("deposits", () => {
     it("should accept ETH deposits via the deposit function", async () => {
-      const aliceVault = connectAs(vault, alice);
+      const aliceVault = connectAs(vault, env.accounts[1]);
       const depositAmount = ethers.parseEther("1");
       await aliceVault.deposit({ value: depositAmount });
 
@@ -54,7 +48,7 @@ describe("Staking", () => {
     });
 
     it("should emit a Deposited event", async () => {
-      const bobVault = connectAs(vault, bob);
+      const bobVault = connectAs(vault, env.accounts[2]);
       const depositAmount = ethers.parseEther("2");
       const tx = await bobVault.deposit({ value: depositAmount });
       const receipt = await tx.wait();
@@ -70,19 +64,18 @@ describe("Staking", () => {
     });
 
     it("should accept ETH via receive (plain transfer)", async () => {
-      const aliceVault = connectAs(vault, alice);
       const vaultAddr = await vault.getAddress();
       const depositAmount = ethers.parseEther("0.5");
       const depositBefore = await vault.getDeposit(aliceAddr);
 
-      await alice.sendTransaction({ to: vaultAddr, value: depositAmount });
+      await env.accounts[1].sendTransaction({ to: vaultAddr, value: depositAmount });
 
       const depositAfter = await vault.getDeposit(aliceAddr);
       expect(depositAfter - depositBefore).toBe(depositAmount);
     });
 
     it("should accumulate multiple deposits from the same account", async () => {
-      const aliceVault = connectAs(vault, alice);
+      const aliceVault = connectAs(vault, env.accounts[1]);
       const depositBefore = await vault.getDeposit(aliceAddr);
       const amount = ethers.parseEther("0.25");
 
@@ -94,7 +87,7 @@ describe("Staking", () => {
     });
 
     it("should revert when deposit amount is zero", async () => {
-      const aliceVault = connectAs(vault, alice);
+      const aliceVault = connectAs(vault, env.accounts[1]);
       await expect(
         aliceVault.deposit({ value: 0 })
       ).rejects.toThrow();
@@ -103,7 +96,7 @@ describe("Staking", () => {
 
   describe("withdrawals", () => {
     it("should allow withdrawal with fee deducted", async () => {
-      const aliceVault = connectAs(vault, alice);
+      const aliceVault = connectAs(vault, env.accounts[1]);
       const deposit = await vault.getDeposit(aliceAddr);
       const withdrawAmount = deposit;
 
@@ -117,7 +110,7 @@ describe("Staking", () => {
     });
 
     it("should revert when withdrawing more than deposited", async () => {
-      const bobVault = connectAs(vault, bob);
+      const bobVault = connectAs(vault, env.accounts[2]);
       const tooMuch = ethers.parseEther("999");
       await expect(bobVault.withdraw(tooMuch)).rejects.toThrow();
     });
@@ -130,7 +123,7 @@ describe("Staking", () => {
     });
 
     it("should revert deposits when paused", async () => {
-      const aliceVault = connectAs(vault, alice);
+      const aliceVault = connectAs(vault, env.accounts[1]);
       await expect(
         aliceVault.deposit({ value: ethers.parseEther("1") })
       ).rejects.toThrow();
@@ -141,13 +134,13 @@ describe("Staking", () => {
       expect(await vault.status()).toBe(0n);
     });
 
-    it("should revert when non-owner tries to pause", async () => {
-      const aliceVault = connectAs(vault, alice);
+    it("should revert when non owner tries to pause", async () => {
+      const aliceVault = connectAs(vault, env.accounts[1]);
       await expect(aliceVault.pause()).rejects.toThrow();
     });
 
     it("should accept deposits again after unpause", async () => {
-      const aliceVault = connectAs(vault, alice);
+      const aliceVault = connectAs(vault, env.accounts[1]);
       const depositAmount = ethers.parseEther("0.1");
       await aliceVault.deposit({ value: depositAmount });
       expect(await vault.getDeposit(aliceAddr)).toBe(depositAmount);

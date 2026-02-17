@@ -45,6 +45,7 @@ skittles <command> [options]
 
 Commands:
   skittles compile  Compile TypeScript contracts to EVM bytecode
+  skittles test     Compile contracts and run tests with vitest
   skittles clean    Remove build artifacts
   skittles init     Initialize a new Skittles project
 
@@ -68,7 +69,17 @@ The `skittles` package provides:
 | `abi`                              | ABI encoding/decoding namespace                            |
 | `SkittlesConfig`                   | Configuration type for `skittles.config.json`              |
 
-These are TypeScript type stubs that provide IDE support (autocomplete, type checking). At compile time, Skittles reads the TypeScript AST directly; the stubs are never executed at runtime.
+The `skittles/testing` subpath provides testing utilities:
+
+| Export                             | Purpose                                                    |
+| ---------------------------------- | ---------------------------------------------------------- |
+| `createTestEnv()`                  | Create an in memory Hardhat EVM for testing                |
+| `deploy(env, name, args?)`         | Deploy a compiled contract to the test EVM                 |
+| `connectAs(contract, signer)`      | Connect to a contract from a different account             |
+| `getBalance(env, address)`         | Get the ETH balance of an address                          |
+| `loadArtifact(name)`               | Load ABI and bytecode from the build directory             |
+
+The main exports are TypeScript type stubs that provide IDE support (autocomplete, type checking). At compile time, Skittles reads the TypeScript AST directly; the stubs are never executed at runtime.
 
 ## Next Steps
 

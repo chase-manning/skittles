@@ -482,26 +482,26 @@ function QuickStart() {
             <span className="terminal-prompt">$</span>
             <span className="terminal-cmd">npm install skittles</span>
           </div>
-          <div className="terminal-comment">&nbsp; # Install the package</div>
+          <div className="terminal-comment">&nbsp; # Install the compiler</div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-line">
             <span className="terminal-prompt">$</span>
             <span className="terminal-cmd">npx skittles init</span>
           </div>
           <div className="terminal-comment">
-            &nbsp; # Scaffold project with example Token contract
+            &nbsp; # Scaffold contract, tests, and config
           </div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-line">
             <span className="terminal-prompt">$</span>
-            <span className="terminal-cmd">npx skittles compile</span>
+            <span className="terminal-cmd">npx skittles test</span>
           </div>
           <div className="terminal-comment">
-            &nbsp; # Outputs ABI, bytecode, and Solidity to build/
+            &nbsp; # Compile contracts and run the test suite
           </div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-success">
-            &nbsp; ✓ Compiled 1 contract successfully
+            &nbsp; ✓ 5 tests passed
           </div>
         </div>
       </div>
