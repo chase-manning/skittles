@@ -19,19 +19,11 @@ function useNpmVersion() {
 
 function Logo({ small }: { small?: boolean }) {
   return (
-    <div className={`logo ${small ? "logo--small" : ""}`}>
-      <span className="logo-text">skittles</span>
-      <div className="logo-dots">
-        <span className="logo-dot logo-dot--red" />
-        <span className="logo-dot logo-dot--orange" />
-        <span className="logo-dot logo-dot--yellow" />
-        <span className="logo-dot logo-dot--green" />
-        <span className="logo-dot logo-dot--teal" />
-        <span className="logo-dot logo-dot--cyan" />
-        <span className="logo-dot logo-dot--indigo" />
-        <span className="logo-dot logo-dot--purple" />
-      </div>
-    </div>
+    <img
+      src="/logo.svg"
+      alt="Skittles"
+      className={`logo ${small ? "logo--small" : ""}`}
+    />
   );
 }
 

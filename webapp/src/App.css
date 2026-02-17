@@ -22,71 +22,13 @@
 }
 
 .logo {
-  display: flex;
-  flex-direction: column;
-  width: fit-content;
-  gap: 2px;
+  display: block;
+  height: 36px;
+  width: auto;
 }
 
-.logo-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
-  font-weight: bold;
-  color: var(--text-primary);
-}
-
-.logo-dots {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.logo-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-}
-
-.logo-dot--red {
-  background-color: #EF4444;
-}
-
-.logo-dot--orange {
-  background-color: #F97316;
-}
-
-.logo-dot--yellow {
-  background-color: #F59E0B;
-}
-
-.logo-dot--green {
-  background-color: #22C55E;
-}
-
-.logo-dot--teal {
-  background-color: #14B8A6;
-}
-
-.logo-dot--cyan {
-  background-color: #22D3EE;
-}
-
-.logo-dot--indigo {
-  background-color: #6366F1;
-}
-
-.logo-dot--purple {
-  background-color: #A78BFA;
-}
-
-.logo--small .logo-text {
-  font-size: 18px;
-}
-
-.logo--small .logo-dot {
-  width: 6px;
-  height: 6px;
+.logo--small {
+  height: 32px;
 }
 
 
@@ -671,6 +613,7 @@
 .footer-brand {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 16px;
   max-width: 300px;
 }
