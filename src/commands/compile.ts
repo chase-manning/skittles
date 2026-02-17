@@ -4,7 +4,7 @@ import { compile } from "../compiler/compiler.ts";
 import { logSuccess, logError } from "../utils/console.ts";
 
 export async function compileCommand(projectRoot: string): Promise<void> {
-  const spinner = ora("Loading configuration...").start();
+  const spinner = ora({ text: "Loading configuration...", color: "cyan" }).start();
 
   try {
     const config = await loadConfig(projectRoot);

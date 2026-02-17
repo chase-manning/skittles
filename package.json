@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "chalk": "^4.0.0",
+    "figlet": "^1.10.0",
     "ora": "^5.0.0",
     "solc": "^0.8.33",
     "typescript": "^5.9.3",
@@ -75,6 +76,7 @@
     }
   },
   "devDependencies": {
+    "@types/figlet": "^1.7.0",
     "@types/node": "^25.2.3",
     "@types/yargs": "^17.0.35",
     "ethers": "^6.16.0",
