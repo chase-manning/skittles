@@ -17,15 +17,28 @@ function useNpmVersion() {
   return version;
 }
 
+function Logo({ small }: { small?: boolean }) {
+  return (
+    <div className={`logo ${small ? "logo--small" : ""}`}>
+      <span className="logo-text">skittles</span>
+      <div className="logo-dots">
+        <span className="logo-dot logo-dot--red" />
+        <span className="logo-dot logo-dot--orange" />
+        <span className="logo-dot logo-dot--yellow" />
+        <span className="logo-dot logo-dot--green" />
+        <span className="logo-dot logo-dot--teal" />
+        <span className="logo-dot logo-dot--cyan" />
+        <span className="logo-dot logo-dot--indigo" />
+        <span className="logo-dot logo-dot--purple" />
+      </div>
+    </div>
+  );
+}
+
 function Header() {
   return (
     <header className="header">
-      <div className="logo-wrap">
-        <div className="logo-icon">
-          <span className="logo-letter">S</span>
-        </div>
-        <span className="logo-text">skittles</span>
-      </div>
+      <Logo />
       <nav className="nav">
         <a href="#docs" className="nav-link">
           Docs
@@ -523,12 +536,7 @@ function Footer() {
     <footer className="footer">
       <div className="footer-top">
         <div className="footer-brand">
-          <div className="footer-logo-row">
-            <div className="footer-logo-icon">
-              <span className="footer-logo-letter">S</span>
-            </div>
-            <span className="footer-logo-name">skittles</span>
-          </div>
+          <Logo small />
           <p className="footer-tagline">
             TypeScript to Solidity compiler.
             <br />
