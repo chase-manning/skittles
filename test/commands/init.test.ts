@@ -51,6 +51,27 @@ describe("initCommand", () => {
     expect(JSON.parse(content).custom).toBe(true);
   });
 
+  it("should create tsconfig.json", async () => {
+    await initCommand(TEST_DIR);
+    const tsconfigPath = path.join(TEST_DIR, "tsconfig.json");
+    expect(fs.existsSync(tsconfigPath)).toBe(true);
+
+    const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
+    expect(tsconfig.compilerOptions.strict).toBe(true);
+    expect(tsconfig.compilerOptions.strictPropertyInitialization).toBe(false);
+    expect(tsconfig.compilerOptions.noUncheckedIndexedAccess).toBe(false);
+  });
+
+  it("should not overwrite existing tsconfig.json", async () => {
+    const tsconfigPath = path.join(TEST_DIR, "tsconfig.json");
+    fs.writeFileSync(tsconfigPath, '{"custom": true}');
+
+    await initCommand(TEST_DIR);
+
+    const content = fs.readFileSync(tsconfigPath, "utf-8");
+    expect(JSON.parse(content).custom).toBe(true);
+  });
+
   it("should create .gitignore if it does not exist", async () => {
     await initCommand(TEST_DIR);
     const gitignorePath = path.join(TEST_DIR, ".gitignore");
