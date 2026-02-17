@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { pathToFileURL } from "url";
 import type { SkittlesConfig } from "../types";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
@@ -36,7 +37,8 @@ export async function loadConfig(
         const raw = fs.readFileSync(configPath, "utf-8");
         userConfig = JSON.parse(raw);
       } else {
-        const configModule = await import(configPath);
+        const configUrl = pathToFileURL(configPath).href;
+        const configModule = await import(configUrl);
         userConfig = configModule.default || configModule;
       }
 
