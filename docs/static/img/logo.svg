@@ -1,7 +1,14 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="8" cy="8" r="4" fill="#EF4444"/>
-  <circle cx="24" cy="8" r="4" fill="#F97316"/>
-  <circle cx="8" cy="24" r="4" fill="#22C55E"/>
-  <circle cx="24" cy="24" r="4" fill="#22D3EE"/>
-  <circle cx="16" cy="16" r="4" fill="#6366F1"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 30" role="img" aria-label="Skittles logo">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700');
+  </style>
+  <text x="0" y="18" font-family="'JetBrains Mono', monospace" font-size="20" font-weight="bold" fill="#FFFFFF">skittles</text>
+  <circle cx="3.5" cy="26" r="3.5" fill="#EF4444"/>
+  <circle cx="16.21" cy="26" r="3.5" fill="#F97316"/>
+  <circle cx="28.93" cy="26" r="3.5" fill="#F59E0B"/>
+  <circle cx="41.64" cy="26" r="3.5" fill="#22C55E"/>
+  <circle cx="54.36" cy="26" r="3.5" fill="#14B8A6"/>
+  <circle cx="67.07" cy="26" r="3.5" fill="#22D3EE"/>
+  <circle cx="79.79" cy="26" r="3.5" fill="#6366F1"/>
+  <circle cx="92.5" cy="26" r="3.5" fill="#A78BFA"/>
 </svg>

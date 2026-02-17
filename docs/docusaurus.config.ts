@@ -56,7 +56,6 @@ const config: Config = {
       respectPrefersColorScheme: false,
     },
     navbar: {
-      title: "Skittles",
       logo: {
         alt: "Skittles Logo",
         src: "img/logo.svg",
