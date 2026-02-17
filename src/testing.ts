@@ -31,7 +31,7 @@ import { ethers } from "ethers";
 export interface TestEnv {
   /** JSON RPC provider connected to the in memory EVM. */
   provider: ethers.JsonRpcProvider;
-  /** Ten pre funded signer accounts. */
+  /** Ten pre-funded signer accounts. */
   accounts: ethers.Signer[];
   /** Shut down the in memory EVM. Call this in afterAll. */
   close: () => Promise<void>;
