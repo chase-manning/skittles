@@ -203,7 +203,7 @@ await expect(
 
 ## Advanced: Manual Lifecycle
 
-If you need more control (e.g., multiple environments in one file, or using a different test runner), you can use the lower level API directly:
+If you need more control (e.g., multiple environments in one file, or custom lifecycle timing), you can use the lower level API directly. Note that Vitest is still required since `skittles/testing` imports it at module load time:
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
