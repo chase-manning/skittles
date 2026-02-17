@@ -132,8 +132,9 @@ Returns a `SkittlesTestContext` with:
 | `deploy`     | `(name, args?, opts?) => Promise<Contract>`        | Deploy a compiled contract                 |
 | `connectAs`  | `(contract, signer) => Contract`                   | Connect as a different signer              |
 | `getBalance` | `(address) => Promise<bigint>`                     | Get ETH balance of an address              |
+| `emitted`    | `(tx, contract, eventName) => Promise<Result[]>`   | Extract parsed events from a transaction   |
 
-Access `accounts` and `provider` inside lifecycle hooks or test blocks (after `beforeAll` has run). Functions like `deploy`, `connectAs`, and `getBalance` can be called any time after `beforeAll`.
+Access `accounts` and `provider` inside lifecycle hooks or test blocks (after `beforeAll` has run). Functions like `deploy`, `connectAs`, `getBalance`, and `emitted` can be called any time after `beforeAll`.
 
 The `deploy` function automatically loads ABI and bytecode from the `build/` directory. Options:
 
@@ -178,23 +179,34 @@ await aliceVault.deposit({ value: ethers.parseEther("1") });
 
 ## Testing Events
 
-Parse events from transaction receipts using the contract interface:
+Use `env.emitted(tx, contract, eventName)` to extract parsed event arguments from a transaction. It returns an array of ethers `Result` objects, one per matching event log. Each result supports both named (`events[0].from`) and positional (`events[0][0]`) access:
 
 ```typescript
 const tx = await token.transfer(aliceAddr, 100n);
-const receipt = await tx.wait();
+const events = await env.emitted(tx, token, "Transfer");
 
-const iface = token.interface;
-const log = receipt.logs.find(
-  (l) => iface.parseLog(l)?.name === "Transfer"
-);
-
-expect(log).toBeTruthy();
-const parsed = iface.parseLog(log!);
-expect(parsed!.args[0]).toBe(ownerAddr);
-expect(parsed!.args[1]).toBe(aliceAddr);
-expect(parsed!.args[2]).toBe(100n);
+expect(events).toHaveLength(1);
+expect(events[0].from).toBe(ownerAddr);
+expect(events[0].to).toBe(aliceAddr);
+expect(events[0].value).toBe(100n);
 ```
+
+You can also assert that no event was emitted:
+
+```typescript
+const events = await env.emitted(tx, token, "Approval");
+expect(events).toHaveLength(0);
+```
+
+### `env.emitted(tx, contract, eventName)`
+
+| Parameter    | Type                            | Description                                     |
+| ------------ | ------------------------------- | ----------------------------------------------- |
+| `tx`         | `ContractTransactionResponse`   | The transaction returned by a contract call      |
+| `contract`   | `Contract`                      | The contract whose ABI defines the event         |
+| `eventName`  | `string`                        | The name of the event to search for              |
+
+Returns `Promise<Result[]>` where each `Result` is the parsed arguments of a matching event log. The result array is empty if no matching events were found.
 
 ## Testing Reverts
 

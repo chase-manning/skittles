@@ -71,6 +71,27 @@ class Token {
 }
 ```
 
+### Testing Emitted Events
+
+Use `env.emitted()` from `skittles/testing` to assert that events were emitted by a transaction. It returns an array of parsed event arguments with named property access:
+
+```typescript
+import { setup } from "skittles/testing";
+
+const env = setup();
+
+it("emits Transfer on transfer", async () => {
+  const tx = await token.transfer(aliceAddr, 100n);
+  const events = await env.emitted(tx, token, "Transfer");
+  expect(events).toHaveLength(1);
+  expect(events[0].from).toBe(ownerAddr);
+  expect(events[0].to).toBe(aliceAddr);
+  expect(events[0].value).toBe(100n);
+});
+```
+
+See the [Testing guide](/docs/guide/testing) for more details on the test environment.
+
 ## Custom Errors
 
 Custom errors provide gas efficient revert reasons. There are two ways to declare them.

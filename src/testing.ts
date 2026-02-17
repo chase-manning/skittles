@@ -193,3 +193,51 @@ export async function getBalance(
 ): Promise<bigint> {
   return env.provider.getBalance(address);
 }
+
+// ============================================================
+// Event helpers
+// ============================================================
+
+/**
+ * Extract parsed event arguments from a transaction receipt.
+ *
+ * Returns an array of ethers `Result` objects, one per matching event log.
+ * Each `Result` supports both positional (`args[0]`) and named
+ * (`args.from`) access.
+ *
+ * ```ts
+ * const events = await emitted(tx, token, "Transfer");
+ * expect(events).toHaveLength(1);
+ * expect(events[0].from).toBe(ownerAddr);
+ * expect(events[0].to).toBe(aliceAddr);
+ * expect(events[0].value).toBe(amount);
+ * ```
+ */
+export async function emitted(
+  tx: ethers.ContractTransactionResponse,
+  contract: ethers.Contract,
+  eventName: string
+): Promise<ethers.Result[]> {
+  const receipt = await tx.wait();
+  if (!receipt) {
+    throw new Error(
+      "Transaction receipt is null. The transaction may not have been mined."
+    );
+  }
+
+  const iface = contract.interface;
+  const results: ethers.Result[] = [];
+
+  for (const log of receipt.logs) {
+    try {
+      const parsed = iface.parseLog(log as unknown as { topics: string[]; data: string });
+      if (parsed && parsed.name === eventName) {
+        results.push(parsed.args);
+      }
+    } catch {
+      // Log doesn't match this contract's interface, skip
+    }
+  }
+
+  return results;
+}

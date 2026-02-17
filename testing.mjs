@@ -8,6 +8,7 @@ import {
   connectAs,
   getBalance as coreGetBalance,
   loadArtifact,
+  emitted,
 } from "./dist/testing.js";
 
 function createTestEnv() {
@@ -77,7 +78,8 @@ export function setup() {
     getBalance(address) {
       return coreGetBalance(requireEnv(), address);
     },
+    emitted,
   };
 }
 
-export { createTestEnv, coreDeploy as deploy, connectAs, coreGetBalance as getBalance, loadArtifact };
+export { createTestEnv, coreDeploy as deploy, connectAs, coreGetBalance as getBalance, loadArtifact, emitted };

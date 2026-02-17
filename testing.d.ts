@@ -38,6 +38,17 @@ export interface SkittlesTestContext {
   ): ethers.Contract;
   /** Get the ETH balance of an address. */
   getBalance(address: string): Promise<bigint>;
+  /**
+   * Extract parsed event arguments from a transaction.
+   * Returns an array of ethers `Result` objects, one per matching event log.
+   * Each Result supports both positional (`events[0][0]`) and named
+   * (`events[0].from`) access.
+   */
+  emitted(
+    tx: ethers.ContractTransactionResponse,
+    contract: ethers.Contract,
+    eventName: string
+  ): Promise<ethers.Result[]>;
 }
 
 /**
@@ -74,3 +85,13 @@ export function loadArtifact(
   contractName: string,
   buildDir?: string
 ): { abi: ethers.InterfaceAbi; bytecode: string };
+
+/**
+ * Extract parsed event arguments from a transaction.
+ * Returns an array of ethers `Result` objects, one per matching event log.
+ */
+export function emitted(
+  tx: ethers.ContractTransactionResponse,
+  contract: ethers.Contract,
+  eventName: string
+): Promise<ethers.Result[]>;

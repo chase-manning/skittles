@@ -46,16 +46,10 @@ describe("Staking", () => {
       const bobVault = env.connectAs(vault, env.accounts[2]);
       const depositAmount = ethers.parseEther("2");
       const tx = await bobVault.deposit({ value: depositAmount });
-      const receipt = await tx.wait();
-
-      const iface = vault.interface;
-      const log = receipt.logs.find(
-        (l: ethers.Log) => iface.parseLog(l)?.name === "Deposited"
-      );
-      expect(log).toBeTruthy();
-      const parsed = iface.parseLog(log!);
-      expect(parsed!.args[0]).toBe(bobAddr);
-      expect(parsed!.args[1]).toBe(depositAmount);
+      const events = await env.emitted(tx, vault, "Deposited");
+      expect(events).toHaveLength(1);
+      expect(events[0].account).toBe(bobAddr);
+      expect(events[0].amount).toBe(depositAmount);
     });
 
     it("should accept ETH via receive (plain transfer)", async () => {

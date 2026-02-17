@@ -52,16 +52,11 @@ describe("Token", () => {
     it("should emit a Transfer event", async () => {
       const amount = ethers.parseEther("50");
       const tx = await token.transfer(aliceAddr, amount);
-      const receipt = await tx.wait();
-      const iface = token.interface;
-      const log = receipt.logs.find(
-        (l: ethers.Log) => iface.parseLog(l)?.name === "Transfer"
-      );
-      expect(log).toBeTruthy();
-      const parsed = iface.parseLog(log!);
-      expect(parsed!.args[0]).toBe(ownerAddr);
-      expect(parsed!.args[1]).toBe(aliceAddr);
-      expect(parsed!.args[2]).toBe(amount);
+      const events = await env.emitted(tx, token, "Transfer");
+      expect(events).toHaveLength(1);
+      expect(events[0].from).toBe(ownerAddr);
+      expect(events[0].to).toBe(aliceAddr);
+      expect(events[0].value).toBe(amount);
     });
 
     it("should revert when transfer amount exceeds balance", async () => {
@@ -83,16 +78,11 @@ describe("Token", () => {
     it("should emit an Approval event", async () => {
       const amount = ethers.parseEther("300");
       const tx = await token.approve(aliceAddr, amount);
-      const receipt = await tx.wait();
-      const iface = token.interface;
-      const log = receipt.logs.find(
-        (l: ethers.Log) => iface.parseLog(l)?.name === "Approval"
-      );
-      expect(log).toBeTruthy();
-      const parsed = iface.parseLog(log!);
-      expect(parsed!.args[0]).toBe(ownerAddr);
-      expect(parsed!.args[1]).toBe(aliceAddr);
-      expect(parsed!.args[2]).toBe(amount);
+      const events = await env.emitted(tx, token, "Approval");
+      expect(events).toHaveLength(1);
+      expect(events[0].owner).toBe(ownerAddr);
+      expect(events[0].spender).toBe(aliceAddr);
+      expect(events[0].value).toBe(amount);
     });
 
     it("should allow transferFrom within allowance", async () => {
