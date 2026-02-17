@@ -1,7 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { initCommand } from "../../src/commands/init";
+
+vi.mock("child_process", () => ({
+  execSync: vi.fn(),
+}));
 
 const TEST_DIR = path.join(__dirname, "__test_tmp_init__");
 
@@ -70,6 +74,36 @@ describe("initCommand", () => {
 
     const content = fs.readFileSync(tsconfigPath, "utf-8");
     expect(JSON.parse(content).custom).toBe(true);
+  });
+
+  it("should create package.json with correct structure", async () => {
+    await initCommand(TEST_DIR);
+    const pkgPath = path.join(TEST_DIR, "package.json");
+    expect(fs.existsSync(pkgPath)).toBe(true);
+
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+    expect(pkg.type).toBe("module");
+    expect(pkg.dependencies.skittles).toBeDefined();
+    expect(pkg.devDependencies.vitest).toBeDefined();
+    expect(pkg.devDependencies.ethers).toBeDefined();
+    expect(pkg.devDependencies.hardhat).toBeDefined();
+    expect(pkg.scripts.test).toBe("skittles test");
+  });
+
+  it("should update existing package.json with missing deps", async () => {
+    const pkgPath = path.join(TEST_DIR, "package.json");
+    fs.writeFileSync(
+      pkgPath,
+      JSON.stringify({ name: "existing", version: "2.0.0" }, null, 2)
+    );
+
+    await initCommand(TEST_DIR);
+
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+    expect(pkg.name).toBe("existing");
+    expect(pkg.version).toBe("2.0.0");
+    expect(pkg.type).toBe("module");
+    expect(pkg.devDependencies.vitest).toBeDefined();
   });
 
   it("should create .gitignore if it does not exist", async () => {
