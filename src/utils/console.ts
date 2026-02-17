@@ -22,6 +22,8 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
+const RGB_COLORS = BRAND_COLORS.map(hexToRgb);
+
 function interpolateColor(
   c1: [number, number, number],
   c2: [number, number, number],
@@ -35,13 +37,12 @@ function interpolateColor(
 }
 
 function getGradientColor(position: number): string {
-  const rgbColors = BRAND_COLORS.map(hexToRgb);
-  const segment = position * (rgbColors.length - 1);
-  const index = Math.min(Math.floor(segment), rgbColors.length - 2);
+  const segment = position * (RGB_COLORS.length - 1);
+  const index = Math.min(Math.floor(segment), RGB_COLORS.length - 2);
   const t = segment - index;
   const [r, g, b] = interpolateColor(
-    rgbColors[index],
-    rgbColors[index + 1],
+    RGB_COLORS[index],
+    RGB_COLORS[index + 1],
     t
   );
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
