@@ -7,7 +7,6 @@
   "scripts": {
     "compile": "skittles compile",
     "clean": "skittles clean",
-    "typecheck": "tsc --noEmit",
     "test": "skittles test",
     "test:watch": "skittles test --watch"
   },
@@ -17,7 +16,6 @@
   "devDependencies": {
     "ethers": "^6.16.0",
     "hardhat": "^3.1.8",
-    "typescript": "^5.9.3",
     "vitest": "^2.0.0"
   },
   "engines": {

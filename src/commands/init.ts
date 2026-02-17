@@ -1,7 +1,8 @@
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import { writeFile, ensureDirectory } from "../utils/file.ts";
-import { logSuccess, logInfo, logWarning } from "../utils/console.ts";
+import { logSuccess, logError, logInfo, logWarning } from "../utils/console.ts";
 
 const CONFIG_TEMPLATE = JSON.stringify(
   {
@@ -138,8 +139,108 @@ describe("Token", () => {
 });
 `;
 
+/**
+ * Detect which package manager is in use based on lock files.
+ */
+function detectPackageManager(projectRoot: string): "npm" | "yarn" | "pnpm" {
+  if (fs.existsSync(path.join(projectRoot, "yarn.lock"))) return "yarn";
+  if (fs.existsSync(path.join(projectRoot, "pnpm-lock.yaml"))) return "pnpm";
+  return "npm";
+}
+
+/**
+ * Build a package.json template for a new Skittles project.
+ */
+function buildPackageJson(projectName: string): string {
+  return JSON.stringify(
+    {
+      name: projectName,
+      version: "1.0.0",
+      private: true,
+      type: "module",
+      scripts: {
+        compile: "skittles compile",
+        clean: "skittles clean",
+        test: "skittles test",
+        "test:watch": "skittles test --watch",
+      },
+      dependencies: {
+        skittles: "latest",
+      },
+      devDependencies: {
+        ethers: "^6.16.0",
+        hardhat: "^3.0.0",
+        vitest: "^2.0.0",
+      },
+      engines: {
+        node: ">=20.0.0",
+      },
+    },
+    null,
+    2
+  );
+}
+
 export async function initCommand(projectRoot: string): Promise<void> {
   logInfo("Initializing new Skittles project...");
+
+  const projectName = path.basename(projectRoot);
+
+  // Create package.json (or update existing)
+  const packageJsonPath = path.join(projectRoot, "package.json");
+  if (fs.existsSync(packageJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      let updated = false;
+      if (pkg.type !== "module") {
+        pkg.type = "module";
+        updated = true;
+      }
+      if (!pkg.devDependencies) pkg.devDependencies = {};
+      const requiredDevDeps: Record<string, string> = {
+        ethers: "^6.16.0",
+        hardhat: "^3.0.0",
+        vitest: "^2.0.0",
+      };
+      for (const [dep, version] of Object.entries(requiredDevDeps)) {
+        if (!pkg.devDependencies[dep] && !pkg.dependencies?.[dep]) {
+          pkg.devDependencies[dep] = version;
+          updated = true;
+        }
+      }
+      if (!pkg.dependencies) pkg.dependencies = {};
+      if (!pkg.dependencies.skittles) {
+        pkg.dependencies.skittles = "latest";
+        updated = true;
+      }
+      if (!pkg.scripts) pkg.scripts = {};
+      const defaultScripts: Record<string, string> = {
+        compile: "skittles compile",
+        clean: "skittles clean",
+        test: "skittles test",
+        "test:watch": "skittles test --watch",
+      };
+      for (const [name, cmd] of Object.entries(defaultScripts)) {
+        if (!pkg.scripts[name]) {
+          pkg.scripts[name] = cmd;
+          updated = true;
+        }
+      }
+      if (updated) {
+        writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
+        logSuccess("Updated package.json");
+      }
+    } catch {
+      logWarning(
+        "Could not update existing package.json, creating a new one"
+      );
+      writeFile(packageJsonPath, buildPackageJson(projectName) + "\n");
+      logSuccess("Created package.json");
+    }
+  } else {
+    writeFile(packageJsonPath, buildPackageJson(projectName) + "\n");
+    logSuccess("Created package.json");
+  }
 
   // Create contracts directory
   const contractsDir = path.join(projectRoot, "contracts");
@@ -205,21 +306,6 @@ export async function initCommand(projectRoot: string): Promise<void> {
     logSuccess("Created hardhat.config.ts");
   }
 
-  // Ensure package.json has "type": "module"
-  const packageJsonPath = path.join(projectRoot, "package.json");
-  if (fs.existsSync(packageJsonPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-      if (pkg.type !== "module") {
-        pkg.type = "module";
-        writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
-        logSuccess('Added "type": "module" to package.json');
-      }
-    } catch {
-      logWarning("Could not update package.json, please add '\"type\": \"module\"' manually");
-    }
-  }
-
   // Update .gitignore
   const gitignorePath = path.join(projectRoot, ".gitignore");
   const gitignoreEntries = ["build/", "dist/", "node_modules/"];
@@ -238,11 +324,25 @@ export async function initCommand(projectRoot: string): Promise<void> {
     logSuccess("Created .gitignore");
   }
 
+  // Install dependencies
+  const pm = detectPackageManager(projectRoot);
+  logInfo(`Installing dependencies with ${pm}...`);
+  try {
+    execSync(`${pm} install`, {
+      cwd: projectRoot,
+      stdio: "pipe",
+    });
+    logSuccess("Dependencies installed");
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Unknown error";
+    logError(`Failed to install dependencies: ${message}`);
+    logInfo(`  You can install manually by running: ${pm} install`);
+  }
+
   logSuccess("Skittles project initialized!");
   logInfo("");
   logInfo("Next steps:");
-  logInfo("  1. Install testing dependencies:");
-  logInfo("     npm install --save-dev ethers hardhat vitest");
-  logInfo("  2. Compile and test:");
+  logInfo("  Compile and test:");
   logInfo("     npx skittles test");
 }
