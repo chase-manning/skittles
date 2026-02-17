@@ -40,7 +40,7 @@ function Header() {
     <header className="header">
       <Logo />
       <nav className="nav">
-        <a href="#docs" className="nav-link">
+        <a href="https://docs.skittles.dev" className="nav-link">
           Docs
         </a>
         <a href="https://github.com/chase-manning/skittles" target="_blank" rel="noopener noreferrer" className="nav-link">
@@ -237,7 +237,7 @@ function Hero() {
         </p>
       </div>
       <div className="hero-actions">
-        <a href="#docs" className="btn-primary">
+        <a href="https://docs.skittles.dev" className="btn-primary">
           <span>Read the Docs</span>
           <span>&rarr;</span>
         </a>
@@ -529,7 +529,7 @@ function FinalCTA() {
         MIT licensed. Node.js 20+. Works with every EVM toolchain.
       </p>
       <div className="final-cta-actions">
-        <a href="#docs" className="btn-primary btn-primary--lg">
+        <a href="https://docs.skittles.dev" className="btn-primary btn-primary--lg">
           <span>Read the Docs</span>
           <span>&rarr;</span>
         </a>
@@ -557,7 +557,7 @@ function Footer() {
         <div className="footer-cols">
           <div className="footer-col">
             <span className="footer-col-title">PRODUCT</span>
-            <a href="#docs" className="footer-link">Documentation</a>
+            <a href="https://docs.skittles.dev" className="footer-link">Documentation</a>
             <a href="https://github.com/chase-manning/skittles/tree/main/example" target="_blank" rel="noopener noreferrer" className="footer-link">Examples</a>
             <a href="https://github.com/chase-manning/skittles/releases" target="_blank" rel="noopener noreferrer" className="footer-link">Changelog</a>
           </div>
