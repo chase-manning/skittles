@@ -12,7 +12,7 @@ function useNpmVersion() {
       .then((data) => {
         if (data.version) setVersion(data.version);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   return version;
 }
@@ -66,7 +66,7 @@ type Token = { text: string; type: "keyword" | "string" | "type" | "comment" | "
 function highlightTS(line: string): Token[] {
   const tokens: Token[] = [];
   const keywords = /\b(import|from|export|class|private|constructor|if|throw|new|return|this|const|let|var|function|extends|implements)\b/g;
-  const types = /\b(string|number|boolean|void|address|Record|Error|SkittlesEvent|Indexed)\b/g;
+  const types = /\b(string|number|boolean|void|address|Record|Error|Indexed)\b/g;
   const strings = /"[^"]*"|'[^']*'/g;
   const numbers = /\b\d+\b/g;
   const comments = /\/\/.*/g;
@@ -168,7 +168,7 @@ function SyntaxLine({ line, lang }: { line: string; lang: "ts" | "sol" }) {
 }
 
 const heroCode = [
-  'import { address, msg, SkittlesEvent } from "skittles";',
+  'import { address, msg } from "skittles";',
   "",
   "export class Token {",
   '  name: string = "MyToken";',
