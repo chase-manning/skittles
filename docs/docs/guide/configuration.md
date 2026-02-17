@@ -105,7 +105,8 @@ The `skittles init` command generates a `tsconfig.json` configured for contract 
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "lib": ["ES2022"],
     "strict": true,
     "strictPropertyInitialization": false,

@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
-import { loadConfig } from "../config/config";
-import { compile } from "../compiler/compiler";
-import { logSuccess, logError, logInfo } from "../utils/console";
+import { loadConfig } from "../config/config.ts";
+import { compile } from "../compiler/compiler.ts";
+import { logSuccess, logError, logInfo } from "../utils/console.ts";
 
 /**
  * The `skittles test` command.

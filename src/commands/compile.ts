@@ -1,7 +1,7 @@
 import ora from "ora";
-import { loadConfig } from "../config/config";
-import { compile } from "../compiler/compiler";
-import { logSuccess, logError } from "../utils/console";
+import { loadConfig } from "../config/config.ts";
+import { compile } from "../compiler/compiler.ts";
+import { logSuccess, logError } from "../utils/console.ts";
 
 export async function compileCommand(projectRoot: string): Promise<void> {
   const spinner = ora("Loading configuration...").start();

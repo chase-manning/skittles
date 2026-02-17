@@ -2,11 +2,11 @@
 
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { compileCommand } from "./commands/compile";
-import { cleanCommand } from "./commands/clean";
-import { initCommand } from "./commands/init";
-import { testCommand } from "./commands/test";
-import { printLogo } from "./utils/console";
+import { compileCommand } from "./commands/compile.ts";
+import { cleanCommand } from "./commands/clean.ts";
+import { initCommand } from "./commands/init.ts";
+import { testCommand } from "./commands/test.ts";
+import { printLogo } from "./utils/console.ts";
 
 printLogo();
 

@@ -6,13 +6,13 @@ import type {
   SkittlesContract,
   BuildArtifact,
   AbiItem,
-} from "../types";
-import { findTypeScriptFiles, readFile, writeFile } from "../utils/file";
-import { logInfo, logSuccess, logError, logWarning } from "../utils/console";
-import { parse, collectTypes, collectFunctions } from "./parser";
-import type { SkittlesParameter, SkittlesFunction, Expression } from "../types";
-import { generateSolidity, generateSolidityFile } from "./codegen";
-import { compileSolidityBatch } from "./solc";
+} from "../types/index.ts";
+import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
+import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
+import { parse, collectTypes, collectFunctions } from "./parser.ts";
+import type { SkittlesParameter, SkittlesFunction, Expression } from "../types/index.ts";
+import { generateSolidity, generateSolidityFile } from "./codegen.ts";
+import { compileSolidityBatch } from "./solc.ts";
 
 export interface CompilationResult {
   success: boolean;

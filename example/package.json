@@ -2,6 +2,7 @@
   "name": "skittles-example",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Example Skittles project: ERC20 Token + ETH Staking Vault",
   "scripts": {
     "compile": "skittles compile",

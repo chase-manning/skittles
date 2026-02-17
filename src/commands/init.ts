@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
-import { writeFile, ensureDirectory } from "../utils/file";
-import { logSuccess, logInfo, logWarning } from "../utils/console";
+import { writeFile, ensureDirectory } from "../utils/file.ts";
+import { logSuccess, logInfo, logWarning } from "../utils/console.ts";
 
 const CONFIG_TEMPLATE = JSON.stringify(
   {
@@ -21,7 +21,8 @@ const TSCONFIG_TEMPLATE = JSON.stringify(
   {
     compilerOptions: {
       target: "ES2022",
-      module: "commonjs",
+      module: "nodenext",
+      moduleResolution: "nodenext",
       lib: ["ES2022"],
       strict: true,
       strictPropertyInitialization: false,
@@ -202,6 +203,21 @@ export async function initCommand(projectRoot: string): Promise<void> {
   } else {
     writeFile(hardhatConfigPath, HARDHAT_CONFIG_TEMPLATE);
     logSuccess("Created hardhat.config.ts");
+  }
+
+  // Ensure package.json has "type": "module"
+  const packageJsonPath = path.join(projectRoot, "package.json");
+  if (fs.existsSync(packageJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
+      if (pkg.type !== "module") {
+        pkg.type = "module";
+        writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
+        logSuccess('Added "type": "module" to package.json');
+      }
+    } catch {
+      logWarning("Could not update package.json, please add '\"type\": \"module\"' manually");
+    }
   }
 
   // Update .gitignore

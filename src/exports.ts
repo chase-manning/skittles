@@ -4,10 +4,10 @@
  */
 
 // Config type (for skittles.config.json / skittles.config.js)
-export type { SkittlesConfig } from "./types";
+export type { SkittlesConfig } from "./types/index.ts";
 
 // Ethereum primitive types (for contract files)
-export type { address, bytes } from "./types";
+export type { address, bytes } from "./types/index.ts";
 
 /**
  * Event type for declaring Solidity events in Skittles contracts.
@@ -55,7 +55,7 @@ export type {
   SkittlesType,
   SkittlesTypeKind,
   BuildArtifact,
-} from "./types";
+} from "./types/index.ts";
 
 // Global objects for use in contract files.
 // These provide type information for IDE support.

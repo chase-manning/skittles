@@ -1,5 +1,5 @@
 import solc from "solc";
-import type { SkittlesConfig, AbiItem } from "../types";
+import type { SkittlesConfig, AbiItem } from "../types/index.ts";
 
 export interface SolcResult {
   abi: AbiItem[];

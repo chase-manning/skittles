@@ -13,7 +13,7 @@ import type {
   Expression,
   EmitStatement,
   SwitchCase,
-} from "../types";
+} from "../types/index.ts";
 
 // Module-level registries, populated during parse()
 let _knownStructs: Map<string, SkittlesParameter[]> = new Map();
