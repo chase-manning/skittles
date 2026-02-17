@@ -254,14 +254,16 @@ function PipelineStep({
   num,
   title,
   desc,
+  color,
 }: {
   num: string;
   title: string;
   desc: string;
+  color?: string;
 }) {
   return (
     <div className="pipeline-step">
-      <span className="step-num">{num}</span>
+      <span className="step-num" style={color ? { color } : undefined}>{num}</span>
       <h3 className="step-title">{title}</h3>
       <p className="step-desc">{desc}</p>
     </div>
@@ -283,18 +285,21 @@ function HowItWorks() {
           num="01"
           title="Parse"
           desc="TypeScript AST is parsed via the official compiler API. Classes become contracts, properties become state variables."
+          color="#22D3EE"
         />
         <span className="pipeline-arrow">&rarr;</span>
         <PipelineStep
           num="02"
           title="Generate"
           desc="The IR is converted to valid Solidity. Type mappings, control flow, and optimizations like if/throw → require() are applied."
+          color="#A78BFA"
         />
         <span className="pipeline-arrow">&rarr;</span>
         <PipelineStep
           num="03"
           title="Compile"
           desc="Generated Solidity is compiled via solc to produce ABI, bytecode, and inspectable .sol source files."
+          color="#22C55E"
         />
       </div>
     </section>
@@ -410,31 +415,37 @@ const featureCards = [
     icon: Zap,
     title: "Auto Mutability",
     desc: "Functions are automatically marked pure, view, or payable by analyzing what they read and write. No annotations needed.",
+    color: "#F59E0B",
   },
   {
     icon: Shuffle,
     title: "Type Mapping",
     desc: "number → uint256, Record → mapping, interface → struct. Your TypeScript types translate naturally to Solidity.",
+    color: "#F97316",
   },
   {
     icon: Code,
     title: "Full IDE Support",
     desc: "Autocomplete, type checking, go-to-definition, inline errors. Your editor already supports it because it's just TypeScript.",
+    color: "#22D3EE",
   },
   {
     icon: Shield,
     title: "Smart Optimizations",
     desc: "if/throw auto-converts to require(). private maps to internal for gas savings. The compiler does the work so you don't have to.",
+    color: "#22C55E",
   },
   {
     icon: Layers,
     title: "Standard Output",
     desc: "ABI + bytecode compatible with ethers.js, viem, Hardhat, Foundry, and every other tool in the EVM ecosystem.",
+    color: "#6366F1",
   },
   {
     icon: Timer,
     title: "Incremental Builds",
     desc: "SHA256-based file caching. Only changed files recompile. Shared type changes trigger dependent recompilation automatically.",
+    color: "#A78BFA",
   },
 ];
 
@@ -450,7 +461,7 @@ function Features() {
       <div className="features-grid">
         {featureCards.map((card) => (
           <div key={card.title} className="feature-card">
-            <card.icon className="feature-icon" size={28} />
+            <card.icon className="feature-icon" size={28} style={{ color: card.color }} />
             <h3 className="feature-title">{card.title}</h3>
             <p className="feature-desc">{card.desc}</p>
           </div>
