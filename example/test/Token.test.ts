@@ -1,27 +1,22 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { ethers } from "ethers";
-import { createTestEnv, deploy, connectAs, TestEnv } from "skittles/testing";
+import { setup } from "skittles/testing";
 
 const INITIAL_SUPPLY = ethers.parseEther("1000000");
 
 describe("Token", () => {
-  let env: TestEnv;
+  const env = setup();
   let token: ethers.Contract;
   let ownerAddr: string;
   let aliceAddr: string;
   let bobAddr: string;
 
   beforeAll(async () => {
-    env = await createTestEnv();
     ownerAddr = await env.accounts[0].getAddress();
     aliceAddr = await env.accounts[1].getAddress();
     bobAddr = await env.accounts[2].getAddress();
 
-    token = await deploy(env, "Token", [INITIAL_SUPPLY]);
-  });
-
-  afterAll(async () => {
-    await env.close();
+    token = await env.deploy("Token", [INITIAL_SUPPLY]);
   });
 
   describe("deployment", () => {
@@ -70,7 +65,7 @@ describe("Token", () => {
     });
 
     it("should revert when transfer amount exceeds balance", async () => {
-      const aliceToken = connectAs(token, env.accounts[1]);
+      const aliceToken = env.connectAs(token, env.accounts[1]);
       const tooMuch = ethers.parseEther("999999999");
       await expect(
         aliceToken.transfer(bobAddr, tooMuch)
@@ -105,7 +100,7 @@ describe("Token", () => {
       await token.approve(aliceAddr, allowance);
 
       const transferAmount = ethers.parseEther("500");
-      const aliceToken = connectAs(token, env.accounts[1]);
+      const aliceToken = env.connectAs(token, env.accounts[1]);
       await aliceToken.transferFrom(ownerAddr, bobAddr, transferAmount);
 
       expect(await token.balanceOf(bobAddr)).toBe(transferAmount);
@@ -115,7 +110,7 @@ describe("Token", () => {
     });
 
     it("should revert transferFrom when allowance is exceeded", async () => {
-      const aliceToken = connectAs(token, env.accounts[1]);
+      const aliceToken = env.connectAs(token, env.accounts[1]);
       const tooMuch = ethers.parseEther("999999999");
       await expect(
         aliceToken.transferFrom(ownerAddr, bobAddr, tooMuch)

@@ -1,12 +1,12 @@
 /**
- * skittles/testing
+ * skittles/testing (core)
  *
- * Built in testing utilities for Skittles projects.
+ * Lower level testing utilities for Skittles projects.
  * Provides helpers to spin up an in memory EVM, deploy compiled contracts,
  * and interact with them using ethers.js v6.
  *
- * Usage:
- *   import { createTestEnv, deploy, connectAs, getBalance } from "skittles/testing";
+ * Most users should import from "skittles/testing" which provides the
+ * higher level `setup()` function with automatic lifecycle management.
  *
  * Requirements (devDependencies in your project):
  *   - ethers ^6.0.0
@@ -64,9 +64,14 @@ const importModule = new Function(
  * beforeAll(async () => { env = await createTestEnv(); });
  * afterAll(async () => { await env.close(); });
  * ```
+ *
+ * @param dynamicImport Optional custom import function. The ESM wrapper
+ *   passes native import() here so it works inside vitest's runtime.
  */
-export async function createTestEnv(): Promise<TestEnv> {
-  const { network } = await importModule("hardhat");
+export async function createTestEnv(
+  dynamicImport: (specifier: string) => Promise<any> = importModule
+): Promise<TestEnv> {
+  const { network } = await dynamicImport("hardhat");
   const server = await network.createServer();
   const { address, port } = await server.listen();
 

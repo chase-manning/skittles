@@ -5,7 +5,7 @@ title: Testing
 
 # Testing
 
-Skittles ships built in testing utilities so you can test your contracts with zero boilerplate. The `skittles/testing` module provides everything you need: an in memory EVM, contract deployment, and account helpers.
+Skittles ships built in testing utilities so you can test your contracts with zero boilerplate. Call `setup()` from `skittles/testing` and you get an in memory EVM, pre funded accounts, and deploy/utility functions, all with automatic lifecycle management.
 
 ## Quick Setup
 
@@ -39,25 +39,20 @@ export default defineConfig({});
 
 ## Writing Tests
 
-Import the helpers from `skittles/testing` and write your tests with Vitest:
+Import `setup` from `skittles/testing` and call it inside a `describe` block. It automatically creates an in memory EVM before your tests run and shuts it down afterwards:
 
 ```typescript title="test/Token.test.ts"
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestEnv, deploy, connectAs, TestEnv } from "skittles/testing";
+import { describe, it, expect, beforeAll } from "vitest";
+import { setup } from "skittles/testing";
 
 const INITIAL_SUPPLY = 1_000_000n;
 
 describe("Token", () => {
-  let env: TestEnv;
+  const env = setup();
   let token: any;
 
   beforeAll(async () => {
-    env = await createTestEnv();
-    token = await deploy(env, "Token", [INITIAL_SUPPLY]);
-  });
-
-  afterAll(async () => {
-    await env.close();
+    token = await env.deploy("Token", [INITIAL_SUPPLY]);
   });
 
   it("has the correct name", async () => {
@@ -81,7 +76,7 @@ describe("Token", () => {
   it("reverts on insufficient balance", async () => {
     const [, alice, bob] = env.accounts;
     const bobAddr = await bob.getAddress();
-    const aliceToken = connectAs(token, alice);
+    const aliceToken = env.connectAs(token, alice);
 
     await expect(
       aliceToken.transfer(bobAddr, 999_999_999n)
@@ -90,7 +85,7 @@ describe("Token", () => {
 });
 ```
 
-That's it. No helpers file, no manual artifact loading, no EVM configuration.
+That's it. No helpers file, no manual EVM setup, no afterAll cleanup.
 
 ## Running Tests
 
@@ -119,57 +114,46 @@ Add these as scripts in your `package.json`:
 
 ## API Reference
 
-### `createTestEnv()`
+### `setup()`
 
-Creates a fresh in memory EVM backed by Hardhat's EDR runtime. Returns a `TestEnv` with:
+The recommended way to create a test environment. Call it inside a `describe` block and it automatically registers `beforeAll`/`afterAll` hooks to start and stop the in memory EVM.
 
-| Property   | Type                | Description                        |
-| ---------- | ------------------- | ---------------------------------- |
-| `provider` | `JsonRpcProvider`   | ethers.js JSON RPC provider        |
-| `accounts` | `Signer[]`          | Ten pre funded signer accounts     |
-| `close`    | `() => Promise`     | Shut down the in memory EVM        |
+Returns a `SkittlesTestContext` with:
 
-Call `createTestEnv()` in `beforeAll` and `env.close()` in `afterAll`.
+| Property     | Type                                              | Description                                |
+| ------------ | ------------------------------------------------- | ------------------------------------------ |
+| `accounts`   | `Signer[]`                                        | Ten pre funded signer accounts             |
+| `provider`   | `JsonRpcProvider`                                  | ethers.js JSON RPC provider                |
+| `deploy`     | `(name, args?, opts?) => Promise<Contract>`        | Deploy a compiled contract                 |
+| `connectAs`  | `(contract, signer) => Contract`                   | Connect as a different signer              |
+| `getBalance` | `(address) => Promise<bigint>`                     | Get ETH balance of an address              |
 
-### `deploy(env, contractName, constructorArgs?, options?)`
+Access `accounts` and `provider` inside lifecycle hooks or test blocks (after `beforeAll` has run). Functions like `deploy`, `connectAs`, and `getBalance` can be called any time after `beforeAll`.
 
-Deploys a compiled contract to the test EVM. Automatically loads the ABI and bytecode from the `build/` directory.
+The `deploy` function automatically loads ABI and bytecode from the `build/` directory. Options:
 
-| Parameter         | Type       | Description                              |
-| ----------------- | ---------- | ---------------------------------------- |
-| `env`             | `TestEnv`  | The test environment                     |
-| `contractName`    | `string`   | Name of the contract (matches filename)  |
-| `constructorArgs` | `any[]`    | Constructor arguments (default `[]`)     |
-| `options.buildDir`| `string`   | Override build directory                 |
-| `options.value`   | `bigint`   | ETH to send (payable constructors)       |
-| `options.from`    | `number`   | Account index to deploy from (default 0) |
+| Option       | Type       | Description                              |
+| ------------ | ---------- | ---------------------------------------- |
+| `buildDir`   | `string`   | Override build directory                 |
+| `value`      | `bigint`   | ETH to send (payable constructors)       |
+| `from`       | `number`   | Account index to deploy from (default 0) |
 
-Returns an `ethers.Contract` instance connected to the deployer.
-
-### `connectAs(contract, signer)`
+### `env.connectAs(contract, signer)`
 
 Returns a new contract instance connected to a different signer. Use this to test multi account scenarios:
 
 ```typescript
 const [, alice] = env.accounts;
-const aliceToken = connectAs(token, alice);
+const aliceToken = env.connectAs(token, alice);
 await aliceToken.transfer(bobAddr, 100n);
 ```
 
-### `getBalance(env, address)`
+### `env.getBalance(address)`
 
 Returns the ETH balance of an address as a `bigint`:
 
 ```typescript
-const balance = await getBalance(env, aliceAddr);
-```
-
-### `loadArtifact(contractName, buildDir?)`
-
-Loads a compiled contract's ABI and bytecode from disk. You typically don't need this directly since `deploy()` calls it internally, but it's available for advanced use cases:
-
-```typescript
-const { abi, bytecode } = loadArtifact("Token");
+const balance = await env.getBalance(aliceAddr);
 ```
 
 ## Testing Payable Functions
@@ -177,11 +161,13 @@ const { abi, bytecode } = loadArtifact("Token");
 Send ETH with deployment or function calls:
 
 ```typescript
-// Payable constructor
-const vault = await deploy(env, "Staking", [], { value: ethers.parseEther("1") });
+const env = setup();
+
+// Payable constructor (inside beforeAll)
+const vault = await env.deploy("Staking", [], { value: ethers.parseEther("1") });
 
 // Payable function
-const aliceVault = connectAs(vault, env.accounts[1]);
+const aliceVault = env.connectAs(vault, env.accounts[1]);
 await aliceVault.deposit({ value: ethers.parseEther("1") });
 ```
 
@@ -214,6 +200,35 @@ await expect(
   token.transfer(aliceAddr, 999_999_999n)
 ).rejects.toThrow();
 ```
+
+## Advanced: Manual Lifecycle
+
+If you need more control (e.g., multiple environments in one file, or using a different test runner), you can use the lower level API directly:
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { createTestEnv, deploy, connectAs, TestEnv } from "skittles/testing";
+
+describe("Token", () => {
+  let env: TestEnv;
+  let token: any;
+
+  beforeAll(async () => {
+    env = await createTestEnv();
+    token = await deploy(env, "Token", [1_000_000n]);
+  });
+
+  afterAll(async () => {
+    await env.close();
+  });
+
+  it("works", async () => {
+    expect(await token.name()).toBe("MyToken");
+  });
+});
+```
+
+The standalone `deploy(env, name, args, options)` and `getBalance(env, address)` functions take a `TestEnv` as the first argument instead of using the automatic context.
 
 ## Working Example
 

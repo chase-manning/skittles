@@ -85,22 +85,17 @@ export class Token {
 }
 `;
 
-const EXAMPLE_TEST = `import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestEnv, deploy, connectAs, TestEnv } from "skittles/testing";
+const EXAMPLE_TEST = `import { describe, it, expect, beforeAll } from "vitest";
+import { setup } from "skittles/testing";
 
 const INITIAL_SUPPLY = 1_000_000n;
 
 describe("Token", () => {
-  let env: TestEnv;
+  const env = setup();
   let token: any;
 
   beforeAll(async () => {
-    env = await createTestEnv();
-    token = await deploy(env, "Token", [INITIAL_SUPPLY]);
-  });
-
-  afterAll(async () => {
-    await env.close();
+    token = await env.deploy("Token", [INITIAL_SUPPLY]);
   });
 
   it("has the correct name", async () => {
@@ -128,7 +123,7 @@ describe("Token", () => {
   it("reverts on insufficient balance", async () => {
     const [, alice, bob] = env.accounts;
     const bobAddr = await bob.getAddress();
-    const aliceToken = connectAs(token, alice);
+    const aliceToken = env.connectAs(token, alice);
 
     await expect(
       aliceToken.transfer(bobAddr, 999_999_999n)

@@ -11,20 +11,20 @@
       "default": "./dist/exports.js"
     },
     "./testing": {
-      "types": "./dist/testing.d.ts",
-      "default": "./dist/testing.js"
+      "types": "./testing.d.ts",
+      "import": "./testing.mjs"
     }
   },
   "typesVersions": {
     "*": {
       "testing": [
-        "./dist/testing.d.ts"
+        "./testing.d.ts"
       ]
     }
   },
   "files": [
     "dist",
-    "testing.js",
+    "testing.mjs",
     "testing.d.ts"
   ],
   "scripts": {

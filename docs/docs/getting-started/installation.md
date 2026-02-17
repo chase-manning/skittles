@@ -73,8 +73,9 @@ The `skittles/testing` subpath provides testing utilities:
 
 | Export                             | Purpose                                                    |
 | ---------------------------------- | ---------------------------------------------------------- |
-| `createTestEnv()`                  | Create an in memory Hardhat EVM for testing                |
-| `deploy(env, name, args?)`         | Deploy a compiled contract to the test EVM                 |
+| `setup()`                          | Create a test environment with automatic lifecycle         |
+| `createTestEnv()`                  | Create an in memory Hardhat EVM (advanced/manual)          |
+| `deploy(env, name, args?, opts?)`  | Deploy a compiled contract to the test EVM                 |
 | `connectAs(contract, signer)`      | Connect to a contract from a different account             |
 | `getBalance(env, address)`         | Get the ETH balance of an address                          |
 | `loadArtifact(name)`               | Load ABI and bytecode from the build directory             |
