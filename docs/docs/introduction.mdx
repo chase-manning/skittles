@@ -1,0 +1,97 @@
+---
+slug: /
+sidebar_position: 1
+title: Introduction
+---
+
+# Skittles
+
+**Write smart contracts in TypeScript. Compile to Solidity, ABI, and EVM bytecode.**
+
+<img
+  src="https://skittles.dev/banner.png"
+  alt="Skittles"
+  style={{ width: "100%", borderRadius: "12px", marginBottom: "2rem" }}
+/>
+
+Skittles is a TypeScript to Solidity compiler. You write EVM smart contracts as TypeScript classes using syntax you already know, and Skittles compiles them into clean, auditable Solidity source code, ABI, and EVM bytecode.
+
+```typescript title="contracts/Token.ts"
+import { address, msg, SkittlesEvent, Indexed } from "skittles";
+
+export class Token {
+  Transfer: SkittlesEvent<{
+    from: Indexed<address>;
+    to: Indexed<address>;
+    value: number;
+  }>;
+
+  name: string = "My Token";
+  symbol: string = "TKN";
+  totalSupply: number = 0;
+  balances: Record<address, number> = {};
+
+  constructor(initialSupply: number) {
+    this.totalSupply = initialSupply;
+    this.balances[msg.sender] = initialSupply;
+  }
+
+  transfer(to: address, amount: number): boolean {
+    if (this.balances[msg.sender] < amount) {
+      throw new Error("Insufficient balance");
+    }
+    this.balances[msg.sender] -= amount;
+    this.balances[to] += amount;
+    this.Transfer.emit({ from: msg.sender, to, value: amount });
+    return true;
+  }
+}
+```
+
+This compiles to a Solidity contract with events, mappings, a constructor, and a transfer function, all with correct state mutability, visibility, and memory annotations.
+
+## How It Works
+
+Skittles takes your TypeScript classes through a three stage pipeline:
+
+1. **Parse** — The TypeScript AST is parsed using the official TypeScript compiler API. Classes become contracts, properties become state variables, methods become functions.
+
+2. **Generate** — The intermediate representation is converted to valid Solidity. Type mappings, visibility, state mutability inference, and optimizations like `if/throw` to `require()` are applied automatically.
+
+3. **Compile** — The generated Solidity is compiled via `solc` to produce ABI JSON, EVM bytecode, and inspectable `.sol` source files.
+
+```
+TypeScript (.ts) → Parser → IR → Codegen → Solidity (.sol) → solc → ABI + Bytecode
+```
+
+## Features
+
+- **Types** that map to Solidity: `number` → `uint256`, `string`, `boolean` → `bool`, `address`, `bytes`, `Record<K,V>` → `mapping`, `T[]` → arrays, interfaces → structs, enums
+- **State variables** with visibility (`public`, `private`), `readonly` for immutable, `static readonly` for constant
+- **Functions** with automatic state mutability inference (`pure`, `view`, `payable`), `virtual`/`override`, getters/setters, `receive()`, and `fallback()`
+- **Events** via `SkittlesEvent<T>` with `Indexed<T>` parameter support
+- **Custom errors** via `SkittlesError<T>` or `class extends Error`
+- **Inheritance** with `extends` and `super`
+- **Control flow**: `if`/`else`, `for`, `while`, `do`/`while`, `for...of`, `switch`/`case`, ternary
+- **EVM globals**: `msg.sender`, `msg.value`, `block.timestamp`, `block.number`, `tx.origin`, and more
+- **Built in functions**: `keccak256()`, `sha256()`, `ecrecover()`, `abi.encode()`, `abi.encodePacked()`
+- **Cross file support**: shared structs, enums, constants, and functions across contract files
+- **Incremental compilation**: SHA256 based file caching, only recompiles what changed
+
+## Build Output
+
+```
+build/
+  abi/          # Contract ABIs (JSON)
+  bytecode/     # EVM bytecode (.bin)
+  solidity/     # Generated Solidity source (.sol)
+```
+
+The output is standard Solidity tooling compatible. Use the ABI and bytecode with ethers.js, viem, Hardhat, Foundry, or any other EVM tool.
+
+## Next Steps
+
+- [Installation](/getting-started/installation) to get Skittles set up
+- [Quick Start](/getting-started/quick-start) to compile your first contract
+- [Type System](/guide/types) to understand how TypeScript types map to Solidity
+- [Examples](/examples/erc20-token) to see real contracts
