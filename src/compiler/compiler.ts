@@ -12,7 +12,7 @@ import { logInfo, logSuccess, logError, logWarning } from "../utils/console";
 import { parse, collectTypes, collectFunctions } from "./parser";
 import type { SkittlesParameter, SkittlesFunction, Expression } from "../types";
 import { generateSolidity, generateSolidityFile } from "./codegen";
-import { compileSolidity } from "./solc";
+import { compileSolidityBatch } from "./solc";
 
 export interface CompilationResult {
   success: boolean;
@@ -182,49 +182,56 @@ export async function compile(
 
       const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [] };
 
-      for (const contract of contracts) {
-        // Step 4: Compile Solidity via solc
-        const compiled = compileSolidity(contract.name, solidity, config);
+      // Step 4: Compile Solidity via solc (once per file, not per contract)
+      const contractNames = contracts.map((c) => c.name);
+      const compiled = compileSolidityBatch(solidity, contractNames, config);
 
-        for (const warning of compiled.warnings) {
-          logWarning(warning);
+      for (const warning of compiled.warnings) {
+        logWarning(warning);
+      }
+
+      if (compiled.errors.length > 0) {
+        errors.push(...compiled.errors);
+      } else {
+        for (const contract of contracts) {
+          const result = compiled.contracts[contract.name];
+
+          if (!result) {
+            errors.push(`No output found for contract ${contract.name}`);
+            continue;
+          }
+
+          const artifact: BuildArtifact = {
+            contractName: contract.name,
+            abi: result.abi,
+            bytecode: result.bytecode,
+            solidity,
+          };
+          artifacts.push(artifact);
+
+          cacheEntry.contracts.push({
+            name: contract.name,
+            abi: result.abi,
+            bytecode: result.bytecode,
+            solidity,
+          });
+
+          // Step 5: Write artifacts
+          writeFile(
+            path.join(outputDir, "abi", `${contract.name}.json`),
+            JSON.stringify(result.abi, null, 2)
+          );
+          writeFile(
+            path.join(outputDir, "bytecode", `${contract.name}.bin`),
+            result.bytecode
+          );
+          writeFile(
+            path.join(outputDir, "solidity", `${contract.name}.sol`),
+            solidity
+          );
+
+          logSuccess(`${contract.name} compiled successfully`);
         }
-
-        if (compiled.errors.length > 0) {
-          errors.push(...compiled.errors);
-          continue;
-        }
-
-        const artifact: BuildArtifact = {
-          contractName: contract.name,
-          abi: compiled.abi,
-          bytecode: compiled.bytecode,
-          solidity,
-        };
-        artifacts.push(artifact);
-
-        cacheEntry.contracts.push({
-          name: contract.name,
-          abi: compiled.abi,
-          bytecode: compiled.bytecode,
-          solidity,
-        });
-
-        // Step 5: Write artifacts
-        writeFile(
-          path.join(outputDir, "abi", `${contract.name}.json`),
-          JSON.stringify(compiled.abi, null, 2)
-        );
-        writeFile(
-          path.join(outputDir, "bytecode", `${contract.name}.bin`),
-          compiled.bytecode
-        );
-        writeFile(
-          path.join(outputDir, "solidity", `${contract.name}.sol`),
-          solidity
-        );
-
-        logSuccess(`${contract.name} compiled successfully`);
       }
 
       newCache.files[relativePath] = cacheEntry;

@@ -54,7 +54,7 @@ describe("incremental compilation cache", () => {
     expect(result1.artifacts).toHaveLength(1);
     expect(result1.artifacts[0].contractName).toBe("Counter");
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -82,7 +82,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(1);
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     writeContract(projectRoot, "Counter.ts", `
       class Counter {
@@ -114,7 +114,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(1);
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     writeContract(projectRoot, "Token.ts", `
       class Token {
@@ -128,7 +128,7 @@ describe("incremental compilation cache", () => {
 
     expect(spy).toHaveBeenCalled();
 
-    const counterCalls = spy.mock.calls.filter((c) => c[0] === "Counter");
+    const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
     expect(counterCalls.length).toBeGreaterThan(0);
   });
 
@@ -152,7 +152,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(2);
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     writeContract(projectRoot, "Token.ts", `
       class Token {
@@ -164,8 +164,8 @@ describe("incremental compilation cache", () => {
     expect(result2.success).toBe(true);
     expect(result2.artifacts).toHaveLength(2);
 
-    const counterCalls = spy.mock.calls.filter((c) => c[0] === "Counter");
-    const tokenCalls = spy.mock.calls.filter((c) => c[0] === "Token");
+    const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
+    const tokenCalls = spy.mock.calls.filter((c) => c[1].includes("Token"));
     expect(counterCalls.length).toBeGreaterThan(0);
     expect(tokenCalls.length).toBeGreaterThan(0);
   });
@@ -226,7 +226,7 @@ describe("incremental compilation cache", () => {
     const cachePath = path.join(projectRoot, "build", ".skittles-cache.json");
     fs.writeFileSync(cachePath, "NOT VALID JSON {{{", "utf-8");
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     const result = await compile(projectRoot, defaultConfig);
     expect(result.success).toBe(true);
@@ -242,7 +242,7 @@ describe("incremental compilation cache", () => {
       }
     `);
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     const result = await compile(projectRoot, defaultConfig);
     expect(result.success).toBe(true);
@@ -270,7 +270,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts.length).toBeGreaterThanOrEqual(1);
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -301,7 +301,7 @@ describe("incremental compilation cache", () => {
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
 
-    const spy = vi.spyOn(solcModule, "compileSolidity");
+    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
 
     writeContract(projectRoot, "types.ts", `
       interface Point {
@@ -316,7 +316,7 @@ describe("incremental compilation cache", () => {
 
     expect(spy).toHaveBeenCalled();
 
-    const geometryCalls = spy.mock.calls.filter((c) => c[0] === "Geometry");
+    const geometryCalls = spy.mock.calls.filter((c) => c[1].includes("Geometry"));
     expect(geometryCalls.length).toBeGreaterThan(0);
   });
 });
