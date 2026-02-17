@@ -5,7 +5,7 @@ title: Testing
 
 # Testing
 
-Skittles ships built in testing utilities so you can test your contracts with zero boilerplate. Call `setup()` from `skittles/testing` and you get an in memory EVM, pre funded accounts, and deploy/utility functions, all with automatic lifecycle management.
+Skittles ships built in testing utilities so you can test your contracts with zero boilerplate. Call `setup()` from `skittles/testing` and you get an in memory EVM, pre-funded accounts, and deploy/utility functions, all with automatic lifecycle management.
 
 ## Quick Setup
 
@@ -122,7 +122,7 @@ Returns a `SkittlesTestContext` with:
 
 | Property     | Type                                              | Description                                |
 | ------------ | ------------------------------------------------- | ------------------------------------------ |
-| `accounts`   | `Signer[]`                                        | Ten pre funded signer accounts             |
+| `accounts`   | `Signer[]`                                        | Ten pre-funded signer accounts             |
 | `provider`   | `JsonRpcProvider`                                  | ethers.js JSON RPC provider                |
 | `deploy`     | `(name, args?, opts?) => Promise<Contract>`        | Deploy a compiled contract                 |
 | `connectAs`  | `(contract, signer) => Contract`                   | Connect as a different signer              |
