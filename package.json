@@ -10,23 +10,10 @@
     ".": {
       "types": "./dist/exports.d.ts",
       "default": "./dist/exports.js"
-    },
-    "./testing": {
-      "types": "./testing.d.ts",
-      "import": "./testing.mjs"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "testing": [
-        "./testing.d.ts"
-      ]
     }
   },
   "files": [
-    "dist",
-    "testing.mjs",
-    "testing.d.ts"
+    "dist"
   ],
   "scripts": {
     "build": "tsc",
@@ -61,17 +48,13 @@
   },
   "peerDependencies": {
     "ethers": "^6.0.0",
-    "hardhat": "^3.0.0",
-    "vitest": "^2.0.0"
+    "hardhat": "^3.0.0"
   },
   "peerDependenciesMeta": {
     "ethers": {
       "optional": true
     },
     "hardhat": {
-      "optional": true
-    },
-    "vitest": {
       "optional": true
     }
   },

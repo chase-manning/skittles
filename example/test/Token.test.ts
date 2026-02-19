@@ -1,120 +1,114 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { ethers } from "ethers";
-import { setup } from "skittles/testing";
+import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-ethers-chai-matchers";
+import "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
+import hre from "hardhat";
 
+const { ethers, networkHelpers } = await hre.network.connect();
 const INITIAL_SUPPLY = ethers.parseEther("1000000");
 
-describe("Token", () => {
-  const env = setup();
-  let token: ethers.Contract;
-  let ownerAddr: string;
-  let aliceAddr: string;
-  let bobAddr: string;
+describe("Token", function () {
+  async function deployTokenFixture() {
+    const token = await ethers.deployContract("Token", [INITIAL_SUPPLY]);
+    const [owner, alice, bob] = await ethers.getSigners();
+    const addr = await token.getAddress();
+    const tokenAsAlice = await ethers.getContractAt("Token", addr, alice);
+    const tokenAsBob = await ethers.getContractAt("Token", addr, bob);
+    return { token, tokenAsAlice, tokenAsBob, owner, alice, bob };
+  }
 
-  beforeAll(async () => {
-    ownerAddr = await env.accounts[0].getAddress();
-    aliceAddr = await env.accounts[1].getAddress();
-    bobAddr = await env.accounts[2].getAddress();
+  describe("deployment", function () {
+    it("should set the token name", async function () {
+      const { token } = await networkHelpers.loadFixture(deployTokenFixture);
+      expect(await token.name()).to.equal("Skittles Token");
+    });
 
-    token = await env.deploy("Token", [INITIAL_SUPPLY]);
+    it("should set the token symbol", async function () {
+      const { token } = await networkHelpers.loadFixture(deployTokenFixture);
+      expect(await token.symbol()).to.equal("SKT");
+    });
+
+    it("should set 18 decimals", async function () {
+      const { token } = await networkHelpers.loadFixture(deployTokenFixture);
+      expect(await token.decimals()).to.equal(18n);
+    });
+
+    it("should mint the initial supply to the deployer", async function () {
+      const { token, owner } = await networkHelpers.loadFixture(deployTokenFixture);
+      expect(await token.totalSupply()).to.equal(INITIAL_SUPPLY);
+      expect(await token.balanceOf(owner.address)).to.equal(INITIAL_SUPPLY);
+    });
   });
 
-  describe("deployment", () => {
-    it("should set the token name", async () => {
-      expect(await token.name()).toBe("Skittles Token");
-    });
-
-    it("should set the token symbol", async () => {
-      expect(await token.symbol()).toBe("SKT");
-    });
-
-    it("should set 18 decimals", async () => {
-      expect(await token.decimals()).toBe(18n);
-    });
-
-    it("should mint the initial supply to the deployer", async () => {
-      expect(await token.totalSupply()).toBe(INITIAL_SUPPLY);
-      expect(await token.balanceOf(ownerAddr)).toBe(INITIAL_SUPPLY);
-    });
-  });
-
-  describe("transfer", () => {
-    it("should transfer tokens between accounts", async () => {
+  describe("transfer", function () {
+    it("should transfer tokens between accounts", async function () {
+      const { token, owner, alice } = await networkHelpers.loadFixture(deployTokenFixture);
       const amount = ethers.parseEther("100");
-      await token.transfer(aliceAddr, amount);
 
-      expect(await token.balanceOf(aliceAddr)).toBe(amount);
-      expect(await token.balanceOf(ownerAddr)).toBe(
-        INITIAL_SUPPLY - amount
-      );
+      await token.transfer(alice.address, amount);
+
+      expect(await token.balanceOf(alice.address)).to.equal(amount);
+      expect(await token.balanceOf(owner.address)).to.equal(INITIAL_SUPPLY - amount);
     });
 
-    it("should emit a Transfer event", async () => {
+    it("should emit a Transfer event", async function () {
+      const { token, owner, alice } = await networkHelpers.loadFixture(deployTokenFixture);
       const amount = ethers.parseEther("50");
-      const tx = await token.transfer(aliceAddr, amount);
-      const receipt = await tx.wait();
-      const iface = token.interface;
-      const log = receipt.logs.find(
-        (l: ethers.Log) => iface.parseLog(l)?.name === "Transfer"
-      );
-      expect(log).toBeTruthy();
-      const parsed = iface.parseLog(log!);
-      expect(parsed!.args[0]).toBe(ownerAddr);
-      expect(parsed!.args[1]).toBe(aliceAddr);
-      expect(parsed!.args[2]).toBe(amount);
+
+      await expect(token.transfer(alice.address, amount))
+        .to.emit(token, "Transfer")
+        .withArgs(owner.address, alice.address, amount);
     });
 
-    it("should revert when transfer amount exceeds balance", async () => {
-      const aliceToken = env.connectAs(token, env.accounts[1]);
+    it("should revert when transfer amount exceeds balance", async function () {
+      const { token, tokenAsAlice, bob } = await networkHelpers.loadFixture(deployTokenFixture);
       const tooMuch = ethers.parseEther("999999999");
+
       await expect(
-        aliceToken.transfer(bobAddr, tooMuch)
-      ).rejects.toThrow();
+        tokenAsAlice.transfer(bob.address, tooMuch)
+      ).to.be.revertedWithCustomError(token, "InsufficientBalance");
     });
   });
 
-  describe("approve and transferFrom", () => {
-    it("should set allowance", async () => {
+  describe("approve and transferFrom", function () {
+    it("should set allowance", async function () {
+      const { token, owner, alice } = await networkHelpers.loadFixture(deployTokenFixture);
       const amount = ethers.parseEther("200");
-      await token.approve(aliceAddr, amount);
-      expect(await token.allowance(ownerAddr, aliceAddr)).toBe(amount);
+
+      await token.approve(alice.address, amount);
+      expect(await token.allowance(owner.address, alice.address)).to.equal(amount);
     });
 
-    it("should emit an Approval event", async () => {
+    it("should emit an Approval event", async function () {
+      const { token, owner, alice } = await networkHelpers.loadFixture(deployTokenFixture);
       const amount = ethers.parseEther("300");
-      const tx = await token.approve(aliceAddr, amount);
-      const receipt = await tx.wait();
-      const iface = token.interface;
-      const log = receipt.logs.find(
-        (l: ethers.Log) => iface.parseLog(l)?.name === "Approval"
-      );
-      expect(log).toBeTruthy();
-      const parsed = iface.parseLog(log!);
-      expect(parsed!.args[0]).toBe(ownerAddr);
-      expect(parsed!.args[1]).toBe(aliceAddr);
-      expect(parsed!.args[2]).toBe(amount);
+
+      await expect(token.approve(alice.address, amount))
+        .to.emit(token, "Approval")
+        .withArgs(owner.address, alice.address, amount);
     });
 
-    it("should allow transferFrom within allowance", async () => {
+    it("should allow transferFrom within allowance", async function () {
+      const { token, tokenAsAlice, owner, alice, bob } = await networkHelpers.loadFixture(deployTokenFixture);
       const allowance = ethers.parseEther("1000");
-      await token.approve(aliceAddr, allowance);
+      await token.approve(alice.address, allowance);
 
       const transferAmount = ethers.parseEther("500");
-      const aliceToken = env.connectAs(token, env.accounts[1]);
-      await aliceToken.transferFrom(ownerAddr, bobAddr, transferAmount);
+      await tokenAsAlice.transferFrom(owner.address, bob.address, transferAmount);
 
-      expect(await token.balanceOf(bobAddr)).toBe(transferAmount);
-      expect(await token.allowance(ownerAddr, aliceAddr)).toBe(
+      expect(await token.balanceOf(bob.address)).to.equal(transferAmount);
+      expect(await token.allowance(owner.address, alice.address)).to.equal(
         allowance - transferAmount
       );
     });
 
-    it("should revert transferFrom when allowance is exceeded", async () => {
-      const aliceToken = env.connectAs(token, env.accounts[1]);
+    it("should revert transferFrom when allowance is exceeded", async function () {
+      const { token, tokenAsAlice, owner, bob } = await networkHelpers.loadFixture(deployTokenFixture);
       const tooMuch = ethers.parseEther("999999999");
+
       await expect(
-        aliceToken.transferFrom(ownerAddr, bobAddr, tooMuch)
-      ).rejects.toThrow();
+        tokenAsAlice.transferFrom(owner.address, bob.address, tooMuch)
+      ).to.be.revertedWithCustomError(token, "InsufficientAllowance");
     });
   });
 });

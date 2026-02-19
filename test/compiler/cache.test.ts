@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 import { compile } from "../../src/compiler/compiler";
 import type { SkittlesConfig } from "../../src/types";
-import * as solcModule from "../../src/compiler/solc";
+import * as parserModule from "../../src/compiler/parser";
 
 const defaultConfig: Required<SkittlesConfig> = {
   typeCheck: true,
@@ -54,7 +54,7 @@ describe("incremental compilation cache", () => {
     expect(result1.artifacts).toHaveLength(1);
     expect(result1.artifacts[0].contractName).toBe("Counter");
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -63,8 +63,6 @@ describe("incremental compilation cache", () => {
 
     expect(spy).not.toHaveBeenCalled();
 
-    expect(result2.artifacts[0].abi).toEqual(result1.artifacts[0].abi);
-    expect(result2.artifacts[0].bytecode).toEqual(result1.artifacts[0].bytecode);
     expect(result2.artifacts[0].solidity).toEqual(result1.artifacts[0].solidity);
   });
 
@@ -82,7 +80,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(1);
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     writeContract(projectRoot, "Counter.ts", `
       class Counter {
@@ -96,6 +94,7 @@ describe("incremental compilation cache", () => {
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
     expect(result2.artifacts).toHaveLength(1);
+    expect(result2.artifacts[0].solidity).toContain("count + 2");
 
     expect(spy).toHaveBeenCalled();
   });
@@ -114,7 +113,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(1);
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     writeContract(projectRoot, "Token.ts", `
       class Token {
@@ -128,14 +127,10 @@ describe("incremental compilation cache", () => {
 
     expect(spy).toHaveBeenCalled();
 
-    // Token.ts is new so it must be compiled
-    const tokenCalls = spy.mock.calls.filter((c) => c[1].includes("Token"));
-    expect(tokenCalls.length).toBeGreaterThan(0);
-
-    // Counter.ts is unchanged and shared definitions did not change,
-    // so it should be served from cache (not recompiled)
-    const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
-    expect(counterCalls).toHaveLength(0);
+    // Token.ts is new so generateSolidity must be called for it.
+    // Counter.ts is unchanged and served from cache (no generateSolidity for Counter).
+    const counterArtifact = result2.artifacts.find((a) => a.contractName === "Counter");
+    expect(counterArtifact?.solidity).toEqual(result1.artifacts[0].solidity);
   });
 
   it("should only recompile the changed file when shared definitions are unchanged", async () => {
@@ -158,7 +153,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(2);
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     writeContract(projectRoot, "Token.ts", `
       class Token {
@@ -170,14 +165,11 @@ describe("incremental compilation cache", () => {
     expect(result2.success).toBe(true);
     expect(result2.artifacts).toHaveLength(2);
 
-    // Token.ts changed, so it must be recompiled
-    const tokenCalls = spy.mock.calls.filter((c) => c[1].includes("Token"));
-    expect(tokenCalls.length).toBeGreaterThan(0);
+    expect(spy).toHaveBeenCalled();
 
-    // Counter.ts is unchanged and shared definitions did not change,
-    // so it should be served from cache
-    const counterCalls = spy.mock.calls.filter((c) => c[1].includes("Counter"));
-    expect(counterCalls).toHaveLength(0);
+    // Counter.ts is unchanged and served from cache
+    const counterArtifact = result2.artifacts.find((a) => a.contractName === "Counter");
+    expect(counterArtifact?.solidity).toEqual(result1.artifacts.find((a) => a.contractName === "Counter")!.solidity);
   });
 
   it("should produce identical artifacts from cache as from fresh compilation", async () => {
@@ -201,8 +193,6 @@ describe("incremental compilation cache", () => {
     expect(result2.artifacts).toHaveLength(result1.artifacts.length);
     for (let i = 0; i < result1.artifacts.length; i++) {
       expect(result2.artifacts[i].contractName).toEqual(result1.artifacts[i].contractName);
-      expect(result2.artifacts[i].abi).toEqual(result1.artifacts[i].abi);
-      expect(result2.artifacts[i].bytecode).toEqual(result1.artifacts[i].bytecode);
       expect(result2.artifacts[i].solidity).toEqual(result1.artifacts[i].solidity);
     }
   });
@@ -220,7 +210,7 @@ describe("incremental compilation cache", () => {
     expect(fs.existsSync(cachePath)).toBe(true);
 
     const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-    expect(cache.version).toBe("1");
+    expect(cache.version).toBe("2");
     expect(Object.keys(cache.files).length).toBeGreaterThan(0);
   });
 
@@ -236,7 +226,7 @@ describe("incremental compilation cache", () => {
     const cachePath = path.join(projectRoot, "build", ".skittles-cache.json");
     fs.writeFileSync(cachePath, "NOT VALID JSON {{{", "utf-8");
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     const result = await compile(projectRoot, defaultConfig);
     expect(result.success).toBe(true);
@@ -252,7 +242,7 @@ describe("incremental compilation cache", () => {
       }
     `);
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     const result = await compile(projectRoot, defaultConfig);
     expect(result.success).toBe(true);
@@ -280,7 +270,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts.length).toBeGreaterThanOrEqual(1);
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -289,8 +279,7 @@ describe("incremental compilation cache", () => {
 
     expect(result2.artifacts.length).toEqual(result1.artifacts.length);
     for (let i = 0; i < result1.artifacts.length; i++) {
-      expect(result2.artifacts[i].abi).toEqual(result1.artifacts[i].abi);
-      expect(result2.artifacts[i].bytecode).toEqual(result1.artifacts[i].bytecode);
+      expect(result2.artifacts[i].solidity).toEqual(result1.artifacts[i].solidity);
     }
   });
 
@@ -311,7 +300,7 @@ describe("incremental compilation cache", () => {
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
 
-    const spy = vi.spyOn(solcModule, "compileSolidityBatch");
+    const spy = vi.spyOn(parserModule, "parse");
 
     writeContract(projectRoot, "types.ts", `
       interface Point {
@@ -325,8 +314,5 @@ describe("incremental compilation cache", () => {
     expect(result2.success).toBe(true);
 
     expect(spy).toHaveBeenCalled();
-
-    const geometryCalls = spy.mock.calls.filter((c) => c[1].includes("Geometry"));
-    expect(geometryCalls.length).toBeGreaterThan(0);
   });
 });

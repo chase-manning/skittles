@@ -14,18 +14,15 @@ example/
   contracts/          TypeScript smart contracts
     Token.ts
     Staking.ts
-  test/               Contract tests
-    helpers.ts        Test utilities (deploy, connect, load artifacts)
+  test/               Contract tests (Hardhat + Mocha)
     Token.test.ts
     Staking.test.ts
   build/              Compiled output (generated, gitignored)
-    abi/              Contract ABIs as JSON
-    bytecode/         EVM bytecode
-    solidity/         Generated Solidity source
+    solidity/         Generated Solidity source (Hardhat compiles to ABI/bytecode)
   package.json
   skittles.config.json
+  hardhat.config.ts
   tsconfig.json
-  vitest.config.ts
 ```
 
 ## Getting Started
@@ -42,7 +39,7 @@ Compile the contracts:
 yarn compile
 ```
 
-This generates ABI, bytecode, and Solidity files in `build/`.
+This generates Solidity files in `build/solidity/`. Hardhat compiles them when you run tests.
 
 Run the tests:
 
@@ -50,7 +47,7 @@ Run the tests:
 yarn test
 ```
 
-This compiles the contracts and then runs the test suite.
+This compiles the contracts with Skittles, then runs Hardhat tests against the generated Solidity.
 
 Clean build artifacts:
 
@@ -60,14 +57,17 @@ yarn clean
 
 ## Testing
 
-Tests use [vitest](https://vitest.dev/) as the test runner with [Hardhat](https://hardhat.org/) providing an in-memory EVM and [ethers.js v6](https://docs.ethers.org/v6/) for contract interaction.
+Tests use [Hardhat](https://hardhat.org) with Mocha, ethers.js v6, and the [Hardhat testing guide](https://hardhat.org/docs/guides/testing/using-ethers) patterns:
+
+- `network.connect()` for an in-memory EVM per test file
+- `loadFixture` for fast test setup and state reset
+- `.to.emit()` and `.revertedWith()` / `.revertedWithCustomError()` for assertions
 
 The test workflow:
 
-1. `yarn compile` produces ABI and bytecode artifacts in `build/`.
-2. Tests load these artifacts from disk using the `loadArtifact` helper.
-3. A fresh in-memory EVM is spun up for each test file via Hardhat's EDR.
-4. Contracts are deployed and tested using ethers.js.
+1. `yarn test` runs `skittles compile` first, producing artifacts in `build/`.
+2. Hardhat compiles the generated Solidity from `build/solidity`.
+3. Tests deploy contracts and run assertions against the in-memory EVM.
 
 ## Configuration
 
@@ -76,17 +76,17 @@ The test workflow:
 | Key | Default | Description |
 | --- | ------- | ----------- |
 | `contractsDir` | `"contracts"` | Directory containing `.ts` contract files |
-| `outputDir` | `"build"` | Directory for compiled artifacts |
+| `outputDir` | `"build"` | Directory for compiled Solidity output |
 | `typeCheck` | `true` | Enable TypeScript type checking |
-| `optimizer.enabled` | `false` | Enable the Solidity optimizer |
-| `optimizer.runs` | `200` | Optimizer runs (higher = cheaper calls, larger deploy) |
+
+Optimizer settings live in `hardhat.config.ts` under `solidity.settings.optimizer`.
 
 ## Adapting for Your Project
 
 When starting a new project, the quickest way is to copy this example directory and modify:
 
 1. Replace the contracts in `contracts/` with your own.
-2. Update `package.json` to use the published package: change `"skittles": "file:.."` to `"skittles": "^2.0.0"`.
-3. Write tests in `test/` following the patterns shown.
+2. Update `package.json` to use the published package: change `"skittles": "file:.."` to `"skittles": "^1.0.0"`.
+3. Write tests in `test/` following the Hardhat patterns shown.
 
 Alternatively, run `skittles init` in an empty directory to scaffold a minimal project.

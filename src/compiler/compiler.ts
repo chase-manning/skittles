@@ -5,14 +5,12 @@ import type {
   SkittlesConfig,
   SkittlesContract,
   BuildArtifact,
-  AbiItem,
 } from "../types/index.ts";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
-import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
+import { logInfo, logSuccess, logError } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions } from "./parser.ts";
 import type { SkittlesParameter, SkittlesFunction, Expression } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile } from "./codegen.ts";
-import { compileSolidityBatch } from "./solc.ts";
 
 export interface CompilationResult {
   success: boolean;
@@ -24,15 +22,13 @@ export interface CompilationResult {
 // Incremental compilation cache
 // ============================================================
 
-const CACHE_VERSION = "1";
+const CACHE_VERSION = "2";
 
 interface CacheEntry {
   fileHash: string;
   sharedHash: string;
   contracts: {
     name: string;
-    abi: AbiItem[];
-    bytecode: string;
     solidity: string;
   }[];
 }
@@ -70,8 +66,7 @@ function saveCache(outputDir: string, cache: CompilationCache): void {
  * 1. Find all TypeScript contract files
  * 2. Parse each file into a SkittlesContract IR
  * 3. Generate Solidity source from each contract
- * 4. Compile Solidity to ABI + bytecode via solc
- * 5. Write build artifacts to output directory
+ * 4. Write Solidity to build/solidity (Hardhat compiles to ABI + bytecode)
  */
 export async function compile(
   projectRoot: string,
@@ -154,16 +149,10 @@ export async function compile(
         for (const c of cached.contracts) {
           const artifact: BuildArtifact = {
             contractName: c.name,
-            abi: c.abi,
-            bytecode: c.bytecode,
             solidity: c.solidity,
           };
           artifacts.push(artifact);
-
-          writeFile(path.join(outputDir, "abi", `${c.name}.json`), JSON.stringify(c.abi, null, 2));
-          writeFile(path.join(outputDir, "bytecode", `${c.name}.bin`), c.bytecode);
           writeFile(path.join(outputDir, "solidity", `${c.name}.sol`), c.solidity);
-
           logSuccess(`${c.name} compiled successfully (cached)`);
         }
 
@@ -188,59 +177,18 @@ export async function compile(
 
       const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [] };
 
-      // Step 4: Compile Solidity via solc (once per file, not per contract)
-      const contractNames = contracts.map((c) => c.name);
-      const compiled = compileSolidityBatch(solidity, contractNames, config);
-
-      for (const warning of compiled.warnings) {
-        logWarning(warning);
-      }
-
-      if (compiled.errors.length > 0) {
-        const contextualErrors = compiled.errors.map(
-          (e) => `${relativePath}: ${e}`
+      for (const contract of contracts) {
+        const artifact: BuildArtifact = {
+          contractName: contract.name,
+          solidity,
+        };
+        artifacts.push(artifact);
+        cacheEntry.contracts.push({ name: contract.name, solidity });
+        writeFile(
+          path.join(outputDir, "solidity", `${contract.name}.sol`),
+          solidity
         );
-        errors.push(...contextualErrors);
-      } else {
-        for (const contract of contracts) {
-          const result = compiled.contracts[contract.name];
-
-          if (!result) {
-            errors.push(`${relativePath}:${contract.name}: No output found for contract ${contract.name}`);
-            continue;
-          }
-
-          const artifact: BuildArtifact = {
-            contractName: contract.name,
-            abi: result.abi,
-            bytecode: result.bytecode,
-            solidity,
-          };
-          artifacts.push(artifact);
-
-          cacheEntry.contracts.push({
-            name: contract.name,
-            abi: result.abi,
-            bytecode: result.bytecode,
-            solidity,
-          });
-
-          // Step 5: Write artifacts
-          writeFile(
-            path.join(outputDir, "abi", `${contract.name}.json`),
-            JSON.stringify(result.abi, null, 2)
-          );
-          writeFile(
-            path.join(outputDir, "bytecode", `${contract.name}.bin`),
-            result.bytecode
-          );
-          writeFile(
-            path.join(outputDir, "solidity", `${contract.name}.sol`),
-            solidity
-          );
-
-          logSuccess(`${contract.name} compiled successfully`);
-        }
+        logSuccess(`${contract.name} compiled successfully`);
       }
 
       newCache.files[relativePath] = cacheEntry;

@@ -22,11 +22,10 @@ your-project/
 ├── contracts/
 │   └── Token.ts           # Example ERC20 token contract
 ├── test/
-│   └── Token.test.ts      # Example test using skittles/testing
+│   └── Token.test.ts      # Example test using Hardhat + Mocha
 ├── skittles.config.json   # Compiler configuration
 ├── tsconfig.json          # TypeScript configuration
-├── vitest.config.ts       # Test runner configuration
-└── hardhat.config.ts      # In memory EVM configuration
+└── hardhat.config.ts      # Hardhat config with Ethers toolbox
 ```
 
 It also updates your `.gitignore` to exclude `build/`, `dist/`, and `node_modules/`.
@@ -87,13 +86,13 @@ Output:
 
 ## Inspect the Output
 
-The compiler produces three artifacts for each contract:
+The Skittles compiler produces Solidity source for each contract:
 
 ```bash
-cat build/solidity/Token.sol    # Human readable Solidity
-cat build/abi/Token.json        # Contract ABI (JSON)
-cat build/bytecode/Token.bin    # EVM bytecode (hex)
+cat build/solidity/Token.sol    # Generated Solidity (human readable, auditable)
 ```
+
+Hardhat (when you run `npm run test` or `hardhat compile`) compiles this Solidity to produce ABI and bytecode in its artifacts directory. Your test script runs `skittles compile && hardhat test`, so the full pipeline is: TypeScript → Solidity (Skittles) → EVM bytecode (Hardhat).
 
 Here is the generated Solidity for the example above:
 
@@ -137,21 +136,17 @@ Notice what Skittles did automatically:
 
 ## Testing
 
-Skittles includes built in testing utilities. Install the testing dependencies:
+Skittles compiles your contracts. For testing, we use Hardhat. The `skittles init` command scaffolds a `hardhat.config.ts` and `test/Token.test.ts` using the [Hardhat Ethers + Mocha](https://hardhat.org/docs/guides/testing/using-ethers) pattern.
+
+Run your tests with:
 
 ```bash
-npm install --save-dev ethers hardhat vitest
+npm run test
 ```
 
-The `skittles init` command scaffolds a test file at `test/Token.test.ts`, a `vitest.config.ts`, and a `hardhat.config.ts`. Run your tests with a single command:
+This runs `skittles compile` first, then `hardhat test`. Hardhat compiles the generated Solidity from `build/solidity` and runs the test suite against an in-memory EVM.
 
-```bash
-npx skittles test
-```
-
-This compiles your contracts and runs the test suite automatically. No separate compile step needed.
-
-See the [Testing Guide](/guide/testing) for a full walkthrough.
+See the [Testing Guide](/guide/testing) for configuration details and links to Hardhat documentation.
 
 ## Next Steps
 

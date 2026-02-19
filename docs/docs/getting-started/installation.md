@@ -28,7 +28,7 @@ Or with pnpm:
 pnpm add skittles
 ```
 
-This installs the Skittles compiler, CLI, and TypeScript type definitions. The `solc` Solidity compiler is bundled as a dependency, so you do not need to install it separately.
+This installs the Skittles compiler, CLI, and TypeScript type definitions. For compiling the generated Solidity to EVM bytecode, use [Hardhat](https://hardhat.org); `skittles init` sets this up for you.
 
 ## Verify Installation
 
@@ -44,8 +44,7 @@ You should see the available commands:
 skittles <command> [options]
 
 Commands:
-  skittles compile  Compile TypeScript contracts to EVM bytecode
-  skittles test     Compile contracts and run tests with vitest
+  skittles compile  Compile TypeScript contracts to Solidity
   skittles clean    Remove build artifacts
   skittles init     Initialize a new Skittles project
 
@@ -69,16 +68,7 @@ The `skittles` package provides:
 | `abi`                              | ABI encoding/decoding namespace                            |
 | `SkittlesConfig`                   | Configuration type for `skittles.config.json`              |
 
-The `skittles/testing` subpath provides testing utilities:
-
-| Export                             | Purpose                                                    |
-| ---------------------------------- | ---------------------------------------------------------- |
-| `setup()`                          | Create a test environment with automatic lifecycle         |
-| `createTestEnv()`                  | Create an in memory Hardhat EVM (advanced/manual)          |
-| `deploy(env, name, args?, opts?)`  | Deploy a compiled contract to the test EVM                 |
-| `connectAs(contract, signer)`      | Connect to a contract from a different account             |
-| `getBalance(env, address)`         | Get the ETH balance of an address                          |
-| `loadArtifact(name)`               | Load ABI and bytecode from the build directory             |
+For testing compiled contracts, use [Hardhat](https://hardhat.org) with the setup created by `skittles init`. See the [Testing Guide](/guide/testing) for details.
 
 The main exports are TypeScript type stubs that provide IDE support (autocomplete, type checking). At compile time, Skittles reads the TypeScript AST directly; the stubs are never executed at runtime.
 
