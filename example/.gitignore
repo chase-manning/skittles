@@ -2,4 +2,6 @@ node_modules/
 build/
 dist/
 types/
+cache/
+artifacts/
 .DS_Store

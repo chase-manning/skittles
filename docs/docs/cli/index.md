@@ -26,7 +26,7 @@ This command:
 3. Pre scans files to collect shared types, functions, and constants
 4. Parses each file's TypeScript AST into the Skittles intermediate representation
 5. Generates Solidity source code from the IR
-6. Writes Solidity files to the configured `outputDir` (default: `build/solidity/`)
+6. Writes Solidity files to the `solidity/` subdirectory of the configured `outputDir` (default `outputDir`: `build/`, so Solidity is written to `build/solidity/`)
 
 Output structure:
 

@@ -146,13 +146,18 @@ export async function compile(
       if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash) {
         logInfo(`${relativePath} unchanged, using cache`);
 
+        const cachedBaseName = path.basename(filePath, path.extname(filePath));
+        writeFile(
+          path.join(outputDir, "solidity", `${cachedBaseName}.sol`),
+          cached.contracts[0].solidity
+        );
+
         for (const c of cached.contracts) {
           const artifact: BuildArtifact = {
             contractName: c.name,
             solidity: c.solidity,
           };
           artifacts.push(artifact);
-          writeFile(path.join(outputDir, "solidity", `${c.name}.sol`), c.solidity);
           logSuccess(`${c.name} compiled successfully (cached)`);
         }
 
@@ -177,6 +182,12 @@ export async function compile(
 
       const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [] };
 
+      const sourceBaseName = path.basename(filePath, path.extname(filePath));
+      writeFile(
+        path.join(outputDir, "solidity", `${sourceBaseName}.sol`),
+        solidity
+      );
+
       for (const contract of contracts) {
         const artifact: BuildArtifact = {
           contractName: contract.name,
@@ -184,10 +195,6 @@ export async function compile(
         };
         artifacts.push(artifact);
         cacheEntry.contracts.push({ name: contract.name, solidity });
-        writeFile(
-          path.join(outputDir, "solidity", `${contract.name}.sol`),
-          solidity
-        );
         logSuccess(`${contract.name} compiled successfully`);
       }
 

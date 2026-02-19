@@ -9,7 +9,7 @@ Skittles compiles TypeScript contracts to Solidity. For compiling and testing, w
 
 ## How It Works
 
-1. **Compile** with Skittles to generate Solidity and artifacts in `build/`
+1. **Compile** with Skittles to generate Solidity in `build/solidity/`
 2. **Test** with Hardhat, which compiles the generated Solidity and runs your tests against an in-memory EVM
 
 Your `package.json` test script should run both steps:
