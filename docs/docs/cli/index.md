@@ -5,7 +5,7 @@ title: CLI Reference
 
 # CLI Reference
 
-The Skittles CLI provides commands for compiling, testing, and managing your contract projects.
+The Skittles CLI provides commands for compiling and managing your contract projects. For testing, use Hardhat (see the [Testing Guide](/guide/testing)).
 
 ```bash
 skittles <command> [options]
@@ -13,7 +13,7 @@ skittles <command> [options]
 
 ## compile
 
-Compile all TypeScript contract files to Solidity, ABI, and EVM bytecode.
+Compile all TypeScript contract files to Solidity.
 
 ```bash
 npx skittles compile
@@ -26,24 +26,19 @@ This command:
 3. Pre scans files to collect shared types, functions, and constants
 4. Parses each file's TypeScript AST into the Skittles intermediate representation
 5. Generates Solidity source code from the IR
-6. Compiles the Solidity via `solc` to produce ABI and bytecode
-7. Writes artifacts to the configured `outputDir` (default: `build/`)
+6. Writes Solidity files to the `solidity/` subdirectory of the configured `outputDir` (default `outputDir`: `build/`, so Solidity is written to `build/solidity/`)
 
 Output structure:
 
 ```
 build/
-├── abi/
-│   ├── Token.json       # Contract ABI
-│   └── Staking.json
-├── bytecode/
-│   ├── Token.bin        # EVM bytecode (hex)
-│   └── Staking.bin
 ├── solidity/
 │   ├── Token.sol        # Generated Solidity source
 │   └── Staking.sol
 └── .skittles-cache.json  # Incremental compilation cache
 ```
+
+To produce ABI and EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./build/solidity` and run `hardhat compile` or `hardhat test`. Hardhat will compile the generated Solidity and emit artifacts.
 
 Incremental compilation is automatic. Unchanged files are skipped using SHA256 hash comparison.
 
@@ -59,51 +54,6 @@ Incremental compilation is automatic. Unchanged files are skipped using SHA256 h
 ✔ Staking compiled successfully (cached)
 ✔ Compilation complete
 ✔ 2 contract(s) compiled successfully
-```
-
-## test
-
-Compile all contracts and run the test suite with Vitest.
-
-```bash
-npx skittles test
-```
-
-This command runs `skittles compile` first, then executes `vitest run`. If compilation fails, tests are not run.
-
-### Watch Mode
-
-Run tests in watch mode for rapid development:
-
-```bash
-npx skittles test --watch
-```
-
-In watch mode, Vitest re runs tests when files change.
-
-### Options
-
-| Flag              | Alias | Description                 |
-| ----------------- | ----- | --------------------------- |
-| `--watch`         | `-w`  | Run vitest in watch mode    |
-
-### Example Output
-
-```
-🍬 Skittles
-
-ℹ Compiling contracts before running tests...
-ℹ Found 1 contract file(s)
-ℹ Compiling contracts/Token.ts...
-✔ Token compiled successfully
-✔ 1 contract(s) compiled successfully
-ℹ Running tests...
-
- ✓ test/Token.test.ts (5 tests) 1200ms
-
- Test Files  1 passed (1)
-      Tests  5 passed (5)
-   Duration  2.34s
 ```
 
 ## clean
@@ -137,15 +87,16 @@ This creates:
 
 | File                   | Description                                       |
 | ---------------------- | ------------------------------------------------- |
-| `contracts/Token.ts`   | Example ERC20 token contract                      |
-| `test/Token.test.ts`   | Example test using `skittles/testing`              |
+| `contracts/Token.ts`   | Example ERC20 token contract with Transfer event  |
+| `test/Token.test.ts`  | Example test using Hardhat + Mocha + fixtures    |
 | `skittles.config.json` | Compiler configuration with defaults              |
 | `tsconfig.json`        | TypeScript configuration for contract development |
-| `vitest.config.ts`     | Vitest test runner configuration                  |
-| `hardhat.config.ts`    | Hardhat in memory EVM configuration               |
-| `.gitignore` (updated) | Adds `build/`, `dist/`, `node_modules/`           |
+| `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths      |
+| `.gitignore` (updated) | Adds `build/`, `dist/`, `node_modules/`          |
 
 If any file already exists, it is skipped with a warning.
+
+The test file demonstrates event assertions (`.to.emit`), revert checking (`.revertedWith`), and fixtures (`loadFixture`). The test script runs `skittles compile && hardhat test`.
 
 ### Example Output
 
@@ -159,16 +110,14 @@ If any file already exists, it is skipped with a warning.
 ✔ Created contracts/Token.ts
 ✔ Created test/Token.test.ts
 ✔ Created tsconfig.json
-✔ Created vitest.config.ts
 ✔ Created hardhat.config.ts
 ✔ Updated .gitignore
+✔ Dependencies installed
 ✔ Skittles project initialized!
 ℹ
 ℹ Next steps:
-ℹ   1. Install testing dependencies:
-ℹ      npm install --save-dev ethers hardhat vitest
-ℹ   2. Compile and test:
-ℹ      npx skittles test
+ℹ   Compile and test:
+ℹ     npm run test
 ```
 
 ## Global Options

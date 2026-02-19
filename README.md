@@ -6,7 +6,7 @@
 
 Write, Test and Deploy EVM Smart Contracts with TypeScript.
 
-Skittles compiles TypeScript classes to Solidity source code, then to ABI and EVM bytecode. You get TypeScript tooling (autocomplete, type checking, familiar syntax) while targeting the EVM.
+Skittles compiles TypeScript classes to Solidity source code. Use Hardhat (or any Solidity toolchain) to compile that to ABI and EVM bytecode. You get TypeScript tooling (autocomplete, type checking, familiar syntax) while targeting the EVM.
 
 Website: [skittles.dev](https://skittles.dev/)
 

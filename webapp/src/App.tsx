@@ -290,7 +290,7 @@ function HowItWorks() {
         <PipelineStep
           num="03"
           title="Compile"
-          desc="Generated Solidity is compiled via solc to produce ABI, bytecode, and inspectable .sol source files."
+          desc="Generated Solidity is compiled by Hardhat to produce ABI, bytecode, and standard EVM artifacts."
           color="#22C55E"
         />
       </div>
@@ -430,7 +430,7 @@ const featureCards = [
   {
     icon: Layers,
     title: "Standard Output",
-    desc: "ABI + bytecode compatible with ethers.js, viem, Hardhat, Foundry, and every other tool in the EVM ecosystem.",
+    desc: "Generated Solidity compiles to standard ABI and bytecode via Hardhat, compatible with ethers.js, viem, Foundry, and every other EVM tool.",
     color: "#6366F1",
   },
   {
@@ -494,7 +494,7 @@ function QuickStart() {
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-line">
             <span className="terminal-prompt">$</span>
-            <span className="terminal-cmd">npx skittles test</span>
+            <span className="terminal-cmd">npm run test</span>
           </div>
           <div className="terminal-comment">
             &nbsp; # Compile contracts and run the test suite

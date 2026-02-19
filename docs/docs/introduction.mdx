@@ -6,7 +6,7 @@ title: Introduction
 
 # Skittles
 
-**Write smart contracts in TypeScript. Compile to Solidity, ABI, and EVM bytecode.**
+**Write smart contracts in TypeScript. Compile to Solidity.**
 
 <img
   src="https://skittles.dev/banner.png"
@@ -14,7 +14,7 @@ title: Introduction
   style={{ width: "100%", borderRadius: "12px", marginBottom: "2rem" }}
 />
 
-Skittles is a TypeScript to Solidity compiler. You write EVM smart contracts as TypeScript classes using syntax you already know, and Skittles compiles them into clean, auditable Solidity source code, ABI, and EVM bytecode.
+Skittles is a TypeScript to Solidity compiler. You write EVM smart contracts as TypeScript classes using syntax you already know, and Skittles compiles them into clean, auditable Solidity source code. Use Hardhat to compile that Solidity to ABI and EVM bytecode.
 
 ```typescript title="contracts/Token.ts"
 import { address, msg, SkittlesEvent, Indexed } from "skittles";
@@ -58,10 +58,10 @@ Skittles takes your TypeScript classes through a three stage pipeline:
 
 2. **Generate** — The intermediate representation is converted to valid Solidity. Type mappings, visibility, state mutability inference, and optimizations like `if/throw` to `require()` are applied automatically.
 
-3. **Compile** — The generated Solidity is compiled via `solc` to produce ABI JSON, EVM bytecode, and inspectable `.sol` source files.
+3. **Compile** — The generated Solidity is written to `build/solidity/`. Hardhat (or another Solidity toolchain) compiles it to ABI and EVM bytecode.
 
 ```
-TypeScript (.ts) → Parser → IR → Codegen → Solidity (.sol) → solc → ABI + Bytecode
+TypeScript (.ts) → Parser → IR → Codegen → Solidity (.sol) → Hardhat → ABI + Bytecode
 ```
 
 ## Features
@@ -82,12 +82,10 @@ TypeScript (.ts) → Parser → IR → Codegen → Solidity (.sol) → solc → 
 
 ```
 build/
-  abi/          # Contract ABIs (JSON)
-  bytecode/     # EVM bytecode (.bin)
   solidity/     # Generated Solidity source (.sol)
 ```
 
-The output is standard Solidity tooling compatible. Use the ABI and bytecode with ethers.js, viem, Hardhat, Foundry, or any other EVM tool.
+Skittles writes Solidity to `build/solidity/`. Configure Hardhat's `paths.sources` to point there and run `hardhat compile` or `hardhat test` to produce ABI and bytecode. The output is compatible with ethers.js, viem, Foundry, and every other EVM tool.
 
 ## Next Steps
 

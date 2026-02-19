@@ -315,8 +315,6 @@ export interface ObjectLiteralExpression {
 
 export interface BuildArtifact {
   contractName: string;
-  abi: AbiItem[];
-  bytecode: string;
   solidity: string;
 }
 

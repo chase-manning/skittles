@@ -84,10 +84,11 @@ describe("initCommand", () => {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
     expect(pkg.type).toBe("module");
     expect(pkg.dependencies.skittles).toBeDefined();
-    expect(pkg.devDependencies.vitest).toBeDefined();
     expect(pkg.devDependencies.ethers).toBeDefined();
     expect(pkg.devDependencies.hardhat).toBeDefined();
-    expect(pkg.scripts.test).toBe("skittles test");
+    expect(pkg.devDependencies.mocha).toBeDefined();
+    expect(pkg.scripts.test).toBe("skittles compile && hardhat test");
+    expect(pkg.scripts.build).toBe("skittles compile && hardhat build");
   });
 
   it("should update existing package.json with missing deps", async () => {
@@ -103,7 +104,36 @@ describe("initCommand", () => {
     expect(pkg.name).toBe("existing");
     expect(pkg.version).toBe("2.0.0");
     expect(pkg.type).toBe("module");
-    expect(pkg.devDependencies.vitest).toBeDefined();
+    expect(pkg.devDependencies.hardhat).toBeDefined();
+  });
+
+  it("should create Token.test.ts with Hardhat testing pattern", async () => {
+    await initCommand(TEST_DIR);
+    const testPath = path.join(TEST_DIR, "test", "Token.test.ts");
+    expect(fs.existsSync(testPath)).toBe(true);
+
+    const content = fs.readFileSync(testPath, "utf-8");
+    expect(content).toContain("network.connect()");
+    expect(content).toContain("loadFixture");
+    expect(content).toContain("to.emit");
+    expect(content).toContain("revertedWith");
+    expect(content).toContain("getContractAt");
+    expect(content).not.toContain("skittles/testing");
+  });
+
+  it("should create hardhat.config.ts with plugins and paths.sources", async () => {
+    await initCommand(TEST_DIR);
+    const configPath = path.join(TEST_DIR, "hardhat.config.ts");
+    expect(fs.existsSync(configPath)).toBe(true);
+
+    const content = fs.readFileSync(configPath, "utf-8");
+    expect(content).toContain("hardhat-ethers");
+    expect(content).toContain("build/solidity");
+  });
+
+  it("should not create vitest.config.ts", async () => {
+    await initCommand(TEST_DIR);
+    expect(fs.existsSync(path.join(TEST_DIR, "vitest.config.ts"))).toBe(false);
   });
 
   it("should create .gitignore if it does not exist", async () => {
@@ -114,6 +144,14 @@ describe("initCommand", () => {
     const content = fs.readFileSync(gitignorePath, "utf-8");
     expect(content).toContain("build/");
     expect(content).toContain("dist/");
+    expect(content).toContain("types/");
     expect(content).toContain("node_modules/");
+  });
+
+  it("should include types directory in tsconfig", async () => {
+    await initCommand(TEST_DIR);
+    const tsconfigPath = path.join(TEST_DIR, "tsconfig.json");
+    const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
+    expect(tsconfig.include).toContain("types/**/*");
   });
 });

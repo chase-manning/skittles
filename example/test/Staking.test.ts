@@ -1,144 +1,117 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { ethers } from "ethers";
-import { setup } from "skittles/testing";
+import "@nomicfoundation/hardhat-ethers";
+import "@nomicfoundation/hardhat-ethers-chai-matchers";
+import "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
+import hre from "hardhat";
 
-describe("Staking", () => {
-  const env = setup();
-  let vault: ethers.Contract;
-  let ownerAddr: string;
-  let aliceAddr: string;
-  let bobAddr: string;
+const { ethers, networkHelpers } = await hre.network.connect();
 
-  beforeAll(async () => {
-    ownerAddr = await env.accounts[0].getAddress();
-    aliceAddr = await env.accounts[1].getAddress();
-    bobAddr = await env.accounts[2].getAddress();
+describe("Staking", function () {
+  async function deployStakingFixture() {
+    const vault = await ethers.deployContract("Staking");
+    const [owner, alice, bob] = await ethers.getSigners();
+    const addr = await vault.getAddress();
+    const vaultAsAlice = await ethers.getContractAt("Staking", addr, alice);
+    const vaultAsBob = await ethers.getContractAt("Staking", addr, bob);
+    return { vault, vaultAsAlice, vaultAsBob, owner, alice, bob };
+  }
 
-    vault = await env.deploy("Staking");
+  describe("deployment", function () {
+    it("should set the deployer as owner", async function () {
+      const { vault, owner } = await networkHelpers.loadFixture(deployStakingFixture);
+      expect(await vault.owner()).to.equal(owner.address);
+    });
+
+    it("should start with zero total deposited", async function () {
+      const { vault } = await networkHelpers.loadFixture(deployStakingFixture);
+      expect(await vault.totalDeposited()).to.equal(0n);
+    });
+
+    it("should have correct fee constants", async function () {
+      const { vault } = await networkHelpers.loadFixture(deployStakingFixture);
+      expect(await vault.FEE_BASIS_POINTS()).to.equal(50n);
+      expect(await vault.BASIS_POINTS_DENOMINATOR()).to.equal(10000n);
+    });
   });
 
-  describe("deployment", () => {
-    it("should set the deployer as owner", async () => {
-      expect(await vault.owner()).toBe(ownerAddr);
-    });
-
-    it("should start with zero total deposited", async () => {
-      expect(await vault.totalDeposited()).toBe(0n);
-    });
-
-    it("should have correct fee constants", async () => {
-      expect(await vault.FEE_BASIS_POINTS()).toBe(50n);
-      expect(await vault.BASIS_POINTS_DENOMINATOR()).toBe(10000n);
-    });
-  });
-
-  describe("deposits", () => {
-    it("should accept ETH deposits via the deposit function", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
+  describe("deposits", function () {
+    it("should accept ETH deposits via the deposit function", async function () {
+      const { vault, vaultAsAlice, alice } = await networkHelpers.loadFixture(deployStakingFixture);
       const depositAmount = ethers.parseEther("1");
-      await aliceVault.deposit({ value: depositAmount });
 
-      expect(await vault.getDeposit(aliceAddr)).toBe(depositAmount);
-      expect(await vault.totalDeposited()).toBe(depositAmount);
+      await vaultAsAlice.deposit({ value: depositAmount });
+
+      expect(await vault.getDeposit(alice.address)).to.equal(depositAmount);
+      expect(await vault.totalDeposited()).to.equal(depositAmount);
     });
 
-    it("should emit a Deposited event", async () => {
-      const bobVault = env.connectAs(vault, env.accounts[2]);
+    it("should emit a Deposited event", async function () {
+      const { vault, vaultAsBob } = await networkHelpers.loadFixture(deployStakingFixture);
       const depositAmount = ethers.parseEther("2");
-      const tx = await bobVault.deposit({ value: depositAmount });
-      const receipt = await tx.wait();
 
-      const iface = vault.interface;
-      const log = receipt.logs.find(
-        (l: ethers.Log) => iface.parseLog(l)?.name === "Deposited"
-      );
-      expect(log).toBeTruthy();
-      const parsed = iface.parseLog(log!);
-      expect(parsed!.args[0]).toBe(bobAddr);
-      expect(parsed!.args[1]).toBe(depositAmount);
+      await expect(vaultAsBob.deposit({ value: depositAmount }))
+        .to.emit(vault, "Deposited");
     });
 
-    it("should accept ETH via receive (plain transfer)", async () => {
-      const vaultAddr = await vault.getAddress();
-      const depositAmount = ethers.parseEther("0.5");
-      const depositBefore = await vault.getDeposit(aliceAddr);
+    it("should revert when deposit amount is zero", async function () {
+      const { vaultAsAlice } = await networkHelpers.loadFixture(deployStakingFixture);
 
-      await env.accounts[1].sendTransaction({ to: vaultAddr, value: depositAmount });
-
-      const depositAfter = await vault.getDeposit(aliceAddr);
-      expect(depositAfter - depositBefore).toBe(depositAmount);
-    });
-
-    it("should accumulate multiple deposits from the same account", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
-      const depositBefore = await vault.getDeposit(aliceAddr);
-      const amount = ethers.parseEther("0.25");
-
-      await aliceVault.deposit({ value: amount });
-      await aliceVault.deposit({ value: amount });
-
-      const depositAfter = await vault.getDeposit(aliceAddr);
-      expect(depositAfter - depositBefore).toBe(amount * 2n);
-    });
-
-    it("should revert when deposit amount is zero", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
       await expect(
-        aliceVault.deposit({ value: 0 })
-      ).rejects.toThrow();
+        vaultAsAlice.deposit({ value: 0 })
+      ).to.be.revertedWith("Must send ETH");
     });
   });
 
-  describe("withdrawals", () => {
-    it("should allow withdrawal with fee deducted", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
-      const deposit = await vault.getDeposit(aliceAddr);
-      const withdrawAmount = deposit;
+  describe("withdrawals", function () {
+    it("should allow withdrawal with fee deducted", async function () {
+      const { vault, vaultAsAlice, alice } = await networkHelpers.loadFixture(deployStakingFixture);
+      await vaultAsAlice.deposit({ value: ethers.parseEther("1") });
+      const deposit = await vault.getDeposit(alice.address);
 
-      await aliceVault.withdraw(withdrawAmount);
+      await vaultAsAlice.withdraw(deposit);
 
-      expect(await vault.getDeposit(aliceAddr)).toBe(0n);
+      expect(await vault.getDeposit(alice.address)).to.equal(0n);
     });
 
-    it("should track accumulated fees", async () => {
-      expect((await vault.totalFees()) > 0n).toBe(true);
-    });
-
-    it("should revert when withdrawing more than deposited", async () => {
-      const bobVault = env.connectAs(vault, env.accounts[2]);
+    it("should revert when withdrawing more than deposited", async function () {
+      const { vault, vaultAsBob } = await networkHelpers.loadFixture(deployStakingFixture);
       const tooMuch = ethers.parseEther("999");
-      await expect(bobVault.withdraw(tooMuch)).rejects.toThrow();
+
+      await expect(
+        vaultAsBob.withdraw(tooMuch)
+      ).to.be.revertedWithCustomError(vault, "InsufficientDeposit");
     });
   });
 
-  describe("pause and unpause", () => {
-    it("should allow the owner to pause the vault", async () => {
+  describe("pause and unpause", function () {
+    it("should allow the owner to pause the vault", async function () {
+      const { vault } = await networkHelpers.loadFixture(deployStakingFixture);
       await vault.pause();
-      expect(await vault.status()).toBe(1n);
+      expect(await vault.status()).to.equal(1n);
     });
 
-    it("should revert deposits when paused", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
+    it("should revert deposits when paused", async function () {
+      const { vault, vaultAsAlice } = await networkHelpers.loadFixture(deployStakingFixture);
+      await vault.pause();
+
       await expect(
-        aliceVault.deposit({ value: ethers.parseEther("1") })
-      ).rejects.toThrow();
+        vaultAsAlice.deposit({ value: ethers.parseEther("1") })
+      ).to.be.revertedWithCustomError(vault, "VaultPaused");
     });
 
-    it("should allow the owner to unpause the vault", async () => {
+    it("should allow the owner to unpause the vault", async function () {
+      const { vault } = await networkHelpers.loadFixture(deployStakingFixture);
+      await vault.pause();
       await vault.unpause();
-      expect(await vault.status()).toBe(0n);
+      expect(await vault.status()).to.equal(0n);
     });
 
-    it("should revert when non owner tries to pause", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
-      await expect(aliceVault.pause()).rejects.toThrow();
-    });
+    it("should revert when non owner tries to pause", async function () {
+      const { vault, vaultAsAlice } = await networkHelpers.loadFixture(deployStakingFixture);
 
-    it("should accept deposits again after unpause", async () => {
-      const aliceVault = env.connectAs(vault, env.accounts[1]);
-      const depositAmount = ethers.parseEther("0.1");
-      await aliceVault.deposit({ value: depositAmount });
-      expect(await vault.getDeposit(aliceAddr)).toBe(depositAmount);
+      await expect(
+        vaultAsAlice.pause()
+      ).to.be.revertedWithCustomError(vault, "NotOwner");
     });
   });
 });

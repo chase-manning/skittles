@@ -6,19 +6,27 @@
   "description": "Example Skittles project: ERC20 Token + ETH Staking Vault",
   "scripts": {
     "compile": "skittles compile",
+    "build": "skittles compile && hardhat build",
     "clean": "skittles clean",
-    "test": "skittles test",
-    "test:watch": "skittles test --watch"
+    "test": "skittles compile && hardhat test"
   },
   "dependencies": {
     "skittles": "file:.."
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.0",
+    "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.0",
+    "@nomicfoundation/hardhat-mocha": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
+    "@nomicfoundation/hardhat-typechain": "^3.0.0",
+    "chai": "^4.5.0",
     "ethers": "^6.16.0",
     "hardhat": "^3.1.8",
-    "vitest": "^2.0.0"
+    "mocha": "^10.0.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   }
 }
