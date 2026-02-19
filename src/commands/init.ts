@@ -186,7 +186,7 @@ function buildPackageJson(projectName: string): string {
         "@types/mocha": "^10.0.0",
       },
       engines: {
-        node: ">=20.0.0",
+        node: ">=22.0.0",
       },
     },
     null,
