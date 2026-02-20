@@ -181,7 +181,7 @@ function buildPackageJson(projectName: string): string {
         chai: "^5.1.2",
         ethers: "^6.16.0",
         hardhat: "^3.0.0",
-        mocha: "^10.0.0",
+        mocha: "^11.0.0",
         "@types/mocha": "^10.0.0",
       },
       engines: {
@@ -218,7 +218,7 @@ export async function initCommand(projectRoot: string): Promise<void> {
         chai: "^5.1.2",
         ethers: "^6.16.0",
         hardhat: "^3.0.0",
-        mocha: "^10.0.0",
+        mocha: "^11.0.0",
         "@types/mocha": "^10.0.0",
       };
       for (const [dep, version] of Object.entries(requiredDevDeps)) {
