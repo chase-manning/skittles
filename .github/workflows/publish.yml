@@ -1,0 +1,49 @@
+name: Publish to npm
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: yarn
+
+      - run: npm install -g npm@latest
+
+      - name: Check if version changed
+        id: version-check
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(npm view skittles version 2>/dev/null || echo "0.0.0")
+          echo "current=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "published=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$CURRENT_VERSION" = "$PUBLISHED_VERSION" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Version $CURRENT_VERSION is already published. Skipping."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "New version detected: $PUBLISHED_VERSION -> $CURRENT_VERSION"
+          fi
+
+      - if: steps.version-check.outputs.changed == 'true'
+        run: yarn install --immutable
+
+      - if: steps.version-check.outputs.changed == 'true'
+        run: yarn build
+
+      - if: steps.version-check.outputs.changed == 'true'
+        run: yarn test
+
+      - if: steps.version-check.outputs.changed == 'true'
+        run: npm publish --provenance
