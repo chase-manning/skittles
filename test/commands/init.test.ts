@@ -170,22 +170,12 @@ describe("initCommand", () => {
     const initDeps = initPkg.devDependencies;
     const exampleDeps = examplePkg.devDependencies;
 
-    const initNames = Object.keys(initDeps).sort();
-    const exampleNames = Object.keys(exampleDeps).sort();
-    expect(initNames).toEqual(exampleNames);
-
-    const peerSensitiveDeps = [
-      "chai",
-      "mocha",
-      "ethers",
-      "@nomicfoundation/hardhat-ethers",
-      "@nomicfoundation/hardhat-ethers-chai-matchers",
-      "@nomicfoundation/hardhat-mocha",
-      "@nomicfoundation/hardhat-network-helpers",
-      "@nomicfoundation/hardhat-typechain",
-    ];
-    for (const dep of peerSensitiveDeps) {
+    for (const dep of Object.keys(exampleDeps)) {
+      expect(initDeps[dep], `${dep} missing from init template`).toBeDefined();
       expect(initDeps[dep], `${dep} version mismatch`).toBe(exampleDeps[dep]);
+    }
+    for (const dep of Object.keys(initDeps)) {
+      expect(exampleDeps[dep], `${dep} in init template but missing from example`).toBeDefined();
     }
   });
 });
