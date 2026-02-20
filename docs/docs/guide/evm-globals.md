@@ -60,9 +60,11 @@ class Staking {
 
 ## self
 
-Use the keyword `self` to reference the contract's own address:
+Import `self` from `"skittles"` to reference the contract's own address. It compiles to Solidity's `address(this)`.
 
 ```typescript
+import { self, address } from "skittles";
+
 let contractAddress: address = self;
 // Generates: address(this)
 ```

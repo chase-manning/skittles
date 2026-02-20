@@ -78,6 +78,8 @@ export const tx = {} as {
   readonly gasprice: number;
 };
 
+export declare const self: string;
+
 // Solidity built-in functions (stubs for TypeScript type checking)
 export declare function keccak256(...args: unknown[]): string;
 export declare function sha256(...args: unknown[]): string;
