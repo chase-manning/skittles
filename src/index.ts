@@ -31,9 +31,14 @@ yargs(hideBin(process.argv))
   .command(
     "init",
     "Initialize a new Skittles project",
-    () => {},
-    async () => {
-      await initCommand(process.cwd());
+    (yargs) =>
+      yargs.option("no-install", {
+        type: "boolean",
+        default: false,
+        describe: "Skip automatic dependency installation",
+      }),
+    async (argv) => {
+      await initCommand(process.cwd(), { install: !argv.noInstall });
     }
   )
   .demandCommand(1, "Please specify a command")

@@ -47,6 +47,6 @@ jobs:
         run: |
           DIR=$(mktemp -d)
           cd "$DIR"
-          node "$GITHUB_WORKSPACE/dist/index.js" init
+          node "$GITHUB_WORKSPACE/dist/index.js" init --no-install
           sed -i 's|"skittles": "latest"|"skittles": "file:'"$GITHUB_WORKSPACE"'"|' package.json
           npm install

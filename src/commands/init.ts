@@ -193,7 +193,15 @@ function buildPackageJson(projectName: string): string {
   );
 }
 
-export async function initCommand(projectRoot: string): Promise<void> {
+export interface InitOptions {
+  install?: boolean;
+}
+
+export async function initCommand(
+  projectRoot: string,
+  options: InitOptions = {}
+): Promise<void> {
+  const { install = true } = options;
   logInfo("Initializing new Skittles project...");
 
   const projectName = path.basename(projectRoot);
@@ -336,18 +344,22 @@ export async function initCommand(projectRoot: string): Promise<void> {
 
   // Install dependencies
   const pm = detectPackageManager(projectRoot);
-  logInfo(`Installing dependencies with ${pm}...`);
-  try {
-    execSync(`${pm} install`, {
-      cwd: projectRoot,
-      stdio: "pipe",
-    });
-    logSuccess("Dependencies installed");
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error";
-    logError(`Failed to install dependencies: ${message}`);
-    logInfo(`  You can install manually by running: ${pm} install`);
+  if (install) {
+    logInfo(`Installing dependencies with ${pm}...`);
+    try {
+      execSync(`${pm} install`, {
+        cwd: projectRoot,
+        stdio: "pipe",
+      });
+      logSuccess("Dependencies installed");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unknown error";
+      logError(`Failed to install dependencies: ${message}`);
+      logInfo(`  You can install manually by running: ${pm} install`);
+    }
+  } else {
+    logInfo(`Skipping dependency installation. Run \`${pm} install\` manually.`);
   }
 
   logSuccess("Skittles project initialized!");
