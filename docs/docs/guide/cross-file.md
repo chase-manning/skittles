@@ -9,7 +9,7 @@ Skittles supports sharing types, functions, and constants across multiple contra
 
 ## Shared Types
 
-Interfaces (structs) and enums defined in one file can be used in any other contract file:
+Type aliases (structs), interfaces (contract interfaces), and enums defined in one file can be used in any other contract file:
 
 ```typescript title="contracts/types.ts"
 import { address } from "skittles";
@@ -19,10 +19,14 @@ export enum VaultStatus {
   Paused,
 }
 
-export interface StakeInfo {
+export type StakeInfo = {
   amount: number;
   timestamp: number;
   account: address;
+};
+
+export interface IStaking {
+  getStakeInfo(account: address): StakeInfo;
 }
 ```
 
@@ -43,7 +47,7 @@ export class Staking {
 }
 ```
 
-The import syntax is standard TypeScript. Skittles resolves the types across files during the pre scan phase. The generated Solidity includes the struct and enum definitions inline within each contract that uses them.
+The import syntax is standard TypeScript. Skittles resolves the types across files during the pre scan phase. The generated Solidity emits interface definitions once per `.sol` file at file scope before the contracts, while struct and enum definitions are included inline within each contract that uses them.
 
 ## Shared Functions
 
@@ -95,7 +99,8 @@ export class Vault {
 The compilation pipeline has two phases:
 
 1. **Pre scan phase**: All `.ts` files in the contracts directory are scanned to collect:
-   - Interfaces → struct definitions
+   - Type aliases → struct definitions
+   - Interfaces → contract interface definitions
    - Enums → enum definitions
    - File level functions → shared function definitions
    - File level `const` declarations → constant values

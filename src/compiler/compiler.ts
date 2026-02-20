@@ -9,7 +9,7 @@ import type {
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions } from "./parser.ts";
-import type { SkittlesParameter, SkittlesFunction, Expression } from "../types/index.ts";
+import type { SkittlesParameter, SkittlesFunction, SkittlesContractInterface, Expression } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile } from "./codegen.ts";
 
 export interface CompilationResult {
@@ -87,20 +87,22 @@ export async function compile(
 
   logInfo(`Found ${sourceFiles.length} contract file(s)`);
 
-  // Pre-scan all files to collect shared types (interfaces/structs, enums),
-  // file level functions, and file level constants.
+  // Pre-scan all files to collect shared types (type alias structs, contract
+  // interfaces, enums), file level functions, and file level constants.
   // This allows contracts in one file to reference things defined in another.
   const globalStructs: Map<string, SkittlesParameter[]> = new Map();
   const globalEnums: Map<string, string[]> = new Map();
+  const globalContractInterfaces: Map<string, SkittlesContractInterface> = new Map();
   const globalFunctions: SkittlesFunction[] = [];
   const globalConstants: Map<string, Expression> = new Map();
 
   for (const filePath of sourceFiles) {
     try {
       const source = readFile(filePath);
-      const { structs, enums } = collectTypes(source, filePath);
+      const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
       for (const [name, fields] of structs) globalStructs.set(name, fields);
       for (const [name, members] of enums) globalEnums.set(name, members);
+      for (const [name, iface] of contractInterfaces) globalContractInterfaces.set(name, iface);
 
       const { functions, constants } = collectFunctions(source, filePath);
       for (const fn of functions) {
@@ -114,7 +116,7 @@ export async function compile(
     }
   }
 
-  const externalTypes = { structs: globalStructs, enums: globalEnums };
+  const externalTypes = { structs: globalStructs, enums: globalEnums, contractInterfaces: globalContractInterfaces };
   const externalFunctions = { functions: globalFunctions, constants: globalConstants };
 
   // Compute a hash of all shared definitions (types, functions, constants).
@@ -125,6 +127,7 @@ export async function compile(
   const sharedDefinitions = {
     structs: Array.from(globalStructs.entries()).sort(([a], [b]) => a.localeCompare(b)),
     enums: Array.from(globalEnums.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    contractInterfaces: Array.from(globalContractInterfaces.entries()).sort(([a], [b]) => a.localeCompare(b)),
     functions: [...globalFunctions].sort((a, b) => a.name.localeCompare(b.name)),
     constants: Array.from(globalConstants.entries()).sort(([a], [b]) => a.localeCompare(b)),
   };

@@ -5,8 +5,8 @@ export enum VaultStatus {
   Paused,
 }
 
-export interface StakeInfo {
+export type StakeInfo = {
   amount: number;
   timestamp: number;
   account: address;
-}
+};

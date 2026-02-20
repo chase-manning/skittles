@@ -7,10 +7,10 @@ import {
 } from "./helpers";
 
 const SOURCE = `
-interface UserInfo {
+type UserInfo = {
   age: number;
   balance: number;
-}
+};
 
 class UserStore {
   private users: Record<address, UserInfo> = {};
@@ -32,10 +32,10 @@ class UserStore {
 // Struct initialization with named args may not parse yet, so let's test
 // with a simpler approach that uses .member access
 const SIMPLE_SOURCE = `
-interface Pair {
+type Pair = {
   a: number;
   b: number;
-}
+};
 
 class PairStore {
   public first: number = 0;

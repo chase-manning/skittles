@@ -23,6 +23,18 @@ export interface SkittlesStruct {
   fields: SkittlesParameter[];
 }
 
+export interface SkittlesInterfaceFunction {
+  name: string;
+  parameters: SkittlesParameter[];
+  returnType: SkittlesType | null;
+  stateMutability?: StateMutability;
+}
+
+export interface SkittlesContractInterface {
+  name: string;
+  functions: SkittlesInterfaceFunction[];
+}
+
 export interface SkittlesEnum {
   name: string;
   members: string[];
@@ -41,6 +53,7 @@ export interface SkittlesContract {
   events: SkittlesEvent[];
   structs: SkittlesStruct[];
   enums: SkittlesEnum[];
+  contractInterfaces: SkittlesContractInterface[];
   customErrors: SkittlesCustomError[];
   ctor?: SkittlesConstructor;
   inherits: string[];
@@ -52,6 +65,7 @@ export interface SkittlesVariable {
   visibility: Visibility;
   immutable: boolean;
   constant: boolean;
+  isOverride?: boolean;
   initialValue?: Expression;
 }
 
@@ -97,6 +111,7 @@ export enum SkittlesTypeKind {
   Mapping = "mapping",
   Array = "array",
   Struct = "struct",
+  ContractInterface = "contract-interface",
   Enum = "enum",
   Void = "void",
 }

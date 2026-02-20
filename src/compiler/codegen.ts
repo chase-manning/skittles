@@ -6,6 +6,7 @@ import {
   type SkittlesConstructor,
   type SkittlesEvent,
   type SkittlesType,
+  type SkittlesContractInterface,
   type Statement,
   type Expression,
   type IfStatement,
@@ -28,8 +29,58 @@ export function generateSolidityFile(contracts: SkittlesContract[]): string {
   parts.push("pragma solidity ^0.8.20;");
   parts.push("");
 
+  // Collect and deduplicate contract interfaces across all contracts
+  const allInterfaces: SkittlesContractInterface[] = [];
+  const emittedInterfaces = new Set<string>();
+  for (const contract of contracts) {
+    for (const iface of contract.contractInterfaces ?? []) {
+      if (!emittedInterfaces.has(iface.name)) {
+        emittedInterfaces.add(iface.name);
+        allInterfaces.push(iface);
+      }
+    }
+  }
+
+  // Hoist structs and enums referenced by interface signatures to file scope
+  // so they are visible to the interface declarations.
+  const hoistedStructs = new Set<string>();
+  const hoistedEnums = new Set<string>();
+  for (const iface of allInterfaces) {
+    for (const fn of iface.functions) {
+      collectReferencedTypeNames(fn.returnType, hoistedStructs, hoistedEnums);
+      for (const p of fn.parameters) {
+        collectReferencedTypeNames(p.type, hoistedStructs, hoistedEnums);
+      }
+    }
+  }
+
+  const emittedFileScopeTypes = new Set<string>();
+  if (hoistedStructs.size > 0 || hoistedEnums.size > 0) {
+    for (const contract of contracts) {
+      for (const en of contract.enums ?? []) {
+        if (hoistedEnums.has(en.name) && !emittedFileScopeTypes.has(en.name)) {
+          emittedFileScopeTypes.add(en.name);
+          parts.push(`enum ${en.name} { ${en.members.join(", ")} }`);
+          parts.push("");
+        }
+      }
+      for (const s of contract.structs ?? []) {
+        if (hoistedStructs.has(s.name) && !emittedFileScopeTypes.has(s.name)) {
+          emittedFileScopeTypes.add(s.name);
+          parts.push(generateFileScopeStructDecl(s));
+          parts.push("");
+        }
+      }
+    }
+  }
+
+  for (const iface of allInterfaces) {
+    parts.push(generateInterfaceDecl(iface));
+    parts.push("");
+  }
+
   for (let i = 0; i < contracts.length; i++) {
-    parts.push(generateContractBody(contracts[i]));
+    parts.push(generateContractBody(contracts[i], emittedFileScopeTypes));
     if (i < contracts.length - 1) {
       parts.push("");
     }
@@ -43,7 +94,10 @@ export function generateSolidity(contract: SkittlesContract): string {
   return generateSolidityFile([contract]);
 }
 
-function generateContractBody(contract: SkittlesContract): string {
+function generateContractBody(
+  contract: SkittlesContract,
+  fileScopeTypes: Set<string> = new Set()
+): string {
   const parts: string[] = [];
 
   const inheritance =
@@ -53,6 +107,7 @@ function generateContractBody(contract: SkittlesContract): string {
   parts.push(`contract ${contract.name}${inheritance} {`);
 
   for (const en of contract.enums ?? []) {
+    if (fileScopeTypes.has(en.name)) continue;
     parts.push(`    enum ${en.name} { ${en.members.join(", ")} }`);
     parts.push("");
   }
@@ -66,6 +121,7 @@ function generateContractBody(contract: SkittlesContract): string {
   }
 
   for (const s of contract.structs ?? []) {
+    if (fileScopeTypes.has(s.name)) continue;
     parts.push(generateStructDecl(s));
     parts.push("");
   }
@@ -122,6 +178,54 @@ function generateStructDecl(s: { name: string; fields: SkittlesParameter[] }): s
   return lines.join("\n");
 }
 
+function generateFileScopeStructDecl(s: { name: string; fields: SkittlesParameter[] }): string {
+  const lines: string[] = [];
+  lines.push(`struct ${s.name} {`);
+  for (const f of s.fields) {
+    lines.push(`    ${generateType(f.type)} ${f.name};`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function collectReferencedTypeNames(
+  type: SkittlesType | null | undefined,
+  structs: Set<string>,
+  enums: Set<string>
+): void {
+  if (!type) return;
+  if (type.kind === SkittlesTypeKind.Struct && type.structName) {
+    structs.add(type.structName);
+  } else if (type.kind === SkittlesTypeKind.Enum && type.structName) {
+    enums.add(type.structName);
+  } else if (type.kind === SkittlesTypeKind.Array && type.valueType) {
+    collectReferencedTypeNames(type.valueType, structs, enums);
+  } else if (type.kind === SkittlesTypeKind.Mapping) {
+    collectReferencedTypeNames(type.keyType, structs, enums);
+    collectReferencedTypeNames(type.valueType, structs, enums);
+  }
+}
+
+function generateInterfaceDecl(iface: SkittlesContractInterface): string {
+  const lines: string[] = [];
+  lines.push(`interface ${iface.name} {`);
+  for (const f of iface.functions) {
+    const params = f.parameters
+      .map((p) => `${generateCalldataParamType(p.type)} ${p.name}`)
+      .join(", ");
+    const mut = f.stateMutability && f.stateMutability !== "nonpayable"
+      ? ` ${f.stateMutability}`
+      : "";
+    let returns = "";
+    if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
+      returns = ` returns (${generateParamType(f.returnType)})`;
+    }
+    lines.push(`    function ${f.name}(${params}) external${mut}${returns};`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+
 function generateEventDecl(e: SkittlesEvent): string {
   const params = e.parameters
     .map((p) => {
@@ -152,18 +256,20 @@ function generateVariable(v: SkittlesVariable): string {
     modifier = " immutable";
   }
 
+  const overrideStr = v.isOverride ? " override" : "";
+
   if (
     v.type.kind === SkittlesTypeKind.Mapping ||
     v.type.kind === SkittlesTypeKind.Array
   ) {
-    return `${type} ${vis}${modifier} ${v.name};`;
+    return `${type} ${vis}${modifier}${overrideStr} ${v.name};`;
   }
 
   if (v.initialValue) {
-    return `${type} ${vis}${modifier} ${v.name} = ${generateExpression(v.initialValue)};`;
+    return `${type} ${vis}${modifier}${overrideStr} ${v.name} = ${generateExpression(v.initialValue)};`;
   }
 
-  return `${type} ${vis}${modifier} ${v.name};`;
+  return `${type} ${vis}${modifier}${overrideStr} ${v.name};`;
 }
 
 function generateFunction(f: SkittlesFunction): string {
@@ -253,6 +359,8 @@ export function generateType(type: SkittlesType): string {
       return `${generateType(type.valueType!)}[]`;
     case SkittlesTypeKind.Struct:
       return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.ContractInterface:
+      return type.structName ?? "UnknownInterface";
     case SkittlesTypeKind.Enum:
       return type.structName ?? "UnknownEnum";
     case SkittlesTypeKind.Void:
@@ -266,6 +374,14 @@ function generateParamType(type: SkittlesType): string {
   const base = generateType(type);
   if (needsMemoryLocation(type)) {
     return `${base} memory`;
+  }
+  return base;
+}
+
+function generateCalldataParamType(type: SkittlesType): string {
+  const base = generateType(type);
+  if (needsMemoryLocation(type)) {
+    return `${base} calldata`;
   }
   return base;
 }
