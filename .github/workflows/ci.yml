@@ -33,3 +33,20 @@ jobs:
         working-directory: example
       - run: yarn test
         working-directory: example
+
+  init-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: yarn install --immutable
+      - run: yarn build
+      - name: Verify init produces installable project
+        run: |
+          DIR=$(mktemp -d)
+          cd "$DIR"
+          node "$GITHUB_WORKSPACE/dist/index.js" init
+          sed -i 's|"skittles": "latest"|"skittles": "file:'"$GITHUB_WORKSPACE"'"|' package.json
+          npm install

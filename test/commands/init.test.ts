@@ -154,4 +154,38 @@ describe("initCommand", () => {
     const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
     expect(tsconfig.include).toContain("types/**/*");
   });
+
+  it("should have devDependencies aligned with the example project", async () => {
+    await initCommand(TEST_DIR);
+    const initPkg = JSON.parse(
+      fs.readFileSync(path.join(TEST_DIR, "package.json"), "utf-8")
+    );
+    const examplePkg = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "..", "..", "example", "package.json"),
+        "utf-8"
+      )
+    );
+
+    const initDeps = initPkg.devDependencies;
+    const exampleDeps = examplePkg.devDependencies;
+
+    const initNames = Object.keys(initDeps).sort();
+    const exampleNames = Object.keys(exampleDeps).sort();
+    expect(initNames).toEqual(exampleNames);
+
+    const peerSensitiveDeps = [
+      "chai",
+      "mocha",
+      "ethers",
+      "@nomicfoundation/hardhat-ethers",
+      "@nomicfoundation/hardhat-ethers-chai-matchers",
+      "@nomicfoundation/hardhat-mocha",
+      "@nomicfoundation/hardhat-network-helpers",
+      "@nomicfoundation/hardhat-typechain",
+    ];
+    for (const dep of peerSensitiveDeps) {
+      expect(initDeps[dep], `${dep} version mismatch`).toBe(exampleDeps[dep]);
+    }
+  });
 });
