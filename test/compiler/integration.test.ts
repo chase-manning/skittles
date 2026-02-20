@@ -2958,4 +2958,28 @@ describe("integration: contract interface solc compilation", () => {
     expect(result.errors).toHaveLength(0);
     expect(result.bytecode.length).toBeGreaterThan(0);
   });
+
+  it("should not add override to constant or immutable variables matching interface properties", () => {
+    const source = `
+      interface IConfig {
+        MAX_SUPPLY: number;
+        minStake: number;
+        owner: address;
+      }
+
+      class Config implements IConfig {
+        public static readonly MAX_SUPPLY: number = 1000000;
+        public readonly minStake: number = 100;
+        public owner: address = msg.sender;
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("uint256 public constant MAX_SUPPLY");
+    expect(solidity).not.toContain("constant override");
+    expect(solidity).toContain("uint256 public immutable minStake");
+    expect(solidity).not.toContain("immutable override");
+    expect(solidity).toContain("address public override owner");
+  });
 });

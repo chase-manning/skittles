@@ -627,7 +627,7 @@ function parseClass(
       }
     }
     for (const v of variables) {
-      if (v.visibility === "public" && interfaceFnNames.has(v.name)) {
+      if (v.visibility === "public" && interfaceFnNames.has(v.name) && !v.constant && !v.immutable) {
         v.isOverride = true;
       }
     }
