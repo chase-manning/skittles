@@ -2642,6 +2642,8 @@ describe("integration: contract interfaces", () => {
     expect(solidity).toContain("function name() public view override");
     expect(solidity).toContain("function transfer(address to, uint256 amount) public override");
     expect(solidity).not.toContain("function name() public view virtual");
+    const result = compileSolidity("Token", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 
   it("should compile interfaces with properties as view getter functions", () => {
@@ -2660,6 +2662,8 @@ describe("integration: contract interfaces", () => {
     expect(solidity).toContain("function owner() external view returns (address);");
     expect(solidity).toContain("contract Ownable is IOwnable {");
     expect(solidity).toContain("address public override owner = msg.sender;");
+    const result = compileSolidity("Ownable", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 
   it("should compile interfaces with mixed properties and methods", () => {
@@ -2706,6 +2710,8 @@ describe("integration: contract interfaces", () => {
     // Functions get override
     expect(solidity).toContain("function balanceOf(address account) public view override");
     expect(solidity).toContain("function transfer(address to, uint256 amount) public override");
+    const result = compileSolidity("Token", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 
   it("should generate interface before contract in output", () => {
@@ -2729,6 +2735,8 @@ describe("integration: contract interfaces", () => {
     expect(ifacePos).toBeLessThan(contractPos);
     expect(solidity).toContain("function greet() external pure returns (string memory);");
     expect(solidity).toContain("function greet() public pure override");
+    const result = compileSolidity("Greeter", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 
   it("should handle void return in interface methods with correct mutability", () => {
@@ -2749,6 +2757,8 @@ describe("integration: contract interfaces", () => {
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("function set(uint256 key, uint256 value) external;");
     expect(solidity).toContain("function set(uint256 key, uint256 value) public override");
+    const result = compileSolidity("Store", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 
   it("should collect contract interfaces from external source files", () => {
@@ -2784,6 +2794,8 @@ describe("integration: contract interfaces", () => {
     expect(solidity).toContain("contract Counter is ICounter {");
     expect(solidity).toContain("function increment() public override");
     expect(solidity).toContain("function getCount() public view override");
+    const result = compileSolidity("Counter", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 });
 
