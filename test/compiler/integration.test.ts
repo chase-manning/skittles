@@ -2913,4 +2913,49 @@ describe("integration: contract interface solc compilation", () => {
     expect(result.errors).toHaveLength(0);
     expect(result.bytecode.length).toBeGreaterThan(0);
   });
+
+  it("should hoist structs referenced by interface signatures to file scope", () => {
+    const source = `
+      type TokenInfo = {
+        name: string;
+        totalSupply: number;
+      };
+
+      interface IRegistry {
+        getTokenInfo(token: address): TokenInfo;
+        register(info: TokenInfo): void;
+      }
+
+      class Registry implements IRegistry {
+        private data: Record<address, TokenInfo> = {};
+
+        public getTokenInfo(token: address): TokenInfo {
+          return this.data[token];
+        }
+
+        public register(info: TokenInfo): void {
+          this.data[msg.sender] = info;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+
+    const structIdx = solidity.indexOf("struct TokenInfo {");
+    const interfaceIdx = solidity.indexOf("interface IRegistry {");
+    const contractIdx = solidity.indexOf("contract Registry");
+
+    expect(structIdx).toBeGreaterThan(-1);
+    expect(interfaceIdx).toBeGreaterThan(-1);
+    expect(contractIdx).toBeGreaterThan(-1);
+    expect(structIdx).toBeLessThan(interfaceIdx);
+    expect(interfaceIdx).toBeLessThan(contractIdx);
+
+    expect(solidity).toContain("function getTokenInfo(address token) external view returns (TokenInfo memory);");
+    expect(solidity).toContain("function register(TokenInfo calldata info) external;");
+
+    const result = compileSolidity("Registry", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(result.bytecode.length).toBeGreaterThan(0);
+  });
 });

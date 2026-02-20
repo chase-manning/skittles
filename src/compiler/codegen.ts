@@ -30,19 +30,57 @@ export function generateSolidityFile(contracts: SkittlesContract[]): string {
   parts.push("");
 
   // Collect and deduplicate contract interfaces across all contracts
+  const allInterfaces: SkittlesContractInterface[] = [];
   const emittedInterfaces = new Set<string>();
   for (const contract of contracts) {
     for (const iface of contract.contractInterfaces ?? []) {
       if (!emittedInterfaces.has(iface.name)) {
         emittedInterfaces.add(iface.name);
-        parts.push(generateInterfaceDecl(iface));
-        parts.push("");
+        allInterfaces.push(iface);
       }
     }
   }
 
+  // Hoist structs and enums referenced by interface signatures to file scope
+  // so they are visible to the interface declarations.
+  const hoistedStructs = new Set<string>();
+  const hoistedEnums = new Set<string>();
+  for (const iface of allInterfaces) {
+    for (const fn of iface.functions) {
+      collectReferencedTypeNames(fn.returnType, hoistedStructs, hoistedEnums);
+      for (const p of fn.parameters) {
+        collectReferencedTypeNames(p.type, hoistedStructs, hoistedEnums);
+      }
+    }
+  }
+
+  const emittedFileScopeTypes = new Set<string>();
+  if (hoistedStructs.size > 0 || hoistedEnums.size > 0) {
+    for (const contract of contracts) {
+      for (const en of contract.enums ?? []) {
+        if (hoistedEnums.has(en.name) && !emittedFileScopeTypes.has(en.name)) {
+          emittedFileScopeTypes.add(en.name);
+          parts.push(`enum ${en.name} { ${en.members.join(", ")} }`);
+          parts.push("");
+        }
+      }
+      for (const s of contract.structs ?? []) {
+        if (hoistedStructs.has(s.name) && !emittedFileScopeTypes.has(s.name)) {
+          emittedFileScopeTypes.add(s.name);
+          parts.push(generateFileScopeStructDecl(s));
+          parts.push("");
+        }
+      }
+    }
+  }
+
+  for (const iface of allInterfaces) {
+    parts.push(generateInterfaceDecl(iface));
+    parts.push("");
+  }
+
   for (let i = 0; i < contracts.length; i++) {
-    parts.push(generateContractBody(contracts[i]));
+    parts.push(generateContractBody(contracts[i], emittedFileScopeTypes));
     if (i < contracts.length - 1) {
       parts.push("");
     }
@@ -56,7 +94,10 @@ export function generateSolidity(contract: SkittlesContract): string {
   return generateSolidityFile([contract]);
 }
 
-function generateContractBody(contract: SkittlesContract): string {
+function generateContractBody(
+  contract: SkittlesContract,
+  fileScopeTypes: Set<string> = new Set()
+): string {
   const parts: string[] = [];
 
   const inheritance =
@@ -66,6 +107,7 @@ function generateContractBody(contract: SkittlesContract): string {
   parts.push(`contract ${contract.name}${inheritance} {`);
 
   for (const en of contract.enums ?? []) {
+    if (fileScopeTypes.has(en.name)) continue;
     parts.push(`    enum ${en.name} { ${en.members.join(", ")} }`);
     parts.push("");
   }
@@ -79,6 +121,7 @@ function generateContractBody(contract: SkittlesContract): string {
   }
 
   for (const s of contract.structs ?? []) {
+    if (fileScopeTypes.has(s.name)) continue;
     parts.push(generateStructDecl(s));
     parts.push("");
   }
@@ -133,6 +176,34 @@ function generateStructDecl(s: { name: string; fields: SkittlesParameter[] }): s
   }
   lines.push("    }");
   return lines.join("\n");
+}
+
+function generateFileScopeStructDecl(s: { name: string; fields: SkittlesParameter[] }): string {
+  const lines: string[] = [];
+  lines.push(`struct ${s.name} {`);
+  for (const f of s.fields) {
+    lines.push(`    ${generateType(f.type)} ${f.name};`);
+  }
+  lines.push("}");
+  return lines.join("\n");
+}
+
+function collectReferencedTypeNames(
+  type: SkittlesType | null | undefined,
+  structs: Set<string>,
+  enums: Set<string>
+): void {
+  if (!type) return;
+  if (type.kind === SkittlesTypeKind.Struct && type.structName) {
+    structs.add(type.structName);
+  } else if (type.kind === SkittlesTypeKind.Enum && type.structName) {
+    enums.add(type.structName);
+  } else if (type.kind === SkittlesTypeKind.Array && type.valueType) {
+    collectReferencedTypeNames(type.valueType, structs, enums);
+  } else if (type.kind === SkittlesTypeKind.Mapping) {
+    collectReferencedTypeNames(type.keyType, structs, enums);
+    collectReferencedTypeNames(type.valueType, structs, enums);
+  }
 }
 
 function generateInterfaceDecl(iface: SkittlesContractInterface): string {

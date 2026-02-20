@@ -128,14 +128,11 @@ export function parse(
     }
   }
 
+  // First pass: collect structs and enums so they are available when parsing interfaces
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
       const fields = parseTypeLiteralFields(node.type);
       structs.set(node.name.text, fields);
-    }
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      const iface = parseInterfaceAsContractInterface(node);
-      contractInterfaces.set(node.name.text, iface);
     }
     if (ts.isEnumDeclaration(node) && node.name) {
       const members = node.members.map((m) =>
@@ -145,11 +142,20 @@ export function parse(
     }
   });
 
+  _knownStructs = structs;
+  _knownEnums = new Set(enums.keys());
+
+  // Second pass: parse interfaces (may reference struct/enum types collected above)
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const iface = parseInterfaceAsContractInterface(node);
+      contractInterfaces.set(node.name.text, iface);
+    }
+  });
+
   const customErrors: Map<string, SkittlesParameter[]> = new Map();
 
-  _knownStructs = structs;
   _knownContractInterfaces = new Set(contractInterfaces.keys());
-  _knownEnums = new Set(enums.keys());
   _knownCustomErrors = new Set();
   _fileConstants = new Map();
 
