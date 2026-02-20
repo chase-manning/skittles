@@ -154,4 +154,28 @@ describe("initCommand", () => {
     const tsconfig = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
     expect(tsconfig.include).toContain("types/**/*");
   });
+
+  it("should have devDependencies aligned with the example project", async () => {
+    await initCommand(TEST_DIR);
+    const initPkg = JSON.parse(
+      fs.readFileSync(path.join(TEST_DIR, "package.json"), "utf-8")
+    );
+    const examplePkg = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "..", "..", "example", "package.json"),
+        "utf-8"
+      )
+    );
+
+    const initDeps = initPkg.devDependencies;
+    const exampleDeps = examplePkg.devDependencies;
+
+    for (const dep of Object.keys(exampleDeps)) {
+      expect(initDeps[dep], `${dep} missing from init template`).toBeDefined();
+      expect(initDeps[dep], `${dep} version mismatch`).toBe(exampleDeps[dep]);
+    }
+    for (const dep of Object.keys(initDeps)) {
+      expect(exampleDeps[dep], `${dep} in init template but missing from example`).toBeDefined();
+    }
+  });
 });
