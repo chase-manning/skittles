@@ -47,7 +47,7 @@ export class Staking {
 }
 ```
 
-The import syntax is standard TypeScript. Skittles resolves the types across files during the pre scan phase. The generated Solidity includes struct, interface, and enum definitions inline within each contract that uses them.
+The import syntax is standard TypeScript. Skittles resolves the types across files during the pre scan phase. The generated Solidity emits interface definitions once per `.sol` file at file scope before the contracts, while struct and enum definitions are included inline within each contract that uses them.
 
 ## Shared Functions
 
