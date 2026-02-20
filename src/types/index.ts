@@ -27,6 +27,7 @@ export interface SkittlesInterfaceFunction {
   name: string;
   parameters: SkittlesParameter[];
   returnType: SkittlesType | null;
+  stateMutability?: StateMutability;
 }
 
 export interface SkittlesContractInterface {
@@ -64,6 +65,7 @@ export interface SkittlesVariable {
   visibility: Visibility;
   immutable: boolean;
   constant: boolean;
+  isOverride?: boolean;
   initialValue?: Expression;
 }
 

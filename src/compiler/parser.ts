@@ -428,7 +428,7 @@ function parseInterfaceAsContractInterface(
       const returnType: SkittlesType = member.type
         ? parseType(member.type)
         : { kind: "uint256" as SkittlesTypeKind };
-      functions.push({ name: propName, parameters: [], returnType });
+      functions.push({ name: propName, parameters: [], returnType, stateMutability: "view" });
     }
 
     if (ts.isMethodSignature(member) && member.name && ts.isIdentifier(member.name)) {
@@ -559,6 +559,20 @@ function parseClass(
   // If function A calls this.B(), and B is nonpayable, then A is also nonpayable.
   propagateStateMutability(functions);
 
+  // Build set of interface names this class implements
+  const implementedInterfaceNames = new Set<string>();
+  if (node.heritageClauses) {
+    for (const clause of node.heritageClauses) {
+      if (clause.token === ts.SyntaxKind.ImplementsKeyword) {
+        for (const type of clause.types) {
+          if (ts.isIdentifier(type.expression) && knownContractInterfaces.has(type.expression.text)) {
+            implementedInterfaceNames.add(type.expression.text);
+          }
+        }
+      }
+    }
+  }
+
   const contractStructs: { name: string; fields: SkittlesParameter[] }[] = [];
   for (const [sName, fields] of knownStructs) {
     contractStructs.push({ name: sName, fields });
@@ -569,9 +583,48 @@ function parseClass(
     contractEnums.push({ name: eName, members });
   }
 
+  // Deep copy interfaces so mutability updates don't leak to shared state
   const contractIfaceList: SkittlesContractInterface[] = [];
   for (const [, iface] of knownContractInterfaces) {
-    contractIfaceList.push(iface);
+    contractIfaceList.push({
+      name: iface.name,
+      functions: iface.functions.map((fn) => ({ ...fn })),
+    });
+  }
+
+  // Fourth pass: for implemented interfaces, derive method mutabilities
+  // from the actual implementation and mark implementing members as override.
+  if (implementedInterfaceNames.size > 0) {
+    const interfaceFnNames = new Set<string>();
+    for (const ifaceName of implementedInterfaceNames) {
+      const iface = contractIfaceList.find((i) => i.name === ifaceName);
+      if (!iface) continue;
+      for (const ifn of iface.functions) {
+        interfaceFnNames.add(ifn.name);
+        if (ifn.stateMutability) continue;
+        const impl = functions.find((f) => f.name === ifn.name);
+        if (impl) {
+          ifn.stateMutability = impl.stateMutability;
+        } else {
+          const varImpl = variables.find((v) => v.name === ifn.name && v.visibility === "public");
+          if (varImpl) {
+            ifn.stateMutability = "view";
+          }
+        }
+      }
+    }
+
+    for (const fn of functions) {
+      if (interfaceFnNames.has(fn.name)) {
+        fn.isOverride = true;
+        fn.isVirtual = false;
+      }
+    }
+    for (const v of variables) {
+      if (v.visibility === "public" && interfaceFnNames.has(v.name)) {
+        v.isOverride = true;
+      }
+    }
   }
 
   const contractCustomErrors: { name: string; parameters: SkittlesParameter[] }[] = [];

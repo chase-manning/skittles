@@ -142,11 +142,14 @@ function generateInterfaceDecl(iface: SkittlesContractInterface): string {
     const params = f.parameters
       .map((p) => `${generateParamType(p.type)} ${p.name}`)
       .join(", ");
+    const mut = f.stateMutability && f.stateMutability !== "nonpayable"
+      ? ` ${f.stateMutability}`
+      : "";
     let returns = "";
     if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
       returns = ` returns (${generateParamType(f.returnType)})`;
     }
-    lines.push(`    function ${f.name}(${params}) external${returns};`);
+    lines.push(`    function ${f.name}(${params}) external${mut}${returns};`);
   }
   lines.push("}");
   return lines.join("\n");
@@ -182,18 +185,20 @@ function generateVariable(v: SkittlesVariable): string {
     modifier = " immutable";
   }
 
+  const overrideStr = v.isOverride ? " override" : "";
+
   if (
     v.type.kind === SkittlesTypeKind.Mapping ||
     v.type.kind === SkittlesTypeKind.Array
   ) {
-    return `${type} ${vis}${modifier} ${v.name};`;
+    return `${type} ${vis}${modifier}${overrideStr} ${v.name};`;
   }
 
   if (v.initialValue) {
-    return `${type} ${vis}${modifier} ${v.name} = ${generateExpression(v.initialValue)};`;
+    return `${type} ${vis}${modifier}${overrideStr} ${v.name} = ${generateExpression(v.initialValue)};`;
   }
 
-  return `${type} ${vis}${modifier} ${v.name};`;
+  return `${type} ${vis}${modifier}${overrideStr} ${v.name};`;
 }
 
 function generateFunction(f: SkittlesFunction): string {

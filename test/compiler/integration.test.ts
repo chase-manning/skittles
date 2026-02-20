@@ -2536,7 +2536,7 @@ describe("integration: cross file constant imports", () => {
 // ============================================================
 
 describe("integration: implements keyword", () => {
-  it("should compile implements as Solidity is", () => {
+  it("should compile implements as Solidity is with correct mutability and override", () => {
     const source = `
       interface IToken {
         balance(account: address): number;
@@ -2556,7 +2556,9 @@ describe("integration: implements keyword", () => {
     expect(contracts[0].inherits).toEqual(["IToken"]);
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("function balance(address account) external view returns (uint256);");
     expect(solidity).toContain("contract Token is IToken {");
+    expect(solidity).toContain("function balance(address account) public view override");
   });
 
   it("should accept combined extends and implements", () => {
@@ -2632,13 +2634,17 @@ describe("integration: contract interfaces", () => {
     expect(contracts).toHaveLength(1);
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface IToken {");
-    expect(solidity).toContain("function name() external returns (string memory);");
-    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+    expect(solidity).toContain("function name() external view returns (string memory);");
+    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
     expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
     expect(solidity).toContain("contract Token is IToken {");
+    // Implementing functions should have override, not virtual
+    expect(solidity).toContain("function name() public view override");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public override");
+    expect(solidity).not.toContain("function name() public view virtual");
   });
 
-  it("should compile interfaces with properties as getter functions", () => {
+  it("should compile interfaces with properties as view getter functions", () => {
     const source = `
       interface IOwnable {
         owner: address;
@@ -2651,8 +2657,9 @@ describe("integration: contract interfaces", () => {
     const contracts = parse(source, "test.ts");
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface IOwnable {");
-    expect(solidity).toContain("function owner() external returns (address);");
+    expect(solidity).toContain("function owner() external view returns (address);");
     expect(solidity).toContain("contract Ownable is IOwnable {");
+    expect(solidity).toContain("address public override owner = msg.sender;");
   });
 
   it("should compile interfaces with mixed properties and methods", () => {
@@ -2684,12 +2691,21 @@ describe("integration: contract interfaces", () => {
     const contracts = parse(source, "test.ts");
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface IToken {");
-    expect(solidity).toContain("function name() external returns (string memory);");
-    expect(solidity).toContain("function symbol() external returns (string memory);");
-    expect(solidity).toContain("function totalSupply() external returns (uint256);");
-    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+    // Properties get view
+    expect(solidity).toContain("function name() external view returns (string memory);");
+    expect(solidity).toContain("function symbol() external view returns (string memory);");
+    expect(solidity).toContain("function totalSupply() external view returns (uint256);");
+    // Method mutability derived from implementation
+    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
     expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
     expect(solidity).toContain("contract Token is IToken {");
+    // Public variables get override
+    expect(solidity).toContain('string public override name = "MyToken"');
+    expect(solidity).toContain('string public override symbol = "MTK"');
+    expect(solidity).toContain("uint256 public override totalSupply = 1000");
+    // Functions get override
+    expect(solidity).toContain("function balanceOf(address account) public view override");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) public override");
   });
 
   it("should generate interface before contract in output", () => {
@@ -2711,9 +2727,11 @@ describe("integration: contract interfaces", () => {
     expect(ifacePos).toBeGreaterThan(-1);
     expect(contractPos).toBeGreaterThan(-1);
     expect(ifacePos).toBeLessThan(contractPos);
+    expect(solidity).toContain("function greet() external pure returns (string memory);");
+    expect(solidity).toContain("function greet() public pure override");
   });
 
-  it("should handle void return in interface methods", () => {
+  it("should handle void return in interface methods with correct mutability", () => {
     const source = `
       interface IStore {
         set(key: number, value: number): void;
@@ -2730,6 +2748,7 @@ describe("integration: contract interfaces", () => {
     const contracts = parse(source, "test.ts");
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("function set(uint256 key, uint256 value) external;");
+    expect(solidity).toContain("function set(uint256 key, uint256 value) public override");
   });
 
   it("should collect contract interfaces from external source files", () => {
@@ -2760,7 +2779,11 @@ describe("integration: contract interfaces", () => {
 
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface ICounter {");
+    expect(solidity).toContain("function increment() external;");
+    expect(solidity).toContain("function getCount() external view returns (uint256);");
     expect(solidity).toContain("contract Counter is ICounter {");
+    expect(solidity).toContain("function increment() public override");
+    expect(solidity).toContain("function getCount() public view override");
   });
 });
 
@@ -2810,5 +2833,45 @@ describe("integration: type alias structs", () => {
     expect(solidity).toContain("struct Transfer {");
     expect(solidity).toContain("address from;");
     expect(solidity).toContain("Transfer memory t");
+  });
+});
+
+// ============================================================
+// End to end solc compilation with contract interfaces
+// ============================================================
+
+describe("integration: contract interface solc compilation", () => {
+  it("should produce valid Solidity that compiles through solc", () => {
+    const source = `
+      interface IToken {
+        name: string;
+        symbol: string;
+        totalSupply: number;
+        balanceOf(account: address): number;
+        transfer(to: address, amount: number): boolean;
+      }
+
+      class Token implements IToken {
+        public name: string = "MyToken";
+        public symbol: string = "MTK";
+        public totalSupply: number = 1000000;
+        private balances: Record<address, number> = {};
+
+        public balanceOf(account: address): number {
+          return this.balances[account];
+        }
+
+        public transfer(to: address, amount: number): boolean {
+          this.balances[msg.sender] -= amount;
+          this.balances[to] += amount;
+          return true;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    const result = compileSolidity("Token", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(result.bytecode.length).toBeGreaterThan(0);
   });
 });
