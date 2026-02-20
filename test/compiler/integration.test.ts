@@ -2797,6 +2797,33 @@ describe("integration: contract interfaces", () => {
     const result = compileSolidity("Counter", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should use calldata for reference type parameters in interface functions", () => {
+    const source = `
+      interface IRegistry {
+        register(name: string): void;
+        lookup(name: string): address;
+      }
+
+      class Registry implements IRegistry {
+        private entries: Record<string, address> = {};
+
+        public register(name: string): void {
+          this.entries[name] = msg.sender;
+        }
+
+        public lookup(name: string): address {
+          return this.entries[name];
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("function register(string calldata name) external;");
+    expect(solidity).toContain("function lookup(string calldata name) external view returns (address);");
+    const result = compileSolidity("Registry", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 // ============================================================

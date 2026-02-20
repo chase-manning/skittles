@@ -140,7 +140,7 @@ function generateInterfaceDecl(iface: SkittlesContractInterface): string {
   lines.push(`interface ${iface.name} {`);
   for (const f of iface.functions) {
     const params = f.parameters
-      .map((p) => `${generateParamType(p.type)} ${p.name}`)
+      .map((p) => `${generateCalldataParamType(p.type)} ${p.name}`)
       .join(", ");
     const mut = f.stateMutability && f.stateMutability !== "nonpayable"
       ? ` ${f.stateMutability}`
@@ -303,6 +303,14 @@ function generateParamType(type: SkittlesType): string {
   const base = generateType(type);
   if (needsMemoryLocation(type)) {
     return `${base} memory`;
+  }
+  return base;
+}
+
+function generateCalldataParamType(type: SkittlesType): string {
+  const base = generateType(type);
+  if (needsMemoryLocation(type)) {
+    return `${base} calldata`;
   }
   return base;
 }
