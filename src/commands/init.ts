@@ -178,11 +178,10 @@ function buildPackageJson(projectName: string): string {
         "@nomicfoundation/hardhat-mocha": "^3.0.0",
         "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
         "@nomicfoundation/hardhat-typechain": "^3.0.0",
-        chai: "^4.5.0",
+        chai: "^5.1.2",
         ethers: "^6.16.0",
         hardhat: "^3.0.0",
         mocha: "^10.0.0",
-        "@types/chai": "^4.3.0",
         "@types/mocha": "^10.0.0",
       },
       engines: {
@@ -216,11 +215,10 @@ export async function initCommand(projectRoot: string): Promise<void> {
         "@nomicfoundation/hardhat-mocha": "^3.0.0",
         "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
         "@nomicfoundation/hardhat-typechain": "^3.0.0",
-        chai: "^4.5.0",
+        chai: "^5.1.2",
         ethers: "^6.16.0",
         hardhat: "^3.0.0",
         mocha: "^10.0.0",
-        "@types/chai": "^4.3.0",
         "@types/mocha": "^10.0.0",
       };
       for (const [dep, version] of Object.entries(requiredDevDeps)) {
