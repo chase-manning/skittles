@@ -6,6 +6,7 @@ import {
   type SkittlesConstructor,
   type SkittlesEvent,
   type SkittlesType,
+  type SkittlesContractInterface,
   type Statement,
   type Expression,
   type IfStatement,
@@ -27,6 +28,18 @@ export function generateSolidityFile(contracts: SkittlesContract[]): string {
   parts.push("// SPDX-License-Identifier: MIT");
   parts.push("pragma solidity ^0.8.20;");
   parts.push("");
+
+  // Collect and deduplicate contract interfaces across all contracts
+  const emittedInterfaces = new Set<string>();
+  for (const contract of contracts) {
+    for (const iface of contract.contractInterfaces ?? []) {
+      if (!emittedInterfaces.has(iface.name)) {
+        emittedInterfaces.add(iface.name);
+        parts.push(generateInterfaceDecl(iface));
+        parts.push("");
+      }
+    }
+  }
 
   for (let i = 0; i < contracts.length; i++) {
     parts.push(generateContractBody(contracts[i]));
@@ -119,6 +132,23 @@ function generateStructDecl(s: { name: string; fields: SkittlesParameter[] }): s
     lines.push(`        ${generateType(f.type)} ${f.name};`);
   }
   lines.push("    }");
+  return lines.join("\n");
+}
+
+function generateInterfaceDecl(iface: SkittlesContractInterface): string {
+  const lines: string[] = [];
+  lines.push(`interface ${iface.name} {`);
+  for (const f of iface.functions) {
+    const params = f.parameters
+      .map((p) => `${generateParamType(p.type)} ${p.name}`)
+      .join(", ");
+    let returns = "";
+    if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
+      returns = ` returns (${generateParamType(f.returnType)})`;
+    }
+    lines.push(`    function ${f.name}(${params}) external${returns};`);
+  }
+  lines.push("}");
   return lines.join("\n");
 }
 
@@ -253,6 +283,8 @@ export function generateType(type: SkittlesType): string {
       return `${generateType(type.valueType!)}[]`;
     case SkittlesTypeKind.Struct:
       return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.ContractInterface:
+      return type.structName ?? "UnknownInterface";
     case SkittlesTypeKind.Enum:
       return type.structName ?? "UnknownEnum";
     case SkittlesTypeKind.Void:

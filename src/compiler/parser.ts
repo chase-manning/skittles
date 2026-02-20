@@ -8,6 +8,8 @@ import type {
   SkittlesParameter,
   SkittlesType,
   SkittlesTypeKind,
+  SkittlesContractInterface,
+  SkittlesInterfaceFunction,
   Visibility,
   Statement,
   Expression,
@@ -17,6 +19,7 @@ import type {
 
 // Module-level registries, populated during parse()
 let _knownStructs: Map<string, SkittlesParameter[]> = new Map();
+let _knownContractInterfaces: Set<string> = new Set();
 let _knownEnums: Set<string> = new Set();
 let _knownCustomErrors: Set<string> = new Set();
 let _fileConstants: Map<string, Expression> = new Map();
@@ -26,13 +29,14 @@ let _fileConstants: Map<string, Expression> = new Map();
 // ============================================================
 
 /**
- * Pre-scan a source file to collect interfaces (structs) and enums
- * without parsing any classes. Used by the compiler to resolve
- * cross-file type references.
+ * Pre-scan a source file to collect type aliases (structs), interfaces
+ * (contract interfaces), and enums without parsing any classes.
+ * Used by the compiler to resolve cross-file type references.
  */
 export function collectTypes(source: string, filePath: string): {
   structs: Map<string, SkittlesParameter[]>;
   enums: Map<string, string[]>;
+  contractInterfaces: Map<string, SkittlesContractInterface>;
 } {
   const sourceFile = ts.createSourceFile(
     filePath,
@@ -43,17 +47,25 @@ export function collectTypes(source: string, filePath: string): {
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
+  const contractInterfaces: Map<string, SkittlesContractInterface> = new Map();
 
   // Temporarily set module registries so parseType can resolve references
   const prevStructs = _knownStructs;
   const prevEnums = _knownEnums;
+  const prevInterfaces = _knownContractInterfaces;
   _knownStructs = structs;
   _knownEnums = new Set();
+  _knownContractInterfaces = new Set();
 
   ts.forEachChild(sourceFile, (node) => {
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      const fields = parseInterfaceFields(node);
+    if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
+      const fields = parseTypeLiteralFields(node.type);
       structs.set(node.name.text, fields);
+    }
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const iface = parseInterfaceAsContractInterface(node);
+      contractInterfaces.set(node.name.text, iface);
+      _knownContractInterfaces.add(node.name.text);
     }
     if (ts.isEnumDeclaration(node) && node.name) {
       const members = node.members.map((m) =>
@@ -65,13 +77,15 @@ export function collectTypes(source: string, filePath: string): {
 
   _knownStructs = prevStructs;
   _knownEnums = prevEnums;
+  _knownContractInterfaces = prevInterfaces;
 
-  return { structs, enums };
+  return { structs, enums, contractInterfaces };
 }
 
 export interface ExternalTypes {
   structs?: Map<string, SkittlesParameter[]>;
   enums?: Map<string, string[]>;
+  contractInterfaces?: Map<string, SkittlesContractInterface>;
 }
 
 export interface ExternalFunctions {
@@ -94,6 +108,7 @@ export function parse(
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
+  const contractInterfaces: Map<string, SkittlesContractInterface> = new Map();
   const contracts: SkittlesContract[] = [];
 
   // Seed with externally resolved types (from other files)
@@ -107,11 +122,20 @@ export function parse(
       enums.set(name, members);
     }
   }
+  if (externalTypes?.contractInterfaces) {
+    for (const [name, iface] of externalTypes.contractInterfaces) {
+      contractInterfaces.set(name, iface);
+    }
+  }
 
   ts.forEachChild(sourceFile, (node) => {
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      const fields = parseInterfaceFields(node);
+    if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
+      const fields = parseTypeLiteralFields(node.type);
       structs.set(node.name.text, fields);
+    }
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const iface = parseInterfaceAsContractInterface(node);
+      contractInterfaces.set(node.name.text, iface);
     }
     if (ts.isEnumDeclaration(node) && node.name) {
       const members = node.members.map((m) =>
@@ -124,6 +148,7 @@ export function parse(
   const customErrors: Map<string, SkittlesParameter[]> = new Map();
 
   _knownStructs = structs;
+  _knownContractInterfaces = new Set(contractInterfaces.keys());
   _knownEnums = new Set(enums.keys());
   _knownCustomErrors = new Set();
   _fileConstants = new Map();
@@ -176,7 +201,7 @@ export function parse(
         customErrors.set(node.name.text, params);
         _knownCustomErrors.add(node.name.text);
       } else {
-        contracts.push(parseClass(node, filePath, structs, enums, customErrors, fileFunctions, fileConstants));
+        contracts.push(parseClass(node, filePath, structs, enums, contractInterfaces, customErrors, fileFunctions, fileConstants));
       }
     }
   });
@@ -204,11 +229,13 @@ export function collectFunctions(source: string, filePath: string): {
   const emptyVarTypes = new Map<string, SkittlesType>();
   const emptyEventNames = new Set<string>();
 
-  // Need to set up struct/enum registries for type parsing
+  // Need to set up struct/enum/interface registries for type parsing
   const prevStructs = _knownStructs;
   const prevEnums = _knownEnums;
+  const prevInterfaces = _knownContractInterfaces;
   _knownStructs = new Map();
   _knownEnums = new Set();
+  _knownContractInterfaces = new Set();
 
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name && node.body) {
@@ -230,6 +257,7 @@ export function collectFunctions(source: string, filePath: string): {
 
   _knownStructs = prevStructs;
   _knownEnums = prevEnums;
+  _knownContractInterfaces = prevInterfaces;
 
   return { functions, constants };
 }
@@ -370,7 +398,7 @@ function parseErrorClass(node: ts.ClassDeclaration): SkittlesParameter[] {
   return [];
 }
 
-function parseInterfaceFields(node: ts.InterfaceDeclaration): SkittlesParameter[] {
+function parseTypeLiteralFields(node: ts.TypeLiteralNode): SkittlesParameter[] {
   const fields: SkittlesParameter[] = [];
   for (const member of node.members) {
     if (
@@ -388,6 +416,32 @@ function parseInterfaceFields(node: ts.InterfaceDeclaration): SkittlesParameter[
   return fields;
 }
 
+function parseInterfaceAsContractInterface(
+  node: ts.InterfaceDeclaration
+): SkittlesContractInterface {
+  const name = node.name.text;
+  const functions: SkittlesInterfaceFunction[] = [];
+
+  for (const member of node.members) {
+    if (ts.isPropertySignature(member) && member.name && ts.isIdentifier(member.name)) {
+      const propName = member.name.text;
+      const returnType: SkittlesType = member.type
+        ? parseType(member.type)
+        : { kind: "uint256" as SkittlesTypeKind };
+      functions.push({ name: propName, parameters: [], returnType });
+    }
+
+    if (ts.isMethodSignature(member) && member.name && ts.isIdentifier(member.name)) {
+      const methodName = member.name.text;
+      const parameters = member.parameters.map(parseParameter);
+      const returnType: SkittlesType | null = member.type ? parseType(member.type) : null;
+      functions.push({ name: methodName, parameters, returnType });
+    }
+  }
+
+  return { name, functions };
+}
+
 // ============================================================
 // Class level parsing
 // ============================================================
@@ -397,6 +451,7 @@ function parseClass(
   filePath: string,
   knownStructs: Map<string, SkittlesParameter[]> = new Map(),
   knownEnums: Map<string, string[]> = new Map(),
+  knownContractInterfaces: Map<string, SkittlesContractInterface> = new Map(),
   knownCustomErrors: Map<string, SkittlesParameter[]> = new Map(),
   fileFunctions: SkittlesFunction[] = [],
   fileConstants: Map<string, Expression> = new Map()
@@ -417,9 +472,13 @@ function parseClass(
           }
         }
       }
-      // `implements` is accepted but not added to inherits.
-      // TypeScript enforces the shape constraint at compile time.
-      // Solidity doesn't have a separate `implements` keyword.
+      if (clause.token === ts.SyntaxKind.ImplementsKeyword) {
+        for (const type of clause.types) {
+          if (ts.isIdentifier(type.expression)) {
+            inherits.push(type.expression.text);
+          }
+        }
+      }
     }
   }
 
@@ -510,6 +569,11 @@ function parseClass(
     contractEnums.push({ name: eName, members });
   }
 
+  const contractIfaceList: SkittlesContractInterface[] = [];
+  for (const [, iface] of knownContractInterfaces) {
+    contractIfaceList.push(iface);
+  }
+
   const contractCustomErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
   for (const [cName, params] of knownCustomErrors) {
     contractCustomErrors.push({ name: cName, parameters: params });
@@ -527,6 +591,7 @@ function parseClass(
     events,
     structs: contractStructs,
     enums: contractEnums,
+    contractInterfaces: contractIfaceList,
     customErrors: contractCustomErrors,
     ctor,
     inherits,
@@ -814,6 +879,13 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       };
     }
 
+    if (_knownContractInterfaces.has(name)) {
+      return {
+        kind: "contract-interface" as SkittlesTypeKind,
+        structName: name,
+      };
+    }
+
     if (_knownEnums.has(name)) {
       return {
         kind: "enum" as SkittlesTypeKind,
@@ -821,7 +893,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       };
     }
 
-    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, Record<K,V>, T[], interface structs, and enums.`);
+    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, Record<K,V>, T[], type structs, interfaces, and enums.`);
   }
 
   if (ts.isArrayTypeNode(node)) {

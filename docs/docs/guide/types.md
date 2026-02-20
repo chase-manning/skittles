@@ -99,16 +99,16 @@ for (let i: number = 0; i < this.owners.length; i++) {
 
 ## Structs
 
-TypeScript interfaces compile to Solidity structs:
+TypeScript type aliases with object shapes compile to Solidity structs:
 
 ```typescript title="contracts/types.ts"
 import { address } from "skittles";
 
-export interface StakeInfo {
+export type StakeInfo = {
   amount: number;
   timestamp: number;
   account: address;
-}
+};
 ```
 
 ```solidity title="Generated Solidity"
@@ -131,6 +131,65 @@ return info;
 ```
 
 Structs can be shared across contract files. See [Cross File Support](/guide/cross-file).
+
+## Contract Interfaces
+
+TypeScript interfaces compile to Solidity contract interfaces. Use interfaces to define the external API of a contract:
+
+```typescript title="contracts/interfaces.ts"
+import { address } from "skittles";
+
+export interface IToken {
+  name: string;
+  symbol: string;
+  totalSupply: number;
+  balanceOf(account: address): number;
+  transfer(to: address, amount: number): boolean;
+}
+```
+
+```solidity title="Generated Solidity"
+interface IToken {
+    function name() external returns (string memory);
+    function symbol() external returns (string memory);
+    function totalSupply() external returns (uint256);
+    function balanceOf(address account) external returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+```
+
+Properties are converted to getter function signatures. Methods are converted to external function signatures.
+
+### Implementing Interfaces
+
+Use the `implements` keyword to implement an interface. This generates a Solidity `is` clause:
+
+```typescript title="contracts/Token.ts"
+class Token implements IToken {
+  public name: string = "MyToken";
+  public symbol: string = "MTK";
+  public totalSupply: number = 1000000;
+  private balances: Record<address, number> = {};
+
+  public balanceOf(account: address): number {
+    return this.balances[account];
+  }
+
+  public transfer(to: address, amount: number): boolean {
+    this.balances[msg.sender] -= amount;
+    this.balances[to] += amount;
+    return true;
+  }
+}
+```
+
+```solidity title="Generated Solidity"
+contract Token is IToken {
+    // ...
+}
+```
+
+Interfaces can be shared across contract files. See [Cross File Support](/guide/cross-file).
 
 ## Enums
 

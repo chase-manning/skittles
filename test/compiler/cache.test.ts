@@ -285,10 +285,10 @@ describe("incremental compilation cache", () => {
 
   it("should invalidate cache when shared type definitions change in another file", async () => {
     writeContract(projectRoot, "types.ts", `
-      interface Point {
+      type Point = {
         x: number;
         y: number;
-      }
+      };
     `);
 
     writeContract(projectRoot, "Geometry.ts", `
@@ -303,11 +303,11 @@ describe("incremental compilation cache", () => {
     const spy = vi.spyOn(parserModule, "parse");
 
     writeContract(projectRoot, "types.ts", `
-      interface Point {
+      type Point = {
         x: number;
         y: number;
         z: number;
-      }
+      };
     `);
 
     const result2 = await compile(projectRoot, defaultConfig);

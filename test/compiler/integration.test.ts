@@ -1283,12 +1283,12 @@ describe("integration: built-in functions", () => {
 // ============================================================
 
 describe("integration: structs", () => {
-  it("should compile interfaces as Solidity structs", () => {
+  it("should compile type aliases as Solidity structs", () => {
     const { errors, solidity } = compileTS(`
-      interface Point {
+      type Point = {
         x: number;
         y: number;
-      }
+      };
 
       class Geometry {
         public origin: Point;
@@ -1308,11 +1308,11 @@ describe("integration: structs", () => {
 
   it("should use memory annotation for struct parameters", () => {
     const { errors, solidity } = compileTS(`
-      interface Transfer {
+      type Transfer = {
         from: address;
         to: address;
         amount: number;
-      }
+      };
 
       class Bank {
         public process(t: Transfer): void {
@@ -1999,10 +1999,10 @@ describe("integration: for...of loops", () => {
 describe("integration: object literal struct construction", () => {
   it("should compile object literal as struct constructor in variable declaration", () => {
     const { errors, solidity } = compileTS(`
-      interface Point {
+      type Point = {
         x: number;
         y: number;
-      }
+      };
 
       class Geometry {
         public createPoint(): Point {
@@ -2017,10 +2017,10 @@ describe("integration: object literal struct construction", () => {
 
   it("should compile object literal with shorthand properties", () => {
     const contracts = parse(`
-      interface Point {
+      type Point = {
         x: number;
         y: number;
-      }
+      };
 
       class Geometry {
         public createPoint(x: number, y: number): Point {
@@ -2098,10 +2098,10 @@ describe("integration: multiple variable declarations", () => {
 describe("integration: cross-file type resolution", () => {
   it("should collect structs from an external source and use them in a contract", () => {
     const typesSource = `
-      interface Position {
+      type Position = {
         x: number;
         y: number;
-      }
+      };
     `;
     const contractSource = `
       class Game {
@@ -2151,16 +2151,16 @@ describe("integration: cross-file type resolution", () => {
 
   it("should merge external types with local types", () => {
     const typesSource = `
-      interface Coord {
+      type Coord = {
         x: number;
         y: number;
-      }
+      };
     `;
     const contractSource = `
-      interface Size {
+      type Size = {
         width: number;
         height: number;
-      }
+      };
       class Canvas {
         public getCoord(): Coord {
           let c: Coord = { x: 1, y: 2 };
@@ -2183,7 +2183,7 @@ describe("integration: cross-file type resolution", () => {
     expect(solidity).toContain("struct Size {");
   });
 
-  it("collectTypes should return empty maps for files with no interfaces or enums", () => {
+  it("collectTypes should return empty maps for files with no types or enums", () => {
     const source = `
       class Standalone {
         public value: number = 0;
@@ -2536,21 +2536,27 @@ describe("integration: cross file constant imports", () => {
 // ============================================================
 
 describe("integration: implements keyword", () => {
-  it("should accept implements keyword without error", () => {
+  it("should compile implements as Solidity is", () => {
     const source = `
       interface IToken {
-        balance: number;
+        balance(account: address): number;
       }
 
       class Token implements IToken {
-        public balance: number = 0;
+        public balances: Record<address, number> = {};
+
+        public balance(account: address): number {
+          return this.balances[account];
+        }
       }
     `;
     const contracts = parse(source, "test.ts");
     expect(contracts).toHaveLength(1);
     expect(contracts[0].name).toBe("Token");
-    // implements does not add to inherits (Solidity has no separate implements)
-    expect(contracts[0].inherits).toEqual([]);
+    expect(contracts[0].inherits).toEqual(["IToken"]);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("contract Token is IToken {");
   });
 
   it("should accept combined extends and implements", () => {
@@ -2576,5 +2582,233 @@ describe("integration: implements keyword", () => {
     const solidity = generateSolidityFile(contracts);
     const result = compileSolidity("Child", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
+  });
+});
+
+// ============================================================
+// Contract interfaces
+// ============================================================
+
+describe("integration: contract interfaces", () => {
+  it("should compile interfaces with methods as Solidity interfaces", () => {
+    const source = `
+      interface IToken {
+        name(): string;
+        symbol(): string;
+        totalSupply(): number;
+        balanceOf(account: address): number;
+        transfer(to: address, amount: number): boolean;
+      }
+
+      class Token implements IToken {
+        private _name: string = "Token";
+        private _symbol: string = "TKN";
+        private _totalSupply: number = 0;
+        private balances: Record<address, number> = {};
+
+        public name(): string {
+          return this._name;
+        }
+
+        public symbol(): string {
+          return this._symbol;
+        }
+
+        public totalSupply(): number {
+          return this._totalSupply;
+        }
+
+        public balanceOf(account: address): number {
+          return this.balances[account];
+        }
+
+        public transfer(to: address, amount: number): boolean {
+          this.balances[to] += amount;
+          return true;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(1);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("function name() external returns (string memory);");
+    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+    expect(solidity).toContain("contract Token is IToken {");
+  });
+
+  it("should compile interfaces with properties as getter functions", () => {
+    const source = `
+      interface IOwnable {
+        owner: address;
+      }
+
+      class Ownable implements IOwnable {
+        public owner: address = msg.sender;
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IOwnable {");
+    expect(solidity).toContain("function owner() external returns (address);");
+    expect(solidity).toContain("contract Ownable is IOwnable {");
+  });
+
+  it("should compile interfaces with mixed properties and methods", () => {
+    const source = `
+      interface IToken {
+        name: string;
+        symbol: string;
+        totalSupply: number;
+        balanceOf(account: address): number;
+        transfer(to: address, amount: number): boolean;
+      }
+
+      class Token implements IToken {
+        public name: string = "MyToken";
+        public symbol: string = "MTK";
+        public totalSupply: number = 1000;
+        private balances: Record<address, number> = {};
+
+        public balanceOf(account: address): number {
+          return this.balances[account];
+        }
+
+        public transfer(to: address, amount: number): boolean {
+          this.balances[to] += amount;
+          return true;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("function name() external returns (string memory);");
+    expect(solidity).toContain("function symbol() external returns (string memory);");
+    expect(solidity).toContain("function totalSupply() external returns (uint256);");
+    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+    expect(solidity).toContain("contract Token is IToken {");
+  });
+
+  it("should generate interface before contract in output", () => {
+    const source = `
+      interface IGreeter {
+        greet(): string;
+      }
+
+      class Greeter implements IGreeter {
+        public greet(): string {
+          return "hello";
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    const ifacePos = solidity.indexOf("interface IGreeter {");
+    const contractPos = solidity.indexOf("contract Greeter is IGreeter {");
+    expect(ifacePos).toBeGreaterThan(-1);
+    expect(contractPos).toBeGreaterThan(-1);
+    expect(ifacePos).toBeLessThan(contractPos);
+  });
+
+  it("should handle void return in interface methods", () => {
+    const source = `
+      interface IStore {
+        set(key: number, value: number): void;
+      }
+
+      class Store implements IStore {
+        private data: Record<number, number> = {};
+
+        public set(key: number, value: number): void {
+          this.data[key] = value;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("function set(uint256 key, uint256 value) external;");
+  });
+
+  it("should collect contract interfaces from external source files", () => {
+    const typesSource = `
+      interface ICounter {
+        increment(): void;
+        getCount(): number;
+      }
+    `;
+    const contractSource = `
+      class Counter implements ICounter {
+        private count: number = 0;
+
+        public increment(): void {
+          this.count += 1;
+        }
+
+        public getCount(): number {
+          return this.count;
+        }
+      }
+    `;
+
+    const { structs, enums, contractInterfaces } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "counter.ts", { structs, enums, contractInterfaces });
+    expect(contracts).toHaveLength(1);
+    expect(contracts[0].inherits).toEqual(["ICounter"]);
+
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface ICounter {");
+    expect(solidity).toContain("contract Counter is ICounter {");
+  });
+});
+
+// ============================================================
+// Type alias structs
+// ============================================================
+
+describe("integration: type alias structs", () => {
+  it("should compile type aliases with object shapes as Solidity structs", () => {
+    const { errors, solidity } = compileTS(`
+      type Point = {
+        x: number;
+        y: number;
+      };
+
+      class Geometry {
+        public origin: Point;
+
+        public getOrigin(): Point {
+          return this.origin;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("struct Point {");
+    expect(solidity).toContain("uint256 x;");
+    expect(solidity).toContain("uint256 y;");
+    expect(solidity).toContain("Point public origin;");
+    expect(solidity).toContain("returns (Point memory)");
+  });
+
+  it("should compile type aliases with address fields", () => {
+    const { errors, solidity } = compileTS(`
+      type Transfer = {
+        from: address;
+        to: address;
+        amount: number;
+      };
+
+      class Bank {
+        public process(t: Transfer): void {
+          let from: address = t.from;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("struct Transfer {");
+    expect(solidity).toContain("address from;");
+    expect(solidity).toContain("Transfer memory t");
   });
 });

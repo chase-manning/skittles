@@ -66,7 +66,7 @@ TypeScript (.ts) → Parser → IR → Codegen → Solidity (.sol) → Hardhat �
 
 ## Features
 
-- **Types** that map to Solidity: `number` → `uint256`, `string`, `boolean` → `bool`, `address`, `bytes`, `Record<K,V>` → `mapping`, `T[]` → arrays, interfaces → structs, enums
+- **Types** that map to Solidity: `number` → `uint256`, `string`, `boolean` → `bool`, `address`, `bytes`, `Record<K,V>` → `mapping`, `T[]` → arrays, type aliases → structs, interfaces → contract interfaces, enums
 - **State variables** with visibility (`public`, `private`), `readonly` for immutable, `static readonly` for constant
 - **Functions** with automatic state mutability inference (`pure`, `view`, `payable`), `virtual`/`override`, getters/setters, `receive()`, and `fallback()`
 - **Events** via `SkittlesEvent<T>` with `Indexed<T>` parameter support
