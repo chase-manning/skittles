@@ -146,6 +146,10 @@ describe("initCommand", () => {
     expect(content).toContain("dist/");
     expect(content).toContain("types/");
     expect(content).toContain("node_modules/");
+    expect(content).toContain("artifacts/");
+    expect(content).toContain("cache/");
+    expect(content).toContain("coverage/");
+    expect(content).toContain("typechain-types/");
   });
 
   it("should include types directory in tsconfig", async () => {

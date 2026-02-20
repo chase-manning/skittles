@@ -326,7 +326,16 @@ export async function initCommand(
 
   // Update .gitignore
   const gitignorePath = path.join(projectRoot, ".gitignore");
-  const gitignoreEntries = ["build/", "dist/", "types/", "node_modules/"];
+  const gitignoreEntries = [
+    "build/",
+    "dist/",
+    "types/",
+    "node_modules/",
+    "artifacts/",
+    "cache/",
+    "coverage/",
+    "typechain-types/",
+  ];
 
   if (fs.existsSync(gitignorePath)) {
     const existing = fs.readFileSync(gitignorePath, "utf-8");
