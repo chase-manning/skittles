@@ -10,21 +10,29 @@ title: Installation
 - **Node.js** 20.0 or higher
 - A package manager: **npm**, **yarn**, or **pnpm**
 
-## Install the Package
+## Get Started
+
+The fastest way to get started is to scaffold a new project. This downloads the compiler, creates an example contract, installs dependencies, and sets up Hardhat for you:
+
+```bash
+npx skittles@latest init
+```
+
+No separate install step is needed. `npx skittles@latest` fetches the latest version and runs it directly.
+
+## Adding to an Existing Project
+
+If you want to add Skittles to a project that already has a `package.json`, you can install it as a dependency:
 
 ```bash
 npm install skittles
 ```
 
-Or with yarn:
+Or with yarn / pnpm:
 
 ```bash
 yarn add skittles
-```
-
-Or with pnpm:
-
-```bash
+# or
 pnpm add skittles
 ```
 
@@ -32,7 +40,7 @@ This installs the Skittles compiler, CLI, and TypeScript type definitions. For c
 
 ## Verify Installation
 
-After installing, verify the CLI is available:
+After scaffolding or installing, verify the CLI is available:
 
 ```bash
 npx skittles --help

@@ -80,7 +80,7 @@ This deletes the entire output directory (default: `build/`), including the `.sk
 Scaffold a new Skittles project in the current directory.
 
 ```bash
-npx skittles init
+npx skittles@latest init
 ```
 
 This creates:

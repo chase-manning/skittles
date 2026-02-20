@@ -5,14 +5,14 @@ title: Quick Start
 
 # Quick Start
 
-Get a working Skittles project in three commands.
+Get a working Skittles project in two commands.
 
 ## Scaffold a Project
 
 Run the init command to create a project structure with an example contract:
 
 ```bash
-npx skittles init
+npx skittles@latest init
 ```
 
 This creates the following files:

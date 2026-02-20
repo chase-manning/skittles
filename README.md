@@ -10,22 +10,16 @@ Skittles compiles TypeScript classes to Solidity source code. Use Hardhat (or an
 
 Website: [skittles.dev](https://skittles.dev/)
 
-## Install
-
-```bash
-npm install skittles
-```
+## Quick Start
 
 Requires Node.js 20+.
 
-## Quick Start
-
 ```bash
-npx skittles init
+npx skittles@latest init
 npx skittles compile
 ```
 
-This creates a `contracts/` directory with an example token contract and compiles it to `build/`.
+This scaffolds a project with an example token contract and compiles it to `build/`.
 
 ## Example
 

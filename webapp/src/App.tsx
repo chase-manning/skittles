@@ -467,7 +467,7 @@ function QuickStart() {
   return (
     <section className="quick-start">
       <span className="section-label">QUICK START</span>
-      <h2 className="section-title">Three commands. Zero config.</h2>
+      <h2 className="section-title">Two commands. Zero config.</h2>
       <div className="terminal">
         <div className="terminal-header">
           <div className="window-dots">
@@ -480,16 +480,10 @@ function QuickStart() {
         <div className="terminal-body">
           <div className="terminal-line">
             <span className="terminal-prompt">$</span>
-            <span className="terminal-cmd">npm install skittles</span>
-          </div>
-          <div className="terminal-comment">&nbsp; # Install the compiler</div>
-          <div className="terminal-blank">&nbsp;</div>
-          <div className="terminal-line">
-            <span className="terminal-prompt">$</span>
-            <span className="terminal-cmd">npx skittles init</span>
+            <span className="terminal-cmd">npx skittles@latest init</span>
           </div>
           <div className="terminal-comment">
-            &nbsp; # Scaffold contract, tests, and config
+            &nbsp; # Scaffold contract, tests, config, and install dependencies
           </div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-line">
@@ -529,7 +523,7 @@ function FinalCTA() {
           <span>GitHub</span>
         </a>
       </div>
-      <span className="final-cta-install">npm install skittles</span>
+      <span className="final-cta-install">npx skittles@latest init</span>
     </section>
   );
 }
