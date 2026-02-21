@@ -349,4 +349,52 @@ describe("incremental compilation cache", () => {
 
     expect(spy).toHaveBeenCalled();
   });
+
+  it("should compile cross-file type alias structs used as return types and local variables", async () => {
+    writeContract(projectRoot, "types.ts", `
+      type StakeInfo = {
+        amount: number;
+        timestamp: number;
+        account: address;
+      };
+
+      enum VaultStatus {
+        Active,
+        Paused,
+      }
+    `);
+
+    writeContract(projectRoot, "Staking.ts", `
+      class Staking {
+        public status: VaultStatus;
+        private deposits: Record<address, number> = {};
+        private depositTimestamps: Record<address, number> = {};
+
+        public getStakeInfo(account: address): StakeInfo {
+          let info: StakeInfo = {
+            amount: this.deposits[account],
+            timestamp: this.depositTimestamps[account],
+            account: account,
+          };
+          return info;
+        }
+
+        public getDeposit(account: address): number {
+          return this.deposits[account];
+        }
+      }
+    `);
+
+    const result = await compile(projectRoot, defaultConfig);
+    expect(result.success).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.artifacts.length).toBeGreaterThanOrEqual(1);
+
+    const stakingArtifact = result.artifacts.find((a) => a.contractName === "Staking");
+    expect(stakingArtifact).toBeDefined();
+    expect(stakingArtifact!.solidity).toContain("struct StakeInfo {");
+    expect(stakingArtifact!.solidity).toContain("function getStakeInfo(");
+    expect(stakingArtifact!.solidity).toContain("returns (StakeInfo memory)");
+    expect(stakingArtifact!.solidity).toContain("enum VaultStatus {");
+  });
 });
