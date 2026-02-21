@@ -5,7 +5,7 @@ title: Functions
 
 # Functions
 
-Class methods compile to Solidity functions. Skittles automatically infers state mutability and applies optimizations.
+Class methods define the actions users can take on your contract. Skittles automatically handles optimization and access control.
 
 ## Basic Functions
 
@@ -13,17 +13,17 @@ Class methods compile to Solidity functions. Skittles automatically infers state
 class Token {
   private balances: Record<address, number> = {};
 
-  // Pure function: no state access
+  // A pure helper — doesn't touch any contract state
   add(a: number, b: number): number {
     return a + b;
   }
 
-  // View function: reads state, does not write
+  // A read-only function — looks up state without changing it
   balanceOf(account: address): number {
     return this.balances[account];
   }
 
-  // Nonpayable function: writes state
+  // A state-changing function — modifies balances
   transfer(to: address, amount: number): boolean {
     this.balances[msg.sender] -= amount;
     this.balances[to] += amount;
@@ -34,36 +34,36 @@ class Token {
 
 ## State Mutability Inference
 
-You never need to annotate `pure`, `view`, or `payable`. Skittles analyzes each function body to determine mutability:
+You never need to annotate how your functions interact with the blockchain. Skittles analyzes each function body to determine the behavior:
 
-| Access Pattern                                  | Inferred Mutability      |
-| ----------------------------------------------- | ------------------------ |
-| No `this.*` access                              | `pure`                   |
-| Reads `this.*` only                             | `view`                   |
-| Writes `this.*`, emits events, or deletes state | (default, no annotation) |
-| Accesses `msg.value`                            | `payable`                |
+| Access Pattern       | Behavior                                             |
+| -------------------- | ---------------------------------------------------- |
+| No `this.*` access   | Can be called without connecting to the blockchain (free) |
+| Reads `this.*` only  | Can be called without a transaction (free)           |
+| Writes `this.*`      | Requires a transaction (costs gas)                   |
+| Accesses `msg.value` | Can receive ETH payments                             |
 
 The inference also propagates through call chains. If function `A` calls `this.B()`, and `B` writes state, then `A` is also marked as state modifying. This uses a fixpoint iteration to handle indirect call chains.
 
 ## Visibility
 
-Function visibility follows the same rules as state variables:
+Function visibility controls who can call your functions:
 
-| TypeScript                | Solidity                        |
-| ------------------------- | ------------------------------- |
-| `public` (or no modifier) | `public`                        |
-| `private`                 | `internal`                      |
-| `protected`               | `internal`                      |
-| `static` methods          | `internal` (treated as helpers) |
+| TypeScript                | Behavior                                           |
+| ------------------------- | -------------------------------------------------- |
+| `public` (or no modifier) | Anyone can call this function                      |
+| `private`                 | Only callable from within this contract            |
+| `protected`               | Only callable from this contract and child contracts|
+| `static` methods          | Internal helpers (not callable externally)         |
 
 ```typescript
 class Token {
-  // Public function
+  // Public function - anyone can call
   public transfer(to: address, amount: number): boolean {
     /* ... */
   }
 
-  // Internal helper
+  // Internal helper - only this contract can use
   private _transfer(from: address, to: address, amount: number): void {
     /* ... */
   }
@@ -72,19 +72,19 @@ class Token {
 
 ## Virtual and Override
 
-By default, all functions are marked `virtual` so they can be overridden by child contracts. Use the `override` keyword to mark a function as overriding a parent:
+By default, all functions can be overridden by child contracts. Use the `override` keyword to mark a function as overriding a parent:
 
 ```typescript
 class BaseToken {
   transfer(to: address, amount: number): boolean {
-    // base implementation (generated as virtual)
+    // base implementation
     return true;
   }
 }
 
 class MyToken extends BaseToken {
   override transfer(to: address, amount: number): boolean {
-    // overriding implementation (generated as override)
+    // custom implementation that replaces the parent's
     return true;
   }
 }
@@ -92,7 +92,7 @@ class MyToken extends BaseToken {
 
 ## Arrow Functions
 
-Arrow function properties are compiled as methods:
+Arrow function properties work just like regular methods:
 
 ```typescript
 class Token {
@@ -102,11 +102,9 @@ class Token {
 }
 ```
 
-This generates the same Solidity as a regular method declaration.
-
 ## Getters and Setters
 
-TypeScript `get` and `set` accessors compile to Solidity functions:
+TypeScript `get` and `set` accessors work as you'd expect:
 
 ```typescript
 class Token {
@@ -124,7 +122,7 @@ class Token {
 
 ## Receive and Fallback
 
-Name a method `receive` to generate a Solidity `receive()` function (called when the contract receives plain ETH):
+Name a method `receive` to handle plain ETH transfers to your contract. This function is called when someone sends ETH to your contract:
 
 ```typescript
 class Staking {
@@ -134,37 +132,28 @@ class Staking {
 }
 ```
 
-```solidity title="Generated Solidity"
-receive() external payable {
-    _deposit(msg.sender, msg.value);
-}
-```
-
-Similarly, name a method `fallback` to generate a `fallback()` function.
+Similarly, name a method `fallback` to handle calls to functions that don't exist on your contract.
 
 ## Require Optimization
 
-Skittles automatically converts the `if (condition) throw` pattern to Solidity `require()`:
+Skittles automatically optimizes your error handling. When you write `if (condition) throw new Error(...)`, Skittles converts it into the most gas-efficient pattern:
 
 ```typescript
 // TypeScript
 if (this.balances[msg.sender] < amount) {
   throw new Error("Insufficient balance");
 }
-
-// Generated Solidity
-require(balances[msg.sender] >= amount, "Insufficient balance");
 ```
 
-The condition is automatically negated, and comparison operators are flipped (`<` becomes `>=`, `==` becomes `!=`, etc.). This produces idiomatic Solidity that is familiar to auditors.
+The condition is automatically negated, and comparison operators are flipped (`<` becomes `>=`, `==` becomes `!=`, etc.) to produce the most efficient bytecode.
 
 :::info
-This optimization only applies when the `if` block contains a single `throw new Error(...)` statement with no `else` branch. Custom errors (`SkittlesError`) use `revert` instead and are not converted to `require()`.
+This optimization only applies when the `if` block contains a single `throw new Error(...)` statement with no `else` branch. Custom errors (`SkittlesError`) use a different optimization pattern.
 :::
 
 ## Standalone Functions
 
-Functions declared outside of classes (at file level) are compiled as `internal` helper functions inside every contract in that file:
+Functions declared outside of classes (at file level) are compiled as internal helper functions available to all contracts in that file:
 
 ```typescript title="contracts/utils.ts"
 function calculateFee(amount: number, bps: number): number {

@@ -5,7 +5,7 @@ title: EVM Globals
 
 # EVM Globals
 
-Skittles provides typed stubs for all standard EVM global objects and built in functions. Import them from `"skittles"` and use them directly in your contracts.
+Skittles gives you access to blockchain context — information about who's calling your contract, when, and how. Import them from `skittles` and use them in your contracts.
 
 ## Transaction Context
 
@@ -15,11 +15,11 @@ import { msg, block, tx } from "skittles";
 
 ### msg
 
-| Property     | Solidity     | Type      | Description                                       |
-| ------------ | ------------ | --------- | ------------------------------------------------- |
-| `msg.sender` | `msg.sender` | `address` | Address of the caller                             |
-| `msg.value`  | `msg.value`  | `uint256` | ETH sent with the call (makes function `payable`) |
-| `msg.data`   | `msg.data`   | `bytes`   | Raw calldata                                      |
+| Property     | Type      | Description                                                                  |
+| ------------ | --------- | ---------------------------------------------------------------------------- |
+| `msg.sender` | `address` | The wallet address that called your function                                 |
+| `msg.value`  | `uint256` | The amount of ETH sent with the call (accessing this makes your function accept payments) |
+| `msg.data`   | `bytes`   | The raw data of the function call                                            |
 
 ```typescript
 class Token {
@@ -34,12 +34,12 @@ class Token {
 
 ### block
 
-| Property          | Solidity          | Type      | Description                   |
-| ----------------- | ----------------- | --------- | ----------------------------- |
-| `block.timestamp` | `block.timestamp` | `uint256` | Current block timestamp       |
-| `block.number`    | `block.number`    | `uint256` | Current block number          |
-| `block.chainid`   | `block.chainid`   | `uint256` | Chain ID                      |
-| `block.coinbase`  | `block.coinbase`  | `address` | Block miner/validator address |
+| Property          | Type      | Description                                                     |
+| ----------------- | --------- | --------------------------------------------------------------- |
+| `block.timestamp` | `uint256` | The timestamp of the current block (in seconds since Unix epoch)|
+| `block.number`    | `uint256` | The current block number                                        |
+| `block.chainid`   | `uint256` | The chain ID (1 for Ethereum mainnet, etc.)                     |
+| `block.coinbase`  | `address` | The address of the block miner or validator                     |
 
 ```typescript
 class Staking {
@@ -53,20 +53,19 @@ class Staking {
 
 ### tx
 
-| Property      | Solidity      | Type      | Description                        |
-| ------------- | ------------- | --------- | ---------------------------------- |
-| `tx.origin`   | `tx.origin`   | `address` | Original sender of the transaction |
-| `tx.gasprice` | `tx.gasprice` | `uint256` | Gas price of the transaction       |
+| Property      | Type      | Description                                                          |
+| ------------- | --------- | -------------------------------------------------------------------- |
+| `tx.origin`   | `address` | The original sender of the transaction (the wallet that started it)  |
+| `tx.gasprice` | `uint256` | The gas price of the transaction                                     |
 
 ## self
 
-Import `self` from `"skittles"` to reference the contract's own address. It compiles to Solidity's `address(this)`.
+Use `self` to get the contract's own address.
 
 ```typescript
 import { self, address } from "skittles";
 
 let contractAddress: address = self;
-// Generates: address(this)
 ```
 
 ## Built In Functions
@@ -79,63 +78,61 @@ import { keccak256, sha256, ecrecover, abi, gasleft } from "skittles";
 
 ### Hashing
 
-| Function         | Solidity                           | Description           |
-| ---------------- | ---------------------------------- | --------------------- |
-| `keccak256(...)` | `keccak256(abi.encodePacked(...))` | Keccak256 hash        |
-| `sha256(...)`    | `sha256(abi.encodePacked(...))`    | SHA256 hash           |
-| `hash(...)`      | `keccak256(abi.encodePacked(...))` | Alias for `keccak256` |
+| Function         | Description                                                   |
+| ---------------- | ------------------------------------------------------------- |
+| `keccak256(...)` | Compute Keccak256 hash of the packed encoding of the arguments|
+| `sha256(...)`    | Compute SHA256 hash of the packed encoding of the arguments   |
+| `hash(...)`      | Alias for `keccak256`                                         |
 
 ```typescript
 let digest: string = keccak256(msg.sender, amount);
-// Generates: bytes32 digest = keccak256(abi.encodePacked(msg.sender, amount));
 ```
 
 ### ABI Encoding
 
-| Function                | Solidity                | Description       |
-| ----------------------- | ----------------------- | ----------------- |
-| `abi.encode(...)`       | `abi.encode(...)`       | ABI encode        |
-| `abi.encodePacked(...)` | `abi.encodePacked(...)` | Packed ABI encode |
-| `abi.decode(...)`       | `abi.decode(...)`       | ABI decode        |
+| Function                | Description                                                   |
+| ----------------------- | ------------------------------------------------------------- |
+| `abi.encode(...)`       | Encode arguments using the ABI encoding specification         |
+| `abi.encodePacked(...)` | Encode arguments using packed encoding (more compact)          |
+| `abi.decode(...)`       | Decode ABI-encoded data back into typed values                |
 
 ### Cryptography
 
-| Function                   | Solidity                   | Description                   |
-| -------------------------- | -------------------------- | ----------------------------- |
-| `ecrecover(hash, v, r, s)` | `ecrecover(hash, v, r, s)` | Recover signer from signature |
+| Function                   | Description                                                      |
+| -------------------------- | ---------------------------------------------------------------- |
+| `ecrecover(hash, v, r, s)` | Recover the signer's address from a message hash and signature   |
 
 ### Math
 
-| Function          | Solidity          | Description                            |
-| ----------------- | ----------------- | -------------------------------------- |
-| `addmod(x, y, k)` | `addmod(x, y, k)` | `(x + y) % k` with overflow protection |
-| `mulmod(x, y, k)` | `mulmod(x, y, k)` | `(x * y) % k` with overflow protection |
+| Function          | Description                                                   |
+| ----------------- | ------------------------------------------------------------- |
+| `addmod(x, y, k)` | Compute `(x + y) % k` with arbitrary precision (no overflow)  |
+| `mulmod(x, y, k)` | Compute `(x * y) % k` with arbitrary precision (no overflow)  |
 
 ### Utilities
 
-| Function            | Solidity            | Description                            |
-| ------------------- | ------------------- | -------------------------------------- |
-| `assert(condition)` | `assert(condition)` | Assert a condition (panics on failure) |
-| `gasleft()`         | `gasleft()`         | Remaining gas                          |
+| Function            | Description                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `assert(condition)` | Assert that a condition is true (panics and reverts if false)     |
+| `gasleft()`         | Get the amount of gas remaining for the current transaction       |
 
 ### String and Bytes Concatenation
 
-| Function             | Solidity             | Description         |
-| -------------------- | -------------------- | ------------------- |
-| `string.concat(...)` | `string.concat(...)` | Concatenate strings |
-| `bytes.concat(...)`  | `bytes.concat(...)`  | Concatenate bytes   |
+| Function             | Description                                         |
+| -------------------- | --------------------------------------------------- |
+| `string.concat(...)` | Concatenate multiple strings into one               |
+| `bytes.concat(...)`  | Concatenate multiple byte arrays into one           |
 
 Template literals are automatically compiled to `string.concat()`:
 
 ```typescript
 let greeting: string = `Hello ${name}!`;
-// Generates: string memory greeting = string.concat("Hello ", name, "!");
 ```
 
 ## Special Values
 
-| TypeScript         | Solidity            | Description           |
-| ------------------ | ------------------- | --------------------- |
-| `Number.MAX_VALUE` | `type(uint256).max` | Maximum uint256 value |
-| `null`             | `0`                 | Zero value            |
-| `undefined`        | `0`                 | Zero value            |
+| TypeScript         | Description                                                    |
+| ------------------ | -------------------------------------------------------------- |
+| `Number.MAX_VALUE` | The maximum value for a uint256 (2^256 - 1)                   |
+| `null`             | Represents zero/empty value (compiles to 0)                    |
+| `undefined`        | Represents zero/empty value (compiles to 0)                    |

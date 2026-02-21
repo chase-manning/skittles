@@ -34,7 +34,7 @@ module.exports = {
 | Option         | Type      | Default        | Description                                |
 | -------------- | --------- | -------------- | ------------------------------------------ |
 | `contractsDir` | `string`  | `"contracts"`  | Directory containing your TypeScript contract files |
-| `outputDir`    | `string`  | `"artifacts"`  | Directory where Solidity files are written |
+| `outputDir`    | `string`  | `"artifacts"`  | Directory where compiled output is written |
 | `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored |
 | `typeCheck`    | `boolean` | `true`         | Enable TypeScript type checking during compilation |
 
@@ -50,9 +50,9 @@ If no config file is found, Skittles uses these defaults:
 }
 ```
 
-## Solidity Compilation and Optimizer
+## Hardhat Configuration
 
-Skittles generates Solidity source. To produce EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./artifacts/solidity` and set the optimizer in Hardhat's `solidity` settings:
+Skittles compiles your contracts and outputs the result to the configured `outputDir`. To test and deploy, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at your output directory:
 
 ```typescript title="hardhat.config.ts"
 export default defineConfig({
@@ -108,6 +108,6 @@ The `skittles init` command generates a `tsconfig.json` configured for contract 
 
 Key settings:
 
-- `strictPropertyInitialization: false` is important because state variables are initialized by the Solidity runtime, not in a constructor
+- `strictPropertyInitialization: false` is important because state variables are initialized on the blockchain, not in a constructor
 - `include` should cover your contracts directory
 - `outDir` and `rootDir` are only relevant if you also run the TypeScript compiler directly (not required for Skittles)

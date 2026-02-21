@@ -5,7 +5,7 @@ title: Inheritance
 
 # Inheritance
 
-Skittles supports contract inheritance using TypeScript's `extends` keyword.
+Skittles supports contract inheritance using TypeScript's `extends` keyword. Build modular, reusable contracts by extending base contracts.
 
 ## Basic Inheritance
 
@@ -29,42 +29,18 @@ class MyToken extends BaseToken {
 }
 ```
 
-```solidity title="Generated Solidity"
-contract BaseToken {
-    uint256 public totalSupply;
-    mapping(address => uint256) internal balances;
-
-    function balanceOf(address account) public view virtual returns (uint256) {
-        return balances[account];
-    }
-}
-
-contract MyToken is BaseToken {
-    string public name = "My Token";
-
-    function balanceOf(address account) public view override returns (uint256) {
-        return balances[account];
-    }
-}
-```
-
-When both parent and child are in the same file, Skittles generates both contracts in a single Solidity file with the `is` keyword for inheritance.
-
 ## Virtual and Override
 
-- All functions are `virtual` by default, allowing child contracts to override them
-- Use the TypeScript `override` keyword to mark a function as overriding a parent function
+All methods can be overridden by child contracts by default. Use the `override` keyword when you want to replace a parent's method.
 
 ```typescript
 class Parent {
-  // Generated as: function getValue() public view virtual returns (uint256)
   getValue(): number {
     return 42;
   }
 }
 
 class Child extends Parent {
-  // Generated as: function getValue() public view override returns (uint256)
   override getValue(): number {
     return 100;
   }
@@ -86,7 +62,7 @@ class Child extends Parent {
 
 ## Interfaces (implements)
 
-TypeScript `implements` is accepted for type checking but does not affect the Solidity output. It is a TypeScript compile time constraint only:
+Use `implements` to ensure your contract follows a specific shape. TypeScript will check that your contract has all the required properties and methods.
 
 ```typescript title="contracts/IToken.ts"
 import { address } from "skittles";
@@ -113,5 +89,3 @@ export class Token implements IToken {
   // ...
 }
 ```
-
-The `implements` keyword enforces the shape at the TypeScript level (giving you IDE autocomplete and error checking), while the generated Solidity is a standard contract without any interface import.

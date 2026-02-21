@@ -5,65 +5,60 @@ title: State Variables
 
 # State Variables
 
-Class properties compile to Solidity state variables. Visibility, mutability, and initial values are all controlled through standard TypeScript syntax.
+Class properties in your contract become persistent state — they're stored on the blockchain and retained between function calls. Visibility, mutability, and initial values are all controlled through standard TypeScript syntax.
 
 ## Visibility
 
-TypeScript access modifiers map to Solidity visibility:
+TypeScript access modifiers control who can read your state variables:
 
-| TypeScript                | Solidity   | Notes                                                |
-| ------------------------- | ---------- | ---------------------------------------------------- |
-| `public` (or no modifier) | `public`   | Generates an automatic getter                        |
-| `private`                 | `internal` | Accessible within the contract and derived contracts |
-| `protected`               | `internal` | Same as `private` in Solidity output                 |
+| TypeScript                | Notes                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `public` (or no modifier) | Anyone can read this value on the blockchain                                  |
+| `private`                 | Only accessible within the contract and contracts that extend it             |
+| `protected`               | Same as `private`                                                             |
 
 ```typescript
 class Token {
-  public name: string = "MyToken"; // string public name = "MyToken";
-  public totalSupply: number = 0; // uint256 public totalSupply;
-  private balances: Record<address, number> = {}; // mapping(address => uint256) internal balances;
+  public name: string = "MyToken";
+  public totalSupply: number = 0;
+  private balances: Record<address, number> = {};
 }
 ```
 
 :::info
-Skittles maps TypeScript `private` to Solidity `internal` rather than Solidity `private`. This is intentional: Solidity's `internal` is more gas efficient and allows derived contracts to access the variable, which aligns with typical usage patterns.
+Skittles makes private properties accessible to contracts that extend yours (child contracts). This is the standard pattern for smart contracts and is more gas efficient.
 :::
 
 ## Initial Values
 
-Properties with initializers generate Solidity state variables with default values:
+You can set default values for properties using standard TypeScript syntax:
 
 ```typescript
 class Token {
-  name: string = "MyToken"; // string public name = "MyToken";
-  decimals: number = 18; // uint256 public decimals = 18;
-  paused: boolean = false; // bool public paused = false;
+  name: string = "MyToken";
+  decimals: number = 18;
+  paused: boolean = false;
 }
 ```
 
-Mappings and arrays do not get initializers in Solidity (they are initialized to empty by default):
+Mappings and arrays do not get initializers (they are initialized to empty by default):
 
 ```typescript
 class Token {
-  balances: Record<address, number> = {}; // mapping(address => uint256) public balances;
-  owners: address[] = []; // address[] public owners;
+  balances: Record<address, number> = {};
+  owners: address[] = [];
 }
 ```
 
 ## Constants
 
-Use `static readonly` for compile time constants:
+Use `static readonly` for values that never change and are known at compile time:
 
 ```typescript
 class Staking {
   static readonly FEE_BASIS_POINTS: number = 50;
   static readonly BASIS_POINTS_DENOMINATOR: number = 10000;
 }
-```
-
-```solidity title="Generated Solidity"
-uint256 public constant FEE_BASIS_POINTS = 50;
-uint256 public constant BASIS_POINTS_DENOMINATOR = 10000;
 ```
 
 Reference constants using the class name:
@@ -75,7 +70,7 @@ let fee: number =
 
 ## Immutables
 
-Use `readonly` (without `static`) for immutable variables. These can only be set in the constructor:
+Use `readonly` (without `static`) for values that are set once at deployment time and never change. These can only be set in the constructor:
 
 ```typescript
 class Staking {
@@ -83,17 +78,13 @@ class Staking {
 }
 ```
 
-```solidity title="Generated Solidity"
-address public immutable owner;
-```
-
 :::note
-The `immutable` modifier is only applied to value types (`uint256`, `address`, `bool`, `bytes32`). Reference types like `string` cannot be `immutable` in Solidity, so `readonly` on a `string` property produces a regular state variable.
+This optimization is only applied to simple value types like `number`, `address`, `boolean`, and `bytes32`. Reference types like `string` cannot use this optimization and will be stored as regular state variables.
 :::
 
 ## Constructor
 
-Use a standard TypeScript constructor to initialize state:
+Use a standard TypeScript constructor to set initial values when the contract is deployed:
 
 ```typescript
 class Token {
@@ -104,13 +95,6 @@ class Token {
     this.totalSupply = initialSupply;
     this.balances[msg.sender] = initialSupply;
   }
-}
-```
-
-```solidity title="Generated Solidity"
-constructor(uint256 initialSupply) {
-    totalSupply = initialSupply;
-    balances[msg.sender] = initialSupply;
 }
 ```
 

@@ -5,12 +5,12 @@ title: Testing
 
 # Testing
 
-Skittles compiles TypeScript contracts to Solidity. For compiling and testing, we recommend [Hardhat](https://hardhat.org) with its built-in test runner and the patterns described in the [Hardhat testing guide](https://hardhat.org/docs/guides/testing/using-ethers).
+Testing your smart contracts is essential to make sure they work correctly before deploying to a real blockchain. Skittles works with [Hardhat](https://hardhat.org), a popular development tool that lets you run tests against a local simulated blockchain.
 
 ## How It Works
 
-1. **Compile** with Skittles to generate Solidity in `build/solidity/`
-2. **Test** with Hardhat, which compiles the generated Solidity and runs your tests against an in-memory EVM
+1. **Compile** your TypeScript contracts with Skittles
+2. **Run tests** with Hardhat against a local simulated blockchain
 
 Your `package.json` test script should run both steps:
 
@@ -26,20 +26,18 @@ Your `package.json` test script should run both steps:
 
 When you run `skittles init`, we scaffold a project that includes:
 
-- A `hardhat.config.ts` configured with the Ethers toolbox plugins (hardhat-ethers, hardhat-mocha, hardhat-ethers-chai-matchers, hardhat-network-helpers)
-- `paths.sources` set to `./build/solidity` so Hardhat compiles the Solidity that Skittles generates
+- Hardhat configured with testing tools
 - A sample test file demonstrating event assertions, revert checking, and fixtures
-- Scripts and dev dependencies for the full Hardhat testing workflow
+- Scripts and dev dependencies for the full testing workflow
 
 ## Recommended Configuration
 
 The init template uses the configuration recommended in the [Hardhat v3 testing guide](https://hardhat.org/docs/guides/testing/using-ethers):
 
-- **Test runner:** Mocha (via `@nomicfoundation/hardhat-mocha`)
-- **Contract interactions:** ethers.js v6 (via `@nomicfoundation/hardhat-ethers`)
-- **Assertions:** Chai with `hardhat-ethers-chai-matchers` (`.to.emit`, `.revertedWith`, `.revertedWithCustomError`)
-- **Fixtures:** `loadFixture` from `hardhat-network-helpers` for fast test setup
-- **Network:** `hre.network.connect()` for an in-memory EVM per test file
+- **Test runner:** Mocha for organizing and running your tests
+- **Contract interactions:** ethers.js v6 for interacting with your contracts
+- **Assertions:** Chai matchers for checking events, reverts, and custom errors
+- **Fixtures:** Fast test setup that saves time when running multiple tests
 
 ## Learn More
 
