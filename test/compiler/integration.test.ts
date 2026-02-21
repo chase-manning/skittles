@@ -2983,3 +2983,173 @@ describe("integration: contract interface solc compilation", () => {
     expect(solidity).toContain("address public override owner");
   });
 });
+
+// ============================================================
+// Cross-file interface bugs
+// ============================================================
+
+describe("integration: cross-file contract interface usage", () => {
+  const tokenSource = `
+    interface IToken {
+      name: string;
+      symbol: string;
+      totalSupply: number;
+      balanceOf(account: address): number;
+      transfer(to: address, amount: number): boolean;
+      transferFrom(from: address, to: address, amount: number): boolean;
+      approve(spender: address, amount: number): boolean;
+      allowance(owner: address, spender: address): number;
+    }
+
+    class Token implements IToken {
+      public name: string = "MyToken";
+      public symbol: string = "MTK";
+      public totalSupply: number = 0;
+      private balances: Record<address, number> = {};
+      private allowances: Record<address, Record<address, number>> = {};
+
+      constructor(initialSupply: number) {
+        this.totalSupply = initialSupply;
+        this.balances[msg.sender] = initialSupply;
+      }
+
+      public balanceOf(account: address): number {
+        return this.balances[account];
+      }
+
+      public allowance(owner: address, spender: address): number {
+        return this.allowances[owner][spender];
+      }
+
+      public approve(spender: address, amount: number): boolean {
+        this.allowances[msg.sender][spender] = amount;
+        return true;
+      }
+
+      public transfer(to: address, amount: number): boolean {
+        const sender: address = msg.sender;
+        if (this.balances[sender] < amount) {
+          throw new Error("Insufficient balance");
+        }
+        this.balances[sender] -= amount;
+        this.balances[to] += amount;
+        return true;
+      }
+
+      public transferFrom(from: address, to: address, amount: number): boolean {
+        const sender: address = msg.sender;
+        if (this.balances[from] < amount) {
+          throw new Error("Insufficient balance");
+        }
+        if (this.allowances[from][sender] < amount) {
+          throw new Error("Insufficient allowance");
+        }
+        this.balances[from] -= amount;
+        this.balances[to] += amount;
+        this.allowances[from][sender] -= amount;
+        return true;
+      }
+    }
+  `;
+
+  const dexSource = `
+    class Dex {
+      public token: IToken;
+
+      constructor(token_: IToken) {
+        this.token = token_;
+      }
+
+      public deposit(amount: number): void {
+        this.token.transferFrom(msg.sender, self, amount);
+      }
+    }
+  `;
+
+  function compileCrossFile() {
+    const { structs, enums, contractInterfaces } = collectTypes(tokenSource, "Token.ts");
+    const { functions, constants } = collectFunctions(tokenSource, "Token.ts");
+
+    const tokenContracts = parse(tokenSource, "Token.ts",
+      { structs, enums, contractInterfaces },
+      { functions, constants }
+    );
+    const tokenSolidity = generateSolidity(tokenContracts[0]);
+
+    const dexContracts = parse(dexSource, "Dex.ts",
+      { structs, enums, contractInterfaces },
+      { functions, constants }
+    );
+
+    // Resolve interface mutabilities from Token's implementation
+    for (const contract of tokenContracts) {
+      for (const iface of contract.contractInterfaces) {
+        const globalIface = contractInterfaces.get(iface.name);
+        if (!globalIface) continue;
+        for (const fn of iface.functions) {
+          if (!fn.stateMutability) continue;
+          const globalFn = globalIface.functions.find((f) => f.name === fn.name);
+          if (globalFn && !globalFn.stateMutability) {
+            globalFn.stateMutability = fn.stateMutability;
+          }
+        }
+      }
+    }
+
+    // IToken is defined in Token.ts which also has contracts, so it should be imported
+    for (const contract of dexContracts) {
+      contract.contractInterfaces = contract.contractInterfaces.filter(
+        (iface) => iface.name !== "IToken"
+      );
+    }
+    const dexSolidity = generateSolidity(dexContracts[0], ["./Token.sol"]);
+
+    return { tokenSolidity, dexSolidity, tokenContracts, dexContracts };
+  }
+
+  it("should not redeclare interface that is defined in another file", () => {
+    const { dexSolidity } = compileCrossFile();
+
+    // Dex.sol should import the interface from Token.sol, not redeclare it
+    expect(dexSolidity).toContain('import');
+    expect(dexSolidity).not.toContain("interface IToken {");
+  });
+
+  it("should have correct view modifiers on interface methods when used cross-file", () => {
+    const { tokenSolidity, dexSolidity } = compileCrossFile();
+
+    // Token.sol should have balanceOf and allowance as view
+    expect(tokenSolidity).toContain("function balanceOf(address account) external view returns (uint256);");
+    expect(tokenSolidity).toContain("function allowance(address owner, address spender) external view returns (uint256);");
+
+    // If IToken appears in Dex.sol, it must also have view on balanceOf and allowance
+    if (dexSolidity.includes("interface IToken")) {
+      expect(dexSolidity).toContain("function balanceOf(address account) external view returns (uint256);");
+      expect(dexSolidity).toContain("function allowance(address owner, address spender) external view returns (uint256);");
+    }
+  });
+
+  it("should not mark deposit as view when it calls external contract method", () => {
+    const { dexSolidity } = compileCrossFile();
+
+    // deposit() calls token.transferFrom() which modifies state,
+    // so deposit should NOT be view
+    expect(dexSolidity).not.toContain("function deposit(uint256 amount) public view");
+    // It should be nonpayable (no mutability keyword)
+    expect(dexSolidity).toMatch(/function deposit\(uint256 amount\) public\b/);
+  });
+
+  it("should generate valid Solidity that compiles when files reference each other", () => {
+    const { tokenSolidity, dexSolidity } = compileCrossFile();
+
+    // Token.sol should compile on its own
+    const tokenResult = compileSolidity("Token", tokenSolidity, defaultConfig);
+    expect(tokenResult.errors).toHaveLength(0);
+
+    // Dex.sol should have correct import and structure
+    expect(dexSolidity).toContain('import "./Token.sol"');
+    expect(dexSolidity).toContain("contract Dex {");
+    expect(dexSolidity).toContain("IToken public token");
+    expect(dexSolidity).toContain("token.transferFrom(msg.sender, address(this), amount)");
+  });
+});

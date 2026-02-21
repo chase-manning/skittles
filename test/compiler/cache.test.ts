@@ -210,7 +210,7 @@ describe("incremental compilation cache", () => {
     expect(fs.existsSync(cachePath)).toBe(true);
 
     const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-    expect(cache.version).toBe("2");
+    expect(cache.version).toBe("3");
     expect(Object.keys(cache.files).length).toBeGreaterThan(0);
   });
 

@@ -22,7 +22,7 @@ export interface CompilationResult {
 // Incremental compilation cache
 // ============================================================
 
-const CACHE_VERSION = "2";
+const CACHE_VERSION = "3";
 
 interface CacheEntry {
   fileHash: string;
@@ -90,19 +90,27 @@ export async function compile(
   // Pre-scan all files to collect shared types (type alias structs, contract
   // interfaces, enums), file level functions, and file level constants.
   // This allows contracts in one file to reference things defined in another.
+  // Also tracks which file defines each interface for cross-file imports.
   const globalStructs: Map<string, SkittlesParameter[]> = new Map();
   const globalEnums: Map<string, string[]> = new Map();
   const globalContractInterfaces: Map<string, SkittlesContractInterface> = new Map();
   const globalFunctions: SkittlesFunction[] = [];
   const globalConstants: Map<string, Expression> = new Map();
+  const interfaceOriginFile = new Map<string, string>();
 
   for (const filePath of sourceFiles) {
     try {
       const source = readFile(filePath);
       const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
+      const baseName = path.basename(filePath, path.extname(filePath));
       for (const [name, fields] of structs) globalStructs.set(name, fields);
       for (const [name, members] of enums) globalEnums.set(name, members);
-      for (const [name, iface] of contractInterfaces) globalContractInterfaces.set(name, iface);
+      for (const [name, iface] of contractInterfaces) {
+        globalContractInterfaces.set(name, iface);
+        if (!interfaceOriginFile.has(name)) {
+          interfaceOriginFile.set(name, baseName);
+        }
+      }
 
       const { functions, constants } = collectFunctions(source, filePath);
       for (const fn of functions) {
@@ -137,74 +145,145 @@ export async function compile(
   const cache = loadCache(outputDir);
   const newCache: CompilationCache = { version: CACHE_VERSION, files: {} };
 
+  // Phase 1: Parse all files (needed to resolve cross-file interface mutabilities)
+  interface ParsedFile {
+    filePath: string;
+    relativePath: string;
+    source: string;
+    fileHash: string;
+    contracts: SkittlesContract[];
+  }
+  const parsedFiles: ParsedFile[] = [];
+  const cachedFiles: { filePath: string; relativePath: string; cached: CacheEntry }[] = [];
+  const filesWithContracts = new Set<string>();
+
   for (const filePath of sourceFiles) {
     const relativePath = path.relative(projectRoot, filePath);
-
     try {
       const source = readFile(filePath);
       const fileHash = hashString(source);
-
-      // Check cache: skip compilation if file and shared defs unchanged
       const cached = cache.files[relativePath];
+
       if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash) {
-        logInfo(`${relativePath} unchanged, using cache`);
-
-        const cachedBaseName = path.basename(filePath, path.extname(filePath));
-        writeFile(
-          path.join(outputDir, "solidity", `${cachedBaseName}.sol`),
-          cached.contracts[0].solidity
-        );
-
-        for (const c of cached.contracts) {
-          const artifact: BuildArtifact = {
-            contractName: c.name,
-            solidity: c.solidity,
-          };
-          artifacts.push(artifact);
-          logSuccess(`${c.name} compiled successfully (cached)`);
+        cachedFiles.push({ filePath, relativePath, cached });
+        if (cached.contracts.length > 0) {
+          filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
         }
-
-        newCache.files[relativePath] = cached;
         continue;
       }
 
       logInfo(`Compiling ${relativePath}...`);
-
-      // Step 2: Parse TypeScript into SkittlesContract IR
       const contracts: SkittlesContract[] = parse(source, filePath, externalTypes, externalFunctions);
+      if (contracts.length > 0) {
+        filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
+      }
+      parsedFiles.push({ filePath, relativePath, source, fileHash, contracts });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      errors.push(`${relativePath}: ${message}`);
+      logError(`Failed to compile ${relativePath}: ${message}`);
+    }
+  }
 
-      // Step 3: Generate Solidity (combine all contracts from same file)
+  // Phase 2: Resolve interface mutabilities from implementing contracts
+  // and propagate back to the global interface map
+  for (const { contracts } of parsedFiles) {
+    for (const contract of contracts) {
+      for (const iface of contract.contractInterfaces) {
+        const globalIface = globalContractInterfaces.get(iface.name);
+        if (!globalIface) continue;
+        for (const fn of iface.functions) {
+          if (!fn.stateMutability) continue;
+          const globalFn = globalIface.functions.find((f) => f.name === fn.name);
+          if (globalFn && !globalFn.stateMutability) {
+            globalFn.stateMutability = fn.stateMutability;
+          }
+        }
+      }
+    }
+  }
+
+  // Phase 3: Emit cached files
+  for (const { filePath, relativePath, cached } of cachedFiles) {
+    logInfo(`${relativePath} unchanged, using cache`);
+    const cachedBaseName = path.basename(filePath, path.extname(filePath));
+    writeFile(
+      path.join(outputDir, "solidity", `${cachedBaseName}.sol`),
+      cached.contracts[0].solidity
+    );
+    for (const c of cached.contracts) {
+      artifacts.push({ contractName: c.name, solidity: c.solidity });
+      logSuccess(`${c.name} compiled successfully (cached)`);
+    }
+    newCache.files[relativePath] = cached;
+  }
+
+  // Phase 4: Generate Solidity for parsed files, with imports for external interfaces
+  for (const { filePath, relativePath, fileHash, contracts } of parsedFiles) {
+    try {
+      const baseName = path.basename(filePath, path.extname(filePath));
+
+      // Determine which interfaces should be imported from other .sol files
+      const imports: string[] = [];
+      const importedIfaceNames = new Set<string>();
+      for (const contract of contracts) {
+        for (const iface of contract.contractInterfaces) {
+          const originBase = interfaceOriginFile.get(iface.name);
+          if (originBase && originBase !== baseName && filesWithContracts.has(originBase)) {
+            if (!importedIfaceNames.has(iface.name)) {
+              importedIfaceNames.add(iface.name);
+              imports.push(`./${originBase}.sol`);
+            }
+          }
+        }
+      }
+
+      // Remove imported interfaces from inline declarations
+      for (const contract of contracts) {
+        contract.contractInterfaces = contract.contractInterfaces.filter(
+          (iface) => !importedIfaceNames.has(iface.name)
+        );
+      }
+
+      // Update remaining inline interface mutabilities from the resolved global map
+      for (const contract of contracts) {
+        for (const iface of contract.contractInterfaces) {
+          const globalIface = globalContractInterfaces.get(iface.name);
+          if (!globalIface) continue;
+          for (const fn of iface.functions) {
+            if (fn.stateMutability) continue;
+            const globalFn = globalIface.functions.find((f) => f.name === fn.name);
+            if (globalFn?.stateMutability) {
+              fn.stateMutability = globalFn.stateMutability;
+            }
+          }
+        }
+      }
+
+      // Deduplicate imports
+      const uniqueImports = [...new Set(imports)];
+
       const solidity =
         contracts.length > 1
-          ? generateSolidityFile(contracts)
+          ? generateSolidityFile(contracts, uniqueImports)
           : contracts.length === 1
-            ? generateSolidity(contracts[0])
+            ? generateSolidity(contracts[0], uniqueImports)
             : "";
 
       if (!solidity) continue;
 
       const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [] };
-
-      const sourceBaseName = path.basename(filePath, path.extname(filePath));
-      writeFile(
-        path.join(outputDir, "solidity", `${sourceBaseName}.sol`),
-        solidity
-      );
+      writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
       for (const contract of contracts) {
-        const artifact: BuildArtifact = {
-          contractName: contract.name,
-          solidity,
-        };
-        artifacts.push(artifact);
+        artifacts.push({ contractName: contract.name, solidity });
         cacheEntry.contracts.push({ name: contract.name, solidity });
         logSuccess(`${contract.name} compiled successfully`);
       }
 
       newCache.files[relativePath] = cacheEntry;
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error occurred";
+      const message = err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
       logError(`Failed to compile ${relativePath}: ${message}`);
     }

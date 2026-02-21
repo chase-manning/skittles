@@ -23,11 +23,18 @@ import {
  * Generate a Solidity file containing multiple contracts.
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
-export function generateSolidityFile(contracts: SkittlesContract[]): string {
+export function generateSolidityFile(contracts: SkittlesContract[], imports?: string[]): string {
   const parts: string[] = [];
   parts.push("// SPDX-License-Identifier: MIT");
   parts.push("pragma solidity ^0.8.20;");
   parts.push("");
+
+  if (imports && imports.length > 0) {
+    for (const imp of imports) {
+      parts.push(`import "${imp}";`);
+    }
+    parts.push("");
+  }
 
   // Collect and deduplicate contract interfaces across all contracts
   const allInterfaces: SkittlesContractInterface[] = [];
@@ -90,8 +97,8 @@ export function generateSolidityFile(contracts: SkittlesContract[]): string {
   return parts.join("\n");
 }
 
-export function generateSolidity(contract: SkittlesContract): string {
-  return generateSolidityFile([contract]);
+export function generateSolidity(contract: SkittlesContract, imports?: string[]): string {
+  return generateSolidityFile([contract], imports);
 }
 
 function generateContractBody(
