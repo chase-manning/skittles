@@ -6,6 +6,10 @@ import { compile } from "../../src/compiler/compiler";
 import type { SkittlesConfig } from "../../src/types";
 import * as parserModule from "../../src/compiler/parser";
 
+const pkgJson = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf-8")
+);
+
 const defaultConfig: Required<SkittlesConfig> = {
   typeCheck: true,
   optimizer: { enabled: false, runs: 200 },
@@ -211,6 +215,7 @@ describe("incremental compilation cache", () => {
 
     const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
     expect(cache.version).toBe("4");
+    expect(cache.skittlesVersion).toBe(pkgJson.version);
     expect(Object.keys(cache.files).length).toBeGreaterThan(0);
   });
 
@@ -281,6 +286,34 @@ describe("incremental compilation cache", () => {
     for (let i = 0; i < result1.artifacts.length; i++) {
       expect(result2.artifacts[i].solidity).toEqual(result1.artifacts[i].solidity);
     }
+  });
+
+  it("should invalidate cache when skittles package version changes", async () => {
+    writeContract(projectRoot, "Counter.ts", `
+      class Counter {
+        public count: number = 0;
+        public increment(): void {
+          this.count = this.count + 1;
+        }
+      }
+    `);
+
+    const result1 = await compile(projectRoot, defaultConfig);
+    expect(result1.success).toBe(true);
+    expect(result1.artifacts).toHaveLength(1);
+
+    const cachePath = path.join(projectRoot, "build", ".skittles-cache.json");
+    const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
+    cache.skittlesVersion = "0.0.0-old";
+    fs.writeFileSync(cachePath, JSON.stringify(cache), "utf-8");
+
+    const spy = vi.spyOn(parserModule, "parse");
+
+    const result2 = await compile(projectRoot, defaultConfig);
+    expect(result2.success).toBe(true);
+    expect(result2.artifacts).toHaveLength(1);
+
+    expect(spy).toHaveBeenCalled();
   });
 
   it("should invalidate cache when shared type definitions change in another file", async () => {

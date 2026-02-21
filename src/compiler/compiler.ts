@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import type {
   SkittlesConfig,
   SkittlesContract,
@@ -24,6 +25,11 @@ export interface CompilationResult {
 
 const CACHE_VERSION = "4";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PACKAGE_VERSION: string = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf-8")
+).version;
+
 interface CacheEntry {
   fileHash: string;
   sharedHash: string;
@@ -36,6 +42,7 @@ interface CacheEntry {
 
 interface CompilationCache {
   version: string;
+  skittlesVersion: string;
   files: Record<string, CacheEntry>;
 }
 
@@ -48,12 +55,12 @@ function loadCache(outputDir: string): CompilationCache {
   try {
     if (fs.existsSync(cachePath)) {
       const data = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-      if (data.version === CACHE_VERSION) return data;
+      if (data.version === CACHE_VERSION && data.skittlesVersion === PACKAGE_VERSION) return data;
     }
   } catch {
     // Corrupt cache, start fresh
   }
-  return { version: CACHE_VERSION, files: {} };
+  return { version: CACHE_VERSION, skittlesVersion: PACKAGE_VERSION, files: {} };
 }
 
 function saveCache(outputDir: string, cache: CompilationCache): void {
@@ -151,7 +158,7 @@ export async function compile(
 
   // Load incremental compilation cache
   const cache = loadCache(outputDir);
-  const newCache: CompilationCache = { version: CACHE_VERSION, files: {} };
+  const newCache: CompilationCache = { version: CACHE_VERSION, skittlesVersion: PACKAGE_VERSION, files: {} };
 
   // Phase 1: Parse all files (needed to resolve cross-file interface mutabilities)
   interface ParsedFile {
