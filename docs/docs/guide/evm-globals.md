@@ -18,7 +18,7 @@ import { msg, block, tx } from "skittles";
 | Property     | Type      | Description                                                                  |
 | ------------ | --------- | ---------------------------------------------------------------------------- |
 | `msg.sender` | `address` | The wallet address that called your function                                 |
-| `msg.value`  | `uint256` | The amount of ETH sent with the call (accessing this makes your function accept payments) |
+| `msg.value`  | `uint256` | The amount of ETH sent with the call                                        |
 | `msg.data`   | `bytes`   | The raw data of the function call                                            |
 
 ```typescript
