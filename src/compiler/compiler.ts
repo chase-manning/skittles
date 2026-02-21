@@ -22,7 +22,7 @@ export interface CompilationResult {
 // Incremental compilation cache
 // ============================================================
 
-const CACHE_VERSION = "3";
+const CACHE_VERSION = "4";
 
 interface CacheEntry {
   fileHash: string;
@@ -31,6 +31,7 @@ interface CacheEntry {
     name: string;
     solidity: string;
   }[];
+  resolvedMutabilities?: Record<string, Record<string, string>>;
 }
 
 interface CompilationCache {
@@ -193,7 +194,9 @@ export async function compile(
   }
 
   // Phase 2: Resolve interface mutabilities from implementing contracts
-  // and propagate back to the global interface map
+  // and propagate back to the global interface map.
+  // Process both freshly parsed files and cached files so that
+  // mutabilities are available even when the implementing file is cached.
   for (const { contracts } of parsedFiles) {
     for (const contract of contracts) {
       for (const iface of contract.contractInterfaces) {
@@ -205,6 +208,19 @@ export async function compile(
           if (globalFn && !globalFn.stateMutability) {
             globalFn.stateMutability = fn.stateMutability;
           }
+        }
+      }
+    }
+  }
+  for (const { cached } of cachedFiles) {
+    if (!cached.resolvedMutabilities) continue;
+    for (const [ifaceName, methods] of Object.entries(cached.resolvedMutabilities)) {
+      const globalIface = globalContractInterfaces.get(ifaceName);
+      if (!globalIface) continue;
+      for (const [fnName, mut] of Object.entries(methods)) {
+        const globalFn = globalIface.functions.find((f) => f.name === fnName);
+        if (globalFn && !globalFn.stateMutability) {
+          globalFn.stateMutability = mut as "pure" | "view" | "nonpayable" | "payable";
         }
       }
     }
@@ -245,6 +261,20 @@ export async function compile(
         }
       }
 
+      // Snapshot resolved interface mutabilities before imports strip them.
+      // Cached files need this to propagate mutabilities in future compiles.
+      const resolvedMutabilities: Record<string, Record<string, string>> = {};
+      for (const contract of contracts) {
+        for (const iface of contract.contractInterfaces) {
+          for (const fn of iface.functions) {
+            if (fn.stateMutability) {
+              if (!resolvedMutabilities[iface.name]) resolvedMutabilities[iface.name] = {};
+              resolvedMutabilities[iface.name][fn.name] = fn.stateMutability;
+            }
+          }
+        }
+      }
+
       // Remove imported interfaces from inline declarations
       for (const contract of contracts) {
         contract.contractInterfaces = contract.contractInterfaces.filter(
@@ -279,7 +309,7 @@ export async function compile(
 
       if (!solidity) continue;
 
-      const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [] };
+      const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [], resolvedMutabilities };
       writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
       for (const contract of contracts) {
