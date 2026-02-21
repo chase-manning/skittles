@@ -64,9 +64,11 @@ export class Token {
 }
 ```
 
+This creates a simple token contract where users can check their balance and transfer tokens to other addresses. The constructor creates an initial supply and assigns it to the contract deployer.
+
 ## Compile
 
-Run the compiler:
+Run the compiler to build your contracts:
 
 ```bash
 npx skittles compile
@@ -84,59 +86,9 @@ Output:
 ✔ 1 contract(s) compiled successfully
 ```
 
-## Inspect the Output
-
-The Skittles compiler produces Solidity source for each contract:
-
-```bash
-cat build/solidity/Token.sol    # Generated Solidity (human readable, auditable)
-```
-
-Hardhat (when you run `npm run test` or `hardhat compile`) compiles this Solidity to produce ABI and bytecode in its artifacts directory. Your test script runs `skittles compile && hardhat test`, so the full pipeline is: TypeScript → Solidity (Skittles) → EVM bytecode (Hardhat).
-
-Here is the generated Solidity for the example above:
-
-```solidity title="build/solidity/Token.sol"
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-contract Token {
-    string public name = "MyToken";
-    string public symbol = "MTK";
-    uint256 public totalSupply;
-    mapping(address => uint256) internal balances;
-
-    constructor(uint256 initialSupply) {
-        totalSupply = initialSupply;
-        balances[msg.sender] = initialSupply;
-    }
-
-    function balanceOf(address account) public view virtual returns (uint256) {
-        return balances[account];
-    }
-
-    function transfer(address to, uint256 amount) public virtual returns (bool) {
-        address sender = msg.sender;
-        require(balances[sender] >= amount, "Insufficient balance");
-        balances[sender] -= amount;
-        balances[to] += amount;
-        return true;
-    }
-}
-```
-
-Notice what Skittles did automatically:
-
-- `number` became `uint256`, `string` stayed `string`, `Record<address, number>` became `mapping(address => uint256)`
-- `private` became `internal` (Solidity convention for gas efficiency)
-- `balanceOf` was marked `view` because it only reads state
-- The `if/throw` pattern was optimized to `require()`
-- Memory annotations (`memory` for strings) were added where needed
-- Functions were marked `virtual` by default for extensibility
+This builds your contracts so they're ready for testing and deployment.
 
 ## Testing
-
-Skittles compiles your contracts. For testing, we use Hardhat. The `skittles init` command scaffolds a `hardhat.config.ts` and `test/Token.test.ts` using the [Hardhat Ethers + Mocha](https://hardhat.org/docs/guides/testing/using-ethers) pattern.
 
 Run your tests with:
 
@@ -144,13 +96,13 @@ Run your tests with:
 npm run test
 ```
 
-This runs `skittles compile` first, then `hardhat test`. Hardhat compiles the generated Solidity from `build/solidity` and runs the test suite against an in-memory EVM.
+This compiles your contracts and runs the test suite against a local blockchain.
 
-See the [Testing Guide](/guide/testing) for configuration details and links to Hardhat documentation.
+See the [Testing Guide](/guide/testing) for more details on writing tests.
 
 ## Next Steps
 
-- [Type System](/guide/types) to learn how TypeScript types map to Solidity
+- [Type System](/guide/types) to learn what TypeScript features you can use
 - [State Variables](/guide/state-variables) for visibility, constants, and immutables
 - [Functions](/guide/functions) for mutability inference, receive/fallback, and more
 - [Configuration](/guide/configuration) to customize the compiler

@@ -5,7 +5,7 @@ title: Control Flow
 
 # Control Flow
 
-Skittles supports all common control flow structures. They compile directly to their Solidity equivalents.
+Skittles supports all standard TypeScript control flow patterns. Use them exactly as you would in any TypeScript project.
 
 ## If / Else
 
@@ -14,14 +14,6 @@ if (amount > 0) {
   this.balances[to] += amount;
 } else {
   throw new Error("Invalid amount");
-}
-```
-
-```solidity title="Generated Solidity"
-if (amount > 0) {
-    balances[to] += amount;
-} else {
-    revert("Invalid amount");
 }
 ```
 
@@ -35,26 +27,13 @@ for (let i: number = 0; i < this.owners.length; i++) {
 }
 ```
 
-```solidity title="Generated Solidity"
-for (uint256 i = 0; i < owners.length; i++) {
-    balances[owners[i]] = 0;
-}
-```
-
 ## For...of Loops
 
-`for...of` loops over arrays are automatically desugared to index based `for` loops:
+`for...of` loops work on arrays:
 
 ```typescript
 for (const owner of this.owners) {
   this.balances[owner] = 0;
-}
-```
-
-```solidity title="Generated Solidity"
-for (uint256 _i_owner = 0; _i_owner < owners.length; _i_owner++) {
-    address owner = owners[_i_owner];
-    balances[owner] = 0;
 }
 ```
 
@@ -92,8 +71,6 @@ for (let i: number = 0; i < this.owners.length; i++) {
 
 ## Switch / Case
 
-`switch` statements compile to `if`/`else if` chains in Solidity (since Solidity does not have a native `switch` statement):
-
 ```typescript
 switch (status) {
   case VaultStatus.Active:
@@ -107,28 +84,12 @@ switch (status) {
 }
 ```
 
-```solidity title="Generated Solidity"
-if (status == VaultStatus.Active) {
-    _processActive();
-} else if (status == VaultStatus.Paused) {
-    _processPaused();
-} else {
-    revert("Unknown status");
-}
-```
-
-`break` statements inside switch cases are automatically stripped (they are implicit in the `if`/`else` conversion).
-
 ## Ternary Operator
 
-The conditional (ternary) operator compiles directly:
+The conditional (ternary) operator:
 
 ```typescript
 let result: number = amount > 0 ? amount : 0;
-```
-
-```solidity title="Generated Solidity"
-uint256 result = (amount > 0 ? amount : 0);
 ```
 
 ## Array Destructuring
@@ -139,14 +100,6 @@ Array destructuring is supported for local variable declarations:
 const [a, b, c] = [7, 8, 9];
 ```
 
-This generates individual variable declarations:
-
-```solidity title="Generated Solidity"
-uint256 a = 7;
-uint256 b = 8;
-uint256 c = 9;
-```
-
 Conditional destructuring is also supported:
 
 ```typescript
@@ -155,12 +108,8 @@ let [x, y] = condition ? [a, b] : [b, a];
 
 ## Delete
 
-The `delete` operator removes entries from mappings:
+The `delete` operator resets values in your contract's storage (useful for clearing mapping entries):
 
 ```typescript
 delete this.balances[account];
-```
-
-```solidity title="Generated Solidity"
-delete balances[account];
 ```

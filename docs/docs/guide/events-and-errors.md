@@ -7,6 +7,8 @@ title: Events and Errors
 
 ## Events
 
+Events are like logs that your contract emits when something important happens. External applications (wallets, explorers, dApps) can listen for these events to track contract activity.
+
 Declare events using `SkittlesEvent<T>` as a class property:
 
 ```typescript
@@ -21,13 +23,11 @@ class Token {
 }
 ```
 
-```solidity title="Generated Solidity"
-event Transfer(address indexed from, address indexed to, uint256 value);
-```
-
 ### Indexed Parameters
 
-Wrap parameter types with `Indexed<T>` to mark them as indexed in the event. Indexed parameters are stored in the event's topics and can be filtered by off chain indexers. Up to 3 parameters per event can be indexed.
+Indexed parameters can be used to filter and search for specific events. For example, you can search for all Transfer events involving a specific address.
+
+Wrap parameter types with `Indexed<T>` to mark them as indexed in the event. Up to 3 parameters per event can be indexed.
 
 ```typescript
 Transfer: SkittlesEvent<{
@@ -53,12 +53,6 @@ this.Transfer.emit({ from: msg.sender, to, value: amount });
 this.Transfer.emit(msg.sender, to, amount);
 ```
 
-Both produce the same Solidity:
-
-```solidity
-emit Transfer(msg.sender, to, amount);
-```
-
 ### Event Alias
 
 You can also use `Event` as a shorter alias for `SkittlesEvent`:
@@ -73,7 +67,9 @@ class Token {
 
 ## Custom Errors
 
-Custom errors provide gas efficient revert reasons. There are two ways to declare them.
+Custom errors give clear, structured error messages when something goes wrong. They're more informative and cost less gas than simple string messages.
+
+There are two ways to declare them.
 
 ### SkittlesError Property
 
@@ -102,17 +98,6 @@ class Token {
 }
 ```
 
-```solidity title="Generated Solidity"
-error InsufficientBalance(address sender, uint256 balance, uint256 required);
-
-function transfer(address to, uint256 amount) public virtual {
-    if (balances[msg.sender] < amount) {
-        revert InsufficientBalance(msg.sender, balances[msg.sender], amount);
-    }
-    // ...
-}
-```
-
 Throw custom errors with `throw this.ErrorName(args...)`.
 
 ### Error Class Pattern
@@ -137,11 +122,9 @@ class Token {
 }
 ```
 
-Both approaches generate the same Solidity `error` declaration and `revert` statement.
-
 ### Simple Reverts
 
-For simple string reverts, use `throw new Error("message")`:
+Use `throw new Error('message')` for simple error messages:
 
 ```typescript
 if (amount == 0) {
@@ -149,10 +132,4 @@ if (amount == 0) {
 }
 ```
 
-When this is the only statement in an `if` block with no `else`, it is automatically optimized to `require()`:
-
-```solidity
-require(amount != 0, "Amount must be greater than zero");
-```
-
-A bare `throw` without arguments generates `revert()`.
+A bare `throw` stops execution immediately.

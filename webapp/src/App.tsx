@@ -265,32 +265,28 @@ function PipelineStep({
 function HowItWorks() {
   return (
     <section className="how-it-works">
-      <span className="section-label">HOW IT WORKS</span>
-      <h2 className="section-title">Three stages. Zero configuration.</h2>
+      <span className="section-label">WHY SKITTLES</span>
+      <h2 className="section-title">Built for TypeScript developers.</h2>
       <p className="section-desc">
-        Skittles takes your TypeScript classes through a compile pipeline
-        <br />
-        that outputs standard, auditable Solidity artifacts.
+        No new languages to learn. No complex tooling to configure. Just TypeScript.
       </p>
       <div className="pipeline">
         <PipelineStep
           num="01"
-          title="Parse"
-          desc="TypeScript AST is parsed via the official compiler API. Classes become contracts, properties become state variables."
+          title="Write TypeScript"
+          desc="Write your smart contracts as TypeScript classes. Use the types and syntax you already know — autocomplete and type checking included."
           color="#22D3EE"
         />
-        <span className="pipeline-arrow">&rarr;</span>
         <PipelineStep
           num="02"
-          title="Generate"
-          desc="The IR is converted to valid Solidity. Type mappings, control flow, and optimizations like if/throw → require() are applied."
+          title="Test Locally"
+          desc="Run your tests against a local simulated blockchain. Catch bugs before they cost real money."
           color="#A78BFA"
         />
-        <span className="pipeline-arrow">&rarr;</span>
         <PipelineStep
           num="03"
-          title="Compile"
-          desc="Generated Solidity is compiled by Hardhat to produce ABI, bytecode, and standard EVM artifacts."
+          title="Deploy"
+          desc="Deploy your contracts to any EVM blockchain. Ethereum, Polygon, Arbitrum, Base — they all work."
           color="#22C55E"
         />
       </div>
@@ -387,12 +383,10 @@ const compSolLines = [
 function CodeComparison() {
   return (
     <section className="code-comparison">
-      <span className="section-label">SEE THE OUTPUT</span>
-      <h2 className="section-title">TypeScript in. Solidity out.</h2>
+      <span className="section-label">UNDER THE HOOD</span>
+      <h2 className="section-title">Compiles to auditable Solidity.</h2>
       <p className="section-desc">
-        Every generated Solidity file is human&#8209;readable and auditable.
-        <br />
-        Notice the automatic require() optimization, view inference, and mapping translation.
+        Under the hood, Skittles compiles your TypeScript to clean, readable Solidity. This means your contracts can be audited by security professionals and verified on block explorers like Etherscan.
       </p>
       <div className="comparison-row">
         <CodeComparisonPanel label="Token.ts" lines={compTsLines} lang="ts" />
@@ -412,7 +406,7 @@ const featureCards = [
   {
     icon: Shuffle,
     title: "Type Mapping",
-    desc: "number → uint256, Record → mapping, interface → struct. Your TypeScript types translate naturally to Solidity.",
+    desc: "Use `number` for amounts, `Record` for key-value storage, `address` for wallets. Your TypeScript types just work.",
     color: "#F97316",
   },
   {
@@ -535,9 +529,9 @@ function Footer() {
         <div className="footer-brand">
           <Logo small />
           <p className="footer-tagline">
-            TypeScript to Solidity compiler.
+            Write smart contracts in TypeScript.
             <br />
-            Write smart contracts in the language you know.
+            The language you already know.
           </p>
         </div>
         <div className="footer-cols">

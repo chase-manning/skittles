@@ -5,21 +5,21 @@ title: Type System
 
 # Type System
 
-Skittles maps TypeScript types to Solidity types at compile time. This page covers every supported type and how it translates.
+Skittles uses familiar TypeScript types for your smart contracts. Here's how to use them.
 
 ## Primitive Types
 
-| TypeScript | Solidity  | Notes                                     |
-| ---------- | --------- | ----------------------------------------- |
-| `number`   | `uint256` | All numbers are unsigned 256 bit integers |
-| `string`   | `string`  | UTF-8 strings                             |
-| `boolean`  | `bool`    | `true` / `false`                          |
+| TypeScript | Description                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------- |
+| `number`   | Used for amounts, counters, timestamps — represents a whole number (unsigned, up to 256 bits)           |
+| `string`   | Used for names, symbols, text data — UTF-8 encoded strings                                               |
+| `boolean`  | Used for flags and conditions — `true` or `false`                                                        |
 
 ```typescript
 class Example {
-  count: number = 0; // uint256 public count;
-  name: string = "hello"; // string public name = "hello";
-  active: boolean = true; // bool public active = true;
+  count: number = 0;
+  name: string = "hello";
+  active: boolean = true;
 }
 ```
 
@@ -31,42 +31,37 @@ Import `address` and `bytes` from `"skittles"`:
 import { address, bytes } from "skittles";
 
 class Example {
-  owner: address = msg.sender; // address public owner;
-  data: bytes = ""; // bytes public data;
+  owner: address = msg.sender;
+  data: bytes = "";
 }
 ```
 
-| TypeScript | Solidity  |
-| ---------- | --------- |
-| `address`  | `address` |
-| `bytes`    | `bytes`   |
+| TypeScript | Description                                                   |
+| ---------- | ------------------------------------------------------------- |
+| `address`  | Represents wallet addresses and contract addresses (20 bytes) |
+| `bytes`    | Represents raw binary data                                    |
 
-Address literals (42 character hex strings starting with `0x`) are automatically wrapped in `address(...)`:
+Address literals are 42 character hex strings starting with `0x`:
 
 ```typescript
-// TypeScript
 const zero: address = "0x0000000000000000000000000000000000000000";
-
-// Generates: address(0x0000000000000000000000000000000000000000)
 ```
 
 ## Mappings
 
-Use `Record<K, V>` to create Solidity mappings:
+Use `Record<K, V>` for key-value storage on the blockchain (like a dictionary or map):
 
 ```typescript
 import { address } from "skittles";
 
 class Token {
   balances: Record<address, number> = {};
-  // mapping(address => uint256) public balances;
 
   allowances: Record<address, Record<address, number>> = {};
-  // mapping(address => mapping(address => uint256)) public allowances;
 }
 ```
 
-Nested `Record` types create nested mappings. This is commonly used for ERC20 allowances.
+Nested `Record` types create nested mappings. This is perfect for storing balances, allowances, and other key-value data that needs persistent storage.
 
 ## Arrays
 
@@ -75,10 +70,7 @@ Use `T[]` for dynamic arrays:
 ```typescript
 class Example {
   owners: address[] = [];
-  // address[] public owners;
-
   values: number[] = [];
-  // uint256[] public values;
 }
 ```
 
@@ -99,7 +91,7 @@ for (let i: number = 0; i < this.owners.length; i++) {
 
 ## Structs
 
-TypeScript type aliases with object shapes compile to Solidity structs:
+Use TypeScript type aliases with object shapes to define custom data structures:
 
 ```typescript title="contracts/types.ts"
 import { address } from "skittles";
@@ -109,14 +101,6 @@ export type StakeInfo = {
   timestamp: number;
   account: address;
 };
-```
-
-```solidity title="Generated Solidity"
-struct StakeInfo {
-    uint256 amount;
-    uint256 timestamp;
-    address account;
-}
 ```
 
 Struct instances are created with object literals:
@@ -134,7 +118,7 @@ Structs can be shared across contract files. See [Cross File Support](/guide/cro
 
 ## Contract Interfaces
 
-TypeScript interfaces compile to Solidity contract interfaces. Use interfaces to define the external API of a contract:
+Use TypeScript interfaces to define the external API shape of a contract:
 
 ```typescript title="contracts/interfaces.ts"
 import { address } from "skittles";
@@ -148,21 +132,11 @@ export interface IToken {
 }
 ```
 
-```solidity title="Generated Solidity"
-interface IToken {
-    function name() external returns (string memory);
-    function symbol() external returns (string memory);
-    function totalSupply() external returns (uint256);
-    function balanceOf(address account) external returns (uint256);
-    function transfer(address to, uint256 amount) external returns (bool);
-}
-```
-
-Properties are converted to getter function signatures. Methods are converted to external function signatures.
+Properties represent getter functions. Methods represent callable functions.
 
 ### Implementing Interfaces
 
-Use the `implements` keyword to implement an interface. This generates a Solidity `is` clause:
+Use the `implements` keyword to implement an interface:
 
 ```typescript title="contracts/Token.ts"
 class Token implements IToken {
@@ -183,27 +157,17 @@ class Token implements IToken {
 }
 ```
 
-```solidity title="Generated Solidity"
-contract Token is IToken {
-    // ...
-}
-```
-
 Interfaces can be shared across contract files. See [Cross File Support](/guide/cross-file).
 
 ## Enums
 
-TypeScript enums compile to Solidity enums:
+TypeScript enums define a set of named constants:
 
 ```typescript title="contracts/types.ts"
 export enum VaultStatus {
   Active,
   Paused,
 }
-```
-
-```solidity title="Generated Solidity"
-enum VaultStatus { Active, Paused }
 ```
 
 Use them as state variable types and in comparisons:
@@ -233,20 +197,20 @@ Local variables inside functions can omit explicit types when the type can be in
 ```typescript
 transfer(to: address, amount: number): boolean {
   const sender = msg.sender;    // inferred as address
-  const balance = this.balances[sender]; // inferred as uint256
-  const valid = amount > 0;     // inferred as bool
+  const balance = this.balances[sender]; // inferred as number
+  const valid = amount > 0;     // inferred as boolean
   // ...
 }
 ```
 
 The compiler infers types from:
 
-- Literal values: numbers → `uint256`, strings → `string`, booleans → `bool`
-- `msg.sender` → `address`, `msg.value` → `uint256`
-- `block.timestamp`, `block.number` → `uint256`
+- Literal values: numbers are inferred from numeric literals, strings from string literals, booleans from `true`/`false`
+- Global variables: `msg.sender` is inferred as `address`, `msg.value` as `number`
+- Block properties: `block.timestamp` and `block.number` are inferred as `number`
 - Property access on `this` → the type of the state variable
 - Mapping/array access → the value type of the mapping/array
-- Comparison operators → `bool`
+- Comparison operators → `boolean`
 
 Function parameters and return types must always be explicitly typed.
 
@@ -259,5 +223,3 @@ transfer(to: address, amount: number): void {
   // No return statement needed
 }
 ```
-
-This generates a Solidity function with no `returns` clause.

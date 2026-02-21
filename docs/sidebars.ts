@@ -22,6 +22,7 @@ const sidebars: SidebarsConfig = {
         "guide/cross-file",
         "guide/testing",
         "guide/configuration",
+        "guide/under-the-hood",
       ],
     },
     {

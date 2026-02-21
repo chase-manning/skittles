@@ -36,7 +36,7 @@ yarn add skittles
 pnpm add skittles
 ```
 
-This installs the Skittles compiler, CLI, and TypeScript type definitions. For compiling the generated Solidity to EVM bytecode, use [Hardhat](https://hardhat.org); `skittles init` sets this up for you.
+This installs the Skittles compiler, CLI, and TypeScript type definitions. For testing and deploying your contracts, use [Hardhat](https://hardhat.org); `skittles init` sets this up for you.
 
 ## Verify Installation
 
@@ -68,11 +68,11 @@ The `skittles` package provides:
 | Export                             | Purpose                                                    |
 | ---------------------------------- | ---------------------------------------------------------- |
 | `address`, `bytes`                 | Ethereum primitive types for contract files                |
-| `msg`, `block`, `tx`               | EVM global objects (`msg.sender`, `block.timestamp`, etc.) |
-| `SkittlesEvent<T>`                 | Declare Solidity events                                    |
-| `SkittlesError<T>`                 | Declare Solidity custom errors                             |
+| `msg`, `block`, `tx`               | Blockchain context (`msg.sender`, `block.timestamp`, etc.) |
+| `SkittlesEvent<T>`                 | Declare contract events                                    |
+| `SkittlesError<T>`                 | Declare custom errors                                      |
 | `Indexed<T>`                       | Mark event parameters as indexed                           |
-| `keccak256`, `sha256`, `ecrecover` | Solidity built in function stubs                           |
+| `keccak256`, `sha256`, `ecrecover` | Built-in cryptographic functions                           |
 | `abi`                              | ABI encoding/decoding namespace                            |
 | `SkittlesConfig`                   | Configuration type for `skittles.config.json`              |
 
