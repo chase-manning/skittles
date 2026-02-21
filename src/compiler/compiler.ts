@@ -97,6 +97,7 @@ export async function compile(
   const globalFunctions: SkittlesFunction[] = [];
   const globalConstants: Map<string, Expression> = new Map();
   const interfaceOriginFile = new Map<string, string>();
+  const preScanContractFiles: string[] = [];
 
   for (const filePath of sourceFiles) {
     try {
@@ -119,6 +120,10 @@ export async function compile(
         }
       }
       for (const [name, expr] of constants) globalConstants.set(name, expr);
+
+      if (/\bclass\s+\w+/.test(source)) {
+        preScanContractFiles.push(baseName);
+      }
     } catch {
       // Errors will be caught in the main compilation loop below
     }
@@ -129,15 +134,16 @@ export async function compile(
 
   // Compute a hash of all shared definitions (types, functions, constants).
   // If any shared definition changes, all files must be recompiled.
-  // We hash the serialized definitions rather than the full concatenated sources
-  // to avoid extra I/O and to prevent over-broad cache invalidation from
-  // unrelated changes (e.g. comments, whitespace, class body edits).
+  // contractFiles tracks which source files produce .sol output; if a file
+  // gains or loses a class declaration the import structure may change, so
+  // all caches must be invalidated.
   const sharedDefinitions = {
     structs: Array.from(globalStructs.entries()).sort(([a], [b]) => a.localeCompare(b)),
     enums: Array.from(globalEnums.entries()).sort(([a], [b]) => a.localeCompare(b)),
     contractInterfaces: Array.from(globalContractInterfaces.entries()).sort(([a], [b]) => a.localeCompare(b)),
     functions: [...globalFunctions].sort((a, b) => a.name.localeCompare(b.name)),
     constants: Array.from(globalConstants.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    contractFiles: preScanContractFiles.sort(),
   };
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 
