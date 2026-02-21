@@ -7,6 +7,7 @@ export interface SkittlesConfig {
   optimizer?: OptimizerConfig;
   contractsDir?: string;
   outputDir?: string;
+  cacheDir?: string;
 }
 
 export interface OptimizerConfig {

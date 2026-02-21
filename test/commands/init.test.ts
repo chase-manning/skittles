@@ -35,7 +35,7 @@ describe("initCommand", () => {
 
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     expect(config.contractsDir).toBe("contracts");
-    expect(config.outputDir).toBe("build");
+    expect(config.outputDir).toBe("artifacts");
   });
 
   it("should create example Token contract", async () => {
@@ -128,7 +128,7 @@ describe("initCommand", () => {
 
     const content = fs.readFileSync(configPath, "utf-8");
     expect(content).toContain("hardhat-ethers");
-    expect(content).toContain("build/solidity");
+    expect(content).toContain("artifacts/solidity");
   });
 
   it("should not create vitest.config.ts", async () => {
@@ -142,7 +142,7 @@ describe("initCommand", () => {
     expect(fs.existsSync(gitignorePath)).toBe(true);
 
     const content = fs.readFileSync(gitignorePath, "utf-8");
-    expect(content).toContain("build/");
+    expect(content).not.toContain("build/");
     expect(content).toContain("dist/");
     expect(content).toContain("types/");
     expect(content).toContain("node_modules/");

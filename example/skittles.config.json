@@ -1,5 +1,5 @@
 {
     "typeCheck": true,
     "contractsDir": "contracts",
-    "outputDir": "build"
+    "outputDir": "artifacts"
 }

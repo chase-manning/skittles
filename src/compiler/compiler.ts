@@ -74,7 +74,7 @@ function saveCache(outputDir: string, cache: CompilationCache): void {
  * 1. Find all TypeScript contract files
  * 2. Parse each file into a SkittlesContract IR
  * 3. Generate Solidity source from each contract
- * 4. Write Solidity to build/solidity (Hardhat compiles to ABI + bytecode)
+ * 4. Write Solidity to artifacts/solidity (Hardhat compiles to ABI + bytecode)
  */
 export async function compile(
   projectRoot: string,
@@ -82,6 +82,7 @@ export async function compile(
 ): Promise<CompilationResult> {
   const contractsDir = path.join(projectRoot, config.contractsDir);
   const outputDir = path.join(projectRoot, config.outputDir);
+  const cacheDir = path.join(projectRoot, config.cacheDir);
 
   const artifacts: BuildArtifact[] = [];
   const errors: string[] = [];
@@ -157,7 +158,7 @@ export async function compile(
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 
   // Load incremental compilation cache
-  const cache = loadCache(outputDir);
+  const cache = loadCache(cacheDir);
   const newCache: CompilationCache = { version: CACHE_VERSION, skittlesVersion: PACKAGE_VERSION, files: {} };
 
   // Phase 1: Parse all files (needed to resolve cross-file interface mutabilities)
@@ -335,7 +336,7 @@ export async function compile(
 
   // Save updated cache
   try {
-    saveCache(outputDir, newCache);
+    saveCache(cacheDir, newCache);
   } catch {
     // Non critical if cache save fails
   }

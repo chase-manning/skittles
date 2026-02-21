@@ -15,5 +15,5 @@
     "rootDir": "."
   },
   "include": ["contracts/**/*", "test/**/*", "types/**/*"],
-  "exclude": ["node_modules", "build", "dist"]
+  "exclude": ["node_modules", "artifacts", "cache", "dist"]
 }

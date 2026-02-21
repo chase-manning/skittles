@@ -17,8 +17,9 @@ example/
   test/               Contract tests (Hardhat + Mocha)
     Token.test.ts
     Staking.test.ts
-  build/              Compiled output (generated, gitignored)
+  artifacts/            Compiled output (generated, gitignored)
     solidity/         Generated Solidity source (Hardhat compiles to ABI/bytecode)
+  cache/              Compilation cache (generated, gitignored)
   package.json
   skittles.config.json
   hardhat.config.ts
@@ -39,7 +40,7 @@ Compile the contracts:
 yarn compile
 ```
 
-This generates Solidity files in `build/solidity/`. Hardhat compiles them when you run tests.
+This generates Solidity files in `artifacts/solidity/`. Hardhat compiles them when you run tests.
 
 Run the tests:
 
@@ -65,8 +66,8 @@ Tests use [Hardhat](https://hardhat.org) with Mocha, ethers.js v6, and the [Hard
 
 The test workflow:
 
-1. `yarn test` runs `skittles compile` first, producing artifacts in `build/`.
-2. Hardhat compiles the generated Solidity from `build/solidity`.
+1. `yarn test` runs `skittles compile` first, producing artifacts in `artifacts/`.
+2. Hardhat compiles the generated Solidity from `artifacts/solidity`.
 3. Tests deploy contracts and run assertions against the in-memory EVM.
 
 ## Configuration
@@ -76,7 +77,7 @@ The test workflow:
 | Key | Default | Description |
 | --- | ------- | ----------- |
 | `contractsDir` | `"contracts"` | Directory containing `.ts` contract files |
-| `outputDir` | `"build"` | Directory for compiled Solidity output |
+| `outputDir` | `"artifacts"` | Directory for compiled Solidity output |
 | `typeCheck` | `true` | Enable TypeScript type checking |
 
 Optimizer settings live in `hardhat.config.ts` under `solidity.settings.optimizer`.

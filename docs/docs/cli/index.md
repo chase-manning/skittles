@@ -26,19 +26,20 @@ This command:
 3. Pre scans files to collect shared types, functions, and constants
 4. Parses each file's TypeScript AST into the Skittles intermediate representation
 5. Generates Solidity source code from the IR
-6. Writes Solidity files to the `solidity/` subdirectory of the configured `outputDir` (default `outputDir`: `build/`, so Solidity is written to `build/solidity/`)
+6. Writes Solidity files to the `solidity/` subdirectory of the configured `outputDir` (default `outputDir`: `artifacts/`, so Solidity is written to `artifacts/solidity/`)
 
 Output structure:
 
 ```
-build/
+artifacts/
 ├── solidity/
 │   ├── Token.sol        # Generated Solidity source
 │   └── Staking.sol
+cache/
 └── .skittles-cache.json  # Incremental compilation cache
 ```
 
-To produce ABI and EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./build/solidity` and run `hardhat compile` or `hardhat test`. Hardhat will compile the generated Solidity and emit artifacts.
+To produce ABI and EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./artifacts/solidity` and run `hardhat compile` or `hardhat test`. Hardhat will compile the generated Solidity and emit artifacts.
 
 Incremental compilation is automatic. Unchanged files are skipped using SHA256 hash comparison.
 
@@ -64,14 +65,15 @@ Remove all build artifacts and the compilation cache.
 npx skittles clean
 ```
 
-This deletes the entire output directory (default: `build/`), including the `.skittles-cache.json` cache file. Use this to force a full recompilation.
+This deletes the output directory (default: `artifacts/`) and the cache directory (default: `cache/`), including the `.skittles-cache.json` cache file. Use this to force a full recompilation.
 
 ### Example Output
 
 ```
 🍬 Skittles
 
-ℹ Removing build directory: build/
+ℹ Removing output directory: artifacts/
+ℹ Removing cache directory: cache/
 ✔ Build artifacts cleaned
 ```
 
@@ -92,7 +94,7 @@ This creates:
 | `skittles.config.json` | Compiler configuration with defaults              |
 | `tsconfig.json`        | TypeScript configuration for contract development |
 | `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths      |
-| `.gitignore` (updated) | Adds `build/`, `dist/`, `node_modules/`          |
+| `.gitignore` (updated) | Adds `artifacts/`, `cache/`, `dist/`, `node_modules/`          |
 
 If any file already exists, it is skipped with a warning.
 

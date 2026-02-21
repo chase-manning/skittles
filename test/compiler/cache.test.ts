@@ -14,7 +14,8 @@ const defaultConfig: Required<SkittlesConfig> = {
   typeCheck: true,
   optimizer: { enabled: false, runs: 200 },
   contractsDir: "contracts",
-  outputDir: "build",
+  outputDir: "artifacts",
+  cacheDir: "cache",
 };
 
 function createTempProject(): string {
@@ -201,7 +202,7 @@ describe("incremental compilation cache", () => {
     }
   });
 
-  it("should write cache file to the output directory", async () => {
+  it("should write cache file to the cache directory", async () => {
     writeContract(projectRoot, "Simple.ts", `
       class Simple {
         public value: number = 0;
@@ -210,7 +211,7 @@ describe("incremental compilation cache", () => {
 
     await compile(projectRoot, defaultConfig);
 
-    const cachePath = path.join(projectRoot, "build", ".skittles-cache.json");
+    const cachePath = path.join(projectRoot, "cache", ".skittles-cache.json");
     expect(fs.existsSync(cachePath)).toBe(true);
 
     const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
@@ -228,7 +229,7 @@ describe("incremental compilation cache", () => {
 
     await compile(projectRoot, defaultConfig);
 
-    const cachePath = path.join(projectRoot, "build", ".skittles-cache.json");
+    const cachePath = path.join(projectRoot, "cache", ".skittles-cache.json");
     fs.writeFileSync(cachePath, "NOT VALID JSON {{{", "utf-8");
 
     const spy = vi.spyOn(parserModule, "parse");
@@ -302,7 +303,7 @@ describe("incremental compilation cache", () => {
     expect(result1.success).toBe(true);
     expect(result1.artifacts).toHaveLength(1);
 
-    const cachePath = path.join(projectRoot, "build", ".skittles-cache.json");
+    const cachePath = path.join(projectRoot, "cache", ".skittles-cache.json");
     const cache = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
     cache.skittlesVersion = "0.0.0-old";
     fs.writeFileSync(cachePath, JSON.stringify(cache), "utf-8");
