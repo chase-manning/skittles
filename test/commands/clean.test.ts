@@ -19,14 +19,18 @@ afterEach(() => {
 });
 
 describe("cleanCommand", () => {
-  it("should remove the default output directory", async () => {
+  it("should remove the default output directory and cache directory", async () => {
     const outputDir = path.join(TEST_DIR, "artifacts");
+    const cacheDir = path.join(TEST_DIR, "cache");
     fs.mkdirSync(outputDir, { recursive: true });
+    fs.mkdirSync(cacheDir, { recursive: true });
     fs.writeFileSync(path.join(outputDir, "artifact.json"), "{}");
+    fs.writeFileSync(path.join(cacheDir, ".skittles-cache.json"), "{}");
 
     await cleanCommand(TEST_DIR);
 
     expect(fs.existsSync(outputDir)).toBe(false);
+    expect(fs.existsSync(cacheDir)).toBe(false);
   });
 
   it("should not throw if output directory does not exist", async () => {
