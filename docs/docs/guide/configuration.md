@@ -14,7 +14,7 @@ Create `skittles.config.json`:
 ```json title="skittles.config.json"
 {
   "contractsDir": "contracts",
-  "outputDir": "build",
+  "outputDir": "artifacts",
   "typeCheck": true
 }
 ```
@@ -24,18 +24,19 @@ Or use JavaScript for dynamic configuration:
 ```javascript title="skittles.config.js"
 module.exports = {
   contractsDir: "contracts",
-  outputDir: "build",
+  outputDir: "artifacts",
   typeCheck: true,
 };
 ```
 
 ## Options
 
-| Option         | Type      | Default       | Description                                |
-| -------------- | --------- | ------------- | ------------------------------------------ |
-| `contractsDir` | `string`  | `"contracts"` | Directory containing your TypeScript contract files |
-| `outputDir`    | `string`  | `"build"`     | Directory where Solidity files are written |
-| `typeCheck`    | `boolean` | `true`        | Enable TypeScript type checking during compilation |
+| Option         | Type      | Default        | Description                                |
+| -------------- | --------- | -------------- | ------------------------------------------ |
+| `contractsDir` | `string`  | `"contracts"`  | Directory containing your TypeScript contract files |
+| `outputDir`    | `string`  | `"artifacts"`  | Directory where Solidity files are written |
+| `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored |
+| `typeCheck`    | `boolean` | `true`         | Enable TypeScript type checking during compilation |
 
 ## Default Behavior
 
@@ -44,18 +45,18 @@ If no config file is found, Skittles uses these defaults:
 ```json
 {
   "contractsDir": "contracts",
-  "outputDir": "build",
+  "outputDir": "artifacts",
   "typeCheck": true
 }
 ```
 
 ## Solidity Compilation and Optimizer
 
-Skittles generates Solidity source. To produce EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./build/solidity` and set the optimizer in Hardhat's `solidity` settings:
+Skittles generates Solidity source. To produce EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./artifacts/solidity` and set the optimizer in Hardhat's `solidity` settings:
 
 ```typescript title="hardhat.config.ts"
 export default defineConfig({
-  paths: { sources: "./build/solidity", tests: "./test" },
+  paths: { sources: "./artifacts/solidity", tests: "./test" },
   solidity: {
     version: "0.8.20",
     settings: { optimizer: { enabled: true, runs: 200 } },
@@ -65,7 +66,7 @@ export default defineConfig({
 
 ## Incremental Compilation
 
-Skittles uses SHA256 based incremental compilation. A cache file (`.skittles-cache.json`) is stored in the output directory and tracks:
+Skittles uses SHA256 based incremental compilation. A cache file (`.skittles-cache.json`) is stored in the cache directory (default: `cache/`) and tracks:
 
 - The hash of each source file
 - The hash of all shared definitions (types, functions, constants)
@@ -101,7 +102,7 @@ The `skittles init` command generates a `tsconfig.json` configured for contract 
     "rootDir": "."
   },
   "include": ["contracts/**/*"],
-  "exclude": ["node_modules", "build", "dist"]
+  "exclude": ["node_modules", "artifacts", "cache", "dist"]
 }
 ```
 

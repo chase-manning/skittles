@@ -14,7 +14,7 @@ export default defineConfig({
     hardhatNetworkHelpers,
   ],
   paths: {
-    sources: "./build/solidity",
+    sources: "./artifacts/solidity",
     tests: "./test",
   },
   solidity: {

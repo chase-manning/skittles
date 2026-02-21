@@ -46,7 +46,7 @@ describe("loadConfig", () => {
     const config = await loadConfig(TEST_DIR);
     expect(config.typeCheck).toBe(false);
     expect(config.contractsDir).toBe("contracts");
-    expect(config.outputDir).toBe("build");
+    expect(config.outputDir).toBe("artifacts");
   });
 
   it("should throw on malformed JSON config", async () => {

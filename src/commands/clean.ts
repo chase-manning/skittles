@@ -6,7 +6,10 @@ import { loadConfig } from "../config/config.ts";
 export async function cleanCommand(projectRoot: string): Promise<void> {
   const config = await loadConfig(projectRoot);
   const outputDir = path.join(projectRoot, config.outputDir);
-  logInfo(`Removing build directory: ${config.outputDir}/`);
+  const cacheDir = path.join(projectRoot, config.cacheDir);
+  logInfo(`Removing output directory: ${config.outputDir}/`);
   removeDirectory(outputDir);
+  logInfo(`Removing cache directory: ${config.cacheDir}/`);
+  removeDirectory(cacheDir);
   logSuccess("Build artifacts cleaned");
 }

@@ -8,7 +8,7 @@ const CONFIG_TEMPLATE = JSON.stringify(
   {
     typeCheck: true,
     contractsDir: "contracts",
-    outputDir: "build",
+    outputDir: "artifacts",
   },
   null,
   2
@@ -32,7 +32,7 @@ const TSCONFIG_TEMPLATE = JSON.stringify(
       rootDir: ".",
     },
     include: ["contracts/**/*", "test/**/*", "types/**/*"],
-    exclude: ["node_modules", "build", "dist"],
+    exclude: ["node_modules", "artifacts", "cache", "dist"],
   },
   null,
   2
@@ -54,7 +54,7 @@ export default defineConfig({
     hardhatNetworkHelpers,
   ],
   paths: {
-    sources: "./build/solidity",
+    sources: "./artifacts/solidity",
     tests: "./test",
   },
   solidity: {
@@ -327,7 +327,6 @@ export async function initCommand(
   // Update .gitignore
   const gitignorePath = path.join(projectRoot, ".gitignore");
   const gitignoreEntries = [
-    "build/",
     "dist/",
     "types/",
     "node_modules/",

@@ -12,7 +12,8 @@ const DEFAULT_CONFIG: Required<SkittlesConfig> = {
     runs: 200,
   },
   contractsDir: "contracts",
-  outputDir: "build",
+  outputDir: "artifacts",
+  cacheDir: "cache",
 };
 
 /**
@@ -65,6 +66,7 @@ function mergeConfig(
     },
     contractsDir: userConfig.contractsDir ?? DEFAULT_CONFIG.contractsDir,
     outputDir: userConfig.outputDir ?? DEFAULT_CONFIG.outputDir,
+    cacheDir: userConfig.cacheDir ?? DEFAULT_CONFIG.cacheDir,
   };
 }
 

@@ -19,17 +19,17 @@ afterEach(() => {
 });
 
 describe("cleanCommand", () => {
-  it("should remove the default build directory", async () => {
-    const buildDir = path.join(TEST_DIR, "build");
-    fs.mkdirSync(buildDir, { recursive: true });
-    fs.writeFileSync(path.join(buildDir, "artifact.json"), "{}");
+  it("should remove the default output directory", async () => {
+    const outputDir = path.join(TEST_DIR, "artifacts");
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(path.join(outputDir, "artifact.json"), "{}");
 
     await cleanCommand(TEST_DIR);
 
-    expect(fs.existsSync(buildDir)).toBe(false);
+    expect(fs.existsSync(outputDir)).toBe(false);
   });
 
-  it("should not throw if build directory does not exist", async () => {
+  it("should not throw if output directory does not exist", async () => {
     await expect(cleanCommand(TEST_DIR)).resolves.not.toThrow();
   });
 
