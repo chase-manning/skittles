@@ -589,13 +589,32 @@ function parseClass(
     contractEnums.push({ name: eName, members });
   }
 
-  // Deep copy interfaces so mutability updates don't leak to shared state
+  // Determine which interfaces this contract actually references
+  const usedIfaceNames = new Set<string>();
+  for (const iName of inherits) {
+    if (knownContractInterfaces.has(iName)) usedIfaceNames.add(iName);
+  }
+  for (const v of variables) {
+    collectContractInterfaceTypeRefs(v.type, usedIfaceNames);
+  }
+  for (const f of functions) {
+    for (const p of f.parameters) collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
+    if (f.returnType) collectContractInterfaceTypeRefs(f.returnType, usedIfaceNames);
+  }
+  if (ctor) {
+    for (const p of ctor.parameters) collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
+  }
+
+  // Deep copy only used interfaces so mutability updates don't leak to shared state
   const contractIfaceList: SkittlesContractInterface[] = [];
-  for (const [, iface] of knownContractInterfaces) {
-    contractIfaceList.push({
-      name: iface.name,
-      functions: iface.functions.map((fn) => ({ ...fn })),
-    });
+  for (const ifName of usedIfaceNames) {
+    const iface = knownContractInterfaces.get(ifName);
+    if (iface) {
+      contractIfaceList.push({
+        name: iface.name,
+        functions: iface.functions.map((fn) => ({ ...fn })),
+      });
+    }
   }
 
   // Fourth pass: for implemented interfaces, derive method mutabilities
@@ -803,7 +822,7 @@ function parseMethod(
     : null;
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, varTypes);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -825,7 +844,7 @@ function parseGetAccessor(
     : null;
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, varTypes);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -845,7 +864,7 @@ function parseSetAccessor(
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, varTypes);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -880,7 +899,7 @@ function parseArrowProperty(
     }
   }
 
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, varTypes);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
@@ -1659,7 +1678,7 @@ function collectThisCalls(stmts: Statement[]): string[] {
   return names;
 }
 
-export function inferStateMutability(body: Statement[]): "pure" | "view" | "nonpayable" | "payable" {
+export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>): "pure" | "view" | "nonpayable" | "payable" {
   let readsState = false;
   let writesState = false;
   let usesMsgValue = false;
@@ -1690,6 +1709,9 @@ export function inferStateMutability(body: Statement[]): "pure" | "view" | "nonp
         writesState = true;
       }
       if (expr.kind === "call" && isStateMutatingCall(expr)) {
+        writesState = true;
+      }
+      if (expr.kind === "call" && varTypes && isExternalContractCall(expr, varTypes)) {
         writesState = true;
       }
     },
@@ -1785,6 +1807,14 @@ export function inferType(
 // Helpers
 // ============================================================
 
+function collectContractInterfaceTypeRefs(type: SkittlesType, refs: Set<string>): void {
+  if (type.kind === ("contract-interface" as SkittlesTypeKind) && type.structName) {
+    refs.add(type.structName);
+  }
+  if (type.keyType) collectContractInterfaceTypeRefs(type.keyType, refs);
+  if (type.valueType) collectContractInterfaceTypeRefs(type.valueType, refs);
+}
+
 function isStateAccess(expr: Expression): boolean {
   if (
     expr.kind === "property-access" &&
@@ -1795,6 +1825,22 @@ function isStateAccess(expr: Expression): boolean {
   }
   if (expr.kind === "element-access") {
     return isStateAccess(expr.object);
+  }
+  return false;
+}
+
+function isExternalContractCall(expr: { callee: Expression }, varTypes: Map<string, SkittlesType>): boolean {
+  if (
+    expr.callee.kind === "property-access" &&
+    expr.callee.object.kind === "property-access" &&
+    expr.callee.object.object.kind === "identifier" &&
+    expr.callee.object.object.name === "this"
+  ) {
+    const propName = expr.callee.object.property;
+    const propType = varTypes.get(propName);
+    if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) {
+      return true;
+    }
   }
   return false;
 }
