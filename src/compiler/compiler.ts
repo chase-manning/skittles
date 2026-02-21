@@ -107,8 +107,9 @@ export async function compile(
       for (const [name, fields] of structs) globalStructs.set(name, fields);
       for (const [name, members] of enums) globalEnums.set(name, members);
       for (const [name, iface] of contractInterfaces) {
-        globalContractInterfaces.set(name, iface);
-        if (!interfaceOriginFile.has(name)) {
+        const existingOrigin = interfaceOriginFile.get(name);
+        if (!existingOrigin || baseName < existingOrigin) {
+          globalContractInterfaces.set(name, iface);
           interfaceOriginFile.set(name, baseName);
         }
       }
