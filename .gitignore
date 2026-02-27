@@ -6,5 +6,6 @@ coverage
 *.d.ts.map
 *.tsbuildinfo
 yarn-error.log
+package-lock.json
 .DS_Store
 .env*
