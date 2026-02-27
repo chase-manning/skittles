@@ -37,6 +37,20 @@ for (const owner of this.owners) {
 }
 ```
 
+## For...in Loops
+
+`for...in` loops iterate over all values of an enum:
+
+```typescript
+enum Status { Active, Paused, Stopped }
+
+for (const status in Status) {
+  // Runs once for each enum member
+}
+```
+
+The compiler desugars this into a standard indexed loop over the enum range.
+
 ## While Loops
 
 ```typescript

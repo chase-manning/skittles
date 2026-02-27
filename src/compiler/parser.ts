@@ -20,7 +20,7 @@ import type {
 // Module-level registries, populated during parse()
 let _knownStructs: Map<string, SkittlesParameter[]> = new Map();
 let _knownContractInterfaces: Set<string> = new Set();
-let _knownEnums: Set<string> = new Set();
+let _knownEnums: Map<string, string[]> = new Map();
 let _knownCustomErrors: Set<string> = new Set();
 let _fileConstants: Map<string, Expression> = new Map();
 
@@ -54,7 +54,7 @@ export function collectTypes(source: string, filePath: string): {
   const prevEnums = _knownEnums;
   const prevInterfaces = _knownContractInterfaces;
   _knownStructs = structs;
-  _knownEnums = new Set();
+  _knownEnums = new Map();
   _knownContractInterfaces = new Set();
 
   ts.forEachChild(sourceFile, (node) => {
@@ -143,7 +143,7 @@ export function parse(
   });
 
   _knownStructs = structs;
-  _knownEnums = new Set(enums.keys());
+  _knownEnums = new Map(enums);
 
   // Second pass: parse interfaces (may reference struct/enum types collected above)
   ts.forEachChild(sourceFile, (node) => {
@@ -240,7 +240,7 @@ export function collectFunctions(source: string, filePath: string): {
   const prevEnums = _knownEnums;
   const prevInterfaces = _knownContractInterfaces;
   _knownStructs = new Map();
-  _knownEnums = new Set();
+  _knownEnums = new Map();
   _knownContractInterfaces = new Set();
 
   ts.forEachChild(sourceFile, (node) => {
@@ -1368,6 +1368,57 @@ export function parseStatement(
       },
       body: [itemDecl, ...innerBody],
     };
+  }
+
+  if (ts.isForInStatement(node)) {
+    // Desugar: for (const item in EnumType) { ... }
+    // →  for (uint256 _i = 0; _i < memberCount; _i++) { EnumType item = EnumType(_i); ... }
+    const enumName = ts.isIdentifier(node.expression) ? node.expression.text : "";
+    const enumMembers = _knownEnums.get(enumName);
+
+    if (enumMembers) {
+      const itemName = ts.isVariableDeclarationList(node.initializer)
+        ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
+        : "_item";
+
+      const indexName = `_i_${itemName}`;
+      const innerBody = parseBlock(node.statement, varTypes, eventNames);
+
+      // Prepend: EnumType item = EnumType(_i);
+      const itemDecl: Statement = {
+        kind: "variable-declaration",
+        name: itemName,
+        type: { kind: "enum" as SkittlesTypeKind, structName: enumName },
+        initializer: {
+          kind: "call",
+          callee: { kind: "identifier", name: enumName },
+          args: [{ kind: "identifier", name: indexName }],
+        },
+      };
+
+      return {
+        kind: "for",
+        initializer: {
+          kind: "variable-declaration",
+          name: indexName,
+          type: { kind: "uint256" as SkittlesTypeKind },
+          initializer: { kind: "number-literal", value: "0" },
+        },
+        condition: {
+          kind: "binary",
+          operator: "<",
+          left: { kind: "identifier", name: indexName },
+          right: { kind: "number-literal", value: String(enumMembers.length) },
+        },
+        incrementor: {
+          kind: "unary",
+          operator: "++",
+          operand: { kind: "identifier", name: indexName },
+          prefix: false,
+        },
+        body: [itemDecl, ...innerBody],
+      };
+    }
   }
 
   if (ts.isSwitchStatement(node)) {
