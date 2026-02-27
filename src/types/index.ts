@@ -146,7 +146,8 @@ export type Statement =
   | RevertStatement
   | EmitStatement
   | SwitchStatement
-  | DeleteStatement;
+  | DeleteStatement
+  | TryCatchStatement;
 
 export interface ReturnStatement {
   kind: "return";
@@ -216,6 +217,15 @@ export interface EmitStatement {
 export interface DeleteStatement {
   kind: "delete";
   target: Expression;
+}
+
+export interface TryCatchStatement {
+  kind: "try-catch";
+  call: Expression;
+  returnVarName?: string;
+  returnType?: SkittlesType;
+  successBody: Statement[];
+  catchBody: Statement[];
 }
 
 export interface SwitchCase {

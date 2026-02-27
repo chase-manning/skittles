@@ -1390,6 +1390,56 @@ export function parseStatement(
     return { kind: "switch", discriminant, cases };
   }
 
+  if (ts.isTryStatement(node)) {
+    const tryBlock = node.tryBlock;
+    const catchClause = node.catchClause;
+    const tryStatements = tryBlock.statements;
+
+    if (tryStatements.length === 0) {
+      throw new Error("try block must contain at least one statement with an external call");
+    }
+
+    // The first statement must be an external call (either variable declaration or expression)
+    const firstStmt = tryStatements[0];
+    let call: Expression;
+    let returnVarName: string | undefined;
+    let returnType: SkittlesType | undefined;
+
+    if (ts.isVariableStatement(firstStmt)) {
+      const decl = firstStmt.declarationList.declarations[0];
+      returnVarName = ts.isIdentifier(decl.name) ? decl.name.text : undefined;
+      returnType = decl.type ? parseType(decl.type) : undefined;
+      if (decl.initializer) {
+        call = parseExpression(decl.initializer);
+        if (!returnType) {
+          returnType = inferType(call, varTypes);
+        }
+      } else {
+        throw new Error("try block variable declaration must have an initializer with an external call");
+      }
+    } else if (ts.isExpressionStatement(firstStmt)) {
+      call = parseExpression(firstStmt.expression);
+    } else {
+      throw new Error("First statement in try block must be an external call");
+    }
+
+    // Remaining statements become success body
+    const successBody: Statement[] = [];
+    for (let i = 1; i < tryStatements.length; i++) {
+      successBody.push(...parseStatements(tryStatements[i], varTypes, eventNames));
+    }
+
+    // Parse catch body
+    const catchBody: Statement[] = [];
+    if (catchClause && catchClause.block) {
+      for (const stmt of catchClause.block.statements) {
+        catchBody.push(...parseStatements(stmt, varTypes, eventNames));
+      }
+    }
+
+    return { kind: "try-catch", call, returnVarName, returnType, successBody, catchBody };
+  }
+
   if (ts.isThrowStatement(node)) {
     // Pattern: throw new ErrorName(args) (class extends Error style)
     if (node.expression && ts.isNewExpression(node.expression)) {
@@ -1656,6 +1706,11 @@ function walkStatements(
         break;
       case "delete":
         walkExpr(stmt.target);
+        break;
+      case "try-catch":
+        walkExpr(stmt.call);
+        stmt.successBody.forEach(walkStmt);
+        stmt.catchBody.forEach(walkStmt);
         break;
     }
   }
