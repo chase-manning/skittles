@@ -150,6 +150,17 @@ describe("parse", () => {
     expect(contracts[0].variables[0].immutable).toBe(true);
   });
 
+  it("should parse readonly array as immutable array", () => {
+    const contracts = parse(
+      `class T { public readonly admins: address[] = []; }`,
+      "test.ts"
+    );
+    const v = contracts[0].variables[0];
+    expect(v.immutable).toBe(true);
+    expect(v.type.kind).toBe("array");
+    expect(v.type.valueType?.kind).toBe("address");
+  });
+
   it("should parse constructor", () => {
     const contracts = parse(
       `class T {
@@ -411,6 +422,24 @@ describe("parseType", () => {
     const t = parseType(makeTypeNode("number[]"));
     expect(t.kind).toBe("array");
     expect(t.valueType?.kind).toBe("uint256");
+  });
+
+  it("should parse ReadonlyArray<number> as array", () => {
+    const t = parseType(makeTypeNode("ReadonlyArray<number>"));
+    expect(t.kind).toBe("array");
+    expect(t.valueType?.kind).toBe("uint256");
+  });
+
+  it("should parse readonly number[] as array", () => {
+    const t = parseType(makeTypeNode("readonly number[]"));
+    expect(t.kind).toBe("array");
+    expect(t.valueType?.kind).toBe("uint256");
+  });
+
+  it("should parse ReadonlyArray<address> as array", () => {
+    const t = parseType(makeTypeNode("ReadonlyArray<address>"));
+    expect(t.kind).toBe("array");
+    expect(t.valueType?.kind).toBe("address");
   });
 
   it("should parse tuple type [number, boolean, string]", () => {

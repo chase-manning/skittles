@@ -85,6 +85,28 @@ describe("generateSolidity", () => {
     );
   });
 
+  it("should generate readonly array as internal with public getter", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "admins",
+            type: {
+              kind: SkittlesTypeKind.Array,
+              valueType: { kind: SkittlesTypeKind.Address },
+            },
+            visibility: "public",
+            immutable: true,
+            constant: false,
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("address[] internal admins;");
+    expect(sol).toContain("function getAdmins() public view returns (address[] memory)");
+    expect(sol).toContain("return admins;");
+  });
+
   it("should generate a constructor", () => {
     const sol = generateSolidity(
       emptyContract({

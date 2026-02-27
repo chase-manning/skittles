@@ -146,23 +146,34 @@ function generateContractBody(
     parts.push(`    ${generateVariable(v)}`);
   }
 
+  const readonlyArrayVars = contract.variables.filter(
+    (v) => v.immutable && v.type.kind === SkittlesTypeKind.Array
+  );
+
   if (
     contract.variables.length > 0 &&
-    (contract.ctor || contract.functions.length > 0)
+    (contract.ctor || contract.functions.length > 0 || readonlyArrayVars.length > 0)
   ) {
     parts.push("");
   }
 
   if (contract.ctor) {
     parts.push(generateConstructor(contract.ctor));
-    if (contract.functions.length > 0) {
+    if (contract.functions.length > 0 || readonlyArrayVars.length > 0) {
       parts.push("");
     }
   }
 
   for (let i = 0; i < contract.functions.length; i++) {
     parts.push(generateFunction(contract.functions[i]));
-    if (i < contract.functions.length - 1) {
+    if (i < contract.functions.length - 1 || readonlyArrayVars.length > 0) {
+      parts.push("");
+    }
+  }
+
+  for (let i = 0; i < readonlyArrayVars.length; i++) {
+    parts.push(generateReadonlyArrayGetter(readonlyArrayVars[i]));
+    if (i < readonlyArrayVars.length - 1) {
       parts.push("");
     }
   }
@@ -265,7 +276,8 @@ function isValueType(type: SkittlesType): boolean {
 
 function generateVariable(v: SkittlesVariable): string {
   const type = generateType(v.type);
-  const vis = mapVisibility(v.visibility);
+  const isReadonlyArray = v.immutable && v.type.kind === SkittlesTypeKind.Array;
+  const vis = isReadonlyArray ? "internal" : mapVisibility(v.visibility);
   let modifier = "";
   if (v.constant) {
     modifier = " constant";
@@ -287,6 +299,17 @@ function generateVariable(v: SkittlesVariable): string {
   }
 
   return `${type} ${vis}${modifier}${overrideStr} ${v.name};`;
+}
+
+function generateReadonlyArrayGetter(v: SkittlesVariable): string {
+  const type = generateType(v.type);
+  const name = v.name;
+  const getterName = `get${name.charAt(0).toUpperCase()}${name.slice(1)}`;
+  const lines: string[] = [];
+  lines.push(`    function ${getterName}() public view returns (${type} memory) {`);
+  lines.push(`        return ${name};`);
+  lines.push("    }");
+  return lines.join("\n");
 }
 
 function generateFunction(f: SkittlesFunction): string {

@@ -1117,6 +1117,17 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       };
     }
 
+    if (
+      name === "ReadonlyArray" &&
+      node.typeArguments &&
+      node.typeArguments.length === 1
+    ) {
+      return {
+        kind: "array" as SkittlesTypeKind,
+        valueType: parseType(node.typeArguments[0]),
+      };
+    }
+
     if (name === "address") return { kind: "address" as SkittlesTypeKind };
     if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
 
@@ -1150,6 +1161,10 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       kind: "array" as SkittlesTypeKind,
       valueType: parseType(node.elementType),
     };
+  }
+
+  if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
+    return parseType(node.type);
   }
 
   if (ts.isTupleTypeNode(node)) {
