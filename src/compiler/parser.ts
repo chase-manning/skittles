@@ -1077,7 +1077,11 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
-  return { name, type };
+  const param: SkittlesParameter = { name, type };
+  if (node.initializer) {
+    param.defaultValue = parseExpression(node.initializer);
+  }
+  return param;
 }
 
 // ============================================================

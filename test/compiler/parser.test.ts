@@ -164,7 +164,51 @@ describe("parse", () => {
     expect(ctor.parameters).toHaveLength(1);
     expect(ctor.parameters[0].name).toBe("val");
     expect(ctor.parameters[0].type.kind).toBe("uint256");
+    expect(ctor.parameters[0].defaultValue).toBeUndefined();
     expect(ctor.body).toHaveLength(1);
+  });
+
+  it("should parse constructor with default parameter value", () => {
+    const contracts = parse(
+      `class T {
+        public supply: number = 0;
+        constructor(supply: number = 1000000) {
+          this.supply = supply;
+        }
+      }`,
+      "test.ts"
+    );
+    const ctor = contracts[0].ctor!;
+    expect(ctor.parameters).toHaveLength(1);
+    expect(ctor.parameters[0].name).toBe("supply");
+    expect(ctor.parameters[0].type.kind).toBe("uint256");
+    expect(ctor.parameters[0].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "1000000",
+    });
+  });
+
+  it("should parse constructor with mixed default and required parameters", () => {
+    const contracts = parse(
+      `class T {
+        public name: string = "";
+        public supply: number = 0;
+        constructor(name: string, supply: number = 1000000) {
+          this.name = name;
+          this.supply = supply;
+        }
+      }`,
+      "test.ts"
+    );
+    const ctor = contracts[0].ctor!;
+    expect(ctor.parameters).toHaveLength(2);
+    expect(ctor.parameters[0].name).toBe("name");
+    expect(ctor.parameters[0].defaultValue).toBeUndefined();
+    expect(ctor.parameters[1].name).toBe("supply");
+    expect(ctor.parameters[1].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "1000000",
+    });
   });
 
   it("should parse a simple function", () => {

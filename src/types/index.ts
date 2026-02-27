@@ -95,6 +95,7 @@ export interface SkittlesParameter {
   name: string;
   type: SkittlesType;
   indexed?: boolean;
+  defaultValue?: Expression;
 }
 
 // ============================================================
