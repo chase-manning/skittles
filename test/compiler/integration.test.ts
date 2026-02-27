@@ -3644,3 +3644,161 @@ describe("integration: console.log", () => {
     expect(solidity).not.toContain("hardhat/console.sol");
   });
 });
+
+// ============================================================
+// External contract calls via Contract<T>()
+// ============================================================
+
+describe("integration: external contract calls", () => {
+  it("should compile a contract with an interface-typed state variable", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): number;
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public getBalance(account: address): number {
+          return this.token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    expect(contracts).toHaveLength(1);
+
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("IToken internal token;");
+    expect(solidity).toContain("token = IToken(tokenAddress);");
+    expect(solidity).toContain("return token.balanceOf(account);");
+
+    const result = compileSolidity("Vault", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(result.bytecode.length).toBeGreaterThan(0);
+  });
+
+  it("should compile external contract calls on state variables", () => {
+    const interfaceSrc = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public withdraw(to: address, amount: number): void {
+          this.token.transfer(to, amount);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("token.transfer(to, amount);");
+
+    const result = compileSolidity("Vault", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should detect external contract calls as state-mutating", () => {
+    const interfaceSrc = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public withdraw(to: address, amount: number): void {
+          this.token.transfer(to, amount);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const withdrawFn = contracts[0].functions.find(f => f.name === "withdraw");
+    expect(withdrawFn).toBeDefined();
+    expect(withdrawFn!.stateMutability).toBe("nonpayable");
+  });
+
+  it("should compile external contract call with local variable of interface type", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Checker {
+        public checkBalance(tokenAddress: address, account: address): number {
+          let token: IToken = Contract<IToken>(tokenAddress);
+          return token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Checker.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("IToken token = IToken(tokenAddress);");
+    expect(solidity).toContain("return token.balanceOf(account);");
+
+    const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should include interface type used as function parameter", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Helper {
+        public getBalance(token: IToken, account: address): number {
+          return token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Helper.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IToken {");
+    expect(solidity).toContain("function getBalance(IToken token, address account)");
+
+    const result = compileSolidity("Helper", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+});

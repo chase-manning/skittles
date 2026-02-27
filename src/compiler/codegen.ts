@@ -811,6 +811,11 @@ function tryGenerateBuiltinCall(expr: {
       return `assert(${args})`;
     case "gasleft":
       return `gasleft()`;
+    case "Contract":
+      if (expr.typeArgs && expr.typeArgs.length > 0 && expr.typeArgs[0].kind === SkittlesTypeKind.ContractInterface && expr.typeArgs[0].structName) {
+        return `${expr.typeArgs[0].structName}(${args})`;
+      }
+      return null;
     case "string.concat":
       return `string.concat(${args})`;
     case "bytes.concat":

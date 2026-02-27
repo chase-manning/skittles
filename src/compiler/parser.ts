@@ -806,9 +806,11 @@ function parseClass(
   for (const f of functions) {
     for (const p of f.parameters) collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
     if (f.returnType) collectContractInterfaceTypeRefs(f.returnType, usedIfaceNames);
+    collectBodyContractInterfaceRefs(f.body, usedIfaceNames);
   }
   if (ctor) {
     for (const p of ctor.parameters) collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
+    collectBodyContractInterfaceRefs(ctor.body, usedIfaceNames);
   }
 
   // Deep copy only used interfaces so mutability updates don't leak to shared state
@@ -1030,7 +1032,7 @@ function parseMethod(
     : null;
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes);
+  const stateMutability = inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1053,7 +1055,7 @@ function parseGetAccessor(
     : null;
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes);
+  const stateMutability = inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1074,7 +1076,7 @@ function parseSetAccessor(
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes);
+  const stateMutability = inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1110,7 +1112,7 @@ function parseArrowProperty(
     }
   }
 
-  const stateMutability = inferStateMutability(body, varTypes);
+  const stateMutability = inferStateMutability(body, varTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
@@ -2147,12 +2149,20 @@ function collectThisCalls(stmts: Statement[]): string[] {
   return names;
 }
 
-export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>): "pure" | "view" | "nonpayable" | "payable" {
+export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>, params?: SkittlesParameter[]): "pure" | "view" | "nonpayable" | "payable" {
   let readsState = false;
   let writesState = false;
   let usesMsgValue = false;
 
   const thisCallCallees = new Set<Expression>();
+
+  // Track local variable types for detecting external contract calls on locals
+  const localVarTypes = new Map<string, SkittlesType>();
+  if (params) {
+    for (const p of params) {
+      localVarTypes.set(p.name, p.type);
+    }
+  }
 
   walkStatements(
     body,
@@ -2193,6 +2203,9 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (expr.kind === "call" && varTypes && isExternalContractCall(expr, varTypes)) {
         writesState = true;
       }
+      if (expr.kind === "call" && isExternalContractCallOnLocal(expr, localVarTypes)) {
+        writesState = true;
+      }
     },
     (stmt) => {
       if (stmt.kind === "emit") {
@@ -2200,6 +2213,10 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       }
       if (stmt.kind === "delete" && isStateAccess(stmt.target)) {
         writesState = true;
+      }
+      if (stmt.kind === "variable-declaration" && stmt.type &&
+          stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
+        localVarTypes.set(stmt.name, stmt.type);
       }
     }
   );
@@ -2294,6 +2311,28 @@ function collectContractInterfaceTypeRefs(type: SkittlesType, refs: Set<string>)
   if (type.valueType) collectContractInterfaceTypeRefs(type.valueType, refs);
 }
 
+function collectBodyContractInterfaceRefs(stmts: Statement[], refs: Set<string>): void {
+  for (const stmt of stmts) {
+    if (stmt.kind === "variable-declaration" && stmt.type) {
+      collectContractInterfaceTypeRefs(stmt.type, refs);
+    }
+    if (stmt.kind === "if") {
+      collectBodyContractInterfaceRefs(stmt.thenBody, refs);
+      if (stmt.elseBody) collectBodyContractInterfaceRefs(stmt.elseBody, refs);
+    }
+    if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+      collectBodyContractInterfaceRefs(stmt.body, refs);
+    }
+    if (stmt.kind === "switch") {
+      for (const c of stmt.cases) collectBodyContractInterfaceRefs(c.body, refs);
+    }
+    if (stmt.kind === "try-catch") {
+      collectBodyContractInterfaceRefs(stmt.successBody, refs);
+      collectBodyContractInterfaceRefs(stmt.catchBody, refs);
+    }
+  }
+}
+
 function isStateAccess(expr: Expression): boolean {
   if (
     expr.kind === "property-access" &&
@@ -2318,6 +2357,21 @@ function isExternalContractCall(expr: { callee: Expression }, varTypes: Map<stri
     const propName = expr.callee.object.property;
     const propType = varTypes.get(propName);
     if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isExternalContractCallOnLocal(expr: { callee: Expression }, localVarTypes: Map<string, SkittlesType>): boolean {
+  if (
+    expr.callee.kind === "property-access" &&
+    expr.callee.object.kind === "identifier" &&
+    expr.callee.object.name !== "this"
+  ) {
+    const varName = expr.callee.object.name;
+    const varType = localVarTypes.get(varName);
+    if (varType && varType.kind === ("contract-interface" as SkittlesTypeKind)) {
       return true;
     }
   }
