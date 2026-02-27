@@ -89,6 +89,19 @@ for (let i: number = 0; i < this.owners.length; i++) {
 }
 ```
 
+### Readonly Arrays
+
+Use `readonly` on array properties to prevent modification after initialization. You can also use `ReadonlyArray<T>` or `readonly T[]` as the type:
+
+```typescript
+class Example {
+  readonly admins: address[] = [];
+  readonly config: ReadonlyArray<number> = [];
+}
+```
+
+Readonly arrays compile to internal storage with an auto-generated public getter function (e.g., `getAdmins()`). See [State Variables](/guide/state-variables#readonly-arrays) for more details.
+
 ## Structs
 
 Use TypeScript type aliases with object shapes to define custom data structures:

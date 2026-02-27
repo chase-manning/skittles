@@ -82,6 +82,24 @@ class Staking {
 This optimization is only applied to simple value types like `number`, `address`, `boolean`, and `bytes32`. Reference types like `string` cannot use this optimization and will be stored as regular state variables.
 :::
 
+## Readonly Arrays
+
+Use `readonly` on arrays to prevent modification after initialization. Readonly arrays are stored internally and a public getter is automatically generated:
+
+```typescript
+class AdminRegistry {
+  public readonly admins: address[] = [];
+
+  constructor(admin: address) {
+    this.admins.push(admin);
+  }
+}
+```
+
+This compiles to an `internal` storage array with a public `getAdmins()` view function, so external callers can read the array but cannot modify it.
+
+You can initialize readonly arrays in the constructor, but the getter provides read-only access to the full array.
+
 ## Constructor
 
 Use a standard TypeScript constructor to set initial values when the contract is deployed:

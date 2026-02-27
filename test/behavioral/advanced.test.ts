@@ -141,6 +141,20 @@ class Child extends Base {
 }
 `;
 
+const READONLY_ARRAY_SOURCE = `
+class AdminRegistry {
+  public readonly admins: address[] = [];
+
+  constructor(admin: address) {
+    this.admins.push(admin);
+  }
+
+  public getAdminCount(): number {
+    return this.admins.length;
+  }
+}
+`;
+
 let env: TestEnv;
 
 beforeAll(async () => {
@@ -398,5 +412,25 @@ describe("behavioral: exponentiation", () => {
     expect(await contract.contract.getValue()).toBe(2n);
     await contract.contract.powerAssign(3);
     expect(await contract.contract.getValue()).toBe(8n);
+  });
+});
+
+describe("behavioral: readonly arrays", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    const deployer = await env.accounts[0].getAddress();
+    contract = await compileAndDeploy(env, READONLY_ARRAY_SOURCE, "AdminRegistry", [deployer]);
+  });
+
+  it("should return readonly array via getter", async () => {
+    const deployer = await env.accounts[0].getAddress();
+    const admins = await contract.contract.getAdmins();
+    expect(admins).toHaveLength(1);
+    expect(admins[0]).toBe(deployer);
+  });
+
+  it("should return admin count", async () => {
+    expect(await contract.contract.getAdminCount()).toBe(1n);
   });
 });
