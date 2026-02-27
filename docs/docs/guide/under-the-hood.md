@@ -96,6 +96,7 @@ Skittles applies several optimizations to generate idiomatic Solidity:
 - **`switch/case` → `if/else`**: Switch statements are converted to if/else chains (Solidity has no native switch)
 - **`Number.MAX_VALUE` → `type(uint256).max`**: Maximum integer value
 - **Template literals → `string.concat()`**: Template strings are converted to Solidity string concatenation
+- **`**=` → `x = x ** y`**: The `**=` compound assignment is desugared because Solidity has no `**=` operator
 
 ## Generated Solidity Example
 

@@ -66,7 +66,7 @@ type Token = { text: string; type: "keyword" | "string" | "type" | "comment" | "
 function highlightTS(line: string): Token[] {
   const tokens: Token[] = [];
   const keywords = /\b(import|from|export|class|private|constructor|if|throw|new|return|this|const|let|var|function|extends|implements)\b/g;
-  const types = /\b(string|number|boolean|void|address|Record|Error|Indexed)\b/g;
+  const types = /\b(string|number|boolean|void|address|Record|Map|Error|Indexed)\b/g;
   const strings = /"[^"]*"|'[^']*'/g;
   const numbers = /\b\d+\b/g;
   const comments = /\/\/.*/g;
@@ -506,7 +506,7 @@ function FinalCTA() {
         in the language you already know.
       </h2>
       <p className="final-cta-sub">
-        MIT licensed. Node.js 20+. Works with every EVM toolchain.
+        MIT licensed. Node.js 22+. Works with every EVM toolchain.
       </p>
       <div className="final-cta-actions">
         <a href="https://docs.skittles.dev" className="btn-primary btn-primary--lg">
