@@ -294,3 +294,47 @@ describe("behavioral: inheritance with override", () => {
     expect(await contract.contract.y()).toBe(99n);
   });
 });
+
+const READONLY_ARRAY_SOURCE = `
+class Registry {
+  public admins: readonly address[] = [];
+
+  constructor() {
+    this.admins.push(msg.sender);
+  }
+
+  public getAdmin(index: number): address {
+    return this.admins[index];
+  }
+
+  public getAdminCount(): number {
+    return this.admins.length;
+  }
+
+  public addAdmin(admin: address): void {
+    this.admins.push(admin);
+  }
+}
+`;
+
+describe("behavioral: readonly arrays", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, READONLY_ARRAY_SOURCE, "Registry");
+  });
+
+  it("should allow push in constructor", async () => {
+    expect(await contract.contract.getAdminCount()).toBe(1n);
+  });
+
+  it("should read values set in constructor", async () => {
+    const deployer = await env.accounts[0].getAddress();
+    expect(await contract.contract.getAdmin(0)).toBe(deployer);
+  });
+
+  it("should revert when trying to push after construction", async () => {
+    const addr = await env.accounts[1].getAddress();
+    await expect(contract.contract.addAdmin(addr)).rejects.toThrow();
+  });
+});

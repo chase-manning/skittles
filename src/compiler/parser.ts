@@ -790,8 +790,9 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
   const visibility = getVisibility(node.modifiers);
   const isStatic = hasModifier(node.modifiers, ts.SyntaxKind.StaticKeyword);
   const isReadonly = hasModifier(node.modifiers, ts.SyntaxKind.ReadonlyKeyword);
+  const isReadonlyArrayType = node.type != null && isReadonlyArrayTypeNode(node.type);
   const constant = isStatic && isReadonly;
-  const immutable = !isStatic && isReadonly;
+  const immutable = (!isStatic && isReadonly) || isReadonlyArrayType;
 
   let initialValue: Expression | undefined;
   if (node.initializer) {
@@ -946,6 +947,13 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       };
     }
 
+    if (name === "ReadonlyArray" && node.typeArguments && node.typeArguments.length === 1) {
+      return {
+        kind: "array" as SkittlesTypeKind,
+        valueType: parseType(node.typeArguments[0]),
+      };
+    }
+
     if (name === "address") return { kind: "address" as SkittlesTypeKind };
     if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
 
@@ -979,6 +987,10 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       kind: "array" as SkittlesTypeKind,
       valueType: parseType(node.elementType),
     };
+  }
+
+  if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
+    return parseType(node.type);
   }
 
   switch (node.kind) {
@@ -1936,4 +1948,14 @@ function getUnaryOperator(kind: ts.SyntaxKind): string {
     [ts.SyntaxKind.TildeToken]: "~",
   };
   return map[kind] ?? "?";
+}
+
+function isReadonlyArrayTypeNode(typeNode: ts.TypeNode): boolean {
+  if (ts.isTypeOperatorNode(typeNode) && typeNode.operator === ts.SyntaxKind.ReadonlyKeyword) {
+    return ts.isArrayTypeNode(typeNode.type);
+  }
+  if (ts.isTypeReferenceNode(typeNode) && ts.isIdentifier(typeNode.typeName)) {
+    return typeNode.typeName.text === "ReadonlyArray";
+  }
+  return false;
 }

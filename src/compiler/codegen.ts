@@ -15,6 +15,8 @@ import {
   type SkittlesParameter,
 } from "../types/index.ts";
 
+let _readonlyArrayNames: Set<string> = new Set();
+
 // ============================================================
 // Main entry
 // ============================================================
@@ -107,6 +109,12 @@ function generateContractBody(
 ): string {
   const parts: string[] = [];
 
+  // Collect readonly array variable names for lock pattern
+  const readonlyArrays = contract.variables
+    .filter(v => v.immutable && v.type.kind === SkittlesTypeKind.Array)
+    .map(v => v.name);
+  _readonlyArrayNames = new Set(readonlyArrays);
+
   const inheritance =
     contract.inherits.length > 0
       ? ` is ${contract.inherits.join(", ")}`
@@ -144,16 +152,19 @@ function generateContractBody(
   for (const v of contract.variables) {
     parts.push(`    ${generateVariable(v)}`);
   }
+  for (const name of readonlyArrays) {
+    parts.push(`    bool private _${name}Locked;`);
+  }
 
   if (
     contract.variables.length > 0 &&
-    (contract.ctor || contract.functions.length > 0)
+    (contract.ctor || contract.functions.length > 0 || readonlyArrays.length > 0)
   ) {
     parts.push("");
   }
 
-  if (contract.ctor) {
-    parts.push(generateConstructor(contract.ctor));
+  if (contract.ctor || readonlyArrays.length > 0) {
+    parts.push(generateConstructor(contract.ctor, readonlyArrays));
     if (contract.functions.length > 0) {
       parts.push("");
     }
@@ -167,6 +178,8 @@ function generateContractBody(
   }
 
   parts.push("}");
+
+  _readonlyArrayNames = new Set();
 
   return parts.join("\n");
 }
@@ -325,17 +338,28 @@ function generateFunction(f: SkittlesFunction): string {
   return lines.join("\n");
 }
 
-function generateConstructor(c: SkittlesConstructor): string {
-  const params = c.parameters
-    .map((p) => `${generateParamType(p.type)} ${p.name}`)
-    .join(", ");
+function generateConstructor(c: SkittlesConstructor | undefined, readonlyArrays: string[] = []): string {
+  const params = c
+    ? c.parameters.map((p) => `${generateParamType(p.type)} ${p.name}`).join(", ")
+    : "";
+
+  // Temporarily disable readonly checks inside the constructor body
+  const saved = _readonlyArrayNames;
+  _readonlyArrayNames = new Set();
 
   const lines: string[] = [];
   lines.push(`    constructor(${params}) {`);
-  for (const s of c.body) {
-    lines.push(generateStatement(s, "        "));
+  if (c) {
+    for (const s of c.body) {
+      lines.push(generateStatement(s, "        "));
+    }
+  }
+  for (const name of readonlyArrays) {
+    lines.push(`        _${name}Locked = true;`);
   }
   lines.push("    }");
+
+  _readonlyArrayNames = saved;
 
   return lines.join("\n");
 }
@@ -502,8 +526,13 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return `${indent}${type} ${stmt.name};`;
     }
 
-    case "expression":
+    case "expression": {
+      const readonlyName = getReadonlyArrayMutationName(stmt.expression);
+      if (readonlyName) {
+        return `${indent}require(!_${readonlyName}Locked, "Array is immutable");\n${indent}${generateExpression(stmt.expression)};`;
+      }
       return `${indent}${generateExpression(stmt.expression)};`;
+    }
 
     case "if": {
       if (isRequirePattern(stmt)) {
@@ -601,8 +630,13 @@ export function generateStatement(stmt: Statement, indent: string): string {
     case "emit":
       return `${indent}emit ${stmt.eventName}(${stmt.args.map(generateExpression).join(", ")});`;
 
-    case "delete":
+    case "delete": {
+      const delName = getReadonlyArrayDeleteName(stmt.target);
+      if (delName) {
+        return `${indent}require(!_${delName}Locked, "Array is immutable");\n${indent}delete ${generateExpression(stmt.target)};`;
+      }
       return `${indent}delete ${generateExpression(stmt.target)};`;
+    }
 
     case "switch": {
       const lines: string[] = [];
@@ -733,6 +767,51 @@ function tryGenerateBuiltinCall(expr: {
     default:
       return null;
   }
+}
+
+// ============================================================
+// Readonly array mutation detection
+// ============================================================
+
+function getReadonlyArrayMutationName(expr: Expression): string | null {
+  if (_readonlyArrayNames.size === 0) return null;
+
+  // push/pop: this.arr.push(x) or this.arr.pop()
+  if (expr.kind === "call" && expr.callee.kind === "property-access") {
+    const method = expr.callee.property;
+    if (method === "push" || method === "pop") {
+      const obj = expr.callee.object;
+      if (obj.kind === "property-access" && obj.object.kind === "identifier" && obj.object.name === "this") {
+        if (_readonlyArrayNames.has(obj.property)) {
+          return obj.property;
+        }
+      }
+    }
+  }
+
+  // element assignment: this.arr[i] = x
+  if (expr.kind === "assignment") {
+    const target = expr.target;
+    if (target.kind === "element-access" && target.object.kind === "property-access" &&
+        target.object.object.kind === "identifier" && target.object.object.name === "this") {
+      if (_readonlyArrayNames.has(target.object.property)) {
+        return target.object.property;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getReadonlyArrayDeleteName(target: Expression): string | null {
+  if (_readonlyArrayNames.size === 0) return null;
+  if (target.kind === "element-access" && target.object.kind === "property-access" &&
+      target.object.object.kind === "identifier" && target.object.object.name === "this") {
+    if (_readonlyArrayNames.has(target.object.property)) {
+      return target.object.property;
+    }
+  }
+  return null;
 }
 
 // ============================================================

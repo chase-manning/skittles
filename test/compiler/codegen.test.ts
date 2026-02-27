@@ -193,6 +193,129 @@ describe("generateSolidity", () => {
     );
     expect(sol).toContain("contract Token is ERC20 {");
   });
+
+  it("should generate lock pattern for readonly arrays", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "admins",
+            type: {
+              kind: SkittlesTypeKind.Array,
+              valueType: { kind: SkittlesTypeKind.Address },
+            },
+            visibility: "public",
+            immutable: true,
+            constant: false,
+          },
+        ],
+        ctor: {
+          parameters: [],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "call",
+                callee: {
+                  kind: "property-access",
+                  object: {
+                    kind: "property-access",
+                    object: { kind: "identifier", name: "this" },
+                    property: "admins",
+                  },
+                  property: "push",
+                },
+                args: [
+                  {
+                    kind: "property-access",
+                    object: { kind: "identifier", name: "msg" },
+                    property: "sender",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      })
+    );
+    expect(sol).toContain("bool private _adminsLocked;");
+    expect(sol).toContain("admins.push(msg.sender);");
+    expect(sol).toContain("_adminsLocked = true;");
+  });
+
+  it("should generate constructor with lock even without user-defined constructor", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "values",
+            type: {
+              kind: SkittlesTypeKind.Array,
+              valueType: { kind: SkittlesTypeKind.Uint256 },
+            },
+            visibility: "public",
+            immutable: true,
+            constant: false,
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("bool private _valuesLocked;");
+    expect(sol).toContain("constructor()");
+    expect(sol).toContain("_valuesLocked = true;");
+  });
+
+  it("should generate require check for push on readonly array in functions", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "admins",
+            type: {
+              kind: SkittlesTypeKind.Array,
+              valueType: { kind: SkittlesTypeKind.Address },
+            },
+            visibility: "public",
+            immutable: true,
+            constant: false,
+          },
+        ],
+        functions: [
+          {
+            name: "addAdmin",
+            parameters: [
+              { name: "admin", type: { kind: SkittlesTypeKind.Address } },
+            ],
+            returnType: null,
+            visibility: "public",
+            stateMutability: "nonpayable",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "expression",
+                expression: {
+                  kind: "call",
+                  callee: {
+                    kind: "property-access",
+                    object: {
+                      kind: "property-access",
+                      object: { kind: "identifier", name: "this" },
+                      property: "admins",
+                    },
+                    property: "push",
+                  },
+                  args: [{ kind: "identifier", name: "admin" }],
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain('require(!_adminsLocked, "Array is immutable");');
+    expect(sol).toContain("admins.push(admin);");
+  });
 });
 
 // ============================================================
