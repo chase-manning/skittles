@@ -97,6 +97,83 @@ export class Vault {
 
 Skittles automatically scans all files in your contracts directory and makes shared definitions available everywhere.
 
+## External Contract Calls
+
+Smart contracts often need to interact with other deployed contracts. Skittles supports this through interfaces and the `Contract<T>()` helper.
+
+### Define an Interface
+
+First, define a TypeScript interface for the external contract:
+
+```typescript title="contracts/IToken.ts"
+import { address } from "skittles";
+
+export default interface IToken {
+  balanceOf(account: address): number;
+  transfer(to: address, amount: number): boolean;
+}
+```
+
+### Call the External Contract
+
+Use `Contract<T>(address)` to create a typed reference to a deployed contract:
+
+```typescript title="contracts/Vault.ts"
+import { address, msg, Contract } from "skittles";
+import IToken from "./IToken";
+
+export class Vault {
+  private token: IToken;
+
+  constructor(tokenAddress: address) {
+    this.token = Contract<IToken>(tokenAddress);
+  }
+
+  public getBalance(account: address): number {
+    return this.token.balanceOf(account);
+  }
+
+  public withdraw(to: address, amount: number): void {
+    this.token.transfer(to, amount);
+  }
+}
+```
+
+This compiles to standard Solidity interface calls:
+
+```solidity
+interface IToken {
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+contract Vault {
+    IToken internal token;
+
+    constructor(address tokenAddress) {
+        token = IToken(tokenAddress);
+    }
+
+    function getBalance(address account) public view virtual returns (uint256) {
+        return token.balanceOf(account);
+    }
+
+    function withdraw(address to, uint256 amount) public virtual {
+        token.transfer(to, amount);
+    }
+}
+```
+
+### Interface as Function Parameter
+
+You can also pass contract references as function parameters:
+
+```typescript
+public getBalance(token: IToken, account: address): number {
+  return token.balanceOf(account);
+}
+```
+
 ## Cache Invalidation
 
 If you change shared types, functions, or constants, all contracts that use them are automatically recompiled. See [Incremental Compilation](/guide/configuration#incremental-compilation) for details.
