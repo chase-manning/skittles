@@ -1366,6 +1366,133 @@ describe("integration: built-in functions", () => {
 });
 
 // ============================================================
+// String operations
+// ============================================================
+
+describe("integration: string operations", () => {
+  it("should compile string.length on parameter to bytes(str).length", () => {
+    const { errors, solidity } = compileTS(`
+      class StringLen {
+        public getLength(text: string): number {
+          return text.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes(text).length");
+  });
+
+  it("should compile string.length on state variable to bytes(str).length", () => {
+    const { errors, solidity } = compileTS(`
+      class StringLen {
+        public name: string = "hello";
+
+        public getNameLength(): number {
+          return this.name.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes(name).length");
+  });
+
+  it("should compile string.length on string literal to bytes(str).length", () => {
+    const contracts = parse(`
+      class StringLen {
+        public getLength(): number {
+          return "hello".length;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('bytes("hello").length');
+  });
+
+  it("should compile string comparison with === to keccak256", () => {
+    const { errors, solidity } = compileTS(`
+      class StringCmp {
+        public isHello(text: string): boolean {
+          return text === "hello";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(text))");
+    expect(solidity).toContain('keccak256(abi.encodePacked("hello"))');
+    expect(solidity).toContain("==");
+  });
+
+  it("should compile string comparison with !== to keccak256 with !=", () => {
+    const { errors, solidity } = compileTS(`
+      class StringCmp {
+        public isNotHello(text: string): boolean {
+          return text !== "hello";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(text))");
+    expect(solidity).toContain("!=");
+  });
+
+  it("should compile string comparison between two parameters", () => {
+    const { errors, solidity } = compileTS(`
+      class StringCmp {
+        public isEqual(a: string, b: string): boolean {
+          return a === b;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(a))");
+    expect(solidity).toContain("keccak256(abi.encodePacked(b))");
+  });
+
+  it("should compile string comparison on state variable", () => {
+    const { errors, solidity } = compileTS(`
+      class StringCmp {
+        public name: string = "hello";
+
+        public isHello(): boolean {
+          return this.name === "hello";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(name))");
+    expect(solidity).toContain('keccak256(abi.encodePacked("hello"))');
+  });
+
+  it("should not transform array.length", () => {
+    const { errors, solidity } = compileTS(`
+      class ArrLen {
+        public items: number[] = [];
+
+        public count(): number {
+          return this.items.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("items.length");
+    expect(solidity).not.toContain("bytes(");
+  });
+
+  it("should not transform number comparison", () => {
+    const { errors, solidity } = compileTS(`
+      class NumCmp {
+        public isEqual(a: number, b: number): boolean {
+          return a == b;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(a == b)");
+    expect(solidity).not.toContain("keccak256");
+  });
+});
+
+// ============================================================
 // Structs
 // ============================================================
 
