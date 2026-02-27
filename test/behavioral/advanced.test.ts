@@ -141,6 +141,28 @@ class Child extends Base {
 }
 `;
 
+const EXPONENTIATION_SOURCE = `
+class MathPow {
+  public value: number = 1;
+
+  public power(base: number, exp: number): number {
+    return base ** exp;
+  }
+
+  public scale(decimals: number): number {
+    return 10 ** decimals;
+  }
+
+  public powerAssign(exp: number): void {
+    this.value **= exp;
+  }
+
+  public getValue(): number {
+    return this.value;
+  }
+}
+`;
+
 let env: TestEnv;
 
 beforeAll(async () => {
@@ -292,5 +314,27 @@ describe("behavioral: inheritance with override", () => {
   it("should use child setY", async () => {
     await contract.contract.setY(99);
     expect(await contract.contract.y()).toBe(99n);
+  });
+});
+
+describe("behavioral: exponentiation", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, EXPONENTIATION_SOURCE, "MathPow");
+  });
+
+  it("should compute base ** exp (2 ** 10 = 1024)", async () => {
+    expect(await contract.contract.power(2, 10)).toBe(1024n);
+  });
+
+  it("should compute 10 ** decimals for token scaling", async () => {
+    expect(await contract.contract.scale(18)).toBe(10n ** 18n);
+  });
+
+  it("should desugar **= and update state (1 **= 3 stays 1, then set and power)", async () => {
+    expect(await contract.contract.getValue()).toBe(1n);
+    await contract.contract.powerAssign(3);
+    expect(await contract.contract.getValue()).toBe(1n);
   });
 });
