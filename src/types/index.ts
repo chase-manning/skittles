@@ -246,6 +246,7 @@ export interface TryCatchStatement {
   returnType?: SkittlesType;
   successBody: Statement[];
   catchBody: Statement[];
+  sourceLine?: number;
 }
 
 export interface SwitchCase {
