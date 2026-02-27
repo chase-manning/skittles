@@ -294,3 +294,65 @@ describe("behavioral: inheritance with override", () => {
     expect(await contract.contract.y()).toBe(99n);
   });
 });
+
+const DEFAULT_PARAM_SOURCE = `
+class DefaultToken {
+  public totalSupply: number = 0;
+
+  constructor(supply: number = 1000000) {
+    this.totalSupply = supply;
+  }
+
+  public getSupply(): number {
+    return this.totalSupply;
+  }
+}
+`;
+
+const MIXED_PARAM_SOURCE = `
+class MixedToken {
+  public tokenName: string = "";
+  public totalSupply: number = 0;
+
+  constructor(name: string, supply: number = 500) {
+    this.tokenName = name;
+    this.totalSupply = supply;
+  }
+
+  public getName(): string {
+    return this.tokenName;
+  }
+
+  public getSupply(): number {
+    return this.totalSupply;
+  }
+}
+`;
+
+describe("behavioral: constructor with default parameters", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, DEFAULT_PARAM_SOURCE, "DefaultToken");
+  });
+
+  it("should use default supply value", async () => {
+    expect(await contract.contract.getSupply()).toBe(1000000n);
+  });
+});
+
+describe("behavioral: constructor with mixed default and required parameters", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, MIXED_PARAM_SOURCE, "MixedToken", ["MyToken"]);
+  });
+
+  it("should accept required parameter", async () => {
+    expect(await contract.contract.getName()).toBe("MyToken");
+  });
+
+  it("should use default supply value", async () => {
+    expect(await contract.contract.getSupply()).toBe(500n);
+  });
+});

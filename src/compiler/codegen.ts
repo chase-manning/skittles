@@ -326,12 +326,18 @@ function generateFunction(f: SkittlesFunction): string {
 }
 
 function generateConstructor(c: SkittlesConstructor): string {
-  const params = c.parameters
+  const regularParams = c.parameters.filter((p) => !p.defaultValue);
+  const defaultParams = c.parameters.filter((p) => p.defaultValue);
+
+  const params = regularParams
     .map((p) => `${generateParamType(p.type)} ${p.name}`)
     .join(", ");
 
   const lines: string[] = [];
   lines.push(`    constructor(${params}) {`);
+  for (const p of defaultParams) {
+    lines.push(`        ${generateParamType(p.type)} ${p.name} = ${generateExpression(p.defaultValue!)};`);
+  }
   for (const s of c.body) {
     lines.push(generateStatement(s, "        "));
   }

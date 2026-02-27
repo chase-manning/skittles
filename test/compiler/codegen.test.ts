@@ -114,6 +114,75 @@ describe("generateSolidity", () => {
     expect(sol).toContain("x = val;");
   });
 
+  it("should generate a constructor with default parameter as local variable", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "totalSupply",
+                },
+                value: { kind: "identifier", name: "supply" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    expect(sol).toContain("constructor() {");
+    expect(sol).toContain("uint256 supply = 1000000;");
+    expect(sol).toContain("totalSupply = supply;");
+  });
+
+  it("should generate a constructor with mixed default and required parameters", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        ctor: {
+          parameters: [
+            { name: "name", type: { kind: SkittlesTypeKind.String } },
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "tokenName",
+                },
+                value: { kind: "identifier", name: "name" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    expect(sol).toContain("constructor(string memory name) {");
+    expect(sol).toContain("uint256 supply = 1000000;");
+    expect(sol).toContain("tokenName = name;");
+  });
+
   it("should generate a view function", () => {
     const sol = generateSolidity(
       emptyContract({
