@@ -76,7 +76,7 @@ abstract class Ownable {
 }
 
 class Token extends Ownable {
-  override getOwner(): address {
+  getOwner(): address {
     return this.owner;
   }
 }

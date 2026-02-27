@@ -259,6 +259,34 @@ export function parse(
     }
   });
 
+  // Post-process: infer overrides for abstract method implementations
+  const abstractMethodsByContract = new Map<string, Set<string>>();
+  for (const contract of contracts) {
+    if (contract.isAbstract) {
+      const abstractMethods = new Set<string>();
+      for (const fn of contract.functions) {
+        if (fn.isAbstract) {
+          abstractMethods.add(fn.name);
+        }
+      }
+      if (abstractMethods.size > 0) {
+        abstractMethodsByContract.set(contract.name, abstractMethods);
+      }
+    }
+  }
+  for (const contract of contracts) {
+    for (const parentName of contract.inherits) {
+      const abstractMethods = abstractMethodsByContract.get(parentName);
+      if (!abstractMethods) continue;
+      for (const fn of contract.functions) {
+        if (abstractMethods.has(fn.name) && !fn.isOverride) {
+          fn.isOverride = true;
+          fn.isVirtual = false;
+        }
+      }
+    }
+  }
+
   return contracts;
 }
 

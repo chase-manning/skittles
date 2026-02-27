@@ -1619,7 +1619,7 @@ describe("integration: abstract contracts", () => {
       }
 
       class Child extends Base {
-        public override getValue(): number {
+        public getValue(): number {
           return 42;
         }
       }
@@ -1653,7 +1653,7 @@ describe("integration: abstract contracts", () => {
       }
 
       class Child extends Base {
-        public override getValue(): number {
+        public getValue(): number {
           return this.value;
         }
       }
@@ -1683,7 +1683,7 @@ describe("integration: abstract contracts", () => {
       }
 
       class Token extends Ownable {
-        public override getOwner(): address {
+        public getOwner(): address {
           return this.owner;
         }
       }
