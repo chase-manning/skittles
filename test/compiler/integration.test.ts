@@ -746,6 +746,32 @@ describe("integration: cross-function mutability propagation", () => {
     const { errors } = compileTS(source);
     expect(errors).toHaveLength(0);
   });
+
+  it("should propagate pure through internal call chains", () => {
+    const source = `
+      class MathHelper {
+        private _double(x: number): number {
+          return x * 2;
+        }
+
+        public doubleViaInternal(x: number): number {
+          return this._double(x);
+        }
+      }
+    `;
+
+    const contracts = parse(source, "test.ts");
+    const c = contracts[0];
+    const _double = c.functions.find(f => f.name === "_double");
+    const doubleViaInternal = c.functions.find(f => f.name === "doubleViaInternal");
+    expect(_double!.stateMutability).toBe("pure");
+    expect(doubleViaInternal!.stateMutability).toBe("pure");
+
+    const { errors, solidity } = compileTS(source);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("pure");
+    expect(solidity).not.toContain("view");
+  });
 });
 
 describe("integration: full ERC20 with events and allowances", () => {
