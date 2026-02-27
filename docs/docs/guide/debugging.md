@@ -75,4 +75,14 @@ console.log("sender:", msg.sender);
 
 ## Production Builds
 
-For production deployments, disable `consoleLog` in your config (or simply remove it — it defaults to `false`). Without the flag, `console.log()` calls in your TypeScript will still compile, but you should remove them from production code to save gas.
+The `consoleLog` option defaults to `false`. When disabled, any `console.log()` calls in your contracts are automatically stripped from the compiled Solidity output. This means you can leave debug logs in your source code during development and they will be removed in production builds.
+
+To enable console.log output during development:
+
+```json title="skittles.config.json"
+{
+  "consoleLog": true
+}
+```
+
+When you're ready to deploy, simply set `consoleLog` to `false` (or remove it) and recompile — all `console.log()` calls will be stripped from the output.

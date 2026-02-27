@@ -34,15 +34,15 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   const needsConsoleImport = contracts.some(contractUsesConsoleLog);
   if (needsConsoleImport) {
     parts.push('import "hardhat/console.sol";');
-    if (!imports || imports.length === 0) {
-      parts.push("");
-    }
   }
 
   if (imports && imports.length > 0) {
     for (const imp of imports) {
       parts.push(`import "${imp}";`);
     }
+  }
+
+  if (needsConsoleImport || (imports && imports.length > 0)) {
     parts.push("");
   }
 
