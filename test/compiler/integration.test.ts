@@ -250,6 +250,31 @@ describe("integration: control flow", () => {
     expect(solidity).toContain("(a % b)");
     expect(solidity).toContain("(a ** b)");
   });
+
+  it("should compile power operator with literal base (10 ** decimals)", () => {
+    const { errors, solidity } = compileTS(`
+      class TokenMath {
+        public scale(decimals: number): number {
+          return 10 ** decimals;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(10 ** decimals)");
+  });
+
+  it("should desugar **= compound assignment to x = x ** y", () => {
+    const { errors, solidity } = compileTS(`
+      class PowerAssign {
+        public value: number = 1;
+        public powerAssign(exp: number): void {
+          this.value **= exp;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("value = (value ** exp)");
+  });
 });
 
 describe("integration: EVM globals", () => {
