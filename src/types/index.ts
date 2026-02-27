@@ -58,6 +58,7 @@ export interface SkittlesContract {
   customErrors: SkittlesCustomError[];
   ctor?: SkittlesConstructor;
   inherits: string[];
+  sourceLine?: number;
 }
 
 export interface SkittlesVariable {
@@ -68,6 +69,7 @@ export interface SkittlesVariable {
   constant: boolean;
   isOverride?: boolean;
   initialValue?: Expression;
+  sourceLine?: number;
 }
 
 export interface SkittlesFunction {
@@ -79,16 +81,19 @@ export interface SkittlesFunction {
   isVirtual: boolean;
   isOverride: boolean;
   body: Statement[];
+  sourceLine?: number;
 }
 
 export interface SkittlesConstructor {
   parameters: SkittlesParameter[];
   body: Statement[];
+  sourceLine?: number;
 }
 
 export interface SkittlesEvent {
   name: string;
   parameters: SkittlesParameter[];
+  sourceLine?: number;
 }
 
 export interface SkittlesParameter {
@@ -155,6 +160,7 @@ export type Statement =
 export interface ReturnStatement {
   kind: "return";
   value?: Expression;
+  sourceLine?: number;
 }
 
 export interface VariableDeclarationStatement {
@@ -162,11 +168,13 @@ export interface VariableDeclarationStatement {
   name: string;
   type?: SkittlesType;
   initializer?: Expression;
+  sourceLine?: number;
 }
 
 export interface ExpressionStatement {
   kind: "expression";
   expression: Expression;
+  sourceLine?: number;
 }
 
 export interface IfStatement {
@@ -174,6 +182,7 @@ export interface IfStatement {
   condition: Expression;
   thenBody: Statement[];
   elseBody?: Statement[];
+  sourceLine?: number;
 }
 
 export interface ForStatement {
@@ -182,26 +191,31 @@ export interface ForStatement {
   condition?: Expression;
   incrementor?: Expression;
   body: Statement[];
+  sourceLine?: number;
 }
 
 export interface WhileStatement {
   kind: "while";
   condition: Expression;
   body: Statement[];
+  sourceLine?: number;
 }
 
 export interface DoWhileStatement {
   kind: "do-while";
   condition: Expression;
   body: Statement[];
+  sourceLine?: number;
 }
 
 export interface BreakStatement {
   kind: "break";
+  sourceLine?: number;
 }
 
 export interface ContinueStatement {
   kind: "continue";
+  sourceLine?: number;
 }
 
 export interface RevertStatement {
@@ -209,17 +223,20 @@ export interface RevertStatement {
   message?: Expression;
   customError?: string;
   customErrorArgs?: Expression[];
+  sourceLine?: number;
 }
 
 export interface EmitStatement {
   kind: "emit";
   eventName: string;
   args: Expression[];
+  sourceLine?: number;
 }
 
 export interface DeleteStatement {
   kind: "delete";
   target: Expression;
+  sourceLine?: number;
 }
 
 export interface TryCatchStatement {
@@ -240,6 +257,7 @@ export interface SwitchStatement {
   kind: "switch";
   discriminant: Expression;
   cases: SwitchCase[];
+  sourceLine?: number;
 }
 
 // ============================================================
@@ -349,9 +367,15 @@ export interface TupleLiteralExpression {
 // Build artifacts
 // ============================================================
 
+export interface SourceMapping {
+  sourceFile: string;
+  mappings: Record<number, number>; // solLine (1-based) -> tsLine (1-based)
+}
+
 export interface BuildArtifact {
   contractName: string;
   solidity: string;
+  sourceMap?: SourceMapping;
 }
 
 export interface AbiItem {
