@@ -106,6 +106,20 @@ Conditional destructuring is also supported:
 let [x, y] = condition ? [a, b] : [b, a];
 ```
 
+## Object Destructuring
+
+Object destructuring is supported for struct fields:
+
+```typescript
+const { amount, timestamp } = this.getStakeInfo(account);
+```
+
+Direct object literal destructuring also works:
+
+```typescript
+const { a, b } = { a: 1, b: 2 };
+```
+
 ## Delete
 
 The `delete` operator resets values in your contract's storage (useful for clearing mapping entries):

@@ -328,6 +328,162 @@ function parseArrayDestructuring(
   return statements;
 }
 
+function parseObjectDestructuring(
+  pattern: ts.ObjectBindingPattern,
+  initializer: ts.Expression,
+  varTypes: Map<string, SkittlesType>,
+  decl: ts.VariableDeclaration
+): Statement[] {
+  const statements: Statement[] = [];
+
+  if (ts.isObjectLiteralExpression(initializer)) {
+    // Direct object literal: const { a, b } = { a: 1, b: 2 }
+    const propMap = new Map<string, ts.Expression>();
+    for (const prop of initializer.properties) {
+      if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
+        propMap.set(prop.name.text, prop.initializer);
+      }
+    }
+
+    for (const elem of pattern.elements) {
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const propName =
+          elem.propertyName && ts.isIdentifier(elem.propertyName)
+            ? elem.propertyName.text
+            : name;
+        const init = propMap.has(propName)
+          ? parseExpression(propMap.get(propName)!)
+          : undefined;
+        const type = init ? inferType(init, varTypes) : undefined;
+        statements.push({
+          kind: "variable-declaration" as const,
+          name,
+          type,
+          initializer: init,
+        });
+      }
+    }
+    return statements;
+  }
+
+  // Non-literal initializer: const { amount, timestamp } = this.getStakeInfo(account)
+  // Try to resolve struct type for a temp variable approach
+  let structType: SkittlesType | undefined;
+
+  // Check explicit type annotation
+  if (decl.type) {
+    structType = parseType(decl.type);
+  }
+
+  // If no explicit type, try to find it from a this.method() call
+  if (!structType && ts.isCallExpression(initializer)) {
+    const callee = initializer.expression;
+    if (
+      ts.isPropertyAccessExpression(callee) &&
+      callee.expression.kind === ts.SyntaxKind.ThisKeyword
+    ) {
+      const methodName = callee.name.text;
+      const cls = findEnclosingClass(decl);
+      if (cls) {
+        const retTypeNode = findMethodReturnType(cls, methodName);
+        if (retTypeNode) {
+          structType = parseType(retTypeNode);
+        }
+      }
+    }
+  }
+
+  const initExpr = parseExpression(initializer);
+
+  if (structType?.kind === ("struct" as SkittlesTypeKind) && structType.structName) {
+    // Temp variable + field accesses
+    const tempName = `_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}`;
+    statements.push({
+      kind: "variable-declaration" as const,
+      name: tempName,
+      type: structType,
+      initializer: initExpr,
+    });
+
+    const fieldMap = new Map<string, SkittlesType>();
+    if (structType.structFields) {
+      for (const f of structType.structFields) {
+        fieldMap.set(f.name, f.type);
+      }
+    }
+
+    for (const elem of pattern.elements) {
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const propName =
+          elem.propertyName && ts.isIdentifier(elem.propertyName)
+            ? elem.propertyName.text
+            : name;
+        statements.push({
+          kind: "variable-declaration" as const,
+          name,
+          type: fieldMap.get(propName),
+          initializer: {
+            kind: "property-access" as const,
+            object: { kind: "identifier" as const, name: tempName },
+            property: propName,
+          },
+        });
+      }
+    }
+  } else {
+    // Fallback: property-access expressions directly on the initializer
+    for (const elem of pattern.elements) {
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const propName =
+          elem.propertyName && ts.isIdentifier(elem.propertyName)
+            ? elem.propertyName.text
+            : name;
+        statements.push({
+          kind: "variable-declaration" as const,
+          name,
+          type: undefined,
+          initializer: {
+            kind: "property-access" as const,
+            object: initExpr,
+            property: propName,
+          },
+        });
+      }
+    }
+  }
+
+  return statements;
+}
+
+function findEnclosingClass(node: ts.Node): ts.ClassDeclaration | undefined {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isClassDeclaration(current)) return current;
+    current = current.parent;
+  }
+  return undefined;
+}
+
+function findMethodReturnType(
+  cls: ts.ClassDeclaration,
+  methodName: string
+): ts.TypeNode | undefined {
+  for (const member of cls.members) {
+    if (
+      ts.isMethodDeclaration(member) &&
+      member.name &&
+      ts.isIdentifier(member.name) &&
+      member.name.text === methodName
+    ) {
+      return member.type;
+    }
+  }
+  return undefined;
+}
+
 function parseStandaloneFunction(
   node: ts.FunctionDeclaration,
   varTypes: Map<string, SkittlesType>,
@@ -1474,6 +1630,11 @@ function parseStatements(
     const decl = node.declarationList.declarations[0];
     if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
       return parseArrayDestructuring(decl.name, decl.initializer, varTypes);
+    }
+
+    // Object destructuring: const { a, b } = { a: 1, b: 2 }
+    if (decl.name && ts.isObjectBindingPattern(decl.name) && decl.initializer) {
+      return parseObjectDestructuring(decl.name, decl.initializer, varTypes, decl);
     }
   }
   return [parseStatement(node, varTypes, eventNames)];
