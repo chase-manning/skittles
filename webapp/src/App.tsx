@@ -506,7 +506,7 @@ function FinalCTA() {
         in the language you already know.
       </h2>
       <p className="final-cta-sub">
-        MIT licensed. Node.js 20+. Works with every EVM toolchain.
+        MIT licensed. Node.js 22+. Works with every EVM toolchain.
       </p>
       <div className="final-cta-actions">
         <a href="https://docs.skittles.dev" className="btn-primary btn-primary--lg">

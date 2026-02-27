@@ -36,7 +36,7 @@
   },
   "homepage": "https://github.com/chase-manning/skittles#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "chalk": "^4.0.0",
