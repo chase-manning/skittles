@@ -76,13 +76,14 @@ This contract creates a simple token with balances and transfers. The `balances`
 
 ## Features
 
-- **Familiar types**: Use `number` for amounts and counters, `string` for text, `boolean` for flags, `address` for wallet addresses, `bytes` for raw data, `Record<K,V>` for key-value storage, arrays, type aliases for custom structures, interfaces, and enums
+- **Familiar types**: Use `number` for amounts and counters, `string` for text, `boolean` for flags, `address` for wallet addresses, `bytes` for raw data, `Record<K,V>` or `Map<K,V>` for key-value storage, arrays, type aliases for custom structures, interfaces, and enums
 - **Class properties** become persistent state variables — use `public`, `private`, `readonly`, and `static readonly` just like in TypeScript
 - **Methods** work like you expect — automatic optimizations detect if your function only reads data or modifies state, `virtual`/`override` for inheritance, getters/setters, plus special `receive()` and `fallback()` for handling payments
 - **Events** let you log activity on the blockchain — use `SkittlesEvent<T>` with `Indexed<T>` to mark searchable parameters
 - **Custom errors** for better error messages — use `SkittlesError<T>` or extend the `Error` class
 - **Inheritance** with `extends` and `super` — build modular, reusable contracts
 - **Control flow** — all the standard JavaScript patterns work: `if`/`else`, `for`, `while`, `do`/`while`, `for...of`, `switch`/`case`, ternary operators
+- **Operators** — arithmetic (`+`, `-`, `*`, `/`, `%`, `**`), comparison, logical, bitwise, and compound assignment operators all work as expected
 - **Blockchain globals** — access `msg.sender` (who called your function), `msg.value` (how much they sent), `block.timestamp`, `block.number`, `tx.origin`, and more
 - **Built-in functions** — `keccak256()`, `sha256()`, `ecrecover()`, `abi.encode()`, `abi.encodePacked()` for cryptographic operations and data encoding
 - **Multi-file projects** — share types, constants, and functions across contract files

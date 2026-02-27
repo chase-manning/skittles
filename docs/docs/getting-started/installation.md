@@ -7,7 +7,7 @@ title: Installation
 
 ## Prerequisites
 
-- **Node.js** 20.0 or higher
+- **Node.js** 22.0 or higher
 - A package manager: **npm**, **yarn**, or **pnpm**
 
 ## Get Started
