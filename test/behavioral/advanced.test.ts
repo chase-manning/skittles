@@ -185,7 +185,7 @@ describe("behavioral: custom errors", () => {
   });
 
   it("should revert with custom error for non-owner", async () => {
-    const nonOwner = contract.contract.connect(env.accounts[1]);
+    const nonOwner = contract.contract.connect(env.accounts[1]) as ethers.Contract;
     await expect(nonOwner.onlyOwnerAction()).rejects.toThrow();
   });
 });
@@ -329,6 +329,28 @@ class MixedToken {
 }
 `;
 
+const EXPONENTIATION_SOURCE = `
+class MathPow {
+  private value: number = 2;
+
+  public power(base: number, exp: number): number {
+    return base ** exp;
+  }
+
+  public scale(decimals: number): number {
+    return 10 ** decimals;
+  }
+
+  public getValue(): number {
+    return this.value;
+  }
+
+  public powerAssign(exp: number): void {
+    this.value **= exp;
+  }
+}
+`;
+
 describe("behavioral: constructor with default parameters", () => {
   let contract: DeployedContract;
 
@@ -354,5 +376,27 @@ describe("behavioral: constructor with mixed default and required parameters", (
 
   it("should use default supply value", async () => {
     expect(await contract.contract.getSupply()).toBe(500n);
+  });
+});
+
+describe("behavioral: exponentiation", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, EXPONENTIATION_SOURCE, "MathPow");
+  });
+
+  it("should compute base ** exp (2 ** 10 = 1024)", async () => {
+    expect(await contract.contract.power(2, 10)).toBe(1024n);
+  });
+
+  it("should compute 10 ** decimals for token scaling", async () => {
+    expect(await contract.contract.scale(18)).toBe(10n ** 18n);
+  });
+
+  it("should desugar **= and update state (2 **= 3 = 8)", async () => {
+    expect(await contract.contract.getValue()).toBe(2n);
+    await contract.contract.powerAssign(3);
+    expect(await contract.contract.getValue()).toBe(8n);
   });
 });

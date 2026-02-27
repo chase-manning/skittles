@@ -91,9 +91,33 @@ describe("parse", () => {
     expect(v.initialValue).toBeUndefined();
   });
 
+  it("should parse Map variables as mappings", () => {
+    const contracts = parse(
+      `class T { private balances: Map<address, number> = {}; }`,
+      "test.ts"
+    );
+    const v = contracts[0].variables[0];
+    expect(v.type.kind).toBe("mapping");
+    expect(v.type.keyType?.kind).toBe("address");
+    expect(v.type.valueType?.kind).toBe("uint256");
+    expect(v.initialValue).toBeUndefined();
+  });
+
   it("should parse nested mappings", () => {
     const contracts = parse(
       `class T { private allowances: Record<address, Record<address, number>> = {}; }`,
+      "test.ts"
+    );
+    const v = contracts[0].variables[0];
+    expect(v.type.kind).toBe("mapping");
+    expect(v.type.valueType?.kind).toBe("mapping");
+    expect(v.type.valueType?.keyType?.kind).toBe("address");
+    expect(v.type.valueType?.valueType?.kind).toBe("uint256");
+  });
+
+  it("should parse nested Map types", () => {
+    const contracts = parse(
+      `class T { private allowances: Map<address, Map<address, number>> = {}; }`,
       "test.ts"
     );
     const v = contracts[0].variables[0];
@@ -344,6 +368,13 @@ describe("parseType", () => {
 
   it("should parse Record as mapping", () => {
     const t = parseType(makeTypeNode("Record<address, number>"));
+    expect(t.kind).toBe("mapping");
+    expect(t.keyType?.kind).toBe("address");
+    expect(t.valueType?.kind).toBe("uint256");
+  });
+
+  it("should parse Map as mapping", () => {
+    const t = parseType(makeTypeNode("Map<address, number>"));
     expect(t.kind).toBe("mapping");
     expect(t.keyType?.kind).toBe("address");
     expect(t.valueType?.kind).toBe("uint256");
