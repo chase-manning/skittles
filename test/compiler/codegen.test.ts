@@ -517,4 +517,66 @@ describe("generateStatement", () => {
     };
     expect(generateStatement(stmt, "")).toBe('revert("Error");');
   });
+
+  it("should generate try/catch with return value", () => {
+    const stmt: Statement = {
+      kind: "try-catch",
+      call: {
+        kind: "call",
+        callee: {
+          kind: "property-access",
+          object: { kind: "identifier", name: "token" },
+          property: "balanceOf",
+        },
+        args: [{ kind: "identifier", name: "account" }],
+      },
+      returnVarName: "balance",
+      returnType: { kind: SkittlesTypeKind.Uint256 },
+      successBody: [
+        {
+          kind: "return",
+          value: { kind: "identifier", name: "balance" },
+        },
+      ],
+      catchBody: [
+        {
+          kind: "return",
+          value: { kind: "number-literal", value: "0" },
+        },
+      ],
+    };
+    const result = generateStatement(stmt, "");
+    expect(result).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(result).toContain("return balance;");
+    expect(result).toContain("} catch {");
+    expect(result).toContain("return 0;");
+  });
+
+  it("should generate try/catch without return value", () => {
+    const stmt: Statement = {
+      kind: "try-catch",
+      call: {
+        kind: "call",
+        callee: {
+          kind: "property-access",
+          object: { kind: "identifier", name: "token" },
+          property: "transfer",
+        },
+        args: [
+          { kind: "identifier", name: "to" },
+          { kind: "identifier", name: "amount" },
+        ],
+      },
+      successBody: [],
+      catchBody: [
+        {
+          kind: "return",
+        },
+      ],
+    };
+    const result = generateStatement(stmt, "");
+    expect(result).toContain("try token.transfer(to, amount) {");
+    expect(result).toContain("} catch {");
+    expect(result).toContain("return;");
+  });
 });

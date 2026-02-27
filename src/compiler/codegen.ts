@@ -655,6 +655,25 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return lines.join("\n");
     }
 
+    case "try-catch": {
+      const lines: string[] = [];
+      const callExpr = generateExpression(stmt.call);
+      let returns = "";
+      if (stmt.returnVarName && stmt.returnType && stmt.returnType.kind !== SkittlesTypeKind.Void) {
+        returns = ` returns (${generateType(stmt.returnType)} ${stmt.returnVarName})`;
+      }
+      lines.push(`${indent}try ${callExpr}${returns} {`);
+      for (const s of stmt.successBody) {
+        lines.push(generateStatement(s, inner));
+      }
+      lines.push(`${indent}} catch {`);
+      for (const s of stmt.catchBody) {
+        lines.push(generateStatement(s, inner));
+      }
+      lines.push(`${indent}}`);
+      return lines.join("\n");
+    }
+
     default:
       return `${indent}// unsupported statement`;
   }

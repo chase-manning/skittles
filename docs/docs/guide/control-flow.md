@@ -113,3 +113,28 @@ The `delete` operator resets values in your contract's storage (useful for clear
 ```typescript
 delete this.balances[account];
 ```
+
+## Try / Catch
+
+Use `try/catch` to gracefully handle failures from external contract calls. The first statement in the `try` block must be an external contract call:
+
+```typescript
+try {
+  const balance: number = this.token.balanceOf(account);
+  this.lastBalance = balance;
+} catch (e) {
+  this.lastBalance = 0;
+}
+```
+
+If the external call fails, execution jumps to the `catch` block. This is useful for composable DeFi protocols that need to handle failures in other contracts.
+
+You can also use `try/catch` without capturing a return value:
+
+```typescript
+try {
+  this.token.transfer(to, amount);
+} catch (e) {
+  this.failed = true;
+}
+```

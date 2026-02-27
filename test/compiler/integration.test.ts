@@ -3204,3 +3204,122 @@ describe("integration: cross-file contract interface usage", () => {
     expect(dexSolidity).toContain("token.transferFrom(msg.sender, address(this), amount)");
   });
 });
+
+// ============================================================
+// Try/catch for external calls
+// ============================================================
+
+describe("integration: try/catch", () => {
+  it("should parse and generate try/catch with return value", () => {
+    const source = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+
+      class SafeReader {
+        private token: IToken;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public safeBalanceOf(account: address): number {
+          try {
+            const balance: number = this.token.balanceOf(account);
+            return balance;
+          } catch (e) {
+            return 0;
+          }
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(1);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(solidity).toContain("return balance;");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("return 0;");
+
+    const result = compileSolidity("SafeReader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should parse and generate try/catch without return value", () => {
+    const source = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+
+      class SafeSender {
+        private token: IToken;
+        private failed: boolean = false;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public safeSend(to: address, amount: number): void {
+          try {
+            this.token.transfer(to, amount);
+          } catch (e) {
+            this.failed = true;
+          }
+        }
+
+        public hasFailed(): boolean {
+          return this.failed;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("try token.transfer(to, amount)");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("failed = true;");
+
+    const result = compileSolidity("SafeSender", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should parse try/catch with success body after the call", () => {
+    const source = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+
+      class Checker {
+        private token: IToken;
+        private lastBalance: number = 0;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public checkAndStore(account: address): boolean {
+          try {
+            const bal: number = this.token.balanceOf(account);
+            this.lastBalance = bal;
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        public getLastBalance(): number {
+          return this.lastBalance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("try token.balanceOf(account) returns (uint256 bal) {");
+    expect(solidity).toContain("lastBalance = bal;");
+    expect(solidity).toContain("return true;");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("return false;");
+
+    const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+});
