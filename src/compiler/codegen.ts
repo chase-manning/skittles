@@ -815,7 +815,7 @@ function tryGenerateBuiltinCall(expr: {
       if (expr.typeArgs && expr.typeArgs.length > 0 && expr.typeArgs[0].kind === SkittlesTypeKind.ContractInterface && expr.typeArgs[0].structName) {
         return `${expr.typeArgs[0].structName}(${args})`;
       }
-      return null;
+      throw new Error("Contract<T>() requires a contract interface type argument, e.g. Contract<IToken>(address)");
     case "string.concat":
       return `string.concat(${args})`;
     case "bytes.concat":
