@@ -72,7 +72,7 @@ const zero: address = "0x0000000000000000000000000000000000000000";
 
 ## Mappings
 
-Use `Record<K, V>` for key-value storage on the blockchain (like a dictionary or map):
+Use `Record<K, V>` or `Map<K, V>` for key-value storage on the blockchain (like a dictionary or map):
 
 ```typescript
 import { address } from "skittles";
@@ -80,11 +80,11 @@ import { address } from "skittles";
 class Token {
   balances: Record<address, number> = {};
 
-  allowances: Record<address, Record<address, number>> = {};
+  allowances: Map<address, Map<address, number>> = {};
 }
 ```
 
-Nested `Record` types create nested mappings. This is perfect for storing balances, allowances, and other key-value data that needs persistent storage.
+Both `Record` and `Map` compile to the same Solidity `mapping` type, so use whichever feels more natural. Nested types create nested mappings. This is perfect for storing balances, allowances, and other key-value data that needs persistent storage.
 
 ## Arrays
 

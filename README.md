@@ -12,7 +12,7 @@ Website: [skittles.dev](https://skittles.dev/)
 
 ## Quick Start
 
-Requires Node.js 20+.
+Requires Node.js 22+.
 
 ```bash
 npx skittles@latest init

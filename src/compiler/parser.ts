@@ -940,7 +940,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       : "";
 
     if (
-      name === "Record" &&
+      (name === "Record" || name === "Map") &&
       node.typeArguments &&
       node.typeArguments.length === 2
     ) {
@@ -1070,6 +1070,22 @@ export function parseExpression(node: ts.Expression): Expression {
     // Comma operator: (a, b) → just use the right side (last value)
     if (opKind === ts.SyntaxKind.CommaToken) {
       return parseExpression(node.right);
+    }
+
+    // Desugar **= to x = x ** y (Solidity has no **= operator)
+    if (opKind === ts.SyntaxKind.AsteriskAsteriskEqualsToken) {
+      const target = parseExpression(node.left);
+      return {
+        kind: "assignment",
+        operator: "=",
+        target,
+        value: {
+          kind: "binary",
+          operator: "**",
+          left: target,
+          right: parseExpression(node.right),
+        },
+      };
     }
 
     const operator = getBinaryOperator(opKind);
