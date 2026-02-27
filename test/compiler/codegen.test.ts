@@ -285,6 +285,38 @@ describe("generateSolidity", () => {
     expect(sol).toContain("contract Token is ERC20 {");
   });
 
+  it("should generate abstract contract", () => {
+    const sol = generateSolidity(
+      emptyContract({ name: "Base", isAbstract: true })
+    );
+    expect(sol).toContain("abstract contract Base {");
+  });
+
+  it("should generate abstract function without body", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        name: "Base",
+        isAbstract: true,
+        functions: [
+          {
+            name: "getValue",
+            parameters: [],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "nonpayable",
+            isVirtual: true,
+            isOverride: false,
+            isAbstract: true,
+            body: [],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("abstract contract Base {");
+    expect(sol).toContain("function getValue() public virtual returns (uint256);");
+    expect(sol).not.toContain("function getValue() public virtual returns (uint256) {");
+  });
+
   it("should generate a function with tuple return type", () => {
     const sol = generateSolidity(
       emptyContract({

@@ -11,6 +11,7 @@ import type {
   SkittlesContractInterface,
   SkittlesInterfaceFunction,
   Visibility,
+  StateMutability,
   Statement,
   Expression,
   EmitStatement,
@@ -669,6 +670,7 @@ function parseClass(
   fileConstants: Map<string, Expression> = new Map()
 ): SkittlesContract {
   const name = node.name?.text ?? "Unknown";
+  const isAbstract = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
   const variables: SkittlesVariable[] = [];
   const functions: SkittlesFunction[] = [];
   const events: SkittlesEvent[] = [];
@@ -881,6 +883,7 @@ function parseClass(
     customErrors: contractCustomErrors,
     ctor,
     inherits,
+    isAbstract,
     sourceLine: getSourceLine(node),
   };
 }
@@ -1031,13 +1034,14 @@ function parseMethod(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
+  const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const stateMutability = isAbstractMethod ? inferAbstractStateMutability(returnType) : inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, isAbstract: isAbstractMethod || undefined, body, sourceLine: getSourceLine(node) };
 }
 
 function parseGetAccessor(
@@ -2147,6 +2151,10 @@ function collectThisCalls(stmts: Statement[]): string[] {
     }
   });
   return names;
+}
+
+function inferAbstractStateMutability(returnType: SkittlesType | null): StateMutability {
+  return "nonpayable";
 }
 
 export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>, params?: SkittlesParameter[]): "pure" | "view" | "nonpayable" | "payable" {

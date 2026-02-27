@@ -121,7 +121,8 @@ function generateContractBody(
     contract.inherits.length > 0
       ? ` is ${contract.inherits.join(", ")}`
       : "";
-  parts.push(`contract ${contract.name}${inheritance} {`);
+  const abstractPrefix = contract.isAbstract ? "abstract " : "";
+  parts.push(`${abstractPrefix}contract ${contract.name}${inheritance} {`);
 
   for (const en of contract.enums ?? []) {
     if (fileScopeTypes.has(en.name)) continue;
@@ -363,12 +364,15 @@ function generateFunction(f: SkittlesFunction): string {
   }
 
   const lines: string[] = [];
-  lines.push(`    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns} {`);
-  for (const s of f.body) {
-    lines.push(generateStatement(s, "        "));
+  if (f.isAbstract) {
+    lines.push(`    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns};`);
+  } else {
+    lines.push(`    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns} {`);
+    for (const s of f.body) {
+      lines.push(generateStatement(s, "        "));
+    }
+    lines.push("    }");
   }
-  lines.push("    }");
-
   return lines.join("\n");
 }
 
@@ -952,9 +956,10 @@ export function buildSourceMap(
 
   for (const contract of contracts) {
     // Find the contract declaration line
-    const contractIdx = findLine((l) =>
-      l.trimStart().startsWith(`contract ${contract.name}`)
-    );
+    const contractIdx = findLine((l) => {
+      const trimmed = l.trimStart();
+      return trimmed.startsWith(`contract ${contract.name}`) || trimmed.startsWith(`abstract contract ${contract.name}`);
+    });
     if (contractIdx === -1) continue;
     addMapping(contractIdx, contract.sourceLine);
     lineIdx = contractIdx + 1;
