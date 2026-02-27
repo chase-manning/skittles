@@ -10,7 +10,7 @@ import type {
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions } from "./parser.ts";
-import type { SkittlesParameter, SkittlesFunction, SkittlesContractInterface, Expression } from "../types/index.ts";
+import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
 
@@ -207,16 +207,11 @@ export async function compile(
   // Analyze parsed contracts for unreachable code and unused variables
   for (const { contracts } of parsedFiles) {
     for (const contract of contracts) {
-      for (const fn of contract.functions) {
-        const fnWarnings = analyzeFunction(fn, contract.name);
-        for (const w of fnWarnings) {
-          warnings.push(w);
-          logWarning(w);
-        }
-      }
-      if (contract.ctor) {
-        const ctorWarnings = analyzeFunction(contract.ctor, contract.name);
-        for (const w of ctorWarnings) {
+      const fns: (SkittlesFunction | SkittlesConstructor)[] = [...contract.functions];
+      if (contract.ctor) fns.push(contract.ctor);
+
+      for (const fn of fns) {
+        for (const w of analyzeFunction(fn, contract.name)) {
           warnings.push(w);
           logWarning(w);
         }

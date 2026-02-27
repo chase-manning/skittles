@@ -15,7 +15,7 @@ Skittles is a TypeScript to Solidity compiler. You write smart contracts as Type
 TypeScript (.ts) → Parser → IR → Analysis → Codegen → Solidity (.sol) → Hardhat → ABI + Bytecode
 ```
 
-### The Three Stage Pipeline
+### The Four Stage Pipeline
 
 1. **Parse** — Your TypeScript is parsed using the official TypeScript compiler API. Classes become contracts, properties become state variables, methods become functions.
 
