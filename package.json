@@ -1,6 +1,6 @@
 {
   "name": "skittles",
-  "version": "1.2.7",
+  "version": "1.2.6",
   "description": "TypeScript to Solidity to EVM bytecode compiler",
   "type": "module",
   "main": "./dist/exports.js",
