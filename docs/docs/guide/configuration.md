@@ -37,6 +37,7 @@ module.exports = {
 | `outputDir`    | `string`  | `"artifacts"`  | Directory where compiled output is written |
 | `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored |
 | `typeCheck`    | `boolean` | `true`         | Enable TypeScript type checking during compilation |
+| `consoleLog`   | `boolean` | `false`        | Enable `console.log()` support for debugging (compiles to Hardhat's `console.log`) |
 
 ## Default Behavior
 
