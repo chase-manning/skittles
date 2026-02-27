@@ -57,26 +57,27 @@ describe("watchCompile", () => {
     fs.writeFileSync(path.join(contractsDir, "Counter.ts"), SIMPLE_CONTRACT);
 
     // Start watch mode (returns after initial compile and starting watcher)
-    const watchPromise = watchCompile(TEST_DIR);
+    const cleanup = await watchCompile(TEST_DIR);
 
-    // Wait for the initial compilation to finish and watcher to start
-    await watchPromise;
+    try {
+      // Verify initial compilation produced output
+      const solDir = path.join(TEST_DIR, "artifacts", "solidity");
+      expect(fs.existsSync(path.join(solDir, "Counter.sol"))).toBe(true);
 
-    // Verify initial compilation produced output
-    const solDir = path.join(TEST_DIR, "artifacts", "solidity");
-    expect(fs.existsSync(path.join(solDir, "Counter.sol"))).toBe(true);
+      const initialSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
 
-    const initialSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      // Modify the contract file to trigger recompilation
+      fs.writeFileSync(path.join(contractsDir, "Counter.ts"), MODIFIED_CONTRACT);
 
-    // Modify the contract file to trigger recompilation
-    fs.writeFileSync(path.join(contractsDir, "Counter.ts"), MODIFIED_CONTRACT);
+      // Wait for debounce (200ms) + compilation time
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Wait for debounce (200ms) + compilation time
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const updatedSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
-    expect(updatedSol).not.toBe(initialSol);
-    expect(updatedSol).toContain("count += 2");
+      const updatedSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      expect(updatedSol).not.toBe(initialSol);
+      expect(updatedSol).toContain("count += 2");
+    } finally {
+      cleanup();
+    }
   });
 
   it("should ignore non-TypeScript file changes", async () => {
@@ -84,19 +85,23 @@ describe("watchCompile", () => {
     fs.mkdirSync(contractsDir, { recursive: true });
     fs.writeFileSync(path.join(contractsDir, "Counter.ts"), SIMPLE_CONTRACT);
 
-    await watchCompile(TEST_DIR);
+    const cleanup = await watchCompile(TEST_DIR);
 
-    const solDir = path.join(TEST_DIR, "artifacts", "solidity");
-    const initialSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+    try {
+      const solDir = path.join(TEST_DIR, "artifacts", "solidity");
+      const initialSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
 
-    // Write a non-ts file
-    fs.writeFileSync(path.join(contractsDir, "notes.txt"), "some notes");
+      // Write a non-ts file
+      fs.writeFileSync(path.join(contractsDir, "notes.txt"), "some notes");
 
-    // Wait for debounce period
-    await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for debounce period
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Solidity output should remain unchanged
-    const afterSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
-    expect(afterSol).toBe(initialSol);
+      // Solidity output should remain unchanged
+      const afterSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      expect(afterSol).toBe(initialSol);
+    } finally {
+      cleanup();
+    }
   });
 });

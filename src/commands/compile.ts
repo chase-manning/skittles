@@ -35,7 +35,7 @@ export async function compileCommand(projectRoot: string): Promise<void> {
   }
 }
 
-export async function watchCompile(projectRoot: string): Promise<void> {
+export async function watchCompile(projectRoot: string): Promise<() => void> {
   const config = await loadConfig(projectRoot);
   const contractsDir = path.join(projectRoot, config.contractsDir);
 
@@ -50,7 +50,7 @@ export async function watchCompile(projectRoot: string): Promise<void> {
     fs.mkdirSync(contractsDir, { recursive: true });
   }
 
-  fs.watch(contractsDir, { recursive: true }, (_event, filename) => {
+  const watcher = fs.watch(contractsDir, { recursive: true }, (_event, filename) => {
     if (!filename || !filename.endsWith(".ts")) return;
 
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -59,6 +59,11 @@ export async function watchCompile(projectRoot: string): Promise<void> {
       runCompilation(projectRoot);
     }, 200);
   });
+
+  return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    watcher.close();
+  };
 }
 
 async function runCompilation(projectRoot: string): Promise<void> {
