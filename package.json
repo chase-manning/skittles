@@ -1,6 +1,6 @@
 {
   "name": "skittles",
-  "version": "1.3.0",
+  "version": "1.2.7",
   "description": "TypeScript to Solidity to EVM bytecode compiler",
   "type": "module",
   "main": "./dist/exports.js",
@@ -36,7 +36,7 @@
   },
   "homepage": "https://github.com/chase-manning/skittles#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "chalk": "^4.0.0",
