@@ -821,8 +821,9 @@ function parseMethod(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes);
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(rawBody, varTypes);
+  const body = transformStringOperations(rawBody, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -843,8 +844,9 @@ function parseGetAccessor(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes);
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(rawBody, varTypes);
+  const body = transformStringOperations(rawBody, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -863,8 +865,9 @@ function parseSetAccessor(
   const parameters = node.parameters.map(parseParameter);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes);
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(rawBody, varTypes);
+  const body = transformStringOperations(rawBody, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -889,17 +892,18 @@ function parseArrowProperty(
 
   const visibility = getVisibility(node.modifiers);
 
-  let body: Statement[] = [];
+  let rawBody: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      body = parseBlock(arrow.body, varTypes, eventNames);
+      rawBody = parseBlock(arrow.body, varTypes, eventNames);
     } else {
       // Expression body: `() => expr` treated as `() => { return expr; }`
-      body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
+      rawBody = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
   }
 
-  const stateMutability = inferStateMutability(body, varTypes);
+  const stateMutability = inferStateMutability(rawBody, varTypes);
+  const body = transformStringOperations(rawBody, varTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
@@ -912,7 +916,8 @@ function parseConstructorDecl(
   eventNames: Set<string>
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const body = transformStringOperations(rawBody, varTypes, parameters);
   return { parameters, body };
 }
 
@@ -1801,6 +1806,170 @@ export function inferType(
     default:
       return undefined;
   }
+}
+
+// ============================================================
+// String operation transformations
+// ============================================================
+
+function isStringExpression(expr: Expression, typeMap: Map<string, SkittlesType>): boolean {
+  if (expr.kind === "string-literal") return true;
+  if (expr.kind === "identifier") {
+    const type = typeMap.get(expr.name);
+    return type?.kind === ("string" as SkittlesTypeKind);
+  }
+  if (expr.kind === "property-access" && expr.object.kind === "identifier" && expr.object.name === "this") {
+    const type = typeMap.get(expr.property);
+    return type?.kind === ("string" as SkittlesTypeKind);
+  }
+  if (expr.kind === "call" && expr.callee.kind === "property-access" &&
+      expr.callee.object.kind === "identifier" && expr.callee.object.name === "string" &&
+      expr.callee.property === "concat") {
+    return true;
+  }
+  return false;
+}
+
+function transformExpression(expr: Expression, typeMap: Map<string, SkittlesType>): Expression {
+  switch (expr.kind) {
+    case "property-access": {
+      const obj = transformExpression(expr.object, typeMap);
+      if (expr.property === "length" && isStringExpression(obj, typeMap)) {
+        return {
+          kind: "property-access",
+          object: { kind: "call", callee: { kind: "identifier", name: "bytes" }, args: [obj] },
+          property: "length",
+        };
+      }
+      return { ...expr, object: obj };
+    }
+    case "binary": {
+      const left = transformExpression(expr.left, typeMap);
+      const right = transformExpression(expr.right, typeMap);
+      if ((expr.operator === "==" || expr.operator === "!=") &&
+          (isStringExpression(left, typeMap) || isStringExpression(right, typeMap))) {
+        return {
+          kind: "binary",
+          operator: expr.operator,
+          left: { kind: "call", callee: { kind: "identifier", name: "keccak256" }, args: [left] },
+          right: { kind: "call", callee: { kind: "identifier", name: "keccak256" }, args: [right] },
+        };
+      }
+      return { ...expr, left, right };
+    }
+    case "element-access":
+      return {
+        ...expr,
+        object: transformExpression(expr.object, typeMap),
+        index: transformExpression(expr.index, typeMap),
+      };
+    case "unary":
+      return { ...expr, operand: transformExpression(expr.operand, typeMap) };
+    case "assignment":
+      return {
+        ...expr,
+        target: transformExpression(expr.target, typeMap),
+        value: transformExpression(expr.value, typeMap),
+      };
+    case "call":
+      return {
+        ...expr,
+        callee: transformExpression(expr.callee, typeMap),
+        args: expr.args.map(a => transformExpression(a, typeMap)),
+      };
+    case "conditional":
+      return {
+        ...expr,
+        condition: transformExpression(expr.condition, typeMap),
+        whenTrue: transformExpression(expr.whenTrue, typeMap),
+        whenFalse: transformExpression(expr.whenFalse, typeMap),
+      };
+    case "new":
+      return { ...expr, args: expr.args.map(a => transformExpression(a, typeMap)) };
+    case "object-literal":
+      return {
+        ...expr,
+        properties: expr.properties.map(p => ({ ...p, value: transformExpression(p.value, typeMap) })),
+      };
+    default:
+      return expr;
+  }
+}
+
+function transformStatement(stmt: Statement, typeMap: Map<string, SkittlesType>): Statement {
+  switch (stmt.kind) {
+    case "variable-declaration": {
+      const transformed = stmt.initializer
+        ? { ...stmt, initializer: transformExpression(stmt.initializer, typeMap) }
+        : stmt;
+      if (transformed.type?.kind === ("string" as SkittlesTypeKind)) {
+        typeMap.set(transformed.name, transformed.type);
+      }
+      return transformed;
+    }
+    case "return":
+      return stmt.value
+        ? { ...stmt, value: transformExpression(stmt.value, typeMap) }
+        : stmt;
+    case "expression":
+      return { ...stmt, expression: transformExpression(stmt.expression, typeMap) };
+    case "if":
+      return {
+        ...stmt,
+        condition: transformExpression(stmt.condition, typeMap),
+        thenBody: stmt.thenBody.map(s => transformStatement(s, typeMap)),
+        elseBody: stmt.elseBody?.map(s => transformStatement(s, typeMap)),
+      };
+    case "for":
+      return {
+        ...stmt,
+        initializer: stmt.initializer ? transformStatement(stmt.initializer, typeMap) as typeof stmt.initializer : undefined,
+        condition: stmt.condition ? transformExpression(stmt.condition, typeMap) : undefined,
+        incrementor: stmt.incrementor ? transformExpression(stmt.incrementor, typeMap) : undefined,
+        body: stmt.body.map(s => transformStatement(s, typeMap)),
+      };
+    case "while":
+    case "do-while":
+      return {
+        ...stmt,
+        condition: transformExpression(stmt.condition, typeMap),
+        body: stmt.body.map(s => transformStatement(s, typeMap)),
+      };
+    case "emit":
+      return { ...stmt, args: stmt.args.map(a => transformExpression(a, typeMap)) };
+    case "revert":
+      return {
+        ...stmt,
+        message: stmt.message ? transformExpression(stmt.message, typeMap) : undefined,
+        customErrorArgs: stmt.customErrorArgs?.map(a => transformExpression(a, typeMap)),
+      };
+    case "delete":
+      return { ...stmt, target: transformExpression(stmt.target, typeMap) };
+    case "switch":
+      return {
+        ...stmt,
+        discriminant: transformExpression(stmt.discriminant, typeMap),
+        cases: stmt.cases.map(c => ({
+          ...c,
+          value: c.value ? transformExpression(c.value, typeMap) : undefined,
+          body: c.body.map(s => transformStatement(s, typeMap)),
+        })),
+      };
+    default:
+      return stmt;
+  }
+}
+
+function transformStringOperations(
+  body: Statement[],
+  varTypes: Map<string, SkittlesType>,
+  params: SkittlesParameter[]
+): Statement[] {
+  const typeMap = new Map(varTypes);
+  for (const p of params) {
+    typeMap.set(p.name, p.type);
+  }
+  return body.map(stmt => transformStatement(stmt, typeMap));
 }
 
 // ============================================================

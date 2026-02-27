@@ -3153,3 +3153,135 @@ describe("integration: cross-file contract interface usage", () => {
     expect(dexSolidity).toContain("token.transferFrom(msg.sender, address(this), amount)");
   });
 });
+
+// ============================================================
+// String operations: length and comparison
+// ============================================================
+
+describe("integration: string length", () => {
+  it("should compile string.length on state variable to bytes(str).length", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public name: string = "hello";
+
+        public getNameLength(): number {
+          return this.name.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes(name).length");
+  });
+
+  it("should compile string.length on function parameter to bytes(str).length", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public getLength(s: string): number {
+          return s.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes(s).length");
+  });
+
+  it("should compile string.length on string literal to bytes(str).length", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public getLiteralLength(): number {
+          return "hello".length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('bytes("hello").length');
+  });
+
+  it("should compile string.length on local variable to bytes(str).length", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public name: string = "hello";
+
+        public getLength(): number {
+          let s: string = this.name;
+          return s.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes(s).length");
+  });
+
+  it("should not transform .length on non-string types", () => {
+    const { errors, solidity } = compileTS(`
+      class ArrayOps {
+        public items: number[] = [];
+
+        public getLength(): number {
+          return this.items.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("items.length");
+    expect(solidity).not.toContain("bytes(items).length");
+  });
+});
+
+describe("integration: string comparison", () => {
+  it("should compile string equality with state variable", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public name: string = "hello";
+
+        public isHello(): boolean {
+          return this.name == "hello";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(name))");
+    expect(solidity).toContain('keccak256(abi.encodePacked("hello"))');
+  });
+
+  it("should compile string inequality with state variable", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public name: string = "hello";
+
+        public isNotHello(): boolean {
+          return this.name != "hello";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(name))");
+    expect(solidity).toContain("!=");
+  });
+
+  it("should compile string comparison with function parameters", () => {
+    const { errors, solidity } = compileTS(`
+      class StringOps {
+        public isEqual(a: string, b: string): boolean {
+          return a == b;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(a))");
+    expect(solidity).toContain("keccak256(abi.encodePacked(b))");
+  });
+
+  it("should not transform comparison on non-string types", () => {
+    const { errors, solidity } = compileTS(`
+      class NumOps {
+        public isEqual(a: number, b: number): boolean {
+          return a == b;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(a == b)");
+    expect(solidity).not.toContain("keccak256");
+  });
+});

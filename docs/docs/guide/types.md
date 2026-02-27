@@ -23,6 +23,29 @@ class Example {
 }
 ```
 
+### String Operations
+
+You can use `.length` on strings and compare strings with `==` / `!=` just like in TypeScript:
+
+```typescript
+class Greeter {
+  public greeting: string = "hello";
+
+  public getLength(): number {
+    return this.greeting.length;
+  }
+
+  public isGreeting(other: string): boolean {
+    return this.greeting == other;
+  }
+}
+```
+
+Under the hood, Skittles compiles these to their Solidity equivalents:
+
+- `str.length` → `bytes(str).length`
+- `str == other` → `keccak256(abi.encodePacked(str)) == keccak256(abi.encodePacked(other))`
+
 ## Ethereum Types
 
 Import `address` and `bytes` from `"skittles"`:

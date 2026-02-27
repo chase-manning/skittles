@@ -294,3 +294,63 @@ describe("behavioral: inheritance with override", () => {
     expect(await contract.contract.y()).toBe(99n);
   });
 });
+
+const STRING_OPS_SOURCE = `
+class StringOps {
+  public name: string = "hello";
+
+  public getNameLength(): number {
+    return this.name.length;
+  }
+
+  public getParamLength(s: string): number {
+    return s.length;
+  }
+
+  public isNameEqual(other: string): boolean {
+    return this.name == other;
+  }
+
+  public isNameNotEqual(other: string): boolean {
+    return this.name != other;
+  }
+
+  public setName(newName: string): void {
+    this.name = newName;
+  }
+}
+`;
+
+describe("behavioral: string operations", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, STRING_OPS_SOURCE, "StringOps");
+  });
+
+  it("should return string length of state variable", async () => {
+    expect(await contract.contract.getNameLength()).toBe(5n);
+  });
+
+  it("should return string length of parameter", async () => {
+    expect(await contract.contract.getParamLength("abc")).toBe(3n);
+    expect(await contract.contract.getParamLength("")).toBe(0n);
+  });
+
+  it("should compare strings for equality", async () => {
+    expect(await contract.contract.isNameEqual("hello")).toBe(true);
+    expect(await contract.contract.isNameEqual("world")).toBe(false);
+  });
+
+  it("should compare strings for inequality", async () => {
+    expect(await contract.contract.isNameNotEqual("hello")).toBe(false);
+    expect(await contract.contract.isNameNotEqual("world")).toBe(true);
+  });
+
+  it("should work after updating state variable", async () => {
+    await contract.contract.setName("world");
+    expect(await contract.contract.getNameLength()).toBe(5n);
+    expect(await contract.contract.isNameEqual("world")).toBe(true);
+    expect(await contract.contract.isNameEqual("hello")).toBe(false);
+  });
+});
