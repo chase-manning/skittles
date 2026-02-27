@@ -1079,6 +1079,22 @@ export function parseExpression(node: ts.Expression): Expression {
       return parseExpression(node.right);
     }
 
+    // Desugar **= to x = x ** y (Solidity has no **= operator)
+    if (opKind === ts.SyntaxKind.AsteriskAsteriskEqualsToken) {
+      const target = parseExpression(node.left);
+      return {
+        kind: "assignment",
+        operator: "=",
+        target,
+        value: {
+          kind: "binary",
+          operator: "**",
+          left: target,
+          right: parseExpression(node.right),
+        },
+      };
+    }
+
     const operator = getBinaryOperator(opKind);
 
     if (isAssignmentOperator(opKind)) {
