@@ -164,7 +164,51 @@ describe("parse", () => {
     expect(ctor.parameters).toHaveLength(1);
     expect(ctor.parameters[0].name).toBe("val");
     expect(ctor.parameters[0].type.kind).toBe("uint256");
+    expect(ctor.parameters[0].defaultValue).toBeUndefined();
     expect(ctor.body).toHaveLength(1);
+  });
+
+  it("should parse constructor with default parameter value", () => {
+    const contracts = parse(
+      `class T {
+        public supply: number = 0;
+        constructor(supply: number = 1000000) {
+          this.supply = supply;
+        }
+      }`,
+      "test.ts"
+    );
+    const ctor = contracts[0].ctor!;
+    expect(ctor.parameters).toHaveLength(1);
+    expect(ctor.parameters[0].name).toBe("supply");
+    expect(ctor.parameters[0].type.kind).toBe("uint256");
+    expect(ctor.parameters[0].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "1000000",
+    });
+  });
+
+  it("should parse constructor with mixed default and required parameters", () => {
+    const contracts = parse(
+      `class T {
+        public name: string = "";
+        public supply: number = 0;
+        constructor(name: string, supply: number = 1000000) {
+          this.name = name;
+          this.supply = supply;
+        }
+      }`,
+      "test.ts"
+    );
+    const ctor = contracts[0].ctor!;
+    expect(ctor.parameters).toHaveLength(2);
+    expect(ctor.parameters[0].name).toBe("name");
+    expect(ctor.parameters[0].defaultValue).toBeUndefined();
+    expect(ctor.parameters[1].name).toBe("supply");
+    expect(ctor.parameters[1].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "1000000",
+    });
   });
 
   it("should parse a simple function", () => {
@@ -184,6 +228,33 @@ describe("parse", () => {
     expect(fn.visibility).toBe("public");
     expect(fn.stateMutability).toBe("view");
     expect(fn.body).toHaveLength(1);
+  });
+
+  it("should parse a function with tuple return type", () => {
+    const contracts = parse(
+      `class T {
+        public x: number = 0;
+        public y: boolean = false;
+        public getValues(): [number, boolean] {
+          return [this.x, this.y];
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    expect(fn.name).toBe("getValues");
+    expect(fn.returnType?.kind).toBe("tuple");
+    expect(fn.returnType?.tupleTypes).toHaveLength(2);
+    expect(fn.returnType?.tupleTypes![0].kind).toBe("uint256");
+    expect(fn.returnType?.tupleTypes![1].kind).toBe("bool");
+    expect(fn.body).toHaveLength(1);
+    expect(fn.body[0].kind).toBe("return");
+    if (fn.body[0].kind === "return") {
+      expect(fn.body[0].value?.kind).toBe("tuple-literal");
+      if (fn.body[0].value?.kind === "tuple-literal") {
+        expect(fn.body[0].value.elements).toHaveLength(2);
+      }
+    }
   });
 
   it("should infer nonpayable for state-mutating functions", () => {
@@ -341,6 +412,15 @@ describe("parseType", () => {
     expect(t.kind).toBe("array");
     expect(t.valueType?.kind).toBe("uint256");
   });
+
+  it("should parse tuple type [number, boolean, string]", () => {
+    const t = parseType(makeTypeNode("[number, boolean, string]"));
+    expect(t.kind).toBe("tuple");
+    expect(t.tupleTypes).toHaveLength(3);
+    expect(t.tupleTypes![0].kind).toBe("uint256");
+    expect(t.tupleTypes![1].kind).toBe("bool");
+    expect(t.tupleTypes![2].kind).toBe("string");
+  });
 });
 
 // ============================================================
@@ -444,6 +524,17 @@ describe("parseExpression", () => {
     expect(expr.kind).toBe("call");
     if (expr.kind === "call") {
       expect(expr.args).toHaveLength(2);
+    }
+  });
+
+  it("should parse array literal as tuple literal", () => {
+    const expr = parseExpression(makeExprNode("[1, 2, 3]"));
+    expect(expr.kind).toBe("tuple-literal");
+    if (expr.kind === "tuple-literal") {
+      expect(expr.elements).toHaveLength(3);
+      expect(expr.elements[0]).toEqual({ kind: "number-literal", value: "1" });
+      expect(expr.elements[1]).toEqual({ kind: "number-literal", value: "2" });
+      expect(expr.elements[2]).toEqual({ kind: "number-literal", value: "3" });
     }
   });
 });

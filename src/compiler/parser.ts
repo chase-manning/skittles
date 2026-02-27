@@ -20,9 +20,15 @@ import type {
 // Module-level registries, populated during parse()
 let _knownStructs: Map<string, SkittlesParameter[]> = new Map();
 let _knownContractInterfaces: Set<string> = new Set();
-let _knownEnums: Set<string> = new Set();
+let _knownEnums: Map<string, string[]> = new Map();
 let _knownCustomErrors: Set<string> = new Set();
 let _fileConstants: Map<string, Expression> = new Map();
+let _currentSourceFile: ts.SourceFile | null = null;
+
+function getSourceLine(node: ts.Node): number | undefined {
+  if (!_currentSourceFile) return undefined;
+  return _currentSourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1; // 1-based
+}
 
 // ============================================================
 // Main entry
@@ -54,7 +60,7 @@ export function collectTypes(source: string, filePath: string): {
   const prevEnums = _knownEnums;
   const prevInterfaces = _knownContractInterfaces;
   _knownStructs = structs;
-  _knownEnums = new Set();
+  _knownEnums = new Map();
   _knownContractInterfaces = new Set();
 
   ts.forEachChild(sourceFile, (node) => {
@@ -106,6 +112,8 @@ export function parse(
     true
   );
 
+  _currentSourceFile = sourceFile;
+
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
   const contractInterfaces: Map<string, SkittlesContractInterface> = new Map();
@@ -143,7 +151,7 @@ export function parse(
   });
 
   _knownStructs = structs;
-  _knownEnums = new Set(enums.keys());
+  _knownEnums = new Map(enums);
 
   // Second pass: parse interfaces (may reference struct/enum types collected above)
   ts.forEachChild(sourceFile, (node) => {
@@ -240,7 +248,7 @@ export function collectFunctions(source: string, filePath: string): {
   const prevEnums = _knownEnums;
   const prevInterfaces = _knownContractInterfaces;
   _knownStructs = new Map();
-  _knownEnums = new Set();
+  _knownEnums = new Map();
   _knownContractInterfaces = new Set();
 
   ts.forEachChild(sourceFile, (node) => {
@@ -328,6 +336,162 @@ function parseArrayDestructuring(
   return statements;
 }
 
+function parseObjectDestructuring(
+  pattern: ts.ObjectBindingPattern,
+  initializer: ts.Expression,
+  varTypes: Map<string, SkittlesType>,
+  decl: ts.VariableDeclaration
+): Statement[] {
+  const statements: Statement[] = [];
+
+  if (ts.isObjectLiteralExpression(initializer)) {
+    // Direct object literal: const { a, b } = { a: 1, b: 2 }
+    const propMap = new Map<string, ts.Expression>();
+    for (const prop of initializer.properties) {
+      if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
+        propMap.set(prop.name.text, prop.initializer);
+      }
+    }
+
+    for (const elem of pattern.elements) {
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const propName =
+          elem.propertyName && ts.isIdentifier(elem.propertyName)
+            ? elem.propertyName.text
+            : name;
+        const init = propMap.has(propName)
+          ? parseExpression(propMap.get(propName)!)
+          : undefined;
+        const type = init ? inferType(init, varTypes) : undefined;
+        statements.push({
+          kind: "variable-declaration" as const,
+          name,
+          type,
+          initializer: init,
+        });
+      }
+    }
+    return statements;
+  }
+
+  // Non-literal initializer: const { amount, timestamp } = this.getStakeInfo(account)
+  // Try to resolve struct type for a temp variable approach
+  let structType: SkittlesType | undefined;
+
+  // Check explicit type annotation
+  if (decl.type) {
+    structType = parseType(decl.type);
+  }
+
+  // If no explicit type, try to find it from a this.method() call
+  if (!structType && ts.isCallExpression(initializer)) {
+    const callee = initializer.expression;
+    if (
+      ts.isPropertyAccessExpression(callee) &&
+      callee.expression.kind === ts.SyntaxKind.ThisKeyword
+    ) {
+      const methodName = callee.name.text;
+      const cls = findEnclosingClass(decl);
+      if (cls) {
+        const retTypeNode = findMethodReturnType(cls, methodName);
+        if (retTypeNode) {
+          structType = parseType(retTypeNode);
+        }
+      }
+    }
+  }
+
+  const initExpr = parseExpression(initializer);
+
+  if (structType?.kind === ("struct" as SkittlesTypeKind) && structType.structName) {
+    // Temp variable + field accesses
+    const tempName = `_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}`;
+    statements.push({
+      kind: "variable-declaration" as const,
+      name: tempName,
+      type: structType,
+      initializer: initExpr,
+    });
+
+    const fieldMap = new Map<string, SkittlesType>();
+    if (structType.structFields) {
+      for (const f of structType.structFields) {
+        fieldMap.set(f.name, f.type);
+      }
+    }
+
+    for (const elem of pattern.elements) {
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const propName =
+          elem.propertyName && ts.isIdentifier(elem.propertyName)
+            ? elem.propertyName.text
+            : name;
+        statements.push({
+          kind: "variable-declaration" as const,
+          name,
+          type: fieldMap.get(propName),
+          initializer: {
+            kind: "property-access" as const,
+            object: { kind: "identifier" as const, name: tempName },
+            property: propName,
+          },
+        });
+      }
+    }
+  } else {
+    // Fallback: property-access expressions directly on the initializer
+    for (const elem of pattern.elements) {
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        const name = elem.name.text;
+        const propName =
+          elem.propertyName && ts.isIdentifier(elem.propertyName)
+            ? elem.propertyName.text
+            : name;
+        statements.push({
+          kind: "variable-declaration" as const,
+          name,
+          type: undefined,
+          initializer: {
+            kind: "property-access" as const,
+            object: initExpr,
+            property: propName,
+          },
+        });
+      }
+    }
+  }
+
+  return statements;
+}
+
+function findEnclosingClass(node: ts.Node): ts.ClassDeclaration | undefined {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isClassDeclaration(current)) return current;
+    current = current.parent;
+  }
+  return undefined;
+}
+
+function findMethodReturnType(
+  cls: ts.ClassDeclaration,
+  methodName: string
+): ts.TypeNode | undefined {
+  for (const member of cls.members) {
+    if (
+      ts.isMethodDeclaration(member) &&
+      member.name &&
+      ts.isIdentifier(member.name) &&
+      member.name.text === methodName
+    ) {
+      return member.type;
+    }
+  }
+  return undefined;
+}
+
 function parseStandaloneFunction(
   node: ts.FunctionDeclaration,
   varTypes: Map<string, SkittlesType>,
@@ -348,6 +512,7 @@ function parseStandaloneFunction(
     isVirtual: false,
     isOverride: false,
     body,
+    sourceLine: getSourceLine(node),
   };
 }
 
@@ -381,6 +546,7 @@ function parseStandaloneArrowFunction(
     isVirtual: false,
     isOverride: false,
     body,
+    sourceLine: getSourceLine(decl),
   };
 }
 
@@ -673,6 +839,7 @@ function parseClass(
     customErrors: contractCustomErrors,
     ctor,
     inherits,
+    sourceLine: getSourceLine(node),
   };
 }
 
@@ -694,12 +861,12 @@ function tryParseEvent(
     node.name && ts.isIdentifier(node.name) ? node.name.text : "Unknown";
 
   if (!node.type.typeArguments || node.type.typeArguments.length === 0) {
-    return { name, parameters: [] };
+    return { name, parameters: [], sourceLine: getSourceLine(node) };
   }
 
   const typeArg = node.type.typeArguments[0];
   if (!ts.isTypeLiteralNode(typeArg)) {
-    return { name, parameters: [] };
+    return { name, parameters: [], sourceLine: getSourceLine(node) };
   }
 
   const parameters: SkittlesParameter[] = [];
@@ -732,7 +899,7 @@ function tryParseEvent(
     }
   }
 
-  return { name, parameters };
+  return { name, parameters, sourceLine: getSourceLine(node) };
 }
 
 // ============================================================
@@ -805,7 +972,7 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     }
   }
 
-  return { name, type, visibility, immutable, constant, initialValue };
+  return { name, type, visibility, immutable, constant, initialValue, sourceLine: getSourceLine(node) };
 }
 
 function parseMethod(
@@ -827,7 +994,7 @@ function parseMethod(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseGetAccessor(
@@ -849,7 +1016,7 @@ function parseGetAccessor(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseSetAccessor(
@@ -869,7 +1036,7 @@ function parseSetAccessor(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseArrowProperty(
@@ -903,7 +1070,7 @@ function parseArrowProperty(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseConstructorDecl(
@@ -913,7 +1080,7 @@ function parseConstructorDecl(
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  return { parameters, body };
+  return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
 function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
@@ -921,7 +1088,11 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
-  return { name, type };
+  const param: SkittlesParameter = { name, type };
+  if (node.initializer) {
+    param.defaultValue = parseExpression(node.initializer);
+  }
+  return param;
 }
 
 // ============================================================
@@ -978,6 +1149,18 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     return {
       kind: "array" as SkittlesTypeKind,
       valueType: parseType(node.elementType),
+    };
+  }
+
+  if (ts.isTupleTypeNode(node)) {
+    return {
+      kind: "tuple" as SkittlesTypeKind,
+      tupleTypes: node.elements.map((el) => {
+        if (ts.isNamedTupleMember(el)) {
+          return parseType(el.type);
+        }
+        return parseType(el as ts.TypeNode);
+      }),
     };
   }
 
@@ -1121,11 +1304,32 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isCallExpression(node)) {
-    return {
+    const callExpr: {
+      kind: "call";
+      callee: Expression;
+      args: Expression[];
+      typeArgs?: SkittlesType[];
+    } = {
       kind: "call",
       callee: parseExpression(node.expression),
       args: node.arguments.map(parseExpression),
     };
+
+    if (node.typeArguments && node.typeArguments.length > 0) {
+      const firstTypeArg = node.typeArguments[0];
+      if (ts.isTupleTypeNode(firstTypeArg)) {
+        callExpr.typeArgs = firstTypeArg.elements.map((elem) => {
+          if (ts.isNamedTupleMember(elem)) {
+            return parseType(elem.type);
+          }
+          return parseType(elem);
+        });
+      } else {
+        callExpr.typeArgs = node.typeArguments.map((ta) => parseType(ta));
+      }
+    }
+
+    return callExpr;
   }
 
   if (ts.isNewExpression(node)) {
@@ -1166,6 +1370,14 @@ export function parseExpression(node: ts.Expression): Expression {
       condition: parseExpression(node.condition),
       whenTrue: parseExpression(node.whenTrue),
       whenFalse: parseExpression(node.whenFalse),
+    };
+  }
+
+  // Array literal expressions: [a, b, c] → tuple literal
+  if (ts.isArrayLiteralExpression(node)) {
+    return {
+      kind: "tuple-literal",
+      elements: node.elements.map(parseExpression),
     };
   }
 
@@ -1229,6 +1441,7 @@ export function parseStatement(
       value: node.expression
         ? parseExpression(node.expression)
         : undefined,
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1242,19 +1455,22 @@ export function parseStatement(
     const type =
       explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
 
-    return { kind: "variable-declaration", name, type, initializer };
+    return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
 
   if (ts.isExpressionStatement(node)) {
     const emitStmt = tryParseEmitStatement(node.expression, eventNames);
-    if (emitStmt) return emitStmt;
+    if (emitStmt) {
+      emitStmt.sourceLine = getSourceLine(node);
+      return emitStmt;
+    }
 
     // Detect delete expressions: `delete this.mapping[key]`
     if (ts.isDeleteExpression(node.expression)) {
-      return { kind: "delete", target: parseExpression(node.expression.expression) };
+      return { kind: "delete", target: parseExpression(node.expression.expression), sourceLine: getSourceLine(node) };
     }
 
-    return { kind: "expression", expression: parseExpression(node.expression) };
+    return { kind: "expression", expression: parseExpression(node.expression), sourceLine: getSourceLine(node) };
   }
 
   if (ts.isIfStatement(node)) {
@@ -1263,7 +1479,7 @@ export function parseStatement(
     const elseBody = node.elseStatement
       ? parseBlock(node.elseStatement, varTypes, eventNames)
       : undefined;
-    return { kind: "if", condition, thenBody, elseBody };
+    return { kind: "if", condition, thenBody, elseBody, sourceLine: getSourceLine(node) };
   }
 
   if (ts.isForStatement(node)) {
@@ -1304,6 +1520,7 @@ export function parseStatement(
         ? parseExpression(node.incrementor)
         : undefined,
       body: parseBlock(node.statement, varTypes, eventNames),
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1312,6 +1529,7 @@ export function parseStatement(
       kind: "while",
       condition: parseExpression(node.expression),
       body: parseBlock(node.statement, varTypes, eventNames),
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1320,15 +1538,16 @@ export function parseStatement(
       kind: "do-while",
       condition: parseExpression(node.expression),
       body: parseBlock(node.statement, varTypes, eventNames),
+      sourceLine: getSourceLine(node),
     };
   }
 
   if (node.kind === ts.SyntaxKind.BreakStatement) {
-    return { kind: "break" };
+    return { kind: "break", sourceLine: getSourceLine(node) };
   }
 
   if (node.kind === ts.SyntaxKind.ContinueStatement) {
-    return { kind: "continue" };
+    return { kind: "continue", sourceLine: getSourceLine(node) };
   }
 
   if (ts.isForOfStatement(node)) {
@@ -1383,7 +1602,59 @@ export function parseStatement(
         prefix: false,
       },
       body: [itemDecl, ...innerBody],
+      sourceLine: getSourceLine(node),
     };
+  }
+
+  if (ts.isForInStatement(node)) {
+    // Desugar: for (const item in EnumType) { ... }
+    // →  for (uint256 _i = 0; _i < memberCount; _i++) { EnumType item = EnumType(_i); ... }
+    const enumName = ts.isIdentifier(node.expression) ? node.expression.text : "";
+    const enumMembers = _knownEnums.get(enumName);
+
+    if (enumMembers) {
+      const itemName = ts.isVariableDeclarationList(node.initializer)
+        ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
+        : "_item";
+
+      const indexName = `_i_${itemName}`;
+      const innerBody = parseBlock(node.statement, varTypes, eventNames);
+
+      // Prepend: EnumType item = EnumType(_i);
+      const itemDecl: Statement = {
+        kind: "variable-declaration",
+        name: itemName,
+        type: { kind: "enum" as SkittlesTypeKind, structName: enumName },
+        initializer: {
+          kind: "call",
+          callee: { kind: "identifier", name: enumName },
+          args: [{ kind: "identifier", name: indexName }],
+        },
+      };
+
+      return {
+        kind: "for",
+        initializer: {
+          kind: "variable-declaration",
+          name: indexName,
+          type: { kind: "uint256" as SkittlesTypeKind },
+          initializer: { kind: "number-literal", value: "0" },
+        },
+        condition: {
+          kind: "binary",
+          operator: "<",
+          left: { kind: "identifier", name: indexName },
+          right: { kind: "number-literal", value: String(enumMembers.length) },
+        },
+        incrementor: {
+          kind: "unary",
+          operator: "++",
+          operand: { kind: "identifier", name: indexName },
+          prefix: false,
+        },
+        body: [itemDecl, ...innerBody],
+      };
+    }
   }
 
   if (ts.isSwitchStatement(node)) {
@@ -1403,7 +1674,57 @@ export function parseStatement(
         cases.push({ value: undefined, body });
       }
     }
-    return { kind: "switch", discriminant, cases };
+    return { kind: "switch", discriminant, cases, sourceLine: getSourceLine(node) };
+  }
+
+  if (ts.isTryStatement(node)) {
+    const tryBlock = node.tryBlock;
+    const catchClause = node.catchClause;
+    const tryStatements = tryBlock.statements;
+
+    if (tryStatements.length === 0) {
+      throw new Error("try block must contain at least one statement with an external call");
+    }
+
+    // The first statement must be an external call (either variable declaration or expression)
+    const firstStmt = tryStatements[0];
+    let call: Expression;
+    let returnVarName: string | undefined;
+    let returnType: SkittlesType | undefined;
+
+    if (ts.isVariableStatement(firstStmt)) {
+      const decl = firstStmt.declarationList.declarations[0];
+      returnVarName = ts.isIdentifier(decl.name) ? decl.name.text : undefined;
+      returnType = decl.type ? parseType(decl.type) : undefined;
+      if (decl.initializer) {
+        call = parseExpression(decl.initializer);
+        if (!returnType) {
+          returnType = inferType(call, varTypes);
+        }
+      } else {
+        throw new Error("try block variable declaration must have an initializer with an external call");
+      }
+    } else if (ts.isExpressionStatement(firstStmt)) {
+      call = parseExpression(firstStmt.expression);
+    } else {
+      throw new Error("First statement in try block must be an external call");
+    }
+
+    // Remaining statements become success body
+    const successBody: Statement[] = [];
+    for (let i = 1; i < tryStatements.length; i++) {
+      successBody.push(...parseStatements(tryStatements[i], varTypes, eventNames));
+    }
+
+    // Parse catch body
+    const catchBody: Statement[] = [];
+    if (catchClause && catchClause.block) {
+      for (const stmt of catchClause.block.statements) {
+        catchBody.push(...parseStatements(stmt, varTypes, eventNames));
+      }
+    }
+
+    return { kind: "try-catch", call, returnVarName, returnType, successBody, catchBody };
   }
 
   if (ts.isThrowStatement(node)) {
@@ -1417,7 +1738,7 @@ export function parseStatement(
         const args = node.expression.arguments
           ? Array.from(node.expression.arguments).map(parseExpression)
           : [];
-        return { kind: "revert", customError: errorName, customErrorArgs: args };
+        return { kind: "revert", customError: errorName, customErrorArgs: args, sourceLine: getSourceLine(node) };
       }
 
       let message: Expression | undefined;
@@ -1427,7 +1748,7 @@ export function parseStatement(
       ) {
         message = parseExpression(node.expression.arguments[0]);
       }
-      return { kind: "revert", message };
+      return { kind: "revert", message, sourceLine: getSourceLine(node) };
     }
 
     // Pattern: throw this.ErrorName(args) (SkittlesError property style)
@@ -1440,12 +1761,12 @@ export function parseStatement(
         const errorName = callee.name.text;
         if (_knownCustomErrors.has(errorName)) {
           const args = node.expression.arguments.map(parseExpression);
-          return { kind: "revert", customError: errorName, customErrorArgs: args };
+          return { kind: "revert", customError: errorName, customErrorArgs: args, sourceLine: getSourceLine(node) };
         }
       }
     }
 
-    return { kind: "revert" };
+    return { kind: "revert", sourceLine: getSourceLine(node) };
   }
 
   throw new Error(`Unsupported statement: ${ts.SyntaxKind[node.kind]}`);
@@ -1474,6 +1795,7 @@ function parseStatements(
   if (ts.isVariableStatement(node)) {
     // Multi declaration: let a=1, b=2, c=3
     if (node.declarationList.declarations.length > 1) {
+      const sl = getSourceLine(node);
       return node.declarationList.declarations.map((decl) => {
         const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
         const explicitType = decl.type ? parseType(decl.type) : undefined;
@@ -1482,7 +1804,7 @@ function parseStatements(
           : undefined;
         const type =
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
-        return { kind: "variable-declaration" as const, name, type, initializer };
+        return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
     }
 
@@ -1490,6 +1812,11 @@ function parseStatements(
     const decl = node.declarationList.declarations[0];
     if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
       return parseArrayDestructuring(decl.name, decl.initializer, varTypes);
+    }
+
+    // Object destructuring: const { a, b } = { a: 1, b: 2 }
+    if (decl.name && ts.isObjectBindingPattern(decl.name) && decl.initializer) {
+      return parseObjectDestructuring(decl.name, decl.initializer, varTypes, decl);
     }
   }
   return [parseStatement(node, varTypes, eventNames)];
@@ -1673,6 +2000,11 @@ function walkStatements(
       case "delete":
         walkExpr(stmt.target);
         break;
+      case "try-catch":
+        walkExpr(stmt.call);
+        stmt.successBody.forEach(walkStmt);
+        stmt.catchBody.forEach(walkStmt);
+        break;
     }
   }
 
@@ -1699,11 +2031,21 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
   let writesState = false;
   let usesMsgValue = false;
 
+  const thisCallCallees = new Set<Expression>();
+
   walkStatements(
     body,
     (expr) => {
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "property-access" &&
+        expr.callee.object.kind === "identifier" &&
+        expr.callee.object.name === "this"
+      ) {
+        thisCallCallees.add(expr.callee);
+      }
       if (expr.kind === "property-access") {
-        if (expr.object.kind === "identifier" && expr.object.name === "this") {
+        if (expr.object.kind === "identifier" && expr.object.name === "this" && !thisCallCallees.has(expr)) {
           readsState = true;
         }
         if (

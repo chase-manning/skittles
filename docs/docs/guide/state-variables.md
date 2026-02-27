@@ -99,3 +99,21 @@ class Token {
 ```
 
 Constructor parameters follow the same type rules as function parameters.
+
+### Default Parameter Values
+
+Constructor parameters can have default values, just like in TypeScript:
+
+```typescript
+class Token {
+  totalSupply: number = 0;
+  private balances: Record<address, number> = {};
+
+  constructor(initialSupply: number = 1000000) {
+    this.totalSupply = initialSupply;
+    this.balances[msg.sender] = initialSupply;
+  }
+}
+```
+
+Parameters with default values are baked into the contract at compile time — you don't need to pass them when deploying. This makes your contracts simpler to deploy while still keeping the logic readable.

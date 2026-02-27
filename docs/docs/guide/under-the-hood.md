@@ -25,6 +25,26 @@ TypeScript (.ts) → Parser → IR → Analysis → Codegen → Solidity (.sol) 
 
 4. **Compile** — The generated Solidity is written to `build/solidity/`. Hardhat (or another Solidity toolchain) compiles it to ABI and EVM bytecode.
 
+### Source Maps
+
+When Skittles generates Solidity, it also produces a source map file (`.sol.map`) alongside each `.sol` file. This maps every generated Solidity line back to the original TypeScript source file and line number.
+
+For example, if Hardhat reports an error on line 12 of `Token.sol`, you can look up line 12 in `Token.sol.map` to find the corresponding TypeScript line:
+
+```json title="build/solidity/Token.sol.map"
+{
+  "sourceFile": "contracts/Token.ts",
+  "mappings": {
+    "4": 1,
+    "5": 2,
+    "8": 5,
+    "12": 9
+  }
+}
+```
+
+Each key is a Solidity line number and each value is the corresponding TypeScript line number. This makes it easy to trace any Solidity compiler error or runtime revert back to your TypeScript source.
+
 ## Type Mappings
 
 Here's how TypeScript types map to Solidity types:
