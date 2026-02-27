@@ -68,6 +68,30 @@ import { self, address } from "skittles";
 let contractAddress: address = self;
 ```
 
+## ETH Transfers
+
+Use `.transfer(amount)` on any address to send ETH from the contract:
+
+```typescript
+import { address, msg } from "skittles";
+
+class Vault {
+  public receive(): void {
+    // Accept ETH deposits
+  }
+
+  public withdraw(to: address, amount: number): void {
+    to.transfer(amount);
+  }
+
+  public refund(): void {
+    msg.sender.transfer(100);
+  }
+}
+```
+
+The `.transfer(amount)` method sends the specified amount of wei and reverts if the transfer fails. The contract must have sufficient ETH balance.
+
 ## Built In Functions
 
 Import built in functions from `"skittles"`:
