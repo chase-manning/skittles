@@ -608,6 +608,52 @@ describe("generateExpression", () => {
     };
     expect(generateExpression(expr)).toBe("IToken(tokenAddress)");
   });
+
+  it("should generate addr.transfer(amount) as payable(addr).transfer(amount)", () => {
+    const expr: Expression = {
+      kind: "call",
+      callee: {
+        kind: "property-access",
+        object: { kind: "identifier", name: "recipient" },
+        property: "transfer",
+      },
+      args: [{ kind: "identifier", name: "amount" }],
+    };
+    expect(generateExpression(expr)).toBe("payable(recipient).transfer(amount)");
+  });
+
+  it("should generate msg.sender.transfer(amount) as payable(msg.sender).transfer(amount)", () => {
+    const expr: Expression = {
+      kind: "call",
+      callee: {
+        kind: "property-access",
+        object: {
+          kind: "property-access",
+          object: { kind: "identifier", name: "msg" },
+          property: "sender",
+        },
+        property: "transfer",
+      },
+      args: [{ kind: "identifier", name: "amount" }],
+    };
+    expect(generateExpression(expr)).toBe("payable(msg.sender).transfer(amount)");
+  });
+
+  it("should not wrap this.transfer in payable", () => {
+    const expr: Expression = {
+      kind: "call",
+      callee: {
+        kind: "property-access",
+        object: { kind: "identifier", name: "this" },
+        property: "transfer",
+      },
+      args: [
+        { kind: "identifier", name: "to" },
+        { kind: "identifier", name: "amount" },
+      ],
+    };
+    expect(generateExpression(expr)).toBe("transfer(to, amount)");
+  });
 });
 
 // ============================================================

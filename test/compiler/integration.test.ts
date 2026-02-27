@@ -3894,3 +3894,42 @@ describe("integration: external contract calls", () => {
     expect(result.errors).toHaveLength(0);
   });
 });
+
+describe("integration: ETH transfers", () => {
+  it("should compile addr.transfer(amount) to payable(addr).transfer(amount)", () => {
+    const { errors, solidity } = compileTS(`
+      class Wallet {
+        public withdraw(to: address, amount: number): void {
+          to.transfer(amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("payable(to).transfer(amount)");
+  });
+
+  it("should compile msg.sender.transfer(amount)", () => {
+    const { errors, solidity } = compileTS(`
+      class Refund {
+        public refund(amount: number): void {
+          msg.sender.transfer(amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("payable(msg.sender).transfer(amount)");
+  });
+
+  it("should infer nonpayable for functions with addr.transfer()", () => {
+    const { errors, solidity } = compileTS(`
+      class Wallet {
+        public withdraw(to: address, amount: number): void {
+          to.transfer(amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).not.toContain("view");
+    expect(solidity).not.toContain("pure");
+  });
+});

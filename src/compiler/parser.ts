@@ -2236,6 +2236,16 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (expr.kind === "call" && isStateMutatingCall(expr)) {
         writesState = true;
       }
+      // addr.transfer(amount) sends ETH, which is state-mutating
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "property-access" &&
+        expr.callee.property === "transfer" &&
+        expr.args.length === 1 &&
+        !(expr.callee.object.kind === "identifier" && expr.callee.object.name === "this")
+      ) {
+        writesState = true;
+      }
       if (expr.kind === "call" && varTypes && isExternalContractCall(expr, varTypes)) {
         writesState = true;
       }

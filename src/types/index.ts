@@ -409,5 +409,5 @@ export interface AbiParameter {
 // User contract types (exported for contract authors)
 // ============================================================
 
-export type address = string;
+export type address = string & { transfer(amount: number): void };
 export type bytes = string;

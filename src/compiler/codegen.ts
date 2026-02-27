@@ -519,6 +519,16 @@ export function generateExpression(expr: Expression): string {
     case "call": {
       const callResult = tryGenerateBuiltinCall(expr);
       if (callResult) return callResult;
+      // addr.transfer(amount) → payable(addr).transfer(amount)
+      if (
+        expr.callee.kind === "property-access" &&
+        expr.callee.property === "transfer" &&
+        expr.args.length === 1 &&
+        !(expr.callee.object.kind === "identifier" && expr.callee.object.name === "this")
+      ) {
+        const addr = generateExpression(expr.callee.object);
+        return `payable(${addr}).transfer(${generateExpression(expr.args[0])})`;
+      }
       return `${generateExpression(expr.callee)}(${expr.args.map(generateExpression).join(", ")})`;
     }
     case "conditional":

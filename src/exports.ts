@@ -8,6 +8,7 @@ export type { SkittlesConfig } from "./types/index.ts";
 
 // Ethereum primitive types (for contract files)
 export type { address, bytes } from "./types/index.ts";
+import type { address } from "./types/index.ts";
 
 /**
  * Event type for declaring Solidity events in Skittles contracts.
@@ -63,7 +64,7 @@ export type {
 // At runtime they are unused; contract files are compiled, not executed.
 
 export const msg = {} as {
-  readonly sender: string;
+  readonly sender: address;
   readonly value: number;
   readonly data: string;
 };
@@ -75,11 +76,11 @@ export const block = {} as {
 };
 
 export const tx = {} as {
-  readonly origin: string;
+  readonly origin: address;
   readonly gasprice: number;
 };
 
-export declare const self: string;
+export declare const self: address;
 
 // Solidity built-in functions (stubs for TypeScript type checking)
 export declare function keccak256(...args: unknown[]): string;
