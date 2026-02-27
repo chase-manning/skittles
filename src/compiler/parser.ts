@@ -1699,11 +1699,21 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
   let writesState = false;
   let usesMsgValue = false;
 
+  const thisCallCallees = new Set<Expression>();
+
   walkStatements(
     body,
     (expr) => {
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "property-access" &&
+        expr.callee.object.kind === "identifier" &&
+        expr.callee.object.name === "this"
+      ) {
+        thisCallCallees.add(expr.callee);
+      }
       if (expr.kind === "property-access") {
-        if (expr.object.kind === "identifier" && expr.object.name === "this") {
+        if (expr.object.kind === "identifier" && expr.object.name === "this" && !thisCallCallees.has(expr)) {
           readsState = true;
         }
         if (
