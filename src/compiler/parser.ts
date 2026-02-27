@@ -1036,12 +1036,12 @@ function parseMethod(
   const visibility = getVisibility(node.modifiers);
   const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = isAbstractMethod ? inferAbstractStateMutability(returnType) : inferStateMutability(body, varTypes, parameters);
+  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, isAbstract: isAbstractMethod || undefined, body, sourceLine: getSourceLine(node) };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, isAbstract: isAbstractMethod ? true : undefined, body, sourceLine: getSourceLine(node) };
 }
 
 function parseGetAccessor(
@@ -2153,7 +2153,7 @@ function collectThisCalls(stmts: Statement[]): string[] {
   return names;
 }
 
-function inferAbstractStateMutability(returnType: SkittlesType | null): StateMutability {
+function inferAbstractStateMutability(): StateMutability {
   return "nonpayable";
 }
 
