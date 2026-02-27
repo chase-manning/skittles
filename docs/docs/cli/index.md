@@ -19,6 +19,16 @@ Compile all TypeScript contract files to Solidity.
 npx skittles compile
 ```
 
+### `--watch` / `-w`
+
+Watch for file changes in the contracts directory and recompile automatically.
+
+```bash
+npx skittles compile --watch
+```
+
+This is useful during development. The compiler will perform an initial compilation and then watch for changes to `.ts` files. When a change is detected, it recompiles automatically. This pairs well with Hardhat's test watching for a smooth development loop.
+
 This command:
 
 1. Loads the configuration from `skittles.config.json` or `skittles.config.js`

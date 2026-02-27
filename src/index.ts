@@ -2,7 +2,7 @@
 
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { compileCommand } from "./commands/compile.ts";
+import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { cleanCommand } from "./commands/clean.ts";
 import { initCommand } from "./commands/init.ts";
 import { printLogo } from "./utils/console.ts";
@@ -15,9 +15,19 @@ yargs(hideBin(process.argv))
   .command(
     "compile",
     "Compile TypeScript contracts to Solidity",
-    () => {},
-    async () => {
-      await compileCommand(process.cwd());
+    (yargs) =>
+      yargs.option("watch", {
+        alias: "w",
+        type: "boolean",
+        default: false,
+        describe: "Watch for file changes and recompile automatically",
+      }),
+    async (argv) => {
+      if (argv.watch) {
+        await watchCompile(process.cwd());
+      } else {
+        await compileCommand(process.cwd());
+      }
     }
   )
   .command(
