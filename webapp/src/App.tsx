@@ -66,7 +66,7 @@ type Token = { text: string; type: "keyword" | "string" | "type" | "comment" | "
 function highlightTS(line: string): Token[] {
   const tokens: Token[] = [];
   const keywords = /\b(import|from|export|class|private|constructor|if|throw|new|return|this|const|let|var|function|extends|implements)\b/g;
-  const types = /\b(string|number|boolean|void|address|Record|Error|Indexed)\b/g;
+  const types = /\b(string|number|boolean|void|address|Record|Map|Error|Indexed)\b/g;
   const strings = /"[^"]*"|'[^']*'/g;
   const numbers = /\b\d+\b/g;
   const comments = /\/\/.*/g;

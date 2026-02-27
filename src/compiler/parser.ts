@@ -935,7 +935,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       : "";
 
     if (
-      name === "Record" &&
+      (name === "Record" || name === "Map") &&
       node.typeArguments &&
       node.typeArguments.length === 2
     ) {
