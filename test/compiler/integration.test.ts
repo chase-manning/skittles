@@ -2044,6 +2044,53 @@ describe("integration: for...of loops", () => {
 });
 
 // ============================================================
+// for...in enum loops
+// ============================================================
+
+describe("integration: for...in enum loops", () => {
+  it("should compile for...in over an enum to indexed for loop", () => {
+    const { errors, solidity } = compileTS(`
+      enum Status { Active, Paused, Stopped }
+
+      class Manager {
+        public counts: Record<number, number> = {};
+
+        public initCounts(): void {
+          for (const status in Status) {
+            this.counts[0] += 1;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("for (uint256 _i_status = 0; (_i_status < 3); _i_status++)");
+    expect(solidity).toContain("Status status = Status(_i_status);");
+  });
+
+  it("should compile for...in with enum body using the variable", () => {
+    const contracts = parse(`
+      enum Color { Red, Green, Blue }
+
+      class Palette {
+        public colorCount: number = 0;
+
+        public countColors(): number {
+          let count: number = 0;
+          for (const c in Color) {
+            count += 1;
+          }
+          return count;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("_i_c");
+    expect(solidity).toContain("Color c = Color(_i_c);");
+    expect(solidity).toContain("count += 1;");
+  });
+});
+
+// ============================================================
 // Object literal / struct construction
 // ============================================================
 

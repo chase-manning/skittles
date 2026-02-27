@@ -190,6 +190,14 @@ class Staking {
 
 Enums can be shared across contract files. See [Cross File Support](/guide/cross-file).
 
+You can iterate over all values of an enum using `for...in`:
+
+```typescript
+for (const status in VaultStatus) {
+  // Runs for each enum member
+}
+```
+
 ## Type Inference
 
 Local variables inside functions can omit explicit types when the type can be inferred:
