@@ -114,6 +114,7 @@ export enum SkittlesTypeKind {
   Struct = "struct",
   ContractInterface = "contract-interface",
   Enum = "enum",
+  Tuple = "tuple",
   Void = "void",
 }
 
@@ -123,6 +124,7 @@ export interface SkittlesType {
   valueType?: SkittlesType;
   structName?: string;
   structFields?: SkittlesParameter[];
+  tupleTypes?: SkittlesType[];
 }
 
 export type Visibility = "public" | "private" | "internal" | "external";
@@ -246,7 +248,8 @@ export type Expression =
   | CallExpression
   | ConditionalExpression
   | NewExpression
-  | ObjectLiteralExpression;
+  | ObjectLiteralExpression
+  | TupleLiteralExpression;
 
 export interface NumberLiteral {
   kind: "number-literal";
@@ -323,6 +326,11 @@ export interface NewExpression {
 export interface ObjectLiteralExpression {
   kind: "object-literal";
   properties: { name: string; value: Expression }[];
+}
+
+export interface TupleLiteralExpression {
+  kind: "tuple-literal";
+  elements: Expression[];
 }
 
 // ============================================================
