@@ -85,6 +85,10 @@ function walkNestedBlocks(
         visitor(c.body);
       }
       break;
+    case "try-catch":
+      visitor(stmt.successBody);
+      visitor(stmt.catchBody);
+      break;
   }
 }
 
@@ -190,6 +194,12 @@ function walkAllStatements(
       case "delete":
         collectUsedIdentifiers(stmt.target, used);
         break;
+      case "try-catch":
+        collectUsedIdentifiers(stmt.call, used);
+        if (stmt.returnVarName) declared.add(stmt.returnVarName);
+        walkAllStatements(stmt.successBody, declared, used);
+        walkAllStatements(stmt.catchBody, declared, used);
+        break;
     }
   }
 }
@@ -239,6 +249,11 @@ function collectUsedIdentifiers(expr: Expression, used: Set<string>): void {
     case "object-literal":
       for (const prop of expr.properties) {
         collectUsedIdentifiers(prop.value, used);
+      }
+      break;
+    case "tuple-literal":
+      for (const elem of expr.elements) {
+        collectUsedIdentifiers(elem, used);
       }
       break;
   }
