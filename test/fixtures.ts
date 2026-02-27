@@ -6,4 +6,5 @@ export const defaultConfig: Required<SkittlesConfig> = {
   contractsDir: "contracts",
   outputDir: "artifacts",
   cacheDir: "cache",
+  consoleLog: false,
 };

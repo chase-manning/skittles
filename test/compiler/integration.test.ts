@@ -3468,3 +3468,52 @@ describe("integration: try/catch", () => {
     expect(result.errors).toHaveLength(0);
   });
 });
+
+// ============================================================
+// Console.log support
+// ============================================================
+
+describe("integration: console.log", () => {
+  it("should compile console.log to Solidity console.log with import", () => {
+    const contracts = parse(
+      `class Debug {
+        public test(): number {
+          console.log("hello");
+          return 42;
+        }
+      }`,
+      "test.ts"
+    );
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('import "hardhat/console.sol";');
+    expect(solidity).toContain('console.log("hello");');
+    expect(solidity).toContain("return 42;");
+  });
+
+  it("should compile console.log with multiple arguments", () => {
+    const contracts = parse(
+      `class Debug {
+        public test(x: number): void {
+          console.log("value:", x);
+        }
+      }`,
+      "test.ts"
+    );
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('import "hardhat/console.sol";');
+    expect(solidity).toContain('console.log("value:", x);');
+  });
+
+  it("should not include console import when no console.log is used", () => {
+    const contracts = parse(
+      `class NoDebug {
+        public test(): number {
+          return 42;
+        }
+      }`,
+      "test.ts"
+    );
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).not.toContain("hardhat/console.sol");
+  });
+});

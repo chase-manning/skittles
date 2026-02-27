@@ -356,6 +356,37 @@ describe("generateSolidity", () => {
     );
     expect(sol).toContain("return (reserve0, reserve1, block.timestamp);");
   });
+
+  it("should add hardhat console import when contract uses console.log", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "test",
+            parameters: [],
+            returnType: null,
+            visibility: "public",
+            stateMutability: "nonpayable",
+            isVirtual: false,
+            isOverride: false,
+            body: [
+              {
+                kind: "console-log",
+                args: [{ kind: "string-literal", value: "hello" }],
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain('import "hardhat/console.sol";');
+    expect(sol).toContain('console.log("hello");');
+  });
+
+  it("should not add hardhat console import when contract does not use console.log", () => {
+    const sol = generateSolidity(emptyContract());
+    expect(sol).not.toContain('import "hardhat/console.sol"');
+  });
 });
 
 // ============================================================
@@ -669,5 +700,32 @@ describe("generateStatement", () => {
     expect(result).toContain("try token.transfer(to, amount) {");
     expect(result).toContain("} catch {");
     expect(result).toContain("return;");
+  });
+
+  it("should generate console.log statement", () => {
+    const stmt: Statement = {
+      kind: "console-log",
+      args: [{ kind: "string-literal", value: "hello" }],
+    };
+    expect(generateStatement(stmt, "")).toBe('console.log("hello");');
+  });
+
+  it("should generate console.log with multiple arguments", () => {
+    const stmt: Statement = {
+      kind: "console-log",
+      args: [
+        { kind: "string-literal", value: "value:" },
+        { kind: "identifier", name: "x" },
+      ],
+    };
+    expect(generateStatement(stmt, "")).toBe('console.log("value:", x);');
+  });
+
+  it("should generate console.log with indent", () => {
+    const stmt: Statement = {
+      kind: "console-log",
+      args: [{ kind: "number-literal", value: "42" }],
+    };
+    expect(generateStatement(stmt, "        ")).toBe("        console.log(42);");
   });
 });
