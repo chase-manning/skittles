@@ -141,28 +141,6 @@ class Child extends Base {
 }
 `;
 
-const EXPONENTIATION_SOURCE = `
-class MathPow {
-  public value: number = 2;
-
-  public power(base: number, exp: number): number {
-    return base ** exp;
-  }
-
-  public scale(decimals: number): number {
-    return 10 ** decimals;
-  }
-
-  public powerAssign(exp: number): void {
-    this.value **= exp;
-  }
-
-  public getValue(): number {
-    return this.value;
-  }
-}
-`;
-
 let env: TestEnv;
 
 beforeAll(async () => {
@@ -207,7 +185,7 @@ describe("behavioral: custom errors", () => {
   });
 
   it("should revert with custom error for non-owner", async () => {
-    const nonOwner = contract.contract.connect(env.accounts[1]);
+    const nonOwner = contract.contract.connect(env.accounts[1]) as ethers.Contract;
     await expect(nonOwner.onlyOwnerAction()).rejects.toThrow();
   });
 });
@@ -339,6 +317,62 @@ class Registry {
 }
 `;
 
+const DEFAULT_PARAM_SOURCE = `
+class DefaultToken {
+  public totalSupply: number = 0;
+
+  constructor(supply: number = 1000000) {
+    this.totalSupply = supply;
+  }
+
+  public getSupply(): number {
+    return this.totalSupply;
+  }
+}
+`;
+
+const MIXED_PARAM_SOURCE = `
+class MixedToken {
+  public tokenName: string = "";
+  public totalSupply: number = 0;
+
+  constructor(name: string, supply: number = 500) {
+    this.tokenName = name;
+    this.totalSupply = supply;
+  }
+
+  public getName(): string {
+    return this.tokenName;
+  }
+
+  public getSupply(): number {
+    return this.totalSupply;
+  }
+}
+`;
+
+const EXPONENTIATION_SOURCE = `
+class MathPow {
+  private value: number = 2;
+
+  public power(base: number, exp: number): number {
+    return base ** exp;
+  }
+
+  public scale(decimals: number): number {
+    return 10 ** decimals;
+  }
+
+  public getValue(): number {
+    return this.value;
+  }
+
+  public powerAssign(exp: number): void {
+    this.value **= exp;
+  }
+}
+`;
+
 describe("behavioral: readonly arrays", () => {
   let contract: DeployedContract;
 
@@ -358,6 +392,34 @@ describe("behavioral: readonly arrays", () => {
   it("should revert when trying to push after construction", async () => {
     const addr = await env.accounts[1].getAddress();
     await expect(contract.contract.addAdmin(addr)).rejects.toThrow();
+  });
+});
+
+describe("behavioral: constructor with default parameters", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, DEFAULT_PARAM_SOURCE, "DefaultToken");
+  });
+
+  it("should use default supply value", async () => {
+    expect(await contract.contract.getSupply()).toBe(1000000n);
+  });
+});
+
+describe("behavioral: constructor with mixed default and required parameters", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, MIXED_PARAM_SOURCE, "MixedToken", ["MyToken"]);
+  });
+
+  it("should accept required parameter", async () => {
+    expect(await contract.contract.getName()).toBe("MyToken");
+  });
+
+  it("should use default supply value", async () => {
+    expect(await contract.contract.getSupply()).toBe(500n);
   });
 });
 

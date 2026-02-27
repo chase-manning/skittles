@@ -11,7 +11,7 @@ import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions } from "./parser.ts";
 import type { SkittlesParameter, SkittlesFunction, SkittlesContractInterface, Expression } from "../types/index.ts";
-import { generateSolidity, generateSolidityFile } from "./codegen.ts";
+import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 
 export interface CompilationResult {
   success: boolean;
@@ -317,11 +317,18 @@ export async function compile(
 
       if (!solidity) continue;
 
+      // Build source map linking generated Solidity lines to TypeScript source
+      const sourceMap = buildSourceMap(solidity, contracts, relativePath);
+      writeFile(
+        path.join(outputDir, "solidity", `${baseName}.sol.map`),
+        JSON.stringify(sourceMap, null, 2)
+      );
+
       const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [], resolvedMutabilities };
       writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
       for (const contract of contracts) {
-        artifacts.push({ contractName: contract.name, solidity });
+        artifacts.push({ contractName: contract.name, solidity, sourceMap });
         cacheEntry.contracts.push({ name: contract.name, solidity });
         logSuccess(`${contract.name} compiled successfully`);
       }

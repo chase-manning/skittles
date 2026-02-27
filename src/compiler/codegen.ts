@@ -13,6 +13,7 @@ import {
   type RevertStatement,
   type Visibility,
   type SkittlesParameter,
+  type SourceMapping,
 } from "../types/index.ts";
 
 let _readonlyArrayNames: Set<string> = new Set();
@@ -223,6 +224,10 @@ function collectReferencedTypeNames(
   } else if (type.kind === SkittlesTypeKind.Mapping) {
     collectReferencedTypeNames(type.keyType, structs, enums);
     collectReferencedTypeNames(type.valueType, structs, enums);
+  } else if (type.kind === SkittlesTypeKind.Tuple && type.tupleTypes) {
+    for (const t of type.tupleTypes) {
+      collectReferencedTypeNames(t, structs, enums);
+    }
   }
 }
 
@@ -238,7 +243,12 @@ function generateInterfaceDecl(iface: SkittlesContractInterface): string {
       : "";
     let returns = "";
     if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
-      returns = ` returns (${generateParamType(f.returnType)})`;
+      if (f.returnType.kind === SkittlesTypeKind.Tuple) {
+        const tupleParams = (f.returnType.tupleTypes ?? []).map(generateParamType).join(", ");
+        returns = ` returns (${tupleParams})`;
+      } else {
+        returns = ` returns (${generateParamType(f.returnType)})`;
+      }
     }
     lines.push(`    function ${f.name}(${params}) external${mut}${returns};`);
   }
@@ -325,7 +335,12 @@ function generateFunction(f: SkittlesFunction): string {
 
   let returns = "";
   if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
-    returns = ` returns (${generateParamType(f.returnType)})`;
+    if (f.returnType.kind === SkittlesTypeKind.Tuple) {
+      const tupleParams = (f.returnType.tupleTypes ?? []).map(generateParamType).join(", ");
+      returns = ` returns (${tupleParams})`;
+    } else {
+      returns = ` returns (${generateParamType(f.returnType)})`;
+    }
   }
 
   const lines: string[] = [];
@@ -339,9 +354,17 @@ function generateFunction(f: SkittlesFunction): string {
 }
 
 function generateConstructor(c: SkittlesConstructor | undefined, readonlyArrays: string[] = []): string {
-  const params = c
-    ? c.parameters.map((p) => `${generateParamType(p.type)} ${p.name}`).join(", ")
-    : "";
+  let regularParams: SkittlesParameter[] = [];
+  let defaultParams: SkittlesParameter[] = [];
+
+  if (c) {
+    regularParams = c.parameters.filter((p) => !p.defaultValue);
+    defaultParams = c.parameters.filter((p) => p.defaultValue);
+  }
+
+  const params = regularParams
+    .map((p) => `${generateParamType(p.type)} ${p.name}`)
+    .join(", ");
 
   // Temporarily disable readonly checks inside the constructor body
   const saved = _readonlyArrayNames;
@@ -349,6 +372,9 @@ function generateConstructor(c: SkittlesConstructor | undefined, readonlyArrays:
 
   const lines: string[] = [];
   lines.push(`    constructor(${params}) {`);
+  for (const p of defaultParams) {
+    lines.push(`        ${generateParamType(p.type)} ${p.name} = ${generateExpression(p.defaultValue!)};`);
+  }
   if (c) {
     for (const s of c.body) {
       lines.push(generateStatement(s, "        "));
@@ -394,6 +420,8 @@ export function generateType(type: SkittlesType): string {
       return type.structName ?? "UnknownInterface";
     case SkittlesTypeKind.Enum:
       return type.structName ?? "UnknownEnum";
+    case SkittlesTypeKind.Tuple:
+      return `(${(type.tupleTypes ?? []).map(generateType).join(", ")})`;
     case SkittlesTypeKind.Void:
       return "";
     default:
@@ -494,6 +522,8 @@ export function generateExpression(expr: Expression): string {
       const values = expr.properties.map((p) => generateExpression(p.value)).join(", ");
       return values;
     }
+    case "tuple-literal":
+      return `(${expr.elements.map(generateExpression).join(", ")})`;
     default:
       return "/* unsupported */";
   }
@@ -671,6 +701,25 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return lines.join("\n");
     }
 
+    case "try-catch": {
+      const lines: string[] = [];
+      const callExpr = generateExpression(stmt.call);
+      let returns = "";
+      if (stmt.returnVarName && stmt.returnType && stmt.returnType.kind !== SkittlesTypeKind.Void) {
+        returns = ` returns (${generateType(stmt.returnType)} ${stmt.returnVarName})`;
+      }
+      lines.push(`${indent}try ${callExpr}${returns} {`);
+      for (const s of stmt.successBody) {
+        lines.push(generateStatement(s, inner));
+      }
+      lines.push(`${indent}} catch {`);
+      for (const s of stmt.catchBody) {
+        lines.push(generateStatement(s, inner));
+      }
+      lines.push(`${indent}}`);
+      return lines.join("\n");
+    }
+
     default:
       return `${indent}// unsupported statement`;
   }
@@ -733,6 +782,7 @@ function getCallName(expr: Expression): string | null {
 function tryGenerateBuiltinCall(expr: {
   callee: Expression;
   args: Expression[];
+  typeArgs?: SkittlesType[];
 }): string | null {
   const name = getCallName(expr.callee);
   if (!name) return null;
@@ -748,8 +798,13 @@ function tryGenerateBuiltinCall(expr: {
       return `abi.encode(${args})`;
     case "abi.encodePacked":
       return `abi.encodePacked(${args})`;
-    case "abi.decode":
+    case "abi.decode": {
+      if (expr.typeArgs && expr.typeArgs.length > 0) {
+        const types = expr.typeArgs.map(generateType).join(", ");
+        return `abi.decode(${args}, (${types}))`;
+      }
       return `abi.decode(${args})`;
+    }
     case "ecrecover":
       return `ecrecover(${args})`;
     case "addmod":
@@ -821,4 +876,147 @@ function getReadonlyArrayDeleteName(target: Expression): string | null {
 function mapVisibility(vis: Visibility): string {
   if (vis === "public") return "public";
   return "internal";
+}
+
+// ============================================================
+// Source map generation
+// ============================================================
+
+/**
+ * Build a source map that maps generated Solidity line numbers
+ * back to TypeScript source line numbers.
+ *
+ * The mapping is built by walking the IR (which has source line info
+ * from the parser) and counting lines in the generated Solidity output
+ * to correlate each Solidity line with its TypeScript origin.
+ */
+export function buildSourceMap(
+  solidity: string,
+  contracts: SkittlesContract[],
+  sourceFile: string
+): SourceMapping {
+  const solLines = solidity.split("\n");
+  const mappings: Record<number, number> = {};
+
+  let lineIdx = 0; // 0-based index into solLines
+
+  // Helper: find the next line matching a test, starting from lineIdx
+  function findLine(test: (line: string) => boolean): number {
+    for (let i = lineIdx; i < solLines.length; i++) {
+      if (test(solLines[i])) {
+        lineIdx = i;
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function addMapping(solLineIdx: number, tsLine: number | undefined): void {
+    if (tsLine !== undefined && solLineIdx >= 0) {
+      mappings[solLineIdx + 1] = tsLine; // convert to 1-based
+    }
+  }
+
+  /**
+   * Map function/constructor body statements to Solidity lines.
+   * Walks statements in order, using generateStatement to count lines
+   * for each statement so we know exactly where each one appears.
+   */
+  function mapBodyStatements(
+    body: Statement[],
+    startLineIdx: number,
+    indent: string
+  ): void {
+    let currentIdx = startLineIdx;
+    for (const stmt of body) {
+      addMapping(currentIdx, stmt.sourceLine);
+      const stmtText = generateStatement(stmt, indent);
+      const stmtLineCount = stmtText.split("\n").length;
+
+      // Recurse into compound statement bodies
+      if (stmt.kind === "if" && !isRequirePattern(stmt)) {
+        // Line 0: if (cond) {
+        mapBodyStatements(stmt.thenBody, currentIdx + 1, indent + "    ");
+        if (stmt.elseBody) {
+          const thenLineCount = stmt.thenBody.reduce(
+            (sum, s) => sum + generateStatement(s, indent + "    ").split("\n").length,
+            0
+          );
+          // } else { is at currentIdx + 1 + thenLineCount
+          mapBodyStatements(
+            stmt.elseBody,
+            currentIdx + 1 + thenLineCount + 1,
+            indent + "    "
+          );
+        }
+      } else if (stmt.kind === "for" || stmt.kind === "while") {
+        mapBodyStatements(stmt.body, currentIdx + 1, indent + "    ");
+      } else if (stmt.kind === "do-while") {
+        mapBodyStatements(stmt.body, currentIdx + 1, indent + "    ");
+      }
+
+      currentIdx += stmtLineCount;
+    }
+  }
+
+  for (const contract of contracts) {
+    // Find the contract declaration line
+    const contractIdx = findLine((l) =>
+      l.trimStart().startsWith(`contract ${contract.name}`)
+    );
+    if (contractIdx === -1) continue;
+    addMapping(contractIdx, contract.sourceLine);
+    lineIdx = contractIdx + 1;
+
+    // Map events
+    for (const e of contract.events) {
+      const idx = findLine((l) => {
+        const trimmed = l.trim();
+        return trimmed.startsWith(`event ${e.name}(`);
+      });
+      if (idx !== -1) {
+        addMapping(idx, e.sourceLine);
+        lineIdx = idx + 1;
+      }
+    }
+
+    // Map variables
+    for (const v of contract.variables) {
+      const idx = findLine((l) => {
+        const trimmed = l.trim();
+        return trimmed.includes(` ${v.name}`) && trimmed.endsWith(";");
+      });
+      if (idx !== -1) {
+        addMapping(idx, v.sourceLine);
+        lineIdx = idx + 1;
+      }
+    }
+
+    // Map constructor
+    if (contract.ctor) {
+      const ctorIdx = findLine((l) => l.trim().startsWith("constructor("));
+      if (ctorIdx !== -1) {
+        addMapping(ctorIdx, contract.ctor.sourceLine);
+        lineIdx = ctorIdx + 1;
+        mapBodyStatements(contract.ctor.body, lineIdx, "        ");
+      }
+    }
+
+    // Map functions
+    for (const f of contract.functions) {
+      const funcIdx = findLine((l) => {
+        const trimmed = l.trim();
+        if (f.name === "receive") return trimmed.startsWith("receive()");
+        if (f.name === "fallback") return trimmed.startsWith("fallback()");
+        return trimmed.startsWith(`function ${f.name}(`);
+      });
+      if (funcIdx !== -1) {
+        addMapping(funcIdx, f.sourceLine);
+        lineIdx = funcIdx + 1;
+        mapBodyStatements(f.body, lineIdx, "        ");
+      }
+    }
+  }
+
+  return { sourceFile, mappings };
 }
