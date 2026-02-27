@@ -10,7 +10,7 @@ import type {
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions } from "./parser.ts";
-import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression } from "../types/index.ts";
+import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
 
@@ -326,6 +326,18 @@ export async function compile(
       // Deduplicate imports
       const uniqueImports = [...new Set(imports)];
 
+      // Strip console.log statements when consoleLog is disabled
+      if (!config.consoleLog) {
+        for (const contract of contracts) {
+          for (const fn of contract.functions) {
+            fn.body = stripConsoleLogStatements(fn.body);
+          }
+          if (contract.ctor) {
+            contract.ctor.body = stripConsoleLogStatements(contract.ctor.body);
+          }
+        }
+      }
+
       const solidity =
         contracts.length > 1
           ? generateSolidityFile(contracts, uniqueImports)
@@ -372,4 +384,37 @@ export async function compile(
     errors,
     warnings,
   };
+}
+
+/**
+ * Recursively remove console-log statements from an IR statement list.
+ * Used when the consoleLog config option is disabled (production builds).
+ */
+function stripConsoleLogStatements(stmts: Statement[]): Statement[] {
+  return stmts.reduce<Statement[]>((acc, stmt) => {
+    if (stmt.kind === "console-log") return acc;
+    if (stmt.kind === "if") {
+      acc.push({
+        ...stmt,
+        thenBody: stripConsoleLogStatements(stmt.thenBody),
+        elseBody: stmt.elseBody ? stripConsoleLogStatements(stmt.elseBody) : undefined,
+      });
+    } else if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+      acc.push({ ...stmt, body: stripConsoleLogStatements(stmt.body) });
+    } else if (stmt.kind === "switch") {
+      acc.push({
+        ...stmt,
+        cases: stmt.cases.map((c) => ({ ...c, body: stripConsoleLogStatements(c.body) })),
+      });
+    } else if (stmt.kind === "try-catch") {
+      acc.push({
+        ...stmt,
+        successBody: stripConsoleLogStatements(stmt.successBody),
+        catchBody: stripConsoleLogStatements(stmt.catchBody),
+      });
+    } else {
+      acc.push(stmt);
+    }
+    return acc;
+  }, []);
 }

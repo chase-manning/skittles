@@ -30,10 +30,19 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   parts.push("pragma solidity ^0.8.20;");
   parts.push("");
 
+  // Add Hardhat console import if any contract uses console.log
+  const needsConsoleImport = contracts.some(contractUsesConsoleLog);
+  if (needsConsoleImport) {
+    parts.push('import "hardhat/console.sol";');
+  }
+
   if (imports && imports.length > 0) {
     for (const imp of imports) {
       parts.push(`import "${imp}";`);
     }
+  }
+
+  if (needsConsoleImport || (imports && imports.length > 0)) {
     parts.push("");
   }
 
@@ -704,6 +713,9 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return lines.join("\n");
     }
 
+    case "console-log":
+      return `${indent}console.log(${stmt.args.map(generateExpression).join(", ")});`;
+
     default:
       return `${indent}// unsupported statement`;
   }
@@ -806,6 +818,41 @@ function tryGenerateBuiltinCall(expr: {
     default:
       return null;
   }
+}
+
+// ============================================================
+// Console.log detection
+// ============================================================
+
+function statementsUseConsoleLog(stmts: Statement[]): boolean {
+  for (const stmt of stmts) {
+    if (stmt.kind === "console-log") return true;
+    if (stmt.kind === "if") {
+      if (statementsUseConsoleLog(stmt.thenBody)) return true;
+      if (stmt.elseBody && statementsUseConsoleLog(stmt.elseBody)) return true;
+    }
+    if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+      if (statementsUseConsoleLog(stmt.body)) return true;
+    }
+    if (stmt.kind === "switch") {
+      for (const c of stmt.cases) {
+        if (statementsUseConsoleLog(c.body)) return true;
+      }
+    }
+    if (stmt.kind === "try-catch") {
+      if (statementsUseConsoleLog(stmt.successBody)) return true;
+      if (statementsUseConsoleLog(stmt.catchBody)) return true;
+    }
+  }
+  return false;
+}
+
+function contractUsesConsoleLog(contract: SkittlesContract): boolean {
+  for (const f of contract.functions) {
+    if (statementsUseConsoleLog(f.body)) return true;
+  }
+  if (contract.ctor && statementsUseConsoleLog(contract.ctor.body)) return true;
+  return false;
 }
 
 // ============================================================

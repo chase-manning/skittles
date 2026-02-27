@@ -47,6 +47,17 @@ describe("loadConfig", () => {
     expect(config.typeCheck).toBe(false);
     expect(config.contractsDir).toBe("contracts");
     expect(config.outputDir).toBe("artifacts");
+    expect(config.consoleLog).toBe(false);
+  });
+
+  it("should load consoleLog config option", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ consoleLog: true })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.consoleLog).toBe(true);
   });
 
   it("should throw on malformed JSON config", async () => {

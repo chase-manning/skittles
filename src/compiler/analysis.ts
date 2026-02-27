@@ -200,6 +200,11 @@ function walkAllStatements(
         walkAllStatements(stmt.successBody, declared, used);
         walkAllStatements(stmt.catchBody, declared, used);
         break;
+      case "console-log":
+        for (const arg of stmt.args) {
+          collectUsedIdentifiers(arg, used);
+        }
+        break;
     }
   }
 }

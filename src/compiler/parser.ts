@@ -14,6 +14,7 @@ import type {
   Statement,
   Expression,
   EmitStatement,
+  ConsoleLogStatement,
   SwitchCase,
 } from "../types/index.ts";
 
@@ -1480,6 +1481,12 @@ export function parseStatement(
       return emitStmt;
     }
 
+    const consoleLogStmt = tryParseConsoleLog(node.expression);
+    if (consoleLogStmt) {
+      consoleLogStmt.sourceLine = getSourceLine(node);
+      return consoleLogStmt;
+    }
+
     // Detect delete expressions: `delete this.mapping[key]`
     if (ts.isDeleteExpression(node.expression)) {
       return { kind: "delete", target: parseExpression(node.expression.expression), sourceLine: getSourceLine(node) };
@@ -1880,6 +1887,26 @@ function tryParseEmitStatement(
 }
 
 // ============================================================
+// Console.log detection: console.log(args)
+// ============================================================
+
+function tryParseConsoleLog(
+  node: ts.Expression
+): ConsoleLogStatement | null {
+  if (!ts.isCallExpression(node)) return null;
+
+  const callee = node.expression;
+  if (!ts.isPropertyAccessExpression(callee)) return null;
+  if (callee.name.text !== "log") return null;
+
+  const obj = callee.expression;
+  if (!ts.isIdentifier(obj) || obj.text !== "console") return null;
+
+  const args = node.arguments.map(parseExpression);
+  return { kind: "console-log", args };
+}
+
+// ============================================================
 // State mutability inference
 // ============================================================
 
@@ -2019,6 +2046,9 @@ function walkStatements(
         walkExpr(stmt.call);
         stmt.successBody.forEach(walkStmt);
         stmt.catchBody.forEach(walkStmt);
+        break;
+      case "console-log":
+        stmt.args.forEach(walkExpr);
         break;
     }
   }

@@ -377,6 +377,54 @@ describe("parse", () => {
     );
     expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
   });
+
+  it("should parse console.log as a console-log statement", () => {
+    const contracts = parse(
+      `class T {
+        public test(): void {
+          console.log("hello");
+        }
+      }`,
+      "test.ts"
+    );
+    const body = contracts[0].functions[0].body;
+    expect(body).toHaveLength(1);
+    expect(body[0].kind).toBe("console-log");
+    if (body[0].kind === "console-log") {
+      expect(body[0].args).toHaveLength(1);
+      expect(body[0].args[0]).toEqual({ kind: "string-literal", value: "hello" });
+    }
+  });
+
+  it("should parse console.log with multiple arguments", () => {
+    const contracts = parse(
+      `class T {
+        public test(): void {
+          console.log("balance", 42);
+        }
+      }`,
+      "test.ts"
+    );
+    const body = contracts[0].functions[0].body;
+    expect(body).toHaveLength(1);
+    expect(body[0].kind).toBe("console-log");
+    if (body[0].kind === "console-log") {
+      expect(body[0].args).toHaveLength(2);
+    }
+  });
+
+  it("should not affect state mutability when using console.log", () => {
+    const contracts = parse(
+      `class T {
+        public test(): number {
+          console.log("pure function");
+          return 42;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].stateMutability).toBe("pure");
+  });
 });
 
 // ============================================================

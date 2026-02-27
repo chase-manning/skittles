@@ -7,6 +7,7 @@ import { logSuccess, logError, logInfo, logWarning } from "../utils/console.ts";
 const CONFIG_TEMPLATE = JSON.stringify(
   {
     typeCheck: true,
+    consoleLog: true,
     contractsDir: "contracts",
     outputDir: "artifacts",
   },
@@ -91,6 +92,7 @@ export class Token {
 
   public transfer(to: address, amount: number): boolean {
     const sender: address = msg.sender;
+    console.log("transfer", sender, to, amount);
     if (this.balances[sender] < amount) {
       throw new Error("Insufficient balance");
     }

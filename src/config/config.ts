@@ -14,6 +14,7 @@ const DEFAULT_CONFIG: Required<SkittlesConfig> = {
   contractsDir: "contracts",
   outputDir: "artifacts",
   cacheDir: "cache",
+  consoleLog: false,
 };
 
 /**
@@ -67,6 +68,7 @@ function mergeConfig(
     contractsDir: userConfig.contractsDir ?? DEFAULT_CONFIG.contractsDir,
     outputDir: userConfig.outputDir ?? DEFAULT_CONFIG.outputDir,
     cacheDir: userConfig.cacheDir ?? DEFAULT_CONFIG.cacheDir,
+    consoleLog: userConfig.consoleLog ?? DEFAULT_CONFIG.consoleLog,
   };
 }
 

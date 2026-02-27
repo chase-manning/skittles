@@ -49,6 +49,7 @@ export class Token implements IToken {
   }
 
   public transfer(to: address, amount: number): boolean {
+    console.log("transfer", msg.sender, to, amount);
     this._transfer(msg.sender, to, amount);
     return true;
   }

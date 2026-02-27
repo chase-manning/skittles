@@ -8,6 +8,7 @@ export interface SkittlesConfig {
   contractsDir?: string;
   outputDir?: string;
   cacheDir?: string;
+  consoleLog?: boolean;
 }
 
 export interface OptimizerConfig {
@@ -155,7 +156,8 @@ export type Statement =
   | EmitStatement
   | SwitchStatement
   | DeleteStatement
-  | TryCatchStatement;
+  | TryCatchStatement
+  | ConsoleLogStatement;
 
 export interface ReturnStatement {
   kind: "return";
@@ -258,6 +260,12 @@ export interface SwitchStatement {
   kind: "switch";
   discriminant: Expression;
   cases: SwitchCase[];
+  sourceLine?: number;
+}
+
+export interface ConsoleLogStatement {
+  kind: "console-log";
+  args: Expression[];
   sourceLine?: number;
 }
 
