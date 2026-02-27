@@ -1288,6 +1288,42 @@ describe("integration: built-in functions", () => {
     expect(solidity).toContain("abi.encodePacked(a, b)");
   });
 
+  it("should compile abi.decode with type parameters", () => {
+    const contracts = parse(`
+      class Decoder {
+        public decode(data: string): void {
+          let result = abi.decode<[number, address]>(data);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("abi.decode(data, (uint256, address))");
+  });
+
+  it("should compile abi.decode with a single type parameter", () => {
+    const contracts = parse(`
+      class Decoder {
+        public decode(data: string): void {
+          let result = abi.decode<[number]>(data);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("abi.decode(data, (uint256))");
+  });
+
+  it("should compile abi.decode without type parameters", () => {
+    const contracts = parse(`
+      class Decoder {
+        public decode(data: string): void {
+          let result = abi.decode(data);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("abi.decode(data)");
+  });
+
   it("should compile assert", () => {
     const { errors, solidity } = compileTS(`
       class Checker {

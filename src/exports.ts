@@ -91,7 +91,7 @@ export declare function mulmod(x: number, y: number, k: number): number;
 export const abi = {} as {
   encode(...args: unknown[]): string;
   encodePacked(...args: unknown[]): string;
-  decode(data: string, ...types: unknown[]): unknown;
+  decode<T extends unknown[] = unknown[]>(data: string): T;
 };
 
 // gasleft() function
