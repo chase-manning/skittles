@@ -79,8 +79,24 @@ class Staking {
 ```
 
 :::note
-This optimization is only applied to simple value types like `number`, `address`, `boolean`, and `bytes32`. Reference types like `string` cannot use this optimization and will be stored as regular state variables.
+For simple value types like `number`, `address`, `boolean`, and `bytes32`, this compiles to Solidity's `immutable` keyword for gas optimization. Reference types like `string` will be stored as regular state variables.
 :::
+
+### Readonly Arrays
+
+Use `readonly T[]` (or the `readonly` modifier on an array property) to create arrays that are locked after construction. The array can be populated in the constructor, but any push, pop, or element modification after deployment will revert:
+
+```typescript
+class Registry {
+  admins: readonly address[] = [];
+
+  constructor() {
+    this.admins.push(msg.sender);
+  }
+}
+```
+
+This is useful for configuration data like admin lists, whitelisted addresses, or other data that should not change after deployment.
 
 ## Constructor
 

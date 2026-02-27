@@ -89,6 +89,35 @@ for (let i: number = 0; i < this.owners.length; i++) {
 }
 ```
 
+### Readonly Arrays
+
+Use `readonly T[]` to create arrays that can only be modified in the constructor. After deployment, any attempt to push, pop, or modify elements will revert:
+
+```typescript
+class Registry {
+  admins: readonly address[] = [];
+
+  constructor() {
+    this.admins.push(msg.sender); // allowed in constructor
+  }
+
+  isAdmin(addr: address): boolean {
+    for (let i: number = 0; i < this.admins.length; i++) {
+      if (this.admins[i] == addr) return true;
+    }
+    return false;
+  }
+}
+```
+
+Both `readonly T[]` and `ReadonlyArray<T>` syntax are supported. You can also use the `readonly` modifier on the property:
+
+```typescript
+class Config {
+  readonly values: number[] = [];
+}
+```
+
 ## Structs
 
 Use TypeScript type aliases with object shapes to define custom data structures:
