@@ -143,7 +143,7 @@ class Child extends Base {
 
 const EXPONENTIATION_SOURCE = `
 class MathPow {
-  public value: number = 1;
+  public value: number = 2;
 
   public power(base: number, exp: number): number {
     return base ** exp;
@@ -332,9 +332,9 @@ describe("behavioral: exponentiation", () => {
     expect(await contract.contract.scale(18)).toBe(10n ** 18n);
   });
 
-  it("should desugar **= and update state (1 **= 3 stays 1, then set and power)", async () => {
-    expect(await contract.contract.getValue()).toBe(1n);
+  it("should desugar **= and update state (2 **= 3 = 8)", async () => {
+    expect(await contract.contract.getValue()).toBe(2n);
     await contract.contract.powerAssign(3);
-    expect(await contract.contract.getValue()).toBe(1n);
+    expect(await contract.contract.getValue()).toBe(8n);
   });
 });
