@@ -23,6 +23,30 @@ class Example {
 }
 ```
 
+### String Operations
+
+Strings support `.length` and comparison operators just like in TypeScript:
+
+```typescript
+class Example {
+  public name: string = "hello";
+
+  public getNameLength(): number {
+    return this.name.length;
+  }
+
+  public isHello(text: string): boolean {
+    return text === "hello";
+  }
+
+  public isDifferent(a: string, b: string): boolean {
+    return a !== b;
+  }
+}
+```
+
+Under the hood, `str.length` compiles to `bytes(str).length` and string comparisons use `keccak256` hashing — but you don't need to worry about that. Just write natural TypeScript.
+
 ## Ethereum Types
 
 Import `address` and `bytes` from `"skittles"`:

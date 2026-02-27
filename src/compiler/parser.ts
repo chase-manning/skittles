@@ -26,9 +26,46 @@ let _knownCustomErrors: Set<string> = new Set();
 let _fileConstants: Map<string, Expression> = new Map();
 let _currentSourceFile: ts.SourceFile | null = null;
 
+// String type tracking for string.length and string comparison transforms
+let _currentVarTypes: Map<string, SkittlesType> = new Map();
+let _currentStringNames: Set<string> = new Set();
+
 function getSourceLine(node: ts.Node): number | undefined {
   if (!_currentSourceFile) return undefined;
   return _currentSourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1; // 1-based
+}
+
+function setupStringTracking(parameters: SkittlesParameter[], varTypes: Map<string, SkittlesType>) {
+  _currentVarTypes = varTypes;
+  _currentStringNames = new Set();
+  for (const param of parameters) {
+    if (param.type.kind === ("string" as SkittlesTypeKind)) {
+      _currentStringNames.add(param.name);
+    }
+  }
+}
+
+function isStringExpr(expr: Expression): boolean {
+  if (expr.kind === "string-literal") return true;
+  if (expr.kind === "identifier" && _currentStringNames.has(expr.name)) return true;
+  if (
+    expr.kind === "property-access" &&
+    expr.object.kind === "identifier" &&
+    expr.object.name === "this"
+  ) {
+    const type = _currentVarTypes.get(expr.property);
+    return type?.kind === ("string" as SkittlesTypeKind);
+  }
+  if (
+    expr.kind === "call" &&
+    expr.callee.kind === "property-access" &&
+    expr.callee.object.kind === "identifier" &&
+    expr.callee.object.name === "string" &&
+    expr.callee.property === "concat"
+  ) {
+    return true;
+  }
+  return false;
 }
 
 // ============================================================
@@ -500,6 +537,7 @@ function parseStandaloneFunction(
 ): SkittlesFunction {
   const name = node.name ? node.name.text : "unknown";
   const parameters = node.parameters.map(parseParameter);
+  setupStringTracking(parameters, varTypes);
   const returnType: SkittlesType | null = node.type ? parseType(node.type) : null;
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
   const stateMutability = inferStateMutability(body);
@@ -525,6 +563,7 @@ function parseStandaloneArrowFunction(
   const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
   const arrow = decl.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
+  setupStringTracking(parameters, varTypes);
   const returnType: SkittlesType | null = arrow.type ? parseType(arrow.type) : null;
 
   let body: Statement[] = [];
@@ -985,6 +1024,7 @@ function parseMethod(
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
   const parameters = node.parameters.map(parseParameter);
+  setupStringTracking(parameters, varTypes);
   const returnType: SkittlesType | null = node.type
     ? parseType(node.type)
     : null;
@@ -1007,6 +1047,7 @@ function parseGetAccessor(
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
   const parameters: SkittlesParameter[] = [];
+  setupStringTracking(parameters, varTypes);
   const returnType: SkittlesType | null = node.type
     ? parseType(node.type)
     : null;
@@ -1029,6 +1070,7 @@ function parseSetAccessor(
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
   const parameters = node.parameters.map(parseParameter);
+  setupStringTracking(parameters, varTypes);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
@@ -1050,6 +1092,7 @@ function parseArrowProperty(
 
   const arrow = node.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
+  setupStringTracking(parameters, varTypes);
 
   const returnType: SkittlesType | null = arrow.type
     ? parseType(arrow.type)
@@ -1080,6 +1123,7 @@ function parseConstructorDecl(
   eventNames: Set<string>
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
+  setupStringTracking(parameters, varTypes);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
@@ -1243,11 +1287,23 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isPropertyAccessExpression(node)) {
-    return {
-      kind: "property-access",
-      object: parseExpression(node.expression),
-      property: node.name.text,
-    };
+    const object = parseExpression(node.expression);
+    const property = node.name.text;
+
+    // string.length → bytes(str).length
+    if (property === "length" && isStringExpr(object)) {
+      return {
+        kind: "property-access",
+        object: {
+          kind: "call",
+          callee: { kind: "identifier", name: "bytes" },
+          args: [object],
+        },
+        property: "length",
+      };
+    }
+
+    return { kind: "property-access", object, property };
   }
 
   if (ts.isElementAccessExpression(node)) {
@@ -1293,11 +1349,24 @@ export function parseExpression(node: ts.Expression): Expression {
       };
     }
 
+    const left = parseExpression(node.left);
+    const right = parseExpression(node.right);
+
+    // String comparison: str === other → keccak256(str) == keccak256(other)
+    if ((operator === "==" || operator === "!=") && (isStringExpr(left) || isStringExpr(right))) {
+      return {
+        kind: "binary",
+        operator,
+        left: { kind: "call", callee: { kind: "identifier", name: "keccak256" } as Expression, args: [left] },
+        right: { kind: "call", callee: { kind: "identifier", name: "keccak256" } as Expression, args: [right] },
+      };
+    }
+
     return {
       kind: "binary",
       operator,
-      left: parseExpression(node.left),
-      right: parseExpression(node.right),
+      left,
+      right,
     };
   }
 
@@ -1470,6 +1539,10 @@ export function parseStatement(
       : undefined;
     const type =
       explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
+
+    if (type?.kind === ("string" as SkittlesTypeKind)) {
+      _currentStringNames.add(name);
+    }
 
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
@@ -1826,6 +1899,9 @@ function parseStatements(
           : undefined;
         const type =
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
+        if (type?.kind === ("string" as SkittlesTypeKind)) {
+          _currentStringNames.add(name);
+        }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
     }
