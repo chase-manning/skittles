@@ -2507,6 +2507,68 @@ describe("integration: array destructuring", () => {
 });
 
 // ============================================================
+// Object destructuring
+// ============================================================
+
+describe("integration: object destructuring", () => {
+  it("should compile const { a, b } = { a: 1, b: 2 } as separate declarations", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        public getValues(): number {
+          const { a, b, c } = { a: 7, b: 8, c: 9 };
+          return a + b + c;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 a = 7;");
+    expect(solidity).toContain("uint256 b = 8;");
+    expect(solidity).toContain("uint256 c = 9;");
+    expect(solidity).toContain("return ((a + b) + c);");
+  });
+
+  it("should compile object destructuring from a struct-returning method", () => {
+    const { errors, solidity } = compileTS(`
+      type StakeInfo = {
+        amount: number;
+        timestamp: number;
+      };
+
+      class Staking {
+        private stakes: Record<address, StakeInfo> = {};
+
+        public getStakeInfo(account: address): StakeInfo {
+          return this.stakes[account];
+        }
+
+        public getAmount(account: address): number {
+          const { amount, timestamp } = this.getStakeInfo(account);
+          return amount;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("StakeInfo memory _stakeInfo = getStakeInfo(account);");
+    expect(solidity).toContain("uint256 amount = _stakeInfo.amount;");
+    expect(solidity).toContain("uint256 timestamp = _stakeInfo.timestamp;");
+  });
+
+  it("should compile object destructuring with renaming", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        public getValues(): number {
+          const { a: x, b: y } = { a: 1, b: 2 };
+          return x + y;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 x = 1;");
+    expect(solidity).toContain("uint256 y = 2;");
+  });
+});
+
+// ============================================================
 // Cross file function imports
 // ============================================================
 
