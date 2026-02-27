@@ -97,3 +97,15 @@ export const abi = {} as {
 
 // gasleft() function
 export declare function gasleft(): number;
+
+/**
+ * Reference an external contract at a given address via its interface.
+ * Compiles to `InterfaceName(address)` in Solidity.
+ *
+ * Usage:
+ * ```typescript
+ * const token: IToken = Contract<IToken>(tokenAddress);
+ * token.transfer(to, amount);
+ * ```
+ */
+export declare function Contract<T>(address: string): T;

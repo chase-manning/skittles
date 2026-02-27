@@ -387,6 +387,37 @@ describe("generateSolidity", () => {
     const sol = generateSolidity(emptyContract());
     expect(sol).not.toContain('import "hardhat/console.sol"');
   });
+
+  it("should generate contract with interface type variable", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "token",
+            type: { kind: SkittlesTypeKind.ContractInterface, structName: "IToken" },
+            visibility: "private",
+            immutable: false,
+            constant: false,
+          },
+        ],
+        contractInterfaces: [
+          {
+            name: "IToken",
+            functions: [
+              {
+                name: "balanceOf",
+                parameters: [{ name: "account", type: { kind: SkittlesTypeKind.Address } }],
+                returnType: { kind: SkittlesTypeKind.Uint256 },
+                stateMutability: "view",
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("interface IToken {");
+    expect(sol).toContain("IToken internal token;");
+  });
 });
 
 // ============================================================
@@ -534,6 +565,16 @@ describe("generateExpression", () => {
       ],
     };
     expect(generateExpression(expr)).toBe("(1, true, x)");
+  });
+
+  it("should generate Contract<IToken>(addr) as IToken(addr)", () => {
+    const expr: Expression = {
+      kind: "call",
+      callee: { kind: "identifier", name: "Contract" },
+      args: [{ kind: "identifier", name: "tokenAddress" }],
+      typeArgs: [{ kind: SkittlesTypeKind.ContractInterface, structName: "IToken" }],
+    };
+    expect(generateExpression(expr)).toBe("IToken(tokenAddress)");
   });
 });
 
