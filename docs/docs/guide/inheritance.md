@@ -60,6 +60,42 @@ class Child extends Parent {
 }
 ```
 
+## Abstract Classes
+
+Use TypeScript's `abstract` keyword to create base contracts where some functions must be implemented by child contracts. Abstract classes compile to Solidity `abstract contract` declarations, and abstract methods become function signatures without a body.
+
+```typescript
+abstract class Ownable {
+  public owner: address;
+
+  constructor() {
+    this.owner = msg.sender;
+  }
+
+  abstract getOwner(): address;
+}
+
+class Token extends Ownable {
+  getOwner(): address {
+    return this.owner;
+  }
+}
+```
+
+You can mix abstract and concrete methods in the same class:
+
+```typescript
+abstract class Base {
+  public value: number = 0;
+
+  abstract getValue(): number;
+
+  public increment(): void {
+    this.value = this.value + 1;
+  }
+}
+```
+
 ## Interfaces (implements)
 
 Use `implements` to ensure your contract follows a specific shape. TypeScript will check that your contract has all the required properties and methods.

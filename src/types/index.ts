@@ -59,6 +59,7 @@ export interface SkittlesContract {
   customErrors: SkittlesCustomError[];
   ctor?: SkittlesConstructor;
   inherits: string[];
+  isAbstract?: boolean;
   sourceLine?: number;
 }
 
@@ -81,6 +82,7 @@ export interface SkittlesFunction {
   stateMutability: StateMutability;
   isVirtual: boolean;
   isOverride: boolean;
+  isAbstract?: boolean;
   body: Statement[];
   sourceLine?: number;
 }

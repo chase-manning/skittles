@@ -52,6 +52,24 @@ describe("parse", () => {
     expect(contracts[0].inherits).toEqual(["ERC20"]);
   });
 
+  it("should parse abstract classes", () => {
+    const contracts = parse(
+      "abstract class Base { abstract getValue(): number; }",
+      "test.ts"
+    );
+    expect(contracts[0].isAbstract).toBe(true);
+    expect(contracts[0].functions[0].isAbstract).toBe(true);
+    expect(contracts[0].functions[0].body).toEqual([]);
+  });
+
+  it("should not mark non-abstract classes as abstract", () => {
+    const contracts = parse(
+      "class Token { public x: number = 0; }",
+      "test.ts"
+    );
+    expect(contracts[0].isAbstract).toBeFalsy();
+  });
+
   it("should parse state variables with types", () => {
     const contracts = parse(
       `class T {

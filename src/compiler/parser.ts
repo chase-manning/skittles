@@ -11,6 +11,7 @@ import type {
   SkittlesContractInterface,
   SkittlesInterfaceFunction,
   Visibility,
+  StateMutability,
   Statement,
   Expression,
   EmitStatement,
@@ -257,6 +258,34 @@ export function parse(
       }
     }
   });
+
+  // Post-process: infer overrides for abstract method implementations
+  const abstractMethodsByContract = new Map<string, Set<string>>();
+  for (const contract of contracts) {
+    if (contract.isAbstract) {
+      const abstractMethods = new Set<string>();
+      for (const fn of contract.functions) {
+        if (fn.isAbstract) {
+          abstractMethods.add(fn.name);
+        }
+      }
+      if (abstractMethods.size > 0) {
+        abstractMethodsByContract.set(contract.name, abstractMethods);
+      }
+    }
+  }
+  for (const contract of contracts) {
+    for (const parentName of contract.inherits) {
+      const abstractMethods = abstractMethodsByContract.get(parentName);
+      if (!abstractMethods) continue;
+      for (const fn of contract.functions) {
+        if (abstractMethods.has(fn.name) && !fn.isOverride) {
+          fn.isOverride = true;
+          fn.isVirtual = false;
+        }
+      }
+    }
+  }
 
   return contracts;
 }
@@ -669,6 +698,7 @@ function parseClass(
   fileConstants: Map<string, Expression> = new Map()
 ): SkittlesContract {
   const name = node.name?.text ?? "Unknown";
+  const isAbstract = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
   const variables: SkittlesVariable[] = [];
   const functions: SkittlesFunction[] = [];
   const events: SkittlesEvent[] = [];
@@ -881,6 +911,7 @@ function parseClass(
     customErrors: contractCustomErrors,
     ctor,
     inherits,
+    isAbstract,
     sourceLine: getSourceLine(node),
   };
 }
@@ -1031,13 +1062,14 @@ function parseMethod(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
+  const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, isAbstract: isAbstractMethod ? true : undefined, body, sourceLine: getSourceLine(node) };
 }
 
 function parseGetAccessor(
@@ -2147,6 +2179,10 @@ function collectThisCalls(stmts: Statement[]): string[] {
     }
   });
   return names;
+}
+
+function inferAbstractStateMutability(): StateMutability {
+  return "nonpayable";
 }
 
 export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>, params?: SkittlesParameter[]): "pure" | "view" | "nonpayable" | "payable" {

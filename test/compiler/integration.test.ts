@@ -1608,6 +1608,98 @@ describe("integration: virtual and override", () => {
 });
 
 // ============================================================
+// abstract contracts
+// ============================================================
+
+describe("integration: abstract contracts", () => {
+  it("should compile an abstract class to an abstract contract", () => {
+    const source = `
+      abstract class Base {
+        abstract getValue(): number;
+      }
+
+      class Child extends Base {
+        public getValue(): number {
+          return 42;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(2);
+    expect(contracts[0].isAbstract).toBe(true);
+    expect(contracts[0].functions[0].isAbstract).toBe(true);
+
+    const solidity = generateSolidityFile(contracts);
+    expect(solidity).toContain("abstract contract Base {");
+    expect(solidity).toContain("function getValue() public virtual returns (uint256);");
+    expect(solidity).toContain("contract Child is Base {");
+    expect(solidity).toContain("function getValue() public pure override returns (uint256)");
+
+    const result = compileSolidity("Child", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(result.bytecode.length).toBeGreaterThan(0);
+  });
+
+  it("should compile abstract class with mix of abstract and concrete methods", () => {
+    const source = `
+      abstract class Base {
+        public value: number = 0;
+
+        abstract getValue(): number;
+
+        public increment(): void {
+          this.value = this.value + 1;
+        }
+      }
+
+      class Child extends Base {
+        public getValue(): number {
+          return this.value;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].isAbstract).toBe(true);
+
+    const solidity = generateSolidityFile(contracts);
+    expect(solidity).toContain("abstract contract Base {");
+    expect(solidity).toContain("function getValue() public virtual returns (uint256);");
+    expect(solidity).toContain("function increment() public virtual {");
+
+    const result = compileSolidity("Child", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile abstract class with constructor", () => {
+    const source = `
+      abstract class Ownable {
+        public owner: address;
+
+        constructor() {
+          this.owner = msg.sender;
+        }
+
+        abstract getOwner(): address;
+      }
+
+      class Token extends Ownable {
+        public getOwner(): address {
+          return this.owner;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    expect(solidity).toContain("abstract contract Ownable {");
+    expect(solidity).toContain("constructor()");
+    expect(solidity).toContain("function getOwner() public virtual returns (address);");
+
+    const result = compileSolidity("Token", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+});
+
+// ============================================================
 // super keyword
 // ============================================================
 
