@@ -699,6 +699,7 @@ function getCallName(expr: Expression): string | null {
 function tryGenerateBuiltinCall(expr: {
   callee: Expression;
   args: Expression[];
+  typeArgs?: SkittlesType[];
 }): string | null {
   const name = getCallName(expr.callee);
   if (!name) return null;
@@ -714,8 +715,13 @@ function tryGenerateBuiltinCall(expr: {
       return `abi.encode(${args})`;
     case "abi.encodePacked":
       return `abi.encodePacked(${args})`;
-    case "abi.decode":
+    case "abi.decode": {
+      if (expr.typeArgs && expr.typeArgs.length > 0) {
+        const types = expr.typeArgs.map(generateType).join(", ");
+        return `abi.decode(${args}, (${types}))`;
+      }
       return `abi.decode(${args})`;
+    }
     case "ecrecover":
       return `ecrecover(${args})`;
     case "addmod":

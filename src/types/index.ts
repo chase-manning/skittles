@@ -305,6 +305,7 @@ export interface CallExpression {
   kind: "call";
   callee: Expression;
   args: Expression[];
+  typeArgs?: SkittlesType[];
 }
 
 export interface ConditionalExpression {

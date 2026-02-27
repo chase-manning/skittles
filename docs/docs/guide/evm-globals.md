@@ -94,7 +94,15 @@ let digest: string = keccak256(msg.sender, amount);
 | ----------------------- | ------------------------------------------------------------- |
 | `abi.encode(...)`       | Encode arguments using the ABI encoding specification         |
 | `abi.encodePacked(...)` | Encode arguments using packed encoding (more compact)          |
-| `abi.decode(...)`       | Decode ABI-encoded data back into typed values                |
+| `abi.decode<[...]>(data)` | Decode ABI-encoded data back into typed values              |
+
+Use type parameters to specify the types you want to decode into:
+
+```typescript
+const [amount, addr] = abi.decode<[number, address]>(data);
+```
+
+This compiles to Solidity's `abi.decode(data, (uint256, address))`.
 
 ### Cryptography
 

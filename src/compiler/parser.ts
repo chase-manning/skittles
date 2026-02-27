@@ -1105,11 +1105,29 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isCallExpression(node)) {
-    return {
+    const callExpr: {
+      kind: "call";
+      callee: Expression;
+      args: Expression[];
+      typeArgs?: SkittlesType[];
+    } = {
       kind: "call",
       callee: parseExpression(node.expression),
       args: node.arguments.map(parseExpression),
     };
+
+    if (node.typeArguments && node.typeArguments.length > 0) {
+      const firstTypeArg = node.typeArguments[0];
+      if (ts.isTupleTypeNode(firstTypeArg)) {
+        callExpr.typeArgs = firstTypeArg.elements.map((elem) =>
+          parseType(ts.isTupleTypeNode(elem) ? elem : (ts.isNamedTupleMember(elem) ? elem.type : elem))
+        );
+      } else {
+        callExpr.typeArgs = node.typeArguments.map((ta) => parseType(ta));
+      }
+    }
+
+    return callExpr;
   }
 
   if (ts.isNewExpression(node)) {
