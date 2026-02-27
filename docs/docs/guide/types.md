@@ -214,6 +214,23 @@ The compiler infers types from:
 
 Function parameters and return types must always be explicitly typed.
 
+## Tuples
+
+Use TypeScript tuple types to return multiple values from a function:
+
+```typescript
+class Pair {
+  private reserve0: number = 0;
+  private reserve1: number = 0;
+
+  getReserves(): [number, number, number] {
+    return [this.reserve0, this.reserve1, block.timestamp];
+  }
+}
+```
+
+Tuples can contain any combination of supported types. See [Functions](/guide/functions#multiple-return-values) for more details.
+
 ## Void
 
 Functions that return nothing use `void`:

@@ -981,6 +981,18 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     };
   }
 
+  if (ts.isTupleTypeNode(node)) {
+    return {
+      kind: "tuple" as SkittlesTypeKind,
+      tupleTypes: node.elements.map((el) => {
+        if (ts.isNamedTupleMember(el)) {
+          return parseType(el.type);
+        }
+        return parseType(el as ts.TypeNode);
+      }),
+    };
+  }
+
   switch (node.kind) {
     case ts.SyntaxKind.NumberKeyword:
       return { kind: "uint256" as SkittlesTypeKind };
@@ -1150,6 +1162,14 @@ export function parseExpression(node: ts.Expression): Expression {
       condition: parseExpression(node.condition),
       whenTrue: parseExpression(node.whenTrue),
       whenFalse: parseExpression(node.whenFalse),
+    };
+  }
+
+  // Array literal expressions: [a, b, c] → tuple literal
+  if (ts.isArrayLiteralExpression(node)) {
+    return {
+      kind: "tuple-literal",
+      elements: node.elements.map(parseExpression),
     };
   }
 

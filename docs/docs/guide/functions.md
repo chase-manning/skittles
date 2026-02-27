@@ -102,6 +102,23 @@ class Token {
 }
 ```
 
+## Multiple Return Values
+
+Functions can return multiple values using TypeScript tuple types. This is common in Solidity for functions like `getReserves()`:
+
+```typescript
+class Pair {
+  private reserve0: number = 0;
+  private reserve1: number = 0;
+
+  getReserves(): [number, number, number] {
+    return [this.reserve0, this.reserve1, block.timestamp];
+  }
+}
+```
+
+The tuple return type `[number, number, number]` compiles to Solidity's multi-value return `returns (uint256, uint256, uint256)`, and the array literal `[a, b, c]` compiles to a Solidity tuple `(a, b, c)`.
+
 ## Getters and Setters
 
 TypeScript `get` and `set` accessors work as you'd expect:
