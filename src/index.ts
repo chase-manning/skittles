@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { cleanCommand } from "./commands/clean.ts";
 import { initCommand } from "./commands/init.ts";
 import { printLogo } from "./utils/console.ts";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageVersion: string = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8")
+).version;
 
 printLogo();
 
@@ -54,5 +62,5 @@ yargs(hideBin(process.argv))
   .demandCommand(1, "Please specify a command")
   .strict()
   .help()
-  .version()
+  .version(packageVersion)
   .parseAsync();
