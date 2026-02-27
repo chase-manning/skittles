@@ -12,16 +12,18 @@ This section is for developers who want to understand how Skittles works interna
 Skittles is a TypeScript to Solidity compiler. You write smart contracts as TypeScript classes, and Skittles compiles them into clean, readable Solidity source code. Hardhat (or any Solidity toolchain) then compiles that Solidity to EVM bytecode that runs on the blockchain.
 
 ```
-TypeScript (.ts) → Parser → IR → Codegen → Solidity (.sol) → Hardhat → ABI + Bytecode
+TypeScript (.ts) → Parser → IR → Analysis → Codegen → Solidity (.sol) → Hardhat → ABI + Bytecode
 ```
 
 ### The Three Stage Pipeline
 
 1. **Parse** — Your TypeScript is parsed using the official TypeScript compiler API. Classes become contracts, properties become state variables, methods become functions.
 
-2. **Generate** — The intermediate representation is converted to valid Solidity. Type mappings, visibility, state mutability inference, and optimizations are applied automatically.
+2. **Analyze** — The parsed code is checked for common issues like unreachable code (statements after `return` or `throw`) and unused local variables. These are reported as warnings to help you catch mistakes early.
 
-3. **Compile** — The generated Solidity is written to `build/solidity/`. Hardhat (or another Solidity toolchain) compiles it to ABI and EVM bytecode.
+3. **Generate** — The intermediate representation is converted to valid Solidity. Type mappings, visibility, state mutability inference, and optimizations are applied automatically.
+
+4. **Compile** — The generated Solidity is written to `build/solidity/`. Hardhat (or another Solidity toolchain) compiles it to ABI and EVM bytecode.
 
 ## Type Mappings
 

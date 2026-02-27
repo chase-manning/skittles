@@ -8,15 +8,17 @@ import type {
   BuildArtifact,
 } from "../types/index.ts";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
-import { logInfo, logSuccess, logError } from "../utils/console.ts";
+import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions } from "./parser.ts";
 import type { SkittlesParameter, SkittlesFunction, SkittlesContractInterface, Expression } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile } from "./codegen.ts";
+import { analyzeFunction } from "./analysis.ts";
 
 export interface CompilationResult {
   success: boolean;
   artifacts: BuildArtifact[];
   errors: string[];
+  warnings: string[];
 }
 
 // ============================================================
@@ -86,12 +88,13 @@ export async function compile(
 
   const artifacts: BuildArtifact[] = [];
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   // Step 1: Find source files
   const sourceFiles = findTypeScriptFiles(contractsDir);
   if (sourceFiles.length === 0) {
     logInfo("No TypeScript contract files found.");
-    return { success: true, artifacts, errors };
+    return { success: true, artifacts, errors, warnings: [] };
   }
 
   logInfo(`Found ${sourceFiles.length} contract file(s)`);
@@ -198,6 +201,26 @@ export async function compile(
       const message = err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
       logError(`Failed to compile ${relativePath}: ${message}`);
+    }
+  }
+
+  // Analyze parsed contracts for unreachable code and unused variables
+  for (const { contracts } of parsedFiles) {
+    for (const contract of contracts) {
+      for (const fn of contract.functions) {
+        const fnWarnings = analyzeFunction(fn, contract.name);
+        for (const w of fnWarnings) {
+          warnings.push(w);
+          logWarning(w);
+        }
+      }
+      if (contract.ctor) {
+        const ctorWarnings = analyzeFunction(contract.ctor, contract.name);
+        for (const w of ctorWarnings) {
+          warnings.push(w);
+          logWarning(w);
+        }
+      }
     }
   }
 
@@ -345,5 +368,6 @@ export async function compile(
     success: errors.length === 0,
     artifacts,
     errors,
+    warnings,
   };
 }
