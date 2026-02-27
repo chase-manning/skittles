@@ -213,6 +213,14 @@ class Staking {
 
 Enums can be shared across contract files. See [Cross File Support](/guide/cross-file).
 
+You can iterate over all values of an enum using `for...in`:
+
+```typescript
+for (const status in VaultStatus) {
+  // Runs for each enum member
+}
+```
+
 ## Type Inference
 
 Local variables inside functions can omit explicit types when the type can be inferred:
@@ -236,6 +244,23 @@ The compiler infers types from:
 - Comparison operators → `boolean`
 
 Function parameters and return types must always be explicitly typed.
+
+## Tuples
+
+Use TypeScript tuple types to return multiple values from a function:
+
+```typescript
+class Pair {
+  private reserve0: number = 0;
+  private reserve1: number = 0;
+
+  getReserves(): [number, number, number] {
+    return [this.reserve0, this.reserve1, block.timestamp];
+  }
+}
+```
+
+Tuples can contain any combination of supported types. See [Functions](/guide/functions#multiple-return-values) for more details.
 
 ## Void
 

@@ -114,6 +114,7 @@ export enum SkittlesTypeKind {
   Struct = "struct",
   ContractInterface = "contract-interface",
   Enum = "enum",
+  Tuple = "tuple",
   Void = "void",
 }
 
@@ -123,6 +124,7 @@ export interface SkittlesType {
   valueType?: SkittlesType;
   structName?: string;
   structFields?: SkittlesParameter[];
+  tupleTypes?: SkittlesType[];
 }
 
 export type Visibility = "public" | "private" | "internal" | "external";
@@ -146,7 +148,8 @@ export type Statement =
   | RevertStatement
   | EmitStatement
   | SwitchStatement
-  | DeleteStatement;
+  | DeleteStatement
+  | TryCatchStatement;
 
 export interface ReturnStatement {
   kind: "return";
@@ -218,6 +221,15 @@ export interface DeleteStatement {
   target: Expression;
 }
 
+export interface TryCatchStatement {
+  kind: "try-catch";
+  call: Expression;
+  returnVarName?: string;
+  returnType?: SkittlesType;
+  successBody: Statement[];
+  catchBody: Statement[];
+}
+
 export interface SwitchCase {
   value?: Expression; // undefined means default case
   body: Statement[];
@@ -246,7 +258,8 @@ export type Expression =
   | CallExpression
   | ConditionalExpression
   | NewExpression
-  | ObjectLiteralExpression;
+  | ObjectLiteralExpression
+  | TupleLiteralExpression;
 
 export interface NumberLiteral {
   kind: "number-literal";
@@ -323,6 +336,11 @@ export interface NewExpression {
 export interface ObjectLiteralExpression {
   kind: "object-literal";
   properties: { name: string; value: Expression }[];
+}
+
+export interface TupleLiteralExpression {
+  kind: "tuple-literal";
+  elements: Expression[];
 }
 
 // ============================================================

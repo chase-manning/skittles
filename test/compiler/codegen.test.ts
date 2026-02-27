@@ -193,6 +193,78 @@ describe("generateSolidity", () => {
     );
     expect(sol).toContain("contract Token is ERC20 {");
   });
+
+  it("should generate a function with tuple return type", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "reserve0",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+          {
+            name: "reserve1",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        functions: [
+          {
+            name: "getReserves",
+            parameters: [],
+            returnType: {
+              kind: SkittlesTypeKind.Tuple,
+              tupleTypes: [
+                { kind: SkittlesTypeKind.Uint256 },
+                { kind: SkittlesTypeKind.Uint256 },
+                { kind: SkittlesTypeKind.Uint256 },
+              ],
+            },
+            visibility: "public",
+            stateMutability: "view",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: {
+                  kind: "tuple-literal",
+                  elements: [
+                    {
+                      kind: "property-access",
+                      object: { kind: "identifier", name: "this" },
+                      property: "reserve0",
+                    },
+                    {
+                      kind: "property-access",
+                      object: { kind: "identifier", name: "this" },
+                      property: "reserve1",
+                    },
+                    {
+                      kind: "property-access",
+                      object: { kind: "identifier", name: "block" },
+                      property: "timestamp",
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain(
+      "function getReserves() public view virtual returns (uint256, uint256, uint256) {"
+    );
+    expect(sol).toContain("return (reserve0, reserve1, block.timestamp);");
+  });
 });
 
 // ============================================================
@@ -237,6 +309,18 @@ describe("generateType", () => {
       valueType: { kind: SkittlesTypeKind.Uint256 },
     };
     expect(generateType(t)).toBe("uint256[]");
+  });
+
+  it("should generate tuple type", () => {
+    const t: SkittlesType = {
+      kind: SkittlesTypeKind.Tuple,
+      tupleTypes: [
+        { kind: SkittlesTypeKind.Uint256 },
+        { kind: SkittlesTypeKind.Bool },
+        { kind: SkittlesTypeKind.Address },
+      ],
+    };
+    expect(generateType(t)).toBe("(uint256, bool, address)");
   });
 });
 
@@ -316,6 +400,18 @@ describe("generateExpression", () => {
       ],
     };
     expect(generateExpression(expr)).toBe("transfer(to, amount)");
+  });
+
+  it("should generate tuple literal expression", () => {
+    const expr: Expression = {
+      kind: "tuple-literal",
+      elements: [
+        { kind: "number-literal", value: "1" },
+        { kind: "boolean-literal", value: true },
+        { kind: "identifier", name: "x" },
+      ],
+    };
+    expect(generateExpression(expr)).toBe("(1, true, x)");
   });
 });
 
@@ -420,5 +516,67 @@ describe("generateStatement", () => {
       message: { kind: "string-literal", value: "Error" },
     };
     expect(generateStatement(stmt, "")).toBe('revert("Error");');
+  });
+
+  it("should generate try/catch with return value", () => {
+    const stmt: Statement = {
+      kind: "try-catch",
+      call: {
+        kind: "call",
+        callee: {
+          kind: "property-access",
+          object: { kind: "identifier", name: "token" },
+          property: "balanceOf",
+        },
+        args: [{ kind: "identifier", name: "account" }],
+      },
+      returnVarName: "balance",
+      returnType: { kind: SkittlesTypeKind.Uint256 },
+      successBody: [
+        {
+          kind: "return",
+          value: { kind: "identifier", name: "balance" },
+        },
+      ],
+      catchBody: [
+        {
+          kind: "return",
+          value: { kind: "number-literal", value: "0" },
+        },
+      ],
+    };
+    const result = generateStatement(stmt, "");
+    expect(result).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(result).toContain("return balance;");
+    expect(result).toContain("} catch {");
+    expect(result).toContain("return 0;");
+  });
+
+  it("should generate try/catch without return value", () => {
+    const stmt: Statement = {
+      kind: "try-catch",
+      call: {
+        kind: "call",
+        callee: {
+          kind: "property-access",
+          object: { kind: "identifier", name: "token" },
+          property: "transfer",
+        },
+        args: [
+          { kind: "identifier", name: "to" },
+          { kind: "identifier", name: "amount" },
+        ],
+      },
+      successBody: [],
+      catchBody: [
+        {
+          kind: "return",
+        },
+      ],
+    };
+    const result = generateStatement(stmt, "");
+    expect(result).toContain("try token.transfer(to, amount) {");
+    expect(result).toContain("} catch {");
+    expect(result).toContain("return;");
   });
 });

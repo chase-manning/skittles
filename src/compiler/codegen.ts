@@ -210,6 +210,10 @@ function collectReferencedTypeNames(
   } else if (type.kind === SkittlesTypeKind.Mapping) {
     collectReferencedTypeNames(type.keyType, structs, enums);
     collectReferencedTypeNames(type.valueType, structs, enums);
+  } else if (type.kind === SkittlesTypeKind.Tuple && type.tupleTypes) {
+    for (const t of type.tupleTypes) {
+      collectReferencedTypeNames(t, structs, enums);
+    }
   }
 }
 
@@ -225,7 +229,12 @@ function generateInterfaceDecl(iface: SkittlesContractInterface): string {
       : "";
     let returns = "";
     if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
-      returns = ` returns (${generateParamType(f.returnType)})`;
+      if (f.returnType.kind === SkittlesTypeKind.Tuple) {
+        const tupleParams = (f.returnType.tupleTypes ?? []).map(generateParamType).join(", ");
+        returns = ` returns (${tupleParams})`;
+      } else {
+        returns = ` returns (${generateParamType(f.returnType)})`;
+      }
     }
     lines.push(`    function ${f.name}(${params}) external${mut}${returns};`);
   }
@@ -312,7 +321,12 @@ function generateFunction(f: SkittlesFunction): string {
 
   let returns = "";
   if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
-    returns = ` returns (${generateParamType(f.returnType)})`;
+    if (f.returnType.kind === SkittlesTypeKind.Tuple) {
+      const tupleParams = (f.returnType.tupleTypes ?? []).map(generateParamType).join(", ");
+      returns = ` returns (${tupleParams})`;
+    } else {
+      returns = ` returns (${generateParamType(f.returnType)})`;
+    }
   }
 
   const lines: string[] = [];
@@ -370,6 +384,8 @@ export function generateType(type: SkittlesType): string {
       return type.structName ?? "UnknownInterface";
     case SkittlesTypeKind.Enum:
       return type.structName ?? "UnknownEnum";
+    case SkittlesTypeKind.Tuple:
+      return `(${(type.tupleTypes ?? []).map(generateType).join(", ")})`;
     case SkittlesTypeKind.Void:
       return "";
     default:
@@ -470,6 +486,8 @@ export function generateExpression(expr: Expression): string {
       const values = expr.properties.map((p) => generateExpression(p.value)).join(", ");
       return values;
     }
+    case "tuple-literal":
+      return `(${expr.elements.map(generateExpression).join(", ")})`;
     default:
       return "/* unsupported */";
   }
@@ -632,6 +650,25 @@ export function generateStatement(stmt: Statement, indent: string): string {
         for (const s of defaultCase) {
           lines.push(generateStatement(s, inner));
         }
+      }
+      lines.push(`${indent}}`);
+      return lines.join("\n");
+    }
+
+    case "try-catch": {
+      const lines: string[] = [];
+      const callExpr = generateExpression(stmt.call);
+      let returns = "";
+      if (stmt.returnVarName && stmt.returnType && stmt.returnType.kind !== SkittlesTypeKind.Void) {
+        returns = ` returns (${generateType(stmt.returnType)} ${stmt.returnVarName})`;
+      }
+      lines.push(`${indent}try ${callExpr}${returns} {`);
+      for (const s of stmt.successBody) {
+        lines.push(generateStatement(s, inner));
+      }
+      lines.push(`${indent}} catch {`);
+      for (const s of stmt.catchBody) {
+        lines.push(generateStatement(s, inner));
       }
       lines.push(`${indent}}`);
       return lines.join("\n");

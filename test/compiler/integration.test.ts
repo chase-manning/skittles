@@ -771,6 +771,32 @@ describe("integration: cross-function mutability propagation", () => {
     const { errors } = compileTS(source);
     expect(errors).toHaveLength(0);
   });
+
+  it("should propagate pure through internal call chains", () => {
+    const source = `
+      class MathHelper {
+        private _double(x: number): number {
+          return x * 2;
+        }
+
+        public doubleViaInternal(x: number): number {
+          return this._double(x);
+        }
+      }
+    `;
+
+    const contracts = parse(source, "test.ts");
+    const c = contracts[0];
+    const _double = c.functions.find(f => f.name === "_double");
+    const doubleViaInternal = c.functions.find(f => f.name === "doubleViaInternal");
+    expect(_double!.stateMutability).toBe("pure");
+    expect(doubleViaInternal!.stateMutability).toBe("pure");
+
+    const { errors, solidity } = compileTS(source);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("pure");
+    expect(solidity).not.toContain("view");
+  });
 });
 
 describe("integration: full ERC20 with events and allowances", () => {
@@ -2018,6 +2044,53 @@ describe("integration: for...of loops", () => {
 });
 
 // ============================================================
+// for...in enum loops
+// ============================================================
+
+describe("integration: for...in enum loops", () => {
+  it("should compile for...in over an enum to indexed for loop", () => {
+    const { errors, solidity } = compileTS(`
+      enum Status { Active, Paused, Stopped }
+
+      class Manager {
+        public counts: Record<number, number> = {};
+
+        public initCounts(): void {
+          for (const status in Status) {
+            this.counts[0] += 1;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("for (uint256 _i_status = 0; (_i_status < 3); _i_status++)");
+    expect(solidity).toContain("Status status = Status(_i_status);");
+  });
+
+  it("should compile for...in with enum body using the variable", () => {
+    const contracts = parse(`
+      enum Color { Red, Green, Blue }
+
+      class Palette {
+        public colorCount: number = 0;
+
+        public countColors(): number {
+          let count: number = 0;
+          for (const c in Color) {
+            count += 1;
+          }
+          return count;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("_i_c");
+    expect(solidity).toContain("Color c = Color(_i_c);");
+    expect(solidity).toContain("count += 1;");
+  });
+});
+
+// ============================================================
 // Object literal / struct construction
 // ============================================================
 
@@ -2477,6 +2550,68 @@ describe("integration: array destructuring", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("uint256 a = ((first > second) ? second : first);");
     expect(solidity).toContain("uint256 b = ((first > second) ? first : second);");
+  });
+});
+
+// ============================================================
+// Object destructuring
+// ============================================================
+
+describe("integration: object destructuring", () => {
+  it("should compile const { a, b } = { a: 1, b: 2 } as separate declarations", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        public getValues(): number {
+          const { a, b, c } = { a: 7, b: 8, c: 9 };
+          return a + b + c;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 a = 7;");
+    expect(solidity).toContain("uint256 b = 8;");
+    expect(solidity).toContain("uint256 c = 9;");
+    expect(solidity).toContain("return ((a + b) + c);");
+  });
+
+  it("should compile object destructuring from a struct-returning method", () => {
+    const { errors, solidity } = compileTS(`
+      type StakeInfo = {
+        amount: number;
+        timestamp: number;
+      };
+
+      class Staking {
+        private stakes: Record<address, StakeInfo> = {};
+
+        public getStakeInfo(account: address): StakeInfo {
+          return this.stakes[account];
+        }
+
+        public getAmount(account: address): number {
+          const { amount, timestamp } = this.getStakeInfo(account);
+          return amount;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("StakeInfo memory _stakeInfo = getStakeInfo(account);");
+    expect(solidity).toContain("uint256 amount = _stakeInfo.amount;");
+    expect(solidity).toContain("uint256 timestamp = _stakeInfo.timestamp;");
+  });
+
+  it("should compile object destructuring with renaming", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        public getValues(): number {
+          const { a: x, b: y } = { a: 1, b: 2 };
+          return x + y;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 x = 1;");
+    expect(solidity).toContain("uint256 y = 2;");
   });
 });
 
@@ -3176,6 +3311,125 @@ describe("integration: cross-file contract interface usage", () => {
     expect(dexSolidity).toContain("contract Dex {");
     expect(dexSolidity).toContain("IToken public token");
     expect(dexSolidity).toContain("token.transferFrom(msg.sender, address(this), amount)");
+  });
+});
+
+// ============================================================
+// Try/catch for external calls
+// ============================================================
+
+describe("integration: try/catch", () => {
+  it("should parse and generate try/catch with return value", () => {
+    const source = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+
+      class SafeReader {
+        private token: IToken;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public safeBalanceOf(account: address): number {
+          try {
+            const balance: number = this.token.balanceOf(account);
+            return balance;
+          } catch (e) {
+            return 0;
+          }
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(1);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(solidity).toContain("return balance;");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("return 0;");
+
+    const result = compileSolidity("SafeReader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should parse and generate try/catch without return value", () => {
+    const source = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+
+      class SafeSender {
+        private token: IToken;
+        private failed: boolean = false;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public safeSend(to: address, amount: number): void {
+          try {
+            this.token.transfer(to, amount);
+          } catch (e) {
+            this.failed = true;
+          }
+        }
+
+        public hasFailed(): boolean {
+          return this.failed;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("try token.transfer(to, amount)");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("failed = true;");
+
+    const result = compileSolidity("SafeSender", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should parse try/catch with success body after the call", () => {
+    const source = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+
+      class Checker {
+        private token: IToken;
+        private lastBalance: number = 0;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public checkAndStore(account: address): boolean {
+          try {
+            const bal: number = this.token.balanceOf(account);
+            this.lastBalance = bal;
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+
+        public getLastBalance(): number {
+          return this.lastBalance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("try token.balanceOf(account) returns (uint256 bal) {");
+    expect(solidity).toContain("lastBalance = bal;");
+    expect(solidity).toContain("return true;");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("return false;");
+
+    const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 });
 
