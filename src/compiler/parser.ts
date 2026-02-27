@@ -23,6 +23,12 @@ let _knownContractInterfaces: Set<string> = new Set();
 let _knownEnums: Set<string> = new Set();
 let _knownCustomErrors: Set<string> = new Set();
 let _fileConstants: Map<string, Expression> = new Map();
+let _currentSourceFile: ts.SourceFile | null = null;
+
+function getSourceLine(node: ts.Node): number | undefined {
+  if (!_currentSourceFile) return undefined;
+  return _currentSourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1; // 1-based
+}
 
 // ============================================================
 // Main entry
@@ -105,6 +111,8 @@ export function parse(
     ts.ScriptTarget.Latest,
     true
   );
+
+  _currentSourceFile = sourceFile;
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -348,6 +356,7 @@ function parseStandaloneFunction(
     isVirtual: false,
     isOverride: false,
     body,
+    sourceLine: getSourceLine(node),
   };
 }
 
@@ -381,6 +390,7 @@ function parseStandaloneArrowFunction(
     isVirtual: false,
     isOverride: false,
     body,
+    sourceLine: getSourceLine(decl),
   };
 }
 
@@ -673,6 +683,7 @@ function parseClass(
     customErrors: contractCustomErrors,
     ctor,
     inherits,
+    sourceLine: getSourceLine(node),
   };
 }
 
@@ -694,12 +705,12 @@ function tryParseEvent(
     node.name && ts.isIdentifier(node.name) ? node.name.text : "Unknown";
 
   if (!node.type.typeArguments || node.type.typeArguments.length === 0) {
-    return { name, parameters: [] };
+    return { name, parameters: [], sourceLine: getSourceLine(node) };
   }
 
   const typeArg = node.type.typeArguments[0];
   if (!ts.isTypeLiteralNode(typeArg)) {
-    return { name, parameters: [] };
+    return { name, parameters: [], sourceLine: getSourceLine(node) };
   }
 
   const parameters: SkittlesParameter[] = [];
@@ -732,7 +743,7 @@ function tryParseEvent(
     }
   }
 
-  return { name, parameters };
+  return { name, parameters, sourceLine: getSourceLine(node) };
 }
 
 // ============================================================
@@ -805,7 +816,7 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     }
   }
 
-  return { name, type, visibility, immutable, constant, initialValue };
+  return { name, type, visibility, immutable, constant, initialValue, sourceLine: getSourceLine(node) };
 }
 
 function parseMethod(
@@ -827,7 +838,7 @@ function parseMethod(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseGetAccessor(
@@ -849,7 +860,7 @@ function parseGetAccessor(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseSetAccessor(
@@ -869,7 +880,7 @@ function parseSetAccessor(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseArrowProperty(
@@ -903,7 +914,7 @@ function parseArrowProperty(
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body };
+  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
 }
 
 function parseConstructorDecl(
@@ -913,7 +924,7 @@ function parseConstructorDecl(
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
   const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  return { parameters, body };
+  return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
 function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
@@ -1213,6 +1224,7 @@ export function parseStatement(
       value: node.expression
         ? parseExpression(node.expression)
         : undefined,
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1226,19 +1238,22 @@ export function parseStatement(
     const type =
       explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
 
-    return { kind: "variable-declaration", name, type, initializer };
+    return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
 
   if (ts.isExpressionStatement(node)) {
     const emitStmt = tryParseEmitStatement(node.expression, eventNames);
-    if (emitStmt) return emitStmt;
+    if (emitStmt) {
+      emitStmt.sourceLine = getSourceLine(node);
+      return emitStmt;
+    }
 
     // Detect delete expressions: `delete this.mapping[key]`
     if (ts.isDeleteExpression(node.expression)) {
-      return { kind: "delete", target: parseExpression(node.expression.expression) };
+      return { kind: "delete", target: parseExpression(node.expression.expression), sourceLine: getSourceLine(node) };
     }
 
-    return { kind: "expression", expression: parseExpression(node.expression) };
+    return { kind: "expression", expression: parseExpression(node.expression), sourceLine: getSourceLine(node) };
   }
 
   if (ts.isIfStatement(node)) {
@@ -1247,7 +1262,7 @@ export function parseStatement(
     const elseBody = node.elseStatement
       ? parseBlock(node.elseStatement, varTypes, eventNames)
       : undefined;
-    return { kind: "if", condition, thenBody, elseBody };
+    return { kind: "if", condition, thenBody, elseBody, sourceLine: getSourceLine(node) };
   }
 
   if (ts.isForStatement(node)) {
@@ -1288,6 +1303,7 @@ export function parseStatement(
         ? parseExpression(node.incrementor)
         : undefined,
       body: parseBlock(node.statement, varTypes, eventNames),
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1296,6 +1312,7 @@ export function parseStatement(
       kind: "while",
       condition: parseExpression(node.expression),
       body: parseBlock(node.statement, varTypes, eventNames),
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1304,15 +1321,16 @@ export function parseStatement(
       kind: "do-while",
       condition: parseExpression(node.expression),
       body: parseBlock(node.statement, varTypes, eventNames),
+      sourceLine: getSourceLine(node),
     };
   }
 
   if (node.kind === ts.SyntaxKind.BreakStatement) {
-    return { kind: "break" };
+    return { kind: "break", sourceLine: getSourceLine(node) };
   }
 
   if (node.kind === ts.SyntaxKind.ContinueStatement) {
-    return { kind: "continue" };
+    return { kind: "continue", sourceLine: getSourceLine(node) };
   }
 
   if (ts.isForOfStatement(node)) {
@@ -1367,6 +1385,7 @@ export function parseStatement(
         prefix: false,
       },
       body: [itemDecl, ...innerBody],
+      sourceLine: getSourceLine(node),
     };
   }
 
@@ -1387,7 +1406,7 @@ export function parseStatement(
         cases.push({ value: undefined, body });
       }
     }
-    return { kind: "switch", discriminant, cases };
+    return { kind: "switch", discriminant, cases, sourceLine: getSourceLine(node) };
   }
 
   if (ts.isThrowStatement(node)) {
@@ -1401,7 +1420,7 @@ export function parseStatement(
         const args = node.expression.arguments
           ? Array.from(node.expression.arguments).map(parseExpression)
           : [];
-        return { kind: "revert", customError: errorName, customErrorArgs: args };
+        return { kind: "revert", customError: errorName, customErrorArgs: args, sourceLine: getSourceLine(node) };
       }
 
       let message: Expression | undefined;
@@ -1411,7 +1430,7 @@ export function parseStatement(
       ) {
         message = parseExpression(node.expression.arguments[0]);
       }
-      return { kind: "revert", message };
+      return { kind: "revert", message, sourceLine: getSourceLine(node) };
     }
 
     // Pattern: throw this.ErrorName(args) (SkittlesError property style)
@@ -1424,12 +1443,12 @@ export function parseStatement(
         const errorName = callee.name.text;
         if (_knownCustomErrors.has(errorName)) {
           const args = node.expression.arguments.map(parseExpression);
-          return { kind: "revert", customError: errorName, customErrorArgs: args };
+          return { kind: "revert", customError: errorName, customErrorArgs: args, sourceLine: getSourceLine(node) };
         }
       }
     }
 
-    return { kind: "revert" };
+    return { kind: "revert", sourceLine: getSourceLine(node) };
   }
 
   throw new Error(`Unsupported statement: ${ts.SyntaxKind[node.kind]}`);
@@ -1458,6 +1477,7 @@ function parseStatements(
   if (ts.isVariableStatement(node)) {
     // Multi declaration: let a=1, b=2, c=3
     if (node.declarationList.declarations.length > 1) {
+      const sl = getSourceLine(node);
       return node.declarationList.declarations.map((decl) => {
         const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
         const explicitType = decl.type ? parseType(decl.type) : undefined;
@@ -1466,7 +1486,7 @@ function parseStatements(
           : undefined;
         const type =
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
-        return { kind: "variable-declaration" as const, name, type, initializer };
+        return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
     }
 
