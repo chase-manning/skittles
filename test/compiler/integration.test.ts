@@ -3153,3 +3153,67 @@ describe("integration: cross-file contract interface usage", () => {
     expect(dexSolidity).toContain("token.transferFrom(msg.sender, address(this), amount)");
   });
 });
+
+describe("integration: console.log", () => {
+  it("should compile console.log with a string argument", () => {
+    const source = `
+      class Debug {
+        public value: number = 0;
+        public setValue(x: number): void {
+          console.log("setting value");
+          this.value = x;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('import "hardhat/console.sol";');
+    expect(solidity).toContain('console.log("setting value");');
+  });
+
+  it("should compile console.log with a variable argument", () => {
+    const source = `
+      class Debug {
+        public value: number = 0;
+        public setValue(x: number): void {
+          console.log(x);
+          this.value = x;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('import "hardhat/console.sol";');
+    expect(solidity).toContain("console.log(x);");
+  });
+
+  it("should compile console.log with multiple arguments", () => {
+    const source = `
+      class Debug {
+        public value: number = 0;
+        public setValue(x: number): void {
+          console.log("value:", x);
+          this.value = x;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('import "hardhat/console.sol";');
+    expect(solidity).toContain('console.log("value:", x);');
+  });
+
+  it("should not add console import when console.log is not used", () => {
+    const source = `
+      class Simple {
+        public value: number = 0;
+        public setValue(x: number): void {
+          this.value = x;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).not.toContain("hardhat/console.sol");
+  });
+});

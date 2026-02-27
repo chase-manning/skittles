@@ -15,6 +15,9 @@ import {
   type SkittlesParameter,
 } from "../types/index.ts";
 
+// Module-level flag set during code generation when console.log is encountered
+let _usesConsoleLog = false;
+
 // ============================================================
 // Main entry
 // ============================================================
@@ -24,17 +27,7 @@ import {
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
 export function generateSolidityFile(contracts: SkittlesContract[], imports?: string[]): string {
-  const parts: string[] = [];
-  parts.push("// SPDX-License-Identifier: MIT");
-  parts.push("pragma solidity ^0.8.20;");
-  parts.push("");
-
-  if (imports && imports.length > 0) {
-    for (const imp of imports) {
-      parts.push(`import "${imp}";`);
-    }
-    parts.push("");
-  }
+  _usesConsoleLog = false;
 
   // Collect and deduplicate contract interfaces across all contracts
   const allInterfaces: SkittlesContractInterface[] = [];
@@ -61,38 +54,60 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
     }
   }
 
+  // Generate body parts (may set _usesConsoleLog during contract body generation)
+  const bodyParts: string[] = [];
+
   const emittedFileScopeTypes = new Set<string>();
   if (hoistedStructs.size > 0 || hoistedEnums.size > 0) {
     for (const contract of contracts) {
       for (const en of contract.enums ?? []) {
         if (hoistedEnums.has(en.name) && !emittedFileScopeTypes.has(en.name)) {
           emittedFileScopeTypes.add(en.name);
-          parts.push(`enum ${en.name} { ${en.members.join(", ")} }`);
-          parts.push("");
+          bodyParts.push(`enum ${en.name} { ${en.members.join(", ")} }`);
+          bodyParts.push("");
         }
       }
       for (const s of contract.structs ?? []) {
         if (hoistedStructs.has(s.name) && !emittedFileScopeTypes.has(s.name)) {
           emittedFileScopeTypes.add(s.name);
-          parts.push(generateFileScopeStructDecl(s));
-          parts.push("");
+          bodyParts.push(generateFileScopeStructDecl(s));
+          bodyParts.push("");
         }
       }
     }
   }
 
   for (const iface of allInterfaces) {
-    parts.push(generateInterfaceDecl(iface));
-    parts.push("");
+    bodyParts.push(generateInterfaceDecl(iface));
+    bodyParts.push("");
   }
 
   for (let i = 0; i < contracts.length; i++) {
-    parts.push(generateContractBody(contracts[i], emittedFileScopeTypes));
+    bodyParts.push(generateContractBody(contracts[i], emittedFileScopeTypes));
     if (i < contracts.length - 1) {
-      parts.push("");
+      bodyParts.push("");
     }
   }
 
+  // Compose final output with header and imports
+  const parts: string[] = [];
+  parts.push("// SPDX-License-Identifier: MIT");
+  parts.push("pragma solidity ^0.8.20;");
+  parts.push("");
+
+  const allImports = [...(imports ?? [])];
+  if (_usesConsoleLog) {
+    allImports.push("hardhat/console.sol");
+  }
+
+  if (allImports.length > 0) {
+    for (const imp of allImports) {
+      parts.push(`import "${imp}";`);
+    }
+    parts.push("");
+  }
+
+  parts.push(...bodyParts);
   parts.push("");
   return parts.join("\n");
 }
@@ -730,6 +745,9 @@ function tryGenerateBuiltinCall(expr: {
       return `string.concat(${args})`;
     case "bytes.concat":
       return `bytes.concat(${args})`;
+    case "console.log":
+      _usesConsoleLog = true;
+      return `console.log(${args})`;
     default:
       return null;
   }

@@ -193,6 +193,45 @@ describe("generateSolidity", () => {
     );
     expect(sol).toContain("contract Token is ERC20 {");
   });
+
+  it("should add hardhat console import when console.log is used", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "debug",
+            parameters: [
+              { name: "x", type: { kind: SkittlesTypeKind.Uint256 } },
+            ],
+            returnType: null,
+            visibility: "public",
+            stateMutability: "nonpayable",
+            body: [
+              {
+                kind: "expression",
+                expression: {
+                  kind: "call",
+                  callee: {
+                    kind: "property-access",
+                    object: { kind: "identifier", name: "console" },
+                    property: "log",
+                  },
+                  args: [{ kind: "identifier", name: "x" }],
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain('import "hardhat/console.sol";');
+    expect(sol).toContain("console.log(x);");
+  });
+
+  it("should not add hardhat console import when console.log is not used", () => {
+    const sol = generateSolidity(emptyContract());
+    expect(sol).not.toContain("hardhat/console.sol");
+  });
 });
 
 // ============================================================
@@ -316,6 +355,35 @@ describe("generateExpression", () => {
       ],
     };
     expect(generateExpression(expr)).toBe("transfer(to, amount)");
+  });
+
+  it("should generate console.log call", () => {
+    const expr: Expression = {
+      kind: "call",
+      callee: {
+        kind: "property-access",
+        object: { kind: "identifier", name: "console" },
+        property: "log",
+      },
+      args: [{ kind: "string-literal", value: "hello" }],
+    };
+    expect(generateExpression(expr)).toBe('console.log("hello")');
+  });
+
+  it("should generate console.log with multiple args", () => {
+    const expr: Expression = {
+      kind: "call",
+      callee: {
+        kind: "property-access",
+        object: { kind: "identifier", name: "console" },
+        property: "log",
+      },
+      args: [
+        { kind: "string-literal", value: "value:" },
+        { kind: "identifier", name: "x" },
+      ],
+    };
+    expect(generateExpression(expr)).toBe('console.log("value:", x)');
   });
 });
 
