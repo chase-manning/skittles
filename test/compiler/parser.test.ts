@@ -311,6 +311,18 @@ describe("parse", () => {
     expect(contracts[0].functions[0].stateMutability).toBe("pure");
   });
 
+  it("should infer nonpayable for functions using addr.transfer()", () => {
+    const contracts = parse(
+      `class T {
+        public withdraw(to: address, amount: number): void {
+          to.transfer(amount);
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
+  });
+
   it("should parse event declarations", () => {
     const contracts = parse(
       `class T {

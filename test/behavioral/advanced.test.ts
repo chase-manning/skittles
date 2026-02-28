@@ -115,6 +115,21 @@ class Vault {
 }
 `;
 
+const TRANSFER_ETH_SOURCE = `
+class PaymentSplitter {
+  private owner: address = msg.sender;
+
+  public receive(): void {}
+
+  public sendPayment(to: address, amount: number): void {
+    if (msg.sender != this.owner) {
+      throw new Error("Not owner");
+    }
+    to.transfer(amount);
+  }
+}
+`;
+
 const INHERITANCE_SOURCE = `
 class Base {
   public x: number = 0;
@@ -264,6 +279,37 @@ describe("behavioral: receive function", () => {
   it("should track total deposits", async () => {
     const total = await contract.contract.getTotal();
     expect(total).toBe(ethers.parseEther("1.0"));
+  });
+});
+
+describe("behavioral: ETH transfers", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, TRANSFER_ETH_SOURCE, "PaymentSplitter");
+  });
+
+  it("should transfer ETH to a recipient", async () => {
+    const recipient = env.accounts[2];
+    const recipientAddr = await recipient.getAddress();
+    const sendAmount = ethers.parseEther("2.0");
+
+    // Fund the contract
+    const owner = env.accounts[0];
+    const fundTx = await owner.sendTransaction({
+      to: contract.address,
+      value: sendAmount,
+    });
+    await fundTx.wait();
+
+    const balanceBefore = BigInt(await env.provider.send('eth_getBalance', [recipientAddr, 'latest']));
+
+    // Send payment
+    const tx = await contract.contract.sendPayment(recipientAddr, ethers.parseEther("1.0"));
+    await tx.wait();
+
+    const balanceAfter = BigInt(await env.provider.send('eth_getBalance', [recipientAddr, 'latest']));
+    expect(balanceAfter - balanceBefore).toBe(ethers.parseEther("1.0"));
   });
 });
 

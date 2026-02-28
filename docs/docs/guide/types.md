@@ -71,6 +71,20 @@ Address literals are 42 character hex strings starting with `0x`:
 const zero: address = "0x0000000000000000000000000000000000000000";
 ```
 
+### Sending ETH
+
+Use `.transfer(amount)` on any address to send ETH (in wei) from the contract:
+
+```typescript
+class Wallet {
+  public withdraw(to: address, amount: number): void {
+    to.transfer(amount);
+  }
+}
+```
+
+This compiles to Solidity's `payable(to).transfer(amount)`, which sends the specified amount of wei and reverts if the transfer fails. The contract must have sufficient ETH balance (e.g. received via a `receive()` function).
+
 ## Mappings
 
 Use `Record<K, V>` or `Map<K, V>` for key-value storage on the blockchain (like a dictionary or map):
