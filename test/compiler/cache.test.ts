@@ -397,4 +397,33 @@ describe("incremental compilation cache", () => {
     expect(stakingArtifact!.solidity).toContain("returns (StakeInfo memory)");
     expect(stakingArtifact!.solidity).toContain("enum VaultStatus {");
   });
+
+  it("should generate import statement for cross-file contract inheritance", async () => {
+    writeContract(projectRoot, "BaseToken.ts", `
+      class BaseToken {
+        public totalSupply: number = 0;
+        protected balances: Record<address, number> = {};
+        public balanceOf(account: address): number {
+          return this.balances[account];
+        }
+      }
+    `);
+
+    writeContract(projectRoot, "ChildToken.ts", `
+      class ChildToken extends BaseToken {
+        public mint(to: address, amount: number): void {
+          this.balances[to] += amount;
+          this.totalSupply += amount;
+        }
+      }
+    `);
+
+    const result = await compile(projectRoot, defaultConfig);
+    expect(result.success).toBe(true);
+
+    const childArtifact = result.artifacts.find((a) => a.contractName === "ChildToken");
+    expect(childArtifact).toBeDefined();
+    expect(childArtifact!.solidity).toContain('import "./BaseToken.sol";');
+    expect(childArtifact!.solidity).toContain("contract ChildToken is BaseToken {");
+  });
 });

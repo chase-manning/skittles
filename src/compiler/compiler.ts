@@ -109,6 +109,7 @@ export async function compile(
   const globalFunctions: SkittlesFunction[] = [];
   const globalConstants: Map<string, Expression> = new Map();
   const interfaceOriginFile = new Map<string, string>();
+  const contractOriginFile = new Map<string, string>();
   const preScanContractFiles: string[] = [];
 
   for (const filePath of sourceFiles) {
@@ -134,7 +135,13 @@ export async function compile(
       }
       for (const [name, expr] of constants) globalConstants.set(name, expr);
 
-      if (/\bclass\s+\w+/.test(source)) {
+      const classMatches = source.matchAll(/\bclass\s+(\w+)/g);
+      let hasClass = false;
+      for (const match of classMatches) {
+        contractOriginFile.set(match[1], baseName);
+        hasClass = true;
+      }
+      if (hasClass) {
         preScanContractFiles.push(baseName);
       }
     } catch {
@@ -283,6 +290,14 @@ export async function compile(
               importedIfaceNames.add(iface.name);
               imports.push(`./${originBase}.sol`);
             }
+          }
+        }
+
+        // Import parent contracts defined in other files
+        for (const parentName of contract.inherits) {
+          const originBase = contractOriginFile.get(parentName);
+          if (originBase && originBase !== baseName) {
+            imports.push(`./${originBase}.sol`);
           }
         }
       }

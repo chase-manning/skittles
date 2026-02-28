@@ -125,3 +125,29 @@ export class Token implements IToken {
   // ...
 }
 ```
+
+## Cross-File Inheritance
+
+You can extend a base contract defined in another file. Skittles automatically generates the correct Solidity `import` statement so the child contract can reference the parent.
+
+```typescript title="contracts/BaseToken.ts"
+export class BaseToken {
+  public totalSupply: number = 0;
+  protected balances: Record<address, number> = {};
+
+  public balanceOf(account: address): number {
+    return this.balances[account];
+  }
+}
+```
+
+```typescript title="contracts/ChildToken.ts"
+import { BaseToken } from "./BaseToken";
+
+export class ChildToken extends BaseToken {
+  public mint(to: address, amount: number): void {
+    this.balances[to] += amount;
+    this.totalSupply += amount;
+  }
+}
+```

@@ -4352,3 +4352,57 @@ describe("integration: same-file inheritance deduplication", () => {
     expect(resultChild.errors).toHaveLength(0);
   });
 });
+
+describe("integration: cross-file contract inheritance", () => {
+  const baseTokenSource = `
+    class BaseToken {
+      public totalSupply: number = 0;
+      protected balances: Record<address, number> = {};
+
+      public balanceOf(account: address): number {
+        return this.balances[account];
+      }
+    }
+  `;
+
+  const childTokenSource = `
+    class ChildToken extends BaseToken {
+      public mint(to: address, amount: number): void {
+        this.balances[to] += amount;
+        this.totalSupply += amount;
+      }
+    }
+  `;
+
+  function compileCrossFileInheritance() {
+    const { structs, enums, contractInterfaces } = collectTypes(baseTokenSource, "BaseToken.ts");
+    const { functions, constants } = collectFunctions(baseTokenSource, "BaseToken.ts");
+
+    const externalTypes = { structs, enums, contractInterfaces };
+    const externalFunctions = { functions, constants };
+
+    const baseContracts = parse(baseTokenSource, "BaseToken.ts", externalTypes, externalFunctions);
+    const baseSolidity = generateSolidity(baseContracts[0]);
+
+    const childContracts = parse(childTokenSource, "ChildToken.ts", externalTypes, externalFunctions);
+    const childSolidity = generateSolidity(childContracts[0], ["./BaseToken.sol"]);
+
+    return { baseSolidity, childSolidity, baseContracts, childContracts };
+  }
+
+  it("should generate import statement for parent contract from another file", () => {
+    const { childSolidity } = compileCrossFileInheritance();
+    expect(childSolidity).toContain('import "./BaseToken.sol";');
+  });
+
+  it("should reference parent in contract declaration", () => {
+    const { childSolidity } = compileCrossFileInheritance();
+    expect(childSolidity).toContain("contract ChildToken is BaseToken {");
+  });
+
+  it("should compile parent contract successfully", () => {
+    const { baseSolidity } = compileCrossFileInheritance();
+    const result = compileSolidity("BaseToken", baseSolidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+});
