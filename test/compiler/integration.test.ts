@@ -2644,7 +2644,7 @@ describe("integration: unused shared definitions excluded", () => {
     const contracts = parse(contractSource, "vault.ts", { structs, enums }, { functions, constants });
     const solidity = generateSolidity(contracts[0]);
 
-    expect(solidity).toContain("calculateFee");
+    expect(solidity).toContain("function calculateFee(");
     expect(solidity).not.toContain("double");
   });
 
@@ -2674,8 +2674,8 @@ describe("integration: unused shared definitions excluded", () => {
     const contracts = parse(contractSource, "calc.ts", { structs, enums }, { functions, constants });
     const solidity = generateSolidity(contracts[0]);
 
-    expect(solidity).toContain("compute");
-    expect(solidity).toContain("helper");
+    expect(solidity).toContain("function compute(");
+    expect(solidity).toContain("function helper(");
     expect(solidity).not.toContain("unused");
   });
 
