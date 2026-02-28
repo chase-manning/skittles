@@ -4261,4 +4261,44 @@ describe("integration: same-file inheritance deduplication", () => {
     expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
     expect(solidity).toContain("function getValue() public pure override returns (uint256)");
   });
+
+  it("should emit shared definitions in both unrelated contracts in the same file", () => {
+    const source = `
+      enum Status { Active, Inactive }
+
+      function helper(x: number): number {
+        return x + 1;
+      }
+
+      class ContractA {
+        public status: Status = Status.Active;
+
+        public run(): number {
+          return helper(1);
+        }
+      }
+
+      class ContractB {
+        public status: Status = Status.Inactive;
+
+        public exec(): number {
+          return helper(2);
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+
+    // Both unrelated contracts should have the enum and helper function
+    const enumCount = (solidity.match(/enum Status/g) ?? []).length;
+    expect(enumCount).toBe(2);
+    const helperCount = (solidity.match(/function helper\(/g) ?? []).length;
+    expect(helperCount).toBe(2);
+
+    // Both should compile successfully
+    const resultA = compileSolidity("ContractA", solidity, defaultConfig);
+    expect(resultA.errors).toHaveLength(0);
+    const resultB = compileSolidity("ContractB", solidity, defaultConfig);
+    expect(resultB.errors).toHaveLength(0);
+  });
 });
