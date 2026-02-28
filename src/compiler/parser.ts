@@ -903,9 +903,9 @@ function parseClass(
       const fields = knownStructs.get(sName);
       if (!fields) continue;
       for (const field of fields) {
-        const before = usedStructNames.size + usedEnumNames.size;
+        const sizeBefore = usedStructNames.size + usedEnumNames.size;
         collectTypeRef(field.type);
-        if (usedStructNames.size + usedEnumNames.size > before) typeChanged = true;
+        if (usedStructNames.size + usedEnumNames.size > sizeBefore) typeChanged = true;
       }
     }
   }
