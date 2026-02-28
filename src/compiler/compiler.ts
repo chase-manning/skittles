@@ -165,6 +165,7 @@ export async function compile(
     functions: [...globalFunctions].sort((a, b) => a.name.localeCompare(b.name)),
     constants: Array.from(globalConstants.entries()).sort(([a], [b]) => a.localeCompare(b)),
     contractFiles: preScanContractFiles.sort(),
+    contractOrigins: Array.from(contractOriginFile.entries()).sort(([a], [b]) => a.localeCompare(b)),
   };
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 

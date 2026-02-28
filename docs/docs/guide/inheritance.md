@@ -145,7 +145,17 @@ export class BaseToken {
 import { BaseToken } from "./BaseToken";
 
 export class ChildToken extends BaseToken {
+  private owner: address;
+
+  constructor() {
+    super();
+    this.owner = msg.sender;
+  }
+
   public mint(to: address, amount: number): void {
+    if (msg.sender !== this.owner) {
+      throw new Error("Caller is not the owner");
+    }
     this.balances[to] += amount;
     this.totalSupply += amount;
   }
