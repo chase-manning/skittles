@@ -2549,6 +2549,181 @@ describe("integration: cross-file type resolution", () => {
 });
 
 // ============================================================
+// Unused shared definitions should be excluded
+// ============================================================
+
+describe("integration: unused shared definitions excluded", () => {
+  it("should not include unused external structs in generated Solidity", () => {
+    const typesSource = `
+      type Position = { x: number; y: number; };
+      type Velocity = { dx: number; dy: number; };
+    `;
+    const contractSource = `
+      class Game {
+        public getOrigin(): Position {
+          let p: Position = { x: 0, y: 0 };
+          return p;
+        }
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "game.ts", { structs, enums });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("struct Position {");
+    expect(solidity).not.toContain("struct Velocity {");
+  });
+
+  it("should not include unused external enums in generated Solidity", () => {
+    const typesSource = `
+      enum Color { Red, Green, Blue }
+      enum VaultStatus { Active, Paused, Closed }
+    `;
+    const contractSource = `
+      class Palette {
+        public color: Color;
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "palette.ts", { structs, enums });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("enum Color { Red, Green, Blue }");
+    expect(solidity).not.toContain("VaultStatus");
+  });
+
+  it("should not include unused external file functions in generated Solidity", () => {
+    const typesSource = `
+      function calculateFee(amount: number): number {
+        return amount / 100;
+      }
+      function double(x: number): number {
+        return x * 2;
+      }
+    `;
+    const contractSource = `
+      class Counter {
+        public count: number = 0;
+        public increment(): void {
+          this.count = this.count + 1;
+        }
+      }
+    `;
+
+    const { functions, constants } = collectFunctions(typesSource, "utils.ts");
+    const { structs, enums } = collectTypes(typesSource, "utils.ts");
+    const contracts = parse(contractSource, "counter.ts", { structs, enums }, { functions, constants });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).not.toContain("calculateFee");
+    expect(solidity).not.toContain("double");
+  });
+
+  it("should include only the file functions that are actually called", () => {
+    const utilsSource = `
+      function calculateFee(amount: number): number {
+        return amount / 100;
+      }
+      function double(x: number): number {
+        return x * 2;
+      }
+    `;
+    const contractSource = `
+      class Vault {
+        public fee: number = 0;
+        public setFee(amount: number): void {
+          this.fee = calculateFee(amount);
+        }
+      }
+    `;
+
+    const { functions, constants } = collectFunctions(utilsSource, "utils.ts");
+    const { structs, enums } = collectTypes(utilsSource, "utils.ts");
+    const contracts = parse(contractSource, "vault.ts", { structs, enums }, { functions, constants });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("function calculateFee(");
+    expect(solidity).not.toContain("double");
+  });
+
+  it("should transitively include file functions called by used file functions", () => {
+    const utilsSource = `
+      function helper(x: number): number {
+        return x + 1;
+      }
+      function compute(x: number): number {
+        return helper(x) * 2;
+      }
+      function unused(x: number): number {
+        return x;
+      }
+    `;
+    const contractSource = `
+      class Calculator {
+        public result: number = 0;
+        public run(x: number): void {
+          this.result = compute(x);
+        }
+      }
+    `;
+
+    const { functions, constants } = collectFunctions(utilsSource, "utils.ts");
+    const { structs, enums } = collectTypes(utilsSource, "utils.ts");
+    const contracts = parse(contractSource, "calc.ts", { structs, enums }, { functions, constants });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("function compute(");
+    expect(solidity).toContain("function helper(");
+    expect(solidity).not.toContain("unused");
+  });
+
+  it("should transitively include structs referenced by used struct fields", () => {
+    const typesSource = `
+      type Inner = { value: number; };
+      type Outer = { inner: Inner; label: string; };
+      type Unrelated = { data: number; };
+    `;
+    const contractSource = `
+      class Store {
+        public get(): Outer {
+          let o: Outer = { inner: { value: 0 }, label: "" };
+          return o;
+        }
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "store.ts", { structs, enums });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("struct Outer {");
+    expect(solidity).toContain("struct Inner {");
+    expect(solidity).not.toContain("Unrelated");
+  });
+
+  it("should include enums referenced via member access in expressions", () => {
+    const typesSource = `
+      enum Status { Active, Paused, Closed }
+      enum Color { Red, Green, Blue }
+    `;
+    const contractSource = `
+      class Contract {
+        public status: Status = Status.Active;
+      }
+    `;
+
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+    const contracts = parse(contractSource, "contract.ts", { structs, enums });
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("enum Status { Active, Paused, Closed }");
+    expect(solidity).not.toContain("Color");
+  });
+});
+
+// ============================================================
 // Standalone / free functions
 // ============================================================
 

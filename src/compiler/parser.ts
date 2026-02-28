@@ -789,9 +789,44 @@ function parseClass(
     }
   }
 
-  // Inject file level standalone functions as internal helpers
+  // Inject only file level standalone functions that are actually used by this contract.
+  // First, collect function names called directly by class methods, constructor, and variable initializers.
+  const fileFnNames = new Set(fileFunctions.map((f) => f.name));
+  const usedFileFnNames = new Set<string>();
+  const collectFnCalls = (stmts: Statement[]) => {
+    walkStatements(stmts, (expr) => {
+      if (expr.kind === "call" && expr.callee.kind === "identifier" && fileFnNames.has(expr.callee.name)) {
+        usedFileFnNames.add(expr.callee.name);
+      }
+    });
+  };
+  for (const f of functions) collectFnCalls(f.body);
+  if (ctor) collectFnCalls(ctor.body);
+  for (const v of variables) {
+    if (v.initialValue) {
+      walkStatements([{ kind: "expression", expression: v.initialValue }], (expr) => {
+        if (expr.kind === "call" && expr.callee.kind === "identifier" && fileFnNames.has(expr.callee.name)) {
+          usedFileFnNames.add(expr.callee.name);
+        }
+      });
+    }
+  }
+  // Transitively include file functions called by other used file functions
+  let fnChanged = true;
+  while (fnChanged) {
+    fnChanged = false;
+    for (const fn of fileFunctions) {
+      if (!usedFileFnNames.has(fn.name)) continue;
+      walkStatements(fn.body, (expr) => {
+        if (expr.kind === "call" && expr.callee.kind === "identifier" && fileFnNames.has(expr.callee.name) && !usedFileFnNames.has(expr.callee.name)) {
+          usedFileFnNames.add(expr.callee.name);
+          fnChanged = true;
+        }
+      });
+    }
+  }
   for (const fn of fileFunctions) {
-    // Avoid duplicates if a class method already has the same name
+    if (!usedFileFnNames.has(fn.name)) continue;
     if (!functions.some((f) => f.name === fn.name)) {
       functions.push(fn);
     }
@@ -815,14 +850,74 @@ function parseClass(
     }
   }
 
+  // Determine which structs and enums are actually referenced by this contract
+  const usedStructNames = new Set<string>();
+  const usedEnumNames = new Set<string>();
+  const collectTypeRef = (type: SkittlesType | null | undefined) => {
+    if (!type) return;
+    if (type.kind === ("struct" as SkittlesTypeKind) && type.structName) usedStructNames.add(type.structName);
+    if (type.kind === ("enum" as SkittlesTypeKind) && type.structName) usedEnumNames.add(type.structName);
+    if (type.keyType) collectTypeRef(type.keyType);
+    if (type.valueType) collectTypeRef(type.valueType);
+    if (type.tupleTypes) for (const t of type.tupleTypes) collectTypeRef(t);
+    // Include struct field types transitively
+    if (type.structFields) for (const f of type.structFields) collectTypeRef(f.type);
+  };
+  const collectBodyTypeRefs = (stmts: Statement[]) => {
+    walkStatements(stmts, (expr) => {
+      // Enum member access: Color.Red
+      if (expr.kind === "property-access" && expr.object.kind === "identifier" && knownEnums.has(expr.object.name)) {
+        usedEnumNames.add(expr.object.name);
+      }
+      // Type arguments on call expressions (e.g. contract interface casts)
+      if (expr.kind === "call" && expr.typeArgs) {
+        for (const t of expr.typeArgs) collectTypeRef(t);
+      }
+    }, (stmt) => {
+      if (stmt.kind === "variable-declaration" && stmt.type) collectTypeRef(stmt.type);
+      if (stmt.kind === "try-catch" && stmt.returnType) collectTypeRef(stmt.returnType);
+    });
+  };
+  for (const v of variables) {
+    collectTypeRef(v.type);
+    if (v.initialValue) collectBodyTypeRefs([{ kind: "expression", expression: v.initialValue }]);
+  }
+  for (const f of functions) {
+    for (const p of f.parameters) collectTypeRef(p.type);
+    if (f.returnType) collectTypeRef(f.returnType);
+    collectBodyTypeRefs(f.body);
+  }
+  if (ctor) {
+    for (const p of ctor.parameters) collectTypeRef(p.type);
+    collectBodyTypeRefs(ctor.body);
+  }
+  for (const e of events) {
+    for (const p of e.parameters) collectTypeRef(p.type);
+  }
+
+  // Transitively include structs whose fields reference other structs/enums
+  let typeChanged = true;
+  while (typeChanged) {
+    typeChanged = false;
+    for (const sName of usedStructNames) {
+      const fields = knownStructs.get(sName);
+      if (!fields) continue;
+      for (const field of fields) {
+        const sizeBefore = usedStructNames.size + usedEnumNames.size;
+        collectTypeRef(field.type);
+        if (usedStructNames.size + usedEnumNames.size > sizeBefore) typeChanged = true;
+      }
+    }
+  }
+
   const contractStructs: { name: string; fields: SkittlesParameter[] }[] = [];
   for (const [sName, fields] of knownStructs) {
-    contractStructs.push({ name: sName, fields });
+    if (usedStructNames.has(sName)) contractStructs.push({ name: sName, fields });
   }
 
   const contractEnums: { name: string; members: string[] }[] = [];
   for (const [eName, members] of knownEnums) {
-    contractEnums.push({ name: eName, members });
+    if (usedEnumNames.has(eName)) contractEnums.push({ name: eName, members });
   }
 
   // Determine which interfaces this contract actually references
