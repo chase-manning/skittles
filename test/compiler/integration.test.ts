@@ -4108,3 +4108,247 @@ describe("integration: ETH transfers", () => {
     expect(solidity).not.toContain("pure");
   });
 });
+
+// ============================================================
+// Same-file inheritance: shared definitions deduplication
+// ============================================================
+
+describe("integration: same-file inheritance deduplication", () => {
+  it("should not duplicate shared enums in parent and child contracts", () => {
+    const source = `
+      enum Status { Active, Inactive }
+
+      class Parent {
+        public status: Status = Status.Active;
+
+        public getStatus(): Status {
+          return this.status;
+        }
+      }
+
+      class Child extends Parent {
+        public setStatus(s: Status): void {
+          this.status = s;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    // Enum should appear exactly once across the whole file
+    const enumCount = (solidity.match(/enum Status/g) ?? []).length;
+    expect(enumCount).toBe(1);
+  });
+
+  it("should not duplicate shared structs in parent and child contracts", () => {
+    const source = `
+      type Order = { amount: number; price: number };
+
+      class Parent {
+        public orders: Order[] = [];
+
+        public addOrder(o: Order): void {
+          this.orders.push(o);
+        }
+      }
+
+      class Child extends Parent {
+        public getOrder(index: number): Order {
+          return this.orders[index];
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    // Struct should appear exactly once across the whole file
+    const structCount = (solidity.match(/struct Order/g) ?? []).length;
+    expect(structCount).toBe(1);
+  });
+
+  it("should not duplicate shared file-level functions in parent and child contracts", () => {
+    const source = `
+      function helper(x: number): number {
+        return x + 1;
+      }
+
+      class Parent {
+        public value: number = 0;
+
+        public increment(): void {
+          this.value = helper(this.value);
+        }
+      }
+
+      class Child extends Parent {
+        public doubleIncrement(): void {
+          this.value = helper(helper(this.value));
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    // helper() should appear exactly once (in the parent contract body)
+    const helperCount = (solidity.match(/function helper\(/g) ?? []).length;
+    expect(helperCount).toBe(1);
+  });
+
+  it("should not duplicate custom errors in parent and child contracts", () => {
+    const source = `
+      class InsufficientBalance extends Error {
+        constructor(needed: number, available: number) {
+          super("");
+        }
+      }
+
+      class Parent {
+        public balance: number = 0;
+
+        public withdraw(amount: number): void {
+          if (this.balance < amount) {
+            throw new InsufficientBalance(amount, this.balance);
+          }
+          this.balance -= amount;
+        }
+      }
+
+      class Child extends Parent {
+        public withdrawAll(): void {
+          if (this.balance === 0) {
+            throw new InsufficientBalance(1, 0);
+          }
+          this.balance = 0;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    // Custom error should appear exactly once across the whole file
+    const errorCount = (solidity.match(/error InsufficientBalance/g) ?? []).length;
+    expect(errorCount).toBe(1);
+  });
+
+  it("should still emit override functions in child contracts", () => {
+    const source = `
+      class Parent {
+        public getValue(): number {
+          return 1;
+        }
+      }
+
+      class Child extends Parent {
+        public override getValue(): number {
+          return 2;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const result = compileSolidity("Child", solidity, defaultConfig);
+
+    expect(result.errors).toHaveLength(0);
+    // getValue should appear in both parent (virtual) and child (override)
+    expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
+    expect(solidity).toContain("function getValue() public pure override returns (uint256)");
+  });
+
+  it("should emit shared definitions in both unrelated contracts in the same file", () => {
+    const source = `
+      enum Status { Active, Inactive }
+
+      function helper(x: number): number {
+        return x + 1;
+      }
+
+      class ContractA {
+        public status: Status = Status.Active;
+
+        public run(): number {
+          return helper(1);
+        }
+      }
+
+      class ContractB {
+        public status: Status = Status.Inactive;
+
+        public exec(): number {
+          return helper(2);
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+
+    // Both unrelated contracts should have the enum and helper function
+    const enumCount = (solidity.match(/enum Status/g) ?? []).length;
+    expect(enumCount).toBe(2);
+    const helperCount = (solidity.match(/function helper\(/g) ?? []).length;
+    expect(helperCount).toBe(2);
+
+    // Both should compile successfully
+    const resultA = compileSolidity("ContractA", solidity, defaultConfig);
+    expect(resultA.errors).toHaveLength(0);
+    const resultB = compileSolidity("ContractB", solidity, defaultConfig);
+    expect(resultB.errors).toHaveLength(0);
+  });
+
+  it("should handle Parent, Unrelated, then Child extends Parent ordering", () => {
+    const source = `
+      enum Status { Active, Inactive }
+
+      function helper(x: number): number {
+        return x + 1;
+      }
+
+      class Parent {
+        public status: Status = Status.Active;
+
+        public run(): number {
+          return helper(1);
+        }
+      }
+
+      class Unrelated {
+        public status: Status = Status.Inactive;
+
+        public exec(): number {
+          return helper(2);
+        }
+      }
+
+      class Child extends Parent {
+        public childRun(): number {
+          return helper(3);
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+
+    // Enum: Parent and Unrelated each get their own; Child inherits from Parent
+    const enumCount = (solidity.match(/enum Status/g) ?? []).length;
+    expect(enumCount).toBe(2);
+
+    // helper(): Parent and Unrelated each get their own; Child inherits from Parent
+    const helperCount = (solidity.match(/function helper\(/g) ?? []).length;
+    expect(helperCount).toBe(2);
+
+    // All three should compile successfully
+    const resultParent = compileSolidity("Parent", solidity, defaultConfig);
+    expect(resultParent.errors).toHaveLength(0);
+    const resultUnrelated = compileSolidity("Unrelated", solidity, defaultConfig);
+    expect(resultUnrelated.errors).toHaveLength(0);
+    const resultChild = compileSolidity("Child", solidity, defaultConfig);
+    expect(resultChild.errors).toHaveLength(0);
+  });
+});
