@@ -2237,12 +2237,13 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         writesState = true;
       }
       // addr.transfer(amount) sends ETH, which is state-mutating
+      // Only match when the receiver is not `this` and not a contract-interface variable
       if (
         expr.kind === "call" &&
         expr.callee.kind === "property-access" &&
         expr.callee.property === "transfer" &&
         expr.args.length === 1 &&
-        !(expr.callee.object.kind === "identifier" && expr.callee.object.name === "this")
+        !isContractInterfaceReceiver(expr.callee.object, varTypes, localVarTypes)
       ) {
         writesState = true;
       }
@@ -2429,6 +2430,37 @@ function isStateMutatingCall(expr: { callee: Expression }): boolean {
   const method = expr.callee.property;
   if (!["push", "pop"].includes(method)) return false;
   return isStateAccess(expr.callee.object);
+}
+
+/**
+ * Check if the receiver of a property-access is `this` or a contract-interface typed variable.
+ * Used to distinguish `addr.transfer(amount)` (ETH transfer) from
+ * `this.transfer(...)` or `token.transfer(...)` (contract method calls).
+ */
+function isContractInterfaceReceiver(
+  receiver: Expression,
+  varTypes?: Map<string, SkittlesType>,
+  localVarTypes?: Map<string, SkittlesType>
+): boolean {
+  // this.transfer(...) is an internal contract call
+  if (receiver.kind === "identifier" && receiver.name === "this") return true;
+  // this.token.transfer(...) where token is a contract-interface state variable
+  if (
+    receiver.kind === "property-access" &&
+    receiver.object.kind === "identifier" &&
+    receiver.object.name === "this"
+  ) {
+    const propType = varTypes?.get(receiver.property);
+    if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
+  }
+  // token.transfer(...) where token is a contract-interface local/param
+  if (receiver.kind === "identifier") {
+    const localType = localVarTypes?.get(receiver.name);
+    if (localType && localType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
+    const stateType = varTypes?.get(receiver.name);
+    if (stateType && stateType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
+  }
+  return false;
 }
 
 function getVisibility(

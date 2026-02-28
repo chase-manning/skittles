@@ -520,11 +520,13 @@ export function generateExpression(expr: Expression): string {
       const callResult = tryGenerateBuiltinCall(expr);
       if (callResult) return callResult;
       // addr.transfer(amount) → payable(addr).transfer(amount)
+      // Exclude this.transfer(...) (internal call) and this.stateVar.transfer(...)
+      // (external contract interface call) to avoid misclassifying non-ETH transfers.
       if (
         expr.callee.kind === "property-access" &&
         expr.callee.property === "transfer" &&
         expr.args.length === 1 &&
-        !(expr.callee.object.kind === "identifier" && expr.callee.object.name === "this")
+        !isThisOrContractCall(expr.callee.object)
       ) {
         const addr = generateExpression(expr.callee.object);
         return `payable(${addr}).transfer(${generateExpression(expr.args[0])})`;
@@ -772,6 +774,17 @@ function negateOperator(op: string): string | null {
     "!=": "==",
   };
   return map[op] ?? null;
+}
+
+/**
+ * Check if a receiver expression is `this` (an internal contract method call).
+ * Used to avoid wrapping `this.transfer(...)` calls in `payable(...)`.
+ * Note: `this.stateVar.transfer(amount)` is NOT excluded here because
+ * codegen strips `this.` and the arg count (1 for ETH transfer vs 2+ for
+ * contract interface calls) serves as the discriminator.
+ */
+function isThisOrContractCall(receiver: Expression): boolean {
+  return receiver.kind === "identifier" && receiver.name === "this";
 }
 
 // ============================================================
