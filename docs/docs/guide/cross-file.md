@@ -95,7 +95,7 @@ export class Vault {
 
 ## How It Works
 
-Skittles automatically scans all files in your contracts directory and makes shared definitions available everywhere.
+Skittles automatically scans all files in your contracts directory and makes shared definitions available to any contract that uses them. Only the types, enums, functions, and constants that a contract actually references are included in its generated Solidity — unused definitions are excluded to keep the compiled output lean.
 
 ## External Contract Calls
 
