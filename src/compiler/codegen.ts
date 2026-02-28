@@ -98,37 +98,38 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
 
   // Build per-contract ancestor sets so deduplication only applies when the
   // current contract inherits from the contract that first emitted a definition.
-  const contractNames = new Set(contracts.map((c) => c.name));
+  const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
   const ancestorsMap = new Map<string, Set<string>>();
   for (const contract of contracts) {
     const ancestors = new Set<string>();
-    const queue = [...contract.inherits.filter((n) => contractNames.has(n))];
-    while (queue.length > 0) {
-      const name = queue.shift()!;
+    const queue = [...contract.inherits.filter((n) => contractByName.has(n))];
+    let queueIndex = 0;
+    while (queueIndex < queue.length) {
+      const name = queue[queueIndex++]!;
       if (ancestors.has(name)) continue;
       ancestors.add(name);
-      const parent = contracts.find((c) => c.name === name);
+      const parent = contractByName.get(name);
       if (parent) {
         for (const gp of parent.inherits) {
-          if (contractNames.has(gp)) queue.push(gp);
+          if (contractByName.has(gp)) queue.push(gp);
         }
       }
     }
     ancestorsMap.set(contract.name, ancestors);
   }
 
-  // Track which contract emitted each definition / function so child contracts
-  // that inherit from that contract can skip re-emitting the same declaration.
-  const definitionOrigin = new Map<string, string>();
-  const functionOrigin = new Map<string, string>();
+  // Track all contracts that emitted each definition / function so child
+  // contracts that inherit from any of those origins can skip re-emission.
+  const definitionOrigins = new Map<string, Set<string>>();
+  const functionOrigins = new Map<string, Set<string>>();
   for (let i = 0; i < contracts.length; i++) {
     const ancestors = ancestorsMap.get(contracts[i].name)!;
     parts.push(
       generateContractBody(
         contracts[i],
         emittedFileScopeTypes,
-        definitionOrigin,
-        functionOrigin,
+        definitionOrigins,
+        functionOrigins,
         ancestors
       )
     );
@@ -148,8 +149,8 @@ export function generateSolidity(contract: SkittlesContract, imports?: string[])
 function generateContractBody(
   contract: SkittlesContract,
   fileScopeTypes: Set<string> = new Set(),
-  definitionOrigin: Map<string, string> = new Map(),
-  functionOrigin: Map<string, string> = new Map(),
+  definitionOrigins: Map<string, Set<string>> = new Map(),
+  functionOrigins: Map<string, Set<string>> = new Map(),
   ancestors: Set<string> = new Set()
 ): string {
   const parts: string[] = [];
@@ -161,20 +162,30 @@ function generateContractBody(
   const abstractPrefix = contract.isAbstract ? "abstract " : "";
   parts.push(`${abstractPrefix}contract ${contract.name}${inheritance} {`);
 
+  const hasAncestorOrigin = (origins: Set<string> | undefined): boolean =>
+    origins !== undefined && Array.from(origins).some((o) => ancestors.has(o));
+
+  const addOrigin = (map: Map<string, Set<string>>, key: string): void => {
+    let origins = map.get(key);
+    if (!origins) {
+      origins = new Set<string>();
+      map.set(key, origins);
+    }
+    origins.add(contract.name);
+  };
+
   for (const en of contract.enums ?? []) {
     if (fileScopeTypes.has(en.name)) continue;
-    const origin = definitionOrigin.get(en.name);
-    if (origin && ancestors.has(origin)) continue;
-    definitionOrigin.set(en.name, contract.name);
+    if (hasAncestorOrigin(definitionOrigins.get(en.name))) continue;
+    addOrigin(definitionOrigins, en.name);
     parts.push(`    enum ${en.name} { ${en.members.join(", ")} }`);
     parts.push("");
   }
 
   let emittedCustomErrorCount = 0;
   for (const ce of contract.customErrors ?? []) {
-    const origin = definitionOrigin.get(ce.name);
-    if (origin && ancestors.has(origin)) continue;
-    definitionOrigin.set(ce.name, contract.name);
+    if (hasAncestorOrigin(definitionOrigins.get(ce.name))) continue;
+    addOrigin(definitionOrigins, ce.name);
     const params = ce.parameters.map((p) => `${generateType(p.type)} ${p.name}`).join(", ");
     parts.push(`    error ${ce.name}(${params});`);
     emittedCustomErrorCount++;
@@ -185,9 +196,8 @@ function generateContractBody(
 
   for (const s of contract.structs ?? []) {
     if (fileScopeTypes.has(s.name)) continue;
-    const origin = definitionOrigin.get(s.name);
-    if (origin && ancestors.has(origin)) continue;
-    definitionOrigin.set(s.name, contract.name);
+    if (hasAncestorOrigin(definitionOrigins.get(s.name))) continue;
+    addOrigin(definitionOrigins, s.name);
     parts.push(generateStructDecl(s));
     parts.push("");
   }
@@ -211,18 +221,19 @@ function generateContractBody(
   // Skip functions already emitted by an ancestor contract in the same file
   // (shared file-level functions injected into both parent and child), unless
   // the child explicitly overrides them.  Use a full signature key (name +
-  // parameter type kinds) so overloads are not incorrectly suppressed.
+  // full parameter types) so overloads are not incorrectly suppressed.
   const getFunctionKey = (f: SkittlesFunction): string => {
-    const paramKinds = f.parameters.map((p) => p.type?.kind ?? "unknown").join(",");
-    return `${f.name}(${paramKinds})`;
+    const paramTypes = f.parameters
+      .map((p) => (p.type ? generateType(p.type) : "unknown"))
+      .join(",");
+    return `${f.name}(${paramTypes})`;
   };
   const functionsToEmit = contract.functions.filter((f) => {
     const key = getFunctionKey(f);
-    const origin = functionOrigin.get(key);
-    return !origin || !ancestors.has(origin) || f.isOverride;
+    return !hasAncestorOrigin(functionOrigins.get(key)) || f.isOverride;
   });
   for (const f of functionsToEmit) {
-    functionOrigin.set(getFunctionKey(f), contract.name);
+    addOrigin(functionOrigins, getFunctionKey(f));
   }
 
   if (

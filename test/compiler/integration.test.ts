@@ -4301,4 +4301,54 @@ describe("integration: same-file inheritance deduplication", () => {
     const resultB = compileSolidity("ContractB", solidity, defaultConfig);
     expect(resultB.errors).toHaveLength(0);
   });
+
+  it("should handle Parent, Unrelated, then Child extends Parent ordering", () => {
+    const source = `
+      enum Status { Active, Inactive }
+
+      function helper(x: number): number {
+        return x + 1;
+      }
+
+      class Parent {
+        public status: Status = Status.Active;
+
+        public run(): number {
+          return helper(1);
+        }
+      }
+
+      class Unrelated {
+        public status: Status = Status.Inactive;
+
+        public exec(): number {
+          return helper(2);
+        }
+      }
+
+      class Child extends Parent {
+        public childRun(): number {
+          return helper(3);
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+
+    // Enum: Parent and Unrelated each get their own; Child inherits from Parent
+    const enumCount = (solidity.match(/enum Status/g) ?? []).length;
+    expect(enumCount).toBe(2);
+
+    // helper(): Parent and Unrelated each get their own; Child inherits from Parent
+    const helperCount = (solidity.match(/function helper\(/g) ?? []).length;
+    expect(helperCount).toBe(2);
+
+    // All three should compile successfully
+    const resultParent = compileSolidity("Parent", solidity, defaultConfig);
+    expect(resultParent.errors).toHaveLength(0);
+    const resultUnrelated = compileSolidity("Unrelated", solidity, defaultConfig);
+    expect(resultUnrelated.errors).toHaveLength(0);
+    const resultChild = compileSolidity("Child", solidity, defaultConfig);
+    expect(resultChild.errors).toHaveLength(0);
+  });
 });
