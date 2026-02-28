@@ -9,7 +9,7 @@ import type {
 } from "../types/index.ts";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
-import { parse, collectTypes, collectFunctions } from "./parser.ts";
+import { parse, collectTypes, collectFunctions, collectClassNames } from "./parser.ts";
 import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
@@ -135,13 +135,14 @@ export async function compile(
       }
       for (const [name, expr] of constants) globalConstants.set(name, expr);
 
-      const classMatches = source.matchAll(/\bclass\s+(\w+)/g);
-      let hasClass = false;
-      for (const match of classMatches) {
-        contractOriginFile.set(match[1], baseName);
-        hasClass = true;
+      const classNames = collectClassNames(source, filePath);
+      for (const className of classNames) {
+        const existingOrigin = contractOriginFile.get(className);
+        if (!existingOrigin || baseName < existingOrigin) {
+          contractOriginFile.set(className, baseName);
+        }
       }
-      if (hasClass) {
+      if (classNames.length > 0) {
         preScanContractFiles.push(baseName);
       }
     } catch {
@@ -296,7 +297,7 @@ export async function compile(
         // Import parent contracts defined in other files
         for (const parentName of contract.inherits) {
           const originBase = contractOriginFile.get(parentName);
-          if (originBase && originBase !== baseName) {
+          if (originBase && originBase !== baseName && filesWithContracts.has(originBase)) {
             imports.push(`./${originBase}.sol`);
           }
         }
