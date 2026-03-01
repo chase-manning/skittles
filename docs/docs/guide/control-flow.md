@@ -106,6 +106,12 @@ The conditional (ternary) operator:
 let result: number = amount > 0 ? amount : 0;
 ```
 
+Void ternary expressions (used as statements for side effects) are also supported and compile to `if/else`:
+
+```typescript
+condition ? this.doA() : this.doB();
+```
+
 ## Array Destructuring
 
 Array destructuring is supported for local variable declarations:

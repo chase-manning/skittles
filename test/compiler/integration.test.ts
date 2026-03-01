@@ -597,6 +597,27 @@ describe("integration: additional features", () => {
     expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
   });
 
+  it("should compile void ternary expressions as if/else", () => {
+    const { errors, solidity } = compileTS(`
+      class VoidTernary {
+        public a: number = 0;
+        public b: number = 0;
+        private doA(): void {
+          this.a = 1;
+        }
+        private doB(): void {
+          this.b = 1;
+        }
+        public run(condition: boolean): void {
+          condition ? this.doA() : this.doB();
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("if (condition) {\n            doA();\n        } else {\n            doB();\n        }");
+    expect(solidity).not.toContain("? doA()");
+  });
+
   it("should compile Number.MAX_SAFE_INTEGER as 9007199254740991", () => {
     const { errors, solidity } = compileTS(`
       class SafeInt {

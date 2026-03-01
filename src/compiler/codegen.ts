@@ -696,8 +696,19 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return `${indent}${type} ${stmt.name};`;
     }
 
-    case "expression":
+    case "expression": {
+      if (stmt.expression.kind === "conditional") {
+        const conditionalExpr = stmt.expression;
+        const lines: string[] = [];
+        lines.push(`${indent}if (${generateExpression(conditionalExpr.condition)}) {`);
+        lines.push(`${inner}${generateExpression(conditionalExpr.whenTrue)};`);
+        lines.push(`${indent}} else {`);
+        lines.push(`${inner}${generateExpression(conditionalExpr.whenFalse)};`);
+        lines.push(`${indent}}`);
+        return lines.join("\n");
+      }
       return `${indent}${generateExpression(stmt.expression)};`;
+    }
 
     case "if": {
       if (isRequirePattern(stmt)) {
