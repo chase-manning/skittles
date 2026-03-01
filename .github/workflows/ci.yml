@@ -14,10 +14,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-      - run: yarn install --immutable
-      - run: yarn build
-      - run: yarn test
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
 
   example:
     runs-on: ubuntu-latest
@@ -26,12 +26,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-      - run: yarn install --immutable
-      - run: yarn build
-      - run: yarn install --immutable
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm ci
         working-directory: example
-      - run: yarn test
+      - run: npm test
         working-directory: example
 
   init-smoke:
@@ -41,9 +41,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
-      - run: yarn install --immutable
-      - run: yarn build
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - name: Verify init produces installable project
         run: |
           DIR=$(mktemp -d)

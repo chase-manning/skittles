@@ -9,7 +9,7 @@
     "swizzle": "docusaurus swizzle",
     "clear": "docusaurus clear",
     "serve": "docusaurus serve",
-    "deploy": "yarn build && wrangler pages deploy ./build --project-name=skittles-docs",
+    "deploy": "npm run build && wrangler pages deploy ./build --project-name=skittles-docs",
     "typecheck": "tsc"
   },
   "dependencies": {

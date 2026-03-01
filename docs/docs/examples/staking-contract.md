@@ -176,7 +176,7 @@ This example demonstrates:
 ```bash
 git clone https://github.com/chase-manning/skittles.git
 cd skittles/example
-yarn install
-yarn compile
-yarn test
+npm install
+npm run compile
+npm test
 ```
