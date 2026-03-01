@@ -219,20 +219,115 @@ class Example {
 }
 ```
 
-Array methods `push()` and `pop()` are supported:
+Skittles supports a rich set of TypeScript array methods — far beyond what Solidity offers natively. Just write natural TypeScript and the compiler handles the rest.
+
+### Adding & Removing Elements
 
 ```typescript
-this.owners.push(newOwner);
-this.owners.pop();
+this.owners.push(newOwner);       // append to end
+this.owners.pop();                // remove last element
+this.owners.remove(addr);        // remove first occurrence (swap-and-pop)
+this.owners.splice(1, 2);        // remove 2 elements starting at index 1
+this.owners.reverse();            // reverse array in place
 ```
 
-Array `.length` is accessible for iteration:
+### Searching
 
 ```typescript
+this.owners.includes(addr);      // true if value exists
+this.owners.indexOf(addr);       // index of first occurrence (type(uint256).max if not found)
+this.owners.lastIndexOf(addr);   // index of last occurrence
+this.values.at(0);               // element at index (supports negative: at(-1) = last)
+```
+
+### Iterating with Callbacks
+
+Use arrow functions just like in TypeScript:
+
+```typescript
+// Check if any/all elements match a condition
+const hasAdmin = this.values.some(v => v > 100);
+const allPositive = this.values.every(v => v > 0);
+
+// Find elements
+const first = this.values.find(v => v > 50);
+const idx = this.values.findIndex(v => v > 50);
+
+// Accumulate
+const total = this.values.reduce((acc, v) => acc + v, 0);
+```
+
+### Transforming Arrays
+
+These methods return new arrays (in memory):
+
+```typescript
+// Filter elements
+const large = this.values.filter(v => v > 10);
+
+// Transform elements
+const doubled = this.values.map(v => v * 2);
+
+// Extract a sub-array
+const middle = this.values.slice(1, 3);
+
+// Combine arrays
+const combined = this.values.concat(otherArray);
+```
+
+### Side Effects
+
+```typescript
+this.values.forEach(v => this.total += v);
+```
+
+### Array Length & Access
+
+```typescript
+const len = this.owners.length;
+const first = this.owners[0];
+
 for (let i: number = 0; i < this.owners.length; i++) {
   // ...
 }
+
+for (const owner of this.owners) {
+  // ...
+}
 ```
+
+### Method Reference
+
+| Method | Returns | Mutates | Description |
+|--------|---------|---------|-------------|
+| `push(value)` | — | Yes | Append element |
+| `pop()` | — | Yes | Remove last element |
+| `remove(value)` | `boolean` | Yes | Remove first occurrence (swap-and-pop) |
+| `splice(start, count)` | — | Yes | Remove elements at index |
+| `reverse()` | — | Yes | Reverse in place |
+| `includes(value)` | `boolean` | No | Check if value exists |
+| `indexOf(value)` | `number` | No | First index of value |
+| `lastIndexOf(value)` | `number` | No | Last index of value |
+| `at(index)` | `T` | No | Element at index (negative = from end) |
+| `some(fn)` | `boolean` | No | True if any element matches |
+| `every(fn)` | `boolean` | No | True if all elements match |
+| `find(fn)` | `T` | No | First matching element (reverts if none) |
+| `findIndex(fn)` | `number` | No | Index of first match |
+| `filter(fn)` | `T[]` | No | New array of matching elements |
+| `map(fn)` | `U[]` | No | New array with transformed elements |
+| `reduce(fn, init)` | `U` | No | Accumulate to single value |
+| `forEach(fn)` | — | Depends | Execute callback for each element |
+| `slice(start, end)` | `T[]` | No | Copy sub-array |
+| `concat(other)` | `T[]` | No | Combine two arrays |
+| `length` | `number` | No | Number of elements |
+
+:::note
+- `remove(value)` uses a **swap-and-pop** strategy for gas efficiency — the removed element is replaced with the last element, so array order is not preserved. If you need ordered removal, use `splice()` instead.
+- `indexOf` and `lastIndexOf` return `type(uint256).max` (a very large number) when the value is not found, since Solidity uses unsigned integers.
+- `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
+- Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
+- All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
+:::
 
 ### Readonly Arrays
 

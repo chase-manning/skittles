@@ -33,6 +33,7 @@ let _needsStartsWithHelper = false;
 let _needsEndsWithHelper = false;
 let _needsTrimHelper = false;
 let _needsSplitHelper = false;
+let _currentNeededArrayHelpers = new Set<string>();
 
 // ============================================================
 // Main entry
@@ -185,6 +186,7 @@ function generateContractBody(
   _needsEndsWithHelper = false;
   _needsTrimHelper = false;
   _needsSplitHelper = false;
+  _currentNeededArrayHelpers = contract.neededArrayHelpers ?? new Set();
 
   const inheritance =
     contract.inherits.length > 0
@@ -480,6 +482,123 @@ function generateContractBody(
       "        return parts;",
       "    }",
     ]);
+  }
+
+  // Emit array helper functions based on what methods are used
+  for (const helperKey of _currentNeededArrayHelpers) {
+    const [method, ...typeParts] = helperKey.split("_");
+    const solType = typeParts.join("_");
+    const isString = solType === "string";
+    const eqCheck = isString
+      ? `keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(value))`
+      : `arr[i] == value`;
+
+    if (method === "includes") {
+      emitHelper(`_arrIncludes_${solType}`, [
+        `    function _arrIncludes_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal view returns (bool) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${eqCheck}) return true;`,
+        `        }`,
+        `        return false;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "indexOf") {
+      emitHelper(`_arrIndexOf_${solType}`, [
+        `    function _arrIndexOf_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal view returns (uint256) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${eqCheck}) return i;`,
+        `        }`,
+        `        return type(uint256).max;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "lastIndexOf") {
+      emitHelper(`_arrLastIndexOf_${solType}`, [
+        `    function _arrLastIndexOf_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal view returns (uint256) {`,
+        `        for (uint256 i = arr.length; i > 0; i--) {`,
+        `            if (${eqCheck.replace(/arr\[i\]/g, "arr[i - 1]")}) return i - 1;`,
+        `        }`,
+        `        return type(uint256).max;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "remove") {
+      emitHelper(`_arrRemove_${solType}`, [
+        `    function _arrRemove_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal returns (bool) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${eqCheck}) {`,
+        `                arr[i] = arr[arr.length - 1];`,
+        `                arr.pop();`,
+        `                return true;`,
+        `            }`,
+        `        }`,
+        `        return false;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "reverse") {
+      emitHelper(`_arrReverse_${solType}`, [
+        `    function _arrReverse_${solType}(${solType}[] storage arr) internal {`,
+        `        uint256 len = arr.length;`,
+        `        for (uint256 i = 0; i < len / 2; i++) {`,
+        `            ${solType} ${isString ? "memory " : ""}temp = arr[i];`,
+        `            arr[i] = arr[len - 1 - i];`,
+        `            arr[len - 1 - i] = temp;`,
+        `        }`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "splice") {
+      emitHelper(`_arrSplice_${solType}`, [
+        `    function _arrSplice_${solType}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
+        `        require(start < arr.length, "start out of bounds");`,
+        `        uint256 end = start + deleteCount;`,
+        `        if (end > arr.length) end = arr.length;`,
+        `        uint256 removed = end - start;`,
+        `        for (uint256 i = start; i < arr.length - removed; i++) {`,
+        `            arr[i] = arr[i + removed];`,
+        `        }`,
+        `        for (uint256 i = 0; i < removed; i++) {`,
+        `            arr.pop();`,
+        `        }`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "slice") {
+      emitHelper(`_arrSlice_${solType}`, [
+        `    function _arrSlice_${solType}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
+        `        if (end > arr.length) end = arr.length;`,
+        `        require(start <= end, "invalid slice range");`,
+        `        ${solType}[] memory result = new ${solType}[](end - start);`,
+        `        for (uint256 i = start; i < end; i++) {`,
+        `            result[i - start] = arr[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "concat") {
+      emitHelper(`_arrConcat_${solType}`, [
+        `    function _arrConcat_${solType}(${solType}[] storage arr, ${solType}[] memory other) internal view returns (${solType}[] memory) {`,
+        `        ${solType}[] memory result = new ${solType}[](arr.length + other.length);`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            result[i] = arr[i];`,
+        `        }`,
+        `        for (uint256 i = 0; i < other.length; i++) {`,
+        `            result[arr.length + i] = other[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
   }
 
   parts.push("}");
