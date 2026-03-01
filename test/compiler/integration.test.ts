@@ -2481,6 +2481,46 @@ describe("integration: Map method support", () => {
     expect(solidity).toContain("return (balances[addr] != 0);");
   });
 
+  it("should compile map.has(key) with boolean value to != false", () => {
+    const { errors, solidity } = compileTS(`
+      class Registry {
+        private registered: Map<address, boolean> = {};
+
+        public isRegistered(addr: address): boolean {
+          return this.registered.has(addr);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return (registered[addr] != false);");
+  });
+
+  it("should compile map.has(key) with address value to != address(0)", () => {
+    const { errors, solidity } = compileTS(`
+      class Registry {
+        private owners: Map<number, address> = {};
+
+        public hasOwner(id: number): boolean {
+          return this.owners.has(id);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return (owners[id] != address(0));");
+  });
+
+  it("should throw error for map.has() on unsupported value types", () => {
+    expect(() => compileTS(`
+      class Registry {
+        private names: Map<address, string> = {};
+
+        public hasName(addr: address): boolean {
+          return this.names.has(addr);
+        }
+      }
+    `)).toThrow("Map.has(key) is not supported");
+  });
+
   it("should detect map.has() as view", () => {
     const contracts = parse(`
       class Token {

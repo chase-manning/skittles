@@ -1552,11 +1552,19 @@ export function parseExpression(node: ts.Expression): Expression {
       };
     }
 
-    // Map.has(key) → mapping[key] != 0
+    // Map.has(key) → mapping[key] != <default>
     if (ts.isPropertyAccessExpression(node.expression) &&
         node.expression.name.text === "has" &&
         node.arguments.length === 1 &&
         isMappingLikeReceiver(node.expression.expression)) {
+      const valueType = resolveMappingValueType(node.expression.expression);
+      const defaultExpr = defaultValueForType(valueType);
+      if (!defaultExpr) {
+        throw new Error(
+          "Map.has(key) is not supported for this mapping value type. " +
+          "Please use an explicit comparison against the mapping's default value."
+        );
+      }
       return {
         kind: "binary" as const,
         operator: "!=",
@@ -1565,7 +1573,7 @@ export function parseExpression(node: ts.Expression): Expression {
           object: parseExpression(node.expression.expression),
           index: parseExpression(node.arguments[0]),
         },
-        right: { kind: "number-literal" as const, value: "0" },
+        right: defaultExpr,
       };
     }
 
@@ -2658,6 +2666,59 @@ function isMappingLikeReceiver(node: ts.Expression): boolean {
     return isMappingLikeReceiver(node.expression);
   }
   return false;
+}
+
+/**
+ * Resolve the mapping value type for a mapping-like receiver expression.
+ * For `this.balances` where balances is `Map<address, number>`, returns the `number` type.
+ * For `this.allowances[owner]` where allowances is `Map<address, Map<address, number>>`,
+ * returns the inner `number` type.
+ */
+function resolveMappingValueType(node: ts.Expression): SkittlesType | undefined {
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    if (type?.kind === ("mapping" as SkittlesTypeKind)) {
+      return type.valueType;
+    }
+    return undefined;
+  }
+  if (ts.isElementAccessExpression(node)) {
+    const parentValueType = resolveMappingValueType(node.expression);
+    if (parentValueType?.kind === ("mapping" as SkittlesTypeKind)) {
+      return parentValueType.valueType;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Return the default-value expression for a given Solidity type, used by Map.has().
+ * Returns null for types that have no meaningful default comparison (structs, mappings).
+ */
+function defaultValueForType(type: SkittlesType | undefined): Expression | null {
+  if (!type) return null;
+  switch (type.kind as string) {
+    case "uint256":
+    case "int256":
+      return { kind: "number-literal", value: "0" };
+    case "bool":
+      return { kind: "boolean-literal", value: false };
+    case "address":
+      return { kind: "identifier", name: "address(0)" };
+    case "string":
+    case "bytes":
+    case "bytes32":
+    case "enum":
+    case "struct":
+    case "mapping":
+    case "array":
+    case "tuple":
+      return null;
+    default:
+      return null;
+  }
 }
 
 /**

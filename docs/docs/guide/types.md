@@ -131,8 +131,12 @@ class Token {
 |--------|-------------|-------------------|
 | `map.get(key)` | Get value | `mapping[key]` |
 | `map.set(key, value)` | Set value | `mapping[key] = value` |
-| `map.has(key)` | Check if key exists (non-zero) | `mapping[key] != 0` |
+| `map.has(key)` | Check if key has non-default value | `mapping[key] != 0` / `!= false` / `!= address(0)` |
 | `map.delete(key)` | Delete a mapping entry | `delete mapping[key]` |
+
+:::note
+`map.has(key)` compares against the default value for the mapping's value type (`0` for numbers, `false` for booleans, `address(0)` for addresses). It is not supported for `string`, `bytes`, struct, or nested mapping value types — use an explicit comparison instead.
+:::
 
 You can also use bracket notation directly — both styles work:
 
