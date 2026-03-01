@@ -79,21 +79,19 @@ it("accepts ETH deposits", async function () {
 
 ### Testing ETH Balance Changes
 
-Use `ethers.provider.getBalance` to check how an account's ETH balance changes after a transaction:
+Use `ethers.provider.getBalance` to check how a contract's (or an account's) ETH balance changes after a transaction:
 
 ```typescript
-it("withdraws ETH correctly", async function () {
+it("tracks contract ETH balance on deposit", async function () {
   const { contract, alice } = await networkHelpers.loadFixture(deployFixture);
   const addr = await contract.getAddress();
   const contractAsAlice = await ethers.getContractAt("Staking", addr, alice);
 
-  await contractAsAlice.deposit({ value: ethers.parseEther("5.0") });
-
   const balBefore = await ethers.provider.getBalance(addr);
-  await contractAsAlice.withdraw(ethers.parseEther("1.0"));
+  await contractAsAlice.deposit({ value: ethers.parseEther("1.0") });
   const balAfter = await ethers.provider.getBalance(addr);
 
-  expect(balBefore - balAfter).to.equal(ethers.parseEther("1.0"));
+  expect(balAfter - balBefore).to.equal(ethers.parseEther("1.0"));
 });
 ```
 
