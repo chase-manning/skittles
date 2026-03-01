@@ -244,7 +244,7 @@ function generateContractBody(
   }
 
   if (contract.ctor) {
-    parts.push(generateConstructor(contract.ctor));
+    parts.push(generateConstructor(contract.ctor, contract.inherits));
     if (functionsToEmit.length > 0 || readonlyArrayVars.length > 0) {
       parts.push("");
     }
@@ -452,7 +452,16 @@ function generateFunction(f: SkittlesFunction): string {
   return lines.join("\n");
 }
 
-function generateConstructor(c: SkittlesConstructor): string {
+function isSuperCall(stmt: Statement): stmt is { kind: "expression"; expression: { kind: "call"; callee: { kind: "identifier"; name: "super" }; args: Expression[] } } {
+  return (
+    stmt.kind === "expression" &&
+    stmt.expression.kind === "call" &&
+    stmt.expression.callee.kind === "identifier" &&
+    stmt.expression.callee.name === "super"
+  );
+}
+
+function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): string {
   const regularParams = c.parameters.filter((p) => !p.defaultValue);
   const defaultParams = c.parameters.filter((p) => p.defaultValue);
 
@@ -460,12 +469,23 @@ function generateConstructor(c: SkittlesConstructor): string {
     .map((p) => `${generateParamType(p.type)} ${p.name}`)
     .join(", ");
 
+  // Extract super() call from the body (if any)
+  const superStmt = c.body.find(isSuperCall);
+  const bodyWithoutSuper = c.body.filter((s) => !isSuperCall(s));
+
+  // Build the parent constructor modifier for the Solidity constructor signature
+  let parentModifier = "";
+  if (superStmt && superStmt.expression.args.length > 0 && inherits.length > 0) {
+    const args = superStmt.expression.args.map(generateExpression).join(", ");
+    parentModifier = ` ${inherits[0]}(${args})`;
+  }
+
   const lines: string[] = [];
-  lines.push(`    constructor(${params}) {`);
+  lines.push(`    constructor(${params})${parentModifier} {`);
   for (const p of defaultParams) {
     lines.push(`        ${generateParamType(p.type)} ${p.name} = ${generateExpression(p.defaultValue!)};`);
   }
-  for (const s of c.body) {
+  for (const s of bodyWithoutSuper) {
     lines.push(generateStatement(s, "        "));
   }
   lines.push("    }");

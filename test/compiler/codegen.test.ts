@@ -205,6 +205,83 @@ describe("generateSolidity", () => {
     expect(sol).toContain("tokenName = name;");
   });
 
+  it("should omit super() call with no arguments in constructor", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        inherits: ["Base"],
+        ctor: {
+          parameters: [
+            { name: "initialSupply", type: { kind: SkittlesTypeKind.Uint256 } },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "call",
+                callee: { kind: "identifier", name: "super" },
+                args: [],
+              },
+            },
+            {
+              kind: "expression",
+              expression: {
+                kind: "call",
+                callee: { kind: "identifier", name: "_mint" },
+                args: [
+                  { kind: "identifier", name: "msg.sender" },
+                  { kind: "identifier", name: "initialSupply" },
+                ],
+              },
+            },
+          ],
+        },
+      })
+    );
+    expect(sol).toContain("constructor(uint256 initialSupply) {");
+    expect(sol).not.toContain("super");
+    expect(sol).toContain("_mint(msg.sender, initialSupply);");
+  });
+
+  it("should generate parent constructor modifier for super() with arguments", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        inherits: ["ERC20"],
+        ctor: {
+          parameters: [
+            { name: "initialSupply", type: { kind: SkittlesTypeKind.Uint256 } },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "call",
+                callee: { kind: "identifier", name: "super" },
+                args: [
+                  { kind: "string-literal", value: "MyToken" },
+                  { kind: "string-literal", value: "MTK" },
+                ],
+              },
+            },
+            {
+              kind: "expression",
+              expression: {
+                kind: "call",
+                callee: { kind: "identifier", name: "_mint" },
+                args: [
+                  { kind: "identifier", name: "msg.sender" },
+                  { kind: "identifier", name: "initialSupply" },
+                ],
+              },
+            },
+          ],
+        },
+      })
+    );
+    expect(sol).toContain('constructor(uint256 initialSupply) ERC20("MyToken", "MTK") {');
+    expect(sol).not.toContain("super");
+    expect(sol).toContain("_mint(msg.sender, initialSupply);");
+  });
+
   it("should generate a view function", () => {
     const sol = generateSolidity(
       emptyContract({
