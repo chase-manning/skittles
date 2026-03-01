@@ -195,16 +195,29 @@ import { address, msg } from "skittles";
 import { Pausable } from "skittles/contracts";
 
 export class Vault extends Pausable {
+  private _owner: address;
+
+  constructor() {
+    super();
+    this._owner = msg.sender;
+  }
+
   public deposit(amount: number): void {
     this._requireNotPaused();
     // deposit logic
   }
 
   public pause(): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
+    }
     this._pause();
   }
 
   public unpause(): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
+    }
     this._unpause();
   }
 }

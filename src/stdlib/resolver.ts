@@ -81,7 +81,11 @@ export function resolveStdlibFiles(referencedClasses: Set<string>): string[] {
  * Check if a file path belongs to the stdlib.
  */
 export function isStdlibFile(filePath: string): boolean {
-  return path.resolve(filePath).startsWith(STDLIB_CONTRACTS_DIR);
+  const resolved = path.resolve(filePath);
+  return (
+    resolved === STDLIB_CONTRACTS_DIR ||
+    resolved.startsWith(STDLIB_CONTRACTS_DIR + path.sep)
+  );
 }
 
 /**

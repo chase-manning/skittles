@@ -2519,30 +2519,28 @@ const MUTABILITY_RANK: Record<StateMutability, number> = {
 function propagateMutability(contracts: SkittlesContract[]): void {
   const contractByName = new Map(contracts.map((c) => [c.name, c]));
 
-  for (const contract of contracts) {
-    const allFunctions = new Map<string, SkittlesFunction>();
-    for (const fn of contract.functions) allFunctions.set(fn.name, fn);
-    for (const parentName of contract.inherits) {
-      const parent = contractByName.get(parentName);
-      if (!parent) continue;
-      for (const fn of parent.functions) {
-        if (!allFunctions.has(fn.name)) allFunctions.set(fn.name, fn);
+  let globalChanged = true;
+  while (globalChanged) {
+    globalChanged = false;
+    for (const contract of contracts) {
+      const allFunctions = new Map<string, SkittlesFunction>();
+      for (const fn of contract.functions) allFunctions.set(fn.name, fn);
+      for (const parentName of contract.inherits) {
+        const parent = contractByName.get(parentName);
+        if (!parent) continue;
+        for (const fn of parent.functions) {
+          if (!allFunctions.has(fn.name)) allFunctions.set(fn.name, fn);
+        }
       }
-    }
 
-    let changed = true;
-    while (changed) {
-      changed = false;
       for (const fn of contract.functions) {
         const calls = collectThisCalls(fn.body);
         for (const calledName of calls) {
           const callee = allFunctions.get(calledName);
           if (!callee) continue;
-          const required = MUTABILITY_RANK[callee.stateMutability] > MUTABILITY_RANK[fn.stateMutability]
-            ? callee.stateMutability : fn.stateMutability;
-          if (required !== fn.stateMutability) {
-            fn.stateMutability = required;
-            changed = true;
+          if (MUTABILITY_RANK[callee.stateMutability] > MUTABILITY_RANK[fn.stateMutability]) {
+            fn.stateMutability = callee.stateMutability;
+            globalChanged = true;
           }
         }
       }
