@@ -138,8 +138,18 @@ This compiles to Solidity's `abi.decode(data, (uint256, address))`.
 
 | Function          | Description                                                   |
 | ----------------- | ------------------------------------------------------------- |
+| `Math.min(a, b)`  | Return the smaller of two values                              |
+| `Math.max(a, b)`  | Return the larger of two values                               |
+| `Math.sqrt(x)`    | Compute the integer square root of a value                    |
+| `Math.pow(a, b)`  | Raise `a` to the power `b` (same as `a ** b`)                |
 | `addmod(x, y, k)` | Compute `(x + y) % k` with arbitrary precision (no overflow)  |
 | `mulmod(x, y, k)` | Compute `(x * y) % k` with arbitrary precision (no overflow)  |
+
+```typescript
+let smaller = Math.min(a, b);
+let clamped = Math.min(Math.max(value, min), max);
+let root = Math.sqrt(x);
+```
 
 ### Utilities
 
