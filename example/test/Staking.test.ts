@@ -73,7 +73,7 @@ describe("Staking", function () {
 
       await expect(
         vaultAsAlice.withdraw(depositAmount)
-      ).to.changeEtherBalance(alice, expectedPayout);
+      ).to.changeEtherBalance(ethers, alice, expectedPayout);
 
       expect(await vault.getDeposit(alice.address)).to.equal(0n);
     });
