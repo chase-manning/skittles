@@ -235,17 +235,20 @@ export class ERC721 {
     tokenId: number,
     auth: address
   ): void {
+    let tokenOwner: address = this._ownerOf(tokenId);
+    if (tokenOwner == "0x0000000000000000000000000000000000000000") {
+      throw this.ERC721NonexistentToken(tokenId);
+    }
     if (auth != "0x0000000000000000000000000000000000000000") {
-      let tokenOwner: address = this._ownerOf(tokenId);
       if (
         auth != tokenOwner &&
         !this.isApprovedForAll(tokenOwner, auth)
       ) {
-        throw this.ERC721InsufficientApproval(auth, tokenId);
+        throw this.ERC721InvalidApprover(auth);
       }
     }
     this._tokenApprovals[tokenId] = to;
-    this.Approval.emit(this._ownerOf(tokenId), to, tokenId);
+    this.Approval.emit(tokenOwner, to, tokenId);
   }
 
   protected _setApprovalForAll(

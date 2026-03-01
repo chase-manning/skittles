@@ -68,7 +68,8 @@ export function resolveStdlibFiles(referencedClasses: Set<string>): string[] {
     if (extendsMatch) {
       for (const m of extendsMatch) {
         const parent = m.replace(/^extends\s+/, "");
-        if (!needed.has(parent)) queue.push(parent);
+        const parentEntry = registry.find((e) => e.className === parent);
+        if (parentEntry && !needed.has(parentEntry.filePath)) queue.push(parent);
       }
     }
   }

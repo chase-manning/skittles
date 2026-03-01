@@ -13,7 +13,7 @@ import { parse, collectTypes, collectFunctions, collectClassNames } from "./pars
 import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
-import { getStdlibClassNames, resolveStdlibFiles } from "../stdlib/resolver.ts";
+import { getStdlibClassNames, resolveStdlibFiles, getStdlibContractsDir } from "../stdlib/resolver.ts";
 
 export interface CompilationResult {
   success: boolean;
@@ -256,7 +256,7 @@ export async function compile(
   for (const filePath of sourceFiles) {
     const isStdlib = stdlibFileSet.has(filePath);
     const relativePath = isStdlib
-      ? `stdlib/${path.basename(filePath)}`
+      ? `stdlib/${path.relative(getStdlibContractsDir(), filePath)}`
       : path.relative(projectRoot, filePath);
     try {
       const source = readFile(filePath);
@@ -311,21 +311,14 @@ export async function compile(
       while (changed) {
         changed = false;
         for (const fn of contract.functions) {
-          for (const stmt of walkStatementsFlat(fn.body)) {
-            if (
-              stmt.kind === "expression" &&
-              stmt.expression.kind === "call" &&
-              stmt.expression.callee.kind === "property-access" &&
-              stmt.expression.callee.object.kind === "identifier" &&
-              stmt.expression.callee.object.name === "this"
-            ) {
-              const callee = allFunctions.get(stmt.expression.callee.property);
-              if (!callee) continue;
-              const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
-              if (rank[callee.stateMutability] > rank[fn.stateMutability]) {
-                fn.stateMutability = callee.stateMutability;
-                changed = true;
-              }
+          const callNames = collectThisCallNames(fn.body);
+          for (const name of callNames) {
+            const callee = allFunctions.get(name);
+            if (!callee) continue;
+            const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+            if (rank[callee.stateMutability] > rank[fn.stateMutability]) {
+              fn.stateMutability = callee.stateMutability;
+              changed = true;
             }
           }
         }
@@ -543,6 +536,120 @@ function walkStatementsFlat(stmts: Statement[]): Statement[] {
     }
   }
   return result;
+}
+
+/**
+ * Collect all `this.foo()` call names from a statement tree by walking
+ * every expression recursively. Unlike the flat statement walker, this
+ * detects calls inside return statements, assignments, conditionals, etc.
+ */
+function collectThisCallNames(stmts: Statement[]): string[] {
+  const names: string[] = [];
+
+  function walkExpr(expr: Expression): void {
+    switch (expr.kind) {
+      case "call":
+        if (
+          expr.callee.kind === "property-access" &&
+          expr.callee.object.kind === "identifier" &&
+          expr.callee.object.name === "this"
+        ) {
+          names.push(expr.callee.property);
+        }
+        walkExpr(expr.callee);
+        expr.args.forEach(walkExpr);
+        break;
+      case "binary":
+        walkExpr(expr.left);
+        walkExpr(expr.right);
+        break;
+      case "unary":
+        walkExpr(expr.operand);
+        break;
+      case "assignment":
+        walkExpr(expr.target);
+        walkExpr(expr.value);
+        break;
+      case "property-access":
+        walkExpr(expr.object);
+        break;
+      case "element-access":
+        walkExpr(expr.object);
+        walkExpr(expr.index);
+        break;
+      case "conditional":
+        walkExpr(expr.condition);
+        walkExpr(expr.whenTrue);
+        walkExpr(expr.whenFalse);
+        break;
+      case "new":
+        expr.args.forEach(walkExpr);
+        break;
+      case "object-literal":
+        expr.properties.forEach((p) => walkExpr(p.value));
+        break;
+    }
+  }
+
+  function walkStmt(stmt: Statement): void {
+    switch (stmt.kind) {
+      case "return":
+        if (stmt.value) walkExpr(stmt.value);
+        break;
+      case "variable-declaration":
+        if (stmt.initializer) walkExpr(stmt.initializer);
+        break;
+      case "expression":
+        walkExpr(stmt.expression);
+        break;
+      case "if":
+        walkExpr(stmt.condition);
+        stmt.thenBody.forEach(walkStmt);
+        stmt.elseBody?.forEach(walkStmt);
+        break;
+      case "for":
+        if (stmt.initializer) walkStmt(stmt.initializer);
+        if (stmt.condition) walkExpr(stmt.condition);
+        if (stmt.incrementor) walkExpr(stmt.incrementor);
+        stmt.body.forEach(walkStmt);
+        break;
+      case "while":
+        walkExpr(stmt.condition);
+        stmt.body.forEach(walkStmt);
+        break;
+      case "revert":
+        if (stmt.message) walkExpr(stmt.message);
+        break;
+      case "do-while":
+        walkExpr(stmt.condition);
+        stmt.body.forEach(walkStmt);
+        break;
+      case "emit":
+        stmt.args.forEach(walkExpr);
+        break;
+      case "switch":
+        walkExpr(stmt.discriminant);
+        for (const c of stmt.cases) {
+          if (c.value) walkExpr(c.value);
+          c.body.forEach(walkStmt);
+        }
+        break;
+      case "delete":
+        walkExpr(stmt.target);
+        break;
+      case "try-catch":
+        walkExpr(stmt.call);
+        stmt.successBody.forEach(walkStmt);
+        stmt.catchBody.forEach(walkStmt);
+        break;
+      case "console-log":
+        stmt.args.forEach(walkExpr);
+        break;
+    }
+  }
+
+  stmts.forEach(walkStmt);
+  return names;
 }
 
 /**
