@@ -287,6 +287,13 @@ export function parse(
     }
   }
 
+  // Post-process: propagate state mutability across function calls.
+  // When a function calls this.someMethod(), and someMethod is known to
+  // be nonpayable/payable (state-modifying), the caller must be at least
+  // as permissive. This is critical for inheritance where child functions
+  // call parent internal functions like _mint/_burn.
+  propagateMutability(contracts);
+
   return contracts;
 }
 
@@ -2490,6 +2497,57 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
   if (writesState) return "nonpayable";
   if (readsState || readsEnvironment) return "view";
   return "pure";
+}
+
+// ============================================================
+// Cross-function mutability propagation
+// ============================================================
+
+const MUTABILITY_RANK: Record<StateMutability, number> = {
+  pure: 0,
+  view: 1,
+  nonpayable: 2,
+  payable: 3,
+};
+
+/**
+ * After parsing all contracts in a file, propagate mutability from callees to
+ * callers. If function A calls this.B(), and B is nonpayable, A must be at
+ * least nonpayable. Handles inheritance: child functions can call parent
+ * internal functions.
+ */
+function propagateMutability(contracts: SkittlesContract[]): void {
+  const contractByName = new Map(contracts.map((c) => [c.name, c]));
+
+  for (const contract of contracts) {
+    const allFunctions = new Map<string, SkittlesFunction>();
+    for (const fn of contract.functions) allFunctions.set(fn.name, fn);
+    for (const parentName of contract.inherits) {
+      const parent = contractByName.get(parentName);
+      if (!parent) continue;
+      for (const fn of parent.functions) {
+        if (!allFunctions.has(fn.name)) allFunctions.set(fn.name, fn);
+      }
+    }
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const fn of contract.functions) {
+        const calls = collectThisCalls(fn.body);
+        for (const calledName of calls) {
+          const callee = allFunctions.get(calledName);
+          if (!callee) continue;
+          const required = MUTABILITY_RANK[callee.stateMutability] > MUTABILITY_RANK[fn.stateMutability]
+            ? callee.stateMutability : fn.stateMutability;
+          if (required !== fn.stateMutability) {
+            fn.stateMutability = required;
+            changed = true;
+          }
+        }
+      }
+    }
+  }
 }
 
 // ============================================================

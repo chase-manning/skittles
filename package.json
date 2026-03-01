@@ -10,10 +10,15 @@
     ".": {
       "types": "./dist/exports.d.ts",
       "default": "./dist/exports.js"
+    },
+    "./contracts": {
+      "types": "./stdlib/contracts/index.ts",
+      "default": "./stdlib/contracts/index.ts"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "stdlib"
   ],
   "scripts": {
     "build": "tsc",

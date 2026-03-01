@@ -13,6 +13,7 @@ import { parse, collectTypes, collectFunctions, collectClassNames } from "./pars
 import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
+import { getStdlibClassNames, resolveStdlibFiles } from "../stdlib/resolver.ts";
 
 export interface CompilationResult {
   success: boolean;
@@ -91,13 +92,13 @@ export async function compile(
   const warnings: string[] = [];
 
   // Step 1: Find source files
-  const sourceFiles = findTypeScriptFiles(contractsDir);
-  if (sourceFiles.length === 0) {
+  const userSourceFiles = findTypeScriptFiles(contractsDir);
+  if (userSourceFiles.length === 0) {
     logInfo("No TypeScript contract files found.");
     return { success: true, artifacts, errors, warnings: [] };
   }
 
-  logInfo(`Found ${sourceFiles.length} contract file(s)`);
+  logInfo(`Found ${userSourceFiles.length} contract file(s)`);
 
   // Pre-scan all files to collect shared types (type alias structs, contract
   // interfaces, enums), file level functions, and file level constants.
@@ -111,10 +112,14 @@ export async function compile(
   const interfaceOriginFile = new Map<string, string>();
   const contractOriginFile = new Map<string, string>();
   const preScanContractFiles: string[] = [];
+  const stdlibFileSet = new Set<string>();
 
-  for (const filePath of sourceFiles) {
+  // First pass: pre-scan user files
+  const userSources = new Map<string, string>();
+  for (const filePath of userSourceFiles) {
     try {
       const source = readFile(filePath);
+      userSources.set(filePath, source);
       const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
       const baseName = path.basename(filePath, path.extname(filePath));
       for (const [name, fields] of structs) globalStructs.set(name, fields);
@@ -149,6 +154,69 @@ export async function compile(
       // Errors will be caught in the main compilation loop below
     }
   }
+
+  // Detect stdlib contract references: scan user sources for `extends`
+  // clauses that reference stdlib classes, then include those files.
+  const stdlibClassNames = getStdlibClassNames();
+  const referencedStdlib = new Set<string>();
+  for (const source of userSources.values()) {
+    const matches = source.matchAll(/extends\s+(\w+)/g);
+    for (const m of matches) {
+      if (stdlibClassNames.has(m[1]) && !contractOriginFile.has(m[1])) {
+        referencedStdlib.add(m[1]);
+      }
+    }
+  }
+
+  const stdlibFiles = resolveStdlibFiles(referencedStdlib);
+  for (const stdlibPath of stdlibFiles) {
+    stdlibFileSet.add(stdlibPath);
+  }
+
+  // Pre-scan stdlib files into the global maps
+  for (const filePath of stdlibFiles) {
+    try {
+      const source = readFile(filePath);
+      const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
+      const baseName = path.basename(filePath, path.extname(filePath));
+      for (const [name, fields] of structs) globalStructs.set(name, fields);
+      for (const [name, members] of enums) globalEnums.set(name, members);
+      for (const [name, iface] of contractInterfaces) {
+        const existingOrigin = interfaceOriginFile.get(name);
+        if (!existingOrigin || baseName < existingOrigin) {
+          globalContractInterfaces.set(name, iface);
+          interfaceOriginFile.set(name, baseName);
+        }
+      }
+
+      const { functions, constants } = collectFunctions(source, filePath);
+      for (const fn of functions) {
+        if (!globalFunctions.some((f) => f.name === fn.name)) {
+          globalFunctions.push(fn);
+        }
+      }
+      for (const [name, expr] of constants) globalConstants.set(name, expr);
+
+      const classNames = collectClassNames(source, filePath);
+      for (const className of classNames) {
+        const existingOrigin = contractOriginFile.get(className);
+        if (!existingOrigin || baseName < existingOrigin) {
+          contractOriginFile.set(className, baseName);
+        }
+      }
+      if (classNames.length > 0) {
+        preScanContractFiles.push(baseName);
+      }
+    } catch {
+      // Errors handled in the main compilation loop
+    }
+  }
+
+  if (stdlibFiles.length > 0) {
+    logInfo(`Including ${stdlibFiles.length} standard library contract(s)`);
+  }
+
+  const sourceFiles = [...userSourceFiles, ...stdlibFiles];
 
   const externalTypes = { structs: globalStructs, enums: globalEnums, contractInterfaces: globalContractInterfaces };
   const externalFunctions = { functions: globalFunctions, constants: globalConstants };
@@ -186,7 +254,10 @@ export async function compile(
   const filesWithContracts = new Set<string>();
 
   for (const filePath of sourceFiles) {
-    const relativePath = path.relative(projectRoot, filePath);
+    const isStdlib = stdlibFileSet.has(filePath);
+    const relativePath = isStdlib
+      ? `stdlib/${path.basename(filePath)}`
+      : path.relative(projectRoot, filePath);
     try {
       const source = readFile(filePath);
       const fileHash = hashString(source);
@@ -210,6 +281,55 @@ export async function compile(
       const message = err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
       logError(`Failed to compile ${relativePath}: ${message}`);
+    }
+  }
+
+  // Cross-file mutability propagation: when a child contract extends a
+  // parent from another file, calls to inherited internal functions (e.g.
+  // _mint, _burn) need to propagate the callee's mutability to the caller.
+  const allParsedContracts = new Map<string, SkittlesContract>();
+  for (const { contracts } of parsedFiles) {
+    for (const c of contracts) allParsedContracts.set(c.name, c);
+  }
+  for (const { contracts } of parsedFiles) {
+    for (const contract of contracts) {
+      const parentFunctions = new Map<string, SkittlesFunction>();
+      for (const parentName of contract.inherits) {
+        const parent = allParsedContracts.get(parentName);
+        if (!parent) continue;
+        for (const fn of parent.functions) {
+          if (!parentFunctions.has(fn.name)) parentFunctions.set(fn.name, fn);
+        }
+      }
+      if (parentFunctions.size === 0) continue;
+
+      const ownFunctions = new Map<string, SkittlesFunction>();
+      for (const fn of contract.functions) ownFunctions.set(fn.name, fn);
+      const allFunctions = new Map([...parentFunctions, ...ownFunctions]);
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const fn of contract.functions) {
+          for (const stmt of walkStatementsFlat(fn.body)) {
+            if (
+              stmt.kind === "expression" &&
+              stmt.expression.kind === "call" &&
+              stmt.expression.callee.kind === "property-access" &&
+              stmt.expression.callee.object.kind === "identifier" &&
+              stmt.expression.callee.object.name === "this"
+            ) {
+              const callee = allFunctions.get(stmt.expression.callee.property);
+              if (!callee) continue;
+              const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+              if (rank[callee.stateMutability] > rank[fn.stateMutability]) {
+                fn.stateMutability = callee.stateMutability;
+                changed = true;
+              }
+            }
+          }
+        }
+      }
     }
   }
 
@@ -401,6 +521,28 @@ export async function compile(
     errors,
     warnings,
   };
+}
+
+/**
+ * Flatten a statement tree into an array of all statements (recursive).
+ */
+function walkStatementsFlat(stmts: Statement[]): Statement[] {
+  const result: Statement[] = [];
+  for (const stmt of stmts) {
+    result.push(stmt);
+    if (stmt.kind === "if") {
+      result.push(...walkStatementsFlat(stmt.thenBody));
+      if (stmt.elseBody) result.push(...walkStatementsFlat(stmt.elseBody));
+    } else if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+      result.push(...walkStatementsFlat(stmt.body));
+    } else if (stmt.kind === "switch") {
+      for (const c of stmt.cases) result.push(...walkStatementsFlat(c.body));
+    } else if (stmt.kind === "try-catch") {
+      result.push(...walkStatementsFlat(stmt.successBody));
+      result.push(...walkStatementsFlat(stmt.catchBody));
+    }
+  }
+  return result;
 }
 
 /**
