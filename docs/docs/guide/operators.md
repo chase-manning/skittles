@@ -5,7 +5,7 @@ title: Operators
 
 # Operators
 
-Skittles supports all standard TypeScript operators. They work exactly as you'd expect and compile to their Solidity equivalents.
+Skittles supports the subset of standard TypeScript operators listed below. They work exactly as you'd expect and compile to their Solidity equivalents where supported.
 
 ## Arithmetic Operators
 
@@ -68,7 +68,7 @@ class Comparison {
 | Operator | Description | Example     |
 | -------- | ----------- | ----------- |
 | `&&`     | Logical AND | `a && b`    |
-| `\|\|`   | Logical OR  | `a \|\| b`  |
+| <code>&#124;&#124;</code> | Logical OR  | <code>a &#124;&#124; b</code> |
 | `!`      | Logical NOT | `!a`        |
 
 ```typescript
@@ -142,19 +142,57 @@ class Counter {
 | -------- | ----------- | ------- |
 | `-`      | Negation    | `-a`    |
 | `+`      | Unary plus  | `+a`    |
-| `~`      | Bitwise NOT | `~a`    |
+
+## Bitwise Operators
+
+| Operator | Description         | Example    |
+| -------- | ------------------- | ---------- |
+| `&`      | Bitwise AND         | `a & b`    |
+| <code>&#124;</code> | Bitwise OR | <code>a &#124; b</code> |
+| `^`      | Bitwise XOR         | `a ^ b`    |
+| `~`      | Bitwise NOT         | `~a`       |
+| `<<`     | Left shift          | `a << b`   |
+| `>>`     | Right shift         | `a >> b`   |
+
+Bitwise assignment variants are also supported:
+
+| Operator | Description              | Equivalent     |
+| -------- | ------------------------ | -------------- |
+| `&=`     | Bitwise AND assign       | `a = a & b`    |
+| <code>&#124;=</code> | Bitwise OR assign | <code>a = a &#124; b</code> |
+| `^=`     | Bitwise XOR assign       | `a = a ^ b`    |
+| `<<=`    | Left shift assign        | `a = a << b`   |
+| `>>=`    | Right shift assign       | `a = a >> b`   |
+
+```typescript
+class Flags {
+  flags: number = 0;
+
+  public setFlag(bit: number): void {
+    this.flags |= (1 << bit);
+  }
+
+  public clearFlag(bit: number): void {
+    this.flags &= ~(1 << bit);
+  }
+
+  public hasFlag(bit: number): boolean {
+    return (this.flags & (1 << bit)) != 0;
+  }
+}
+```
 
 ## Operator Summary
 
 Here's a quick reference of all supported operators grouped by category:
 
-| Category            | Operators                                        |
-| ------------------- | ------------------------------------------------ |
-| Arithmetic          | `+` `-` `*` `/` `%` `**`                        |
-| Comparison          | `==` `!=` `>` `<` `>=` `<=` `===` `!==`         |
-| Logical             | `&&` `\|\|` `!`                                  |
-| Compound Assignment | `+=` `-=` `*=` `/=` `%=` `**=`                  |
-| Increment/Decrement | `++` `--`                                        |
-| Unary               | `-` `+` `~`                                      |
-| Bitwise             | `&` `\|` `^` `<<` `>>`                          |
-| Bitwise Assignment  | `&=` `\|=` `^=` `<<=` `>>=`                     |
+| Category            | Operators                                              |
+| ------------------- | ------------------------------------------------------ |
+| Arithmetic          | `+` `-` `*` `/` `%` `**`                              |
+| Comparison          | `==` `!=` `>` `<` `>=` `<=` `===` `!==`               |
+| Logical             | `&&` <code>&#124;&#124;</code> `!`                     |
+| Compound Assignment | `+=` `-=` `*=` `/=` `%=` `**=`                        |
+| Increment/Decrement | `++` `--`                                              |
+| Unary               | `-` `+`                                                |
+| Bitwise             | `&` <code>&#124;</code> `^` `~` `<<` `>>`             |
+| Bitwise Assignment  | `&=` <code>&#124;=</code> `^=` `<<=` `>>=`            |
