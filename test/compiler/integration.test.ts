@@ -2518,7 +2518,7 @@ describe("integration: Map method support", () => {
           return this.names.has(addr);
         }
       }
-    `)).toThrow("Map.has(key) is not supported");
+    `)).toThrow("Map.has(key) is not supported for this mapping value type");
   });
 
   it("should detect map.has() as view", () => {

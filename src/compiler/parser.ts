@@ -2699,23 +2699,14 @@ function resolveMappingValueType(node: ts.Expression): SkittlesType | undefined 
  */
 function defaultValueForType(type: SkittlesType | undefined): Expression | null {
   if (!type) return null;
-  switch (type.kind as string) {
-    case "uint256":
-    case "int256":
+  switch (type.kind) {
+    case "uint256" as SkittlesTypeKind:
+    case "int256" as SkittlesTypeKind:
       return { kind: "number-literal", value: "0" };
-    case "bool":
+    case "bool" as SkittlesTypeKind:
       return { kind: "boolean-literal", value: false };
-    case "address":
+    case "address" as SkittlesTypeKind:
       return { kind: "identifier", name: "address(0)" };
-    case "string":
-    case "bytes":
-    case "bytes32":
-    case "enum":
-    case "struct":
-    case "mapping":
-    case "array":
-    case "tuple":
-      return null;
     default:
       return null;
   }
