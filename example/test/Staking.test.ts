@@ -65,10 +65,15 @@ describe("Staking", function () {
   describe("withdrawals", function () {
     it("should allow withdrawal with fee deducted", async function () {
       const { vault, vaultAsAlice, alice } = await networkHelpers.loadFixture(deployStakingFixture);
-      await vaultAsAlice.deposit({ value: ethers.parseEther("1") });
-      const deposit = await vault.getDeposit(alice.address);
+      const depositAmount = ethers.parseEther("1");
+      await vaultAsAlice.deposit({ value: depositAmount });
 
-      await vaultAsAlice.withdraw(deposit);
+      const fee = depositAmount * 50n / 10000n;
+      const expectedPayout = depositAmount - fee;
+
+      await expect(
+        vaultAsAlice.withdraw(depositAmount)
+      ).to.changeEtherBalance(alice, expectedPayout);
 
       expect(await vault.getDeposit(alice.address)).to.equal(0n);
     });
