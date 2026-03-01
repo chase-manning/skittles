@@ -16,6 +16,8 @@ const defaultConfig: Required<SkittlesConfig> = {
   contractsDir: "contracts",
   outputDir: "artifacts",
   cacheDir: "cache",
+  consoleLog: false,
+  solidity: { version: "^0.8.20", license: "MIT" },
 };
 
 function createTempProject(): string {

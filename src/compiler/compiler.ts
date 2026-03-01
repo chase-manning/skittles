@@ -37,6 +37,7 @@ interface CacheEntry {
   fileHash: string;
   sharedHash: string;
   depsHash: string;
+  configHash: string;
   contracts: {
     name: string;
     solidity: string;
@@ -289,6 +290,12 @@ export async function compile(
   };
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 
+  // Hash output-affecting config so cache is invalidated when settings change
+  const configHash = hashString(JSON.stringify({
+    consoleLog: config.consoleLog,
+    solidity: config.solidity,
+  }));
+
   // Load incremental compilation cache
   const cache = loadCache(cacheDir);
   const newCache: CompilationCache = { version: CACHE_VERSION, skittlesVersion: PACKAGE_VERSION, files: {} };
@@ -317,7 +324,7 @@ export async function compile(
       const depsHash = computeDepsHash(filePath);
       const cached = cache.files[relativePath];
 
-      if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash && cached.depsHash === depsHash) {
+      if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash && cached.depsHash === depsHash && cached.configHash === configHash) {
         cachedFiles.push({ filePath, relativePath, cached });
         if (cached.contracts.length > 0) {
           filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
@@ -565,7 +572,7 @@ export async function compile(
         contractFns[contract.name] = fns;
       }
 
-      const cacheEntry: CacheEntry = { fileHash, sharedHash, depsHash, contracts: [], resolvedMutabilities, contractFunctions: contractFns };
+      const cacheEntry: CacheEntry = { fileHash, sharedHash, depsHash, configHash, contracts: [], resolvedMutabilities, contractFunctions: contractFns };
       writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
       for (const contract of contracts) {

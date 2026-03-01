@@ -16,6 +16,7 @@ import {
   type SourceMapping,
   type SolidityConfig,
 } from "../types/index.ts";
+import { DEFAULT_CONFIG } from "../config/config.ts";
 
 // ============================================================
 // Main entry
@@ -26,8 +27,8 @@ import {
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
 export function generateSolidityFile(contracts: SkittlesContract[], imports?: string[], solidityConfig?: SolidityConfig): string {
-  const license = solidityConfig?.license ?? "MIT";
-  const version = solidityConfig?.version ?? "^0.8.20";
+  const license = solidityConfig?.license ?? DEFAULT_CONFIG.solidity.license;
+  const version = solidityConfig?.version ?? DEFAULT_CONFIG.solidity.version;
   const parts: string[] = [];
   parts.push(`// SPDX-License-Identifier: ${license}`);
   parts.push(`pragma solidity ${version};`);

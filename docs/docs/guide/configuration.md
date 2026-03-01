@@ -66,7 +66,11 @@ If no config file is found, Skittles uses these defaults:
 {
   "contractsDir": "contracts",
   "outputDir": "artifacts",
-  "typeCheck": true
+  "typeCheck": true,
+  "solidity": {
+    "version": "^0.8.20",
+    "license": "MIT"
+  }
 }
 ```
 
