@@ -148,6 +148,12 @@ The `delete` operator resets values in your contract's storage (useful for clear
 delete this.balances[account];
 ```
 
+You can also use the Map `.delete()` method:
+
+```typescript
+this.balances.delete(account);
+```
+
 ## Try / Catch
 
 Use `try/catch` to gracefully handle failures from external contract calls. The first statement in the `try` block must be an external contract call:

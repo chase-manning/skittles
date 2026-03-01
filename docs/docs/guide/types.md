@@ -101,6 +101,51 @@ class Token {
 
 Both `Record` and `Map` compile to the same Solidity `mapping` type, so use whichever feels more natural. Nested types create nested mappings. This is perfect for storing balances, allowances, and other key-value data that needs persistent storage.
 
+### Map Methods
+
+When using `Map<K, V>`, you can use standard Map methods for a more TypeScript-idiomatic experience:
+
+```typescript
+class Token {
+  private balances: Map<address, number> = {};
+
+  public setBalance(addr: address, amount: number): void {
+    this.balances.set(addr, amount);      // mapping[key] = value
+  }
+
+  public getBalance(addr: address): number {
+    return this.balances.get(addr);       // mapping[key]
+  }
+
+  public hasBalance(addr: address): boolean {
+    return this.balances.has(addr);       // mapping[key] != 0
+  }
+
+  public removeBalance(addr: address): void {
+    this.balances.delete(addr);           // delete mapping[key]
+  }
+}
+```
+
+| Method | Description | Solidity Equivalent |
+|--------|-------------|-------------------|
+| `map.get(key)` | Get value | `mapping[key]` |
+| `map.set(key, value)` | Set value | `mapping[key] = value` |
+| `map.has(key)` | Check if key has non-default value | `mapping[key] != 0` / `!= false` / `!= address(0)` |
+| `map.delete(key)` | Delete a mapping entry | `delete mapping[key]` |
+
+:::note
+`map.has(key)` compares against the default value for the mapping's value type (`0` for numbers, `false` for booleans, `address(0)` for addresses). It is not supported for `string`, `bytes`, struct, or nested mapping value types — use an explicit comparison instead.
+:::
+
+You can also use bracket notation directly — both styles work:
+
+```typescript
+this.balances[addr] = amount;   // same as this.balances.set(addr, amount)
+return this.balances[addr];     // same as this.balances.get(addr)
+delete this.balances[addr];     // same as this.balances.delete(addr)
+```
+
 ## Arrays
 
 Use `T[]` for dynamic arrays:
