@@ -17,9 +17,6 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-          cache: yarn
-
-      - run: npm install -g npm@latest
 
       - name: Check if version changed
         id: version-check
@@ -37,13 +34,13 @@ jobs:
           fi
 
       - if: steps.version-check.outputs.changed == 'true'
-        run: yarn install --immutable
+        run: npm install
 
       - if: steps.version-check.outputs.changed == 'true'
-        run: yarn build
+        run: npm run build
 
       - if: steps.version-check.outputs.changed == 'true'
-        run: yarn test
+        run: npm test
 
       - if: steps.version-check.outputs.changed == 'true'
         run: npm publish --provenance

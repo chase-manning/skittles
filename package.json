@@ -23,12 +23,12 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "compile": "yarn build && node dist/index.js compile",
-    "clean": "yarn build && node dist/index.js clean",
-    "init": "yarn build && node dist/index.js init",
+    "compile": "npm run build && node dist/index.js compile",
+    "clean": "npm run build && node dist/index.js clean",
+    "init": "npm run build && node dist/index.js init",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "yarn build && yarn test"
+    "prepublishOnly": "npm run build && npm test"
   },
   "repository": {
     "type": "git",

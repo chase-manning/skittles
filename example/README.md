@@ -31,13 +31,13 @@ example/
 Install dependencies:
 
 ```bash
-yarn install
+npm install
 ```
 
 Compile the contracts:
 
 ```bash
-yarn compile
+npm run compile
 ```
 
 This generates Solidity files in `artifacts/solidity/`. Hardhat compiles them when you run tests.
@@ -45,7 +45,7 @@ This generates Solidity files in `artifacts/solidity/`. Hardhat compiles them wh
 Run the tests:
 
 ```bash
-yarn test
+npm test
 ```
 
 This compiles the contracts with Skittles, then runs Hardhat tests against the generated Solidity.
@@ -53,7 +53,7 @@ This compiles the contracts with Skittles, then runs Hardhat tests against the g
 Clean build artifacts:
 
 ```bash
-yarn clean
+npm run clean
 ```
 
 ## Testing
@@ -66,7 +66,7 @@ Tests use [Hardhat](https://hardhat.org) with Mocha, ethers.js v6, and the [Hard
 
 The test workflow:
 
-1. `yarn test` runs `skittles compile` first, producing artifacts in `artifacts/`.
+1. `npm test` runs `skittles compile` first, producing artifacts in `artifacts/`.
 2. Hardhat compiles the generated Solidity from `artifacts/solidity`.
 3. Tests deploy contracts and run assertions against the in-memory EVM.
 

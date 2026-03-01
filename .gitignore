@@ -5,8 +5,6 @@ coverage
 *.js.map
 *.d.ts.map
 *.tsbuildinfo
-yarn-error.log
 .DS_Store
 .env*
 package-lock.json
-node_modules

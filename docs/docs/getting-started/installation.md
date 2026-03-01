@@ -32,11 +32,9 @@ If you want to add Skittles to a project that already has a `package.json`, you 
 npm install skittles
 ```
 
-Or with yarn / pnpm:
+Or with pnpm:
 
 ```bash
-yarn add skittles
-# or
 pnpm add skittles
 ```
 

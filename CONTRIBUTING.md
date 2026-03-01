@@ -7,7 +7,7 @@ Thanks for your interest in contributing to Skittles.
 ```bash
 git clone https://github.com/chase-manning/skittles.git
 cd skittles
-yarn install
+npm install
 ```
 
 Requires Node.js 22 or later.
@@ -17,21 +17,21 @@ Requires Node.js 22 or later.
 Build the compiler:
 
 ```bash
-yarn build
+npm run build
 ```
 
 Run tests:
 
 ```bash
-yarn test
+npm test
 ```
 
 Run the example project:
 
 ```bash
 cd example
-yarn install
-yarn test
+npm install
+npm test
 ```
 
 ## Making Changes
@@ -39,7 +39,7 @@ yarn test
 1. Fork the repo and create a branch from `v2`.
 2. Make your changes.
 3. Add or update tests for your changes.
-4. Run `yarn test` and make sure everything passes.
+4. Run `npm test` and make sure everything passes.
 5. Open a pull request against `v2`.
 
 ## Project Structure
