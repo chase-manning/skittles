@@ -713,4 +713,75 @@ describe("inferStateMutability", () => {
       ])
     ).toBe("nonpayable");
   });
+
+  it("should return view for msg.sender access", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "return",
+          value: {
+            kind: "property-access",
+            object: { kind: "identifier", name: "msg" },
+            property: "sender",
+          },
+        },
+      ])
+    ).toBe("view");
+  });
+
+  it("should return view for block.timestamp access", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "return",
+          value: {
+            kind: "property-access",
+            object: { kind: "identifier", name: "block" },
+            property: "timestamp",
+          },
+        },
+      ])
+    ).toBe("view");
+  });
+
+  it("should return view for tx.origin access", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "return",
+          value: {
+            kind: "property-access",
+            object: { kind: "identifier", name: "tx" },
+            property: "origin",
+          },
+        },
+      ])
+    ).toBe("view");
+  });
+
+  it("should return view for self (address(this)) access", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "return",
+          value: { kind: "identifier", name: "self" },
+        },
+      ])
+    ).toBe("view");
+  });
+
+  it("should return view for gasleft() call", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "return",
+          value: {
+            kind: "call",
+            callee: { kind: "identifier", name: "gasleft" },
+            args: [],
+          },
+        },
+      ])
+    ).toBe("view");
+  });
 });

@@ -38,8 +38,9 @@ You never need to annotate how your functions interact with the blockchain. Skit
 
 | Access Pattern       | Behavior                                             |
 | -------------------- | ---------------------------------------------------- |
-| No `this.*` access   | Performs computation only, no blockchain data needed (free to call) |
+| No `this.*` access or EVM globals  | Performs computation only, no blockchain data needed (free to call) |
 | Reads `this.*` only  | Can be called without a transaction (free)           |
+| Reads EVM globals (`msg.sender`, `block.*`, `tx.*`, `self`, `gasleft()`) | Can be called without a transaction (free) |
 | Writes `this.*`      | Requires a transaction (costs gas)                   |
 | Accesses `msg.value` | Can receive ETH payments                             |
 
