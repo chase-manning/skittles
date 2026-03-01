@@ -165,6 +165,6 @@ let greeting: string = `Hello ${name}!`;
 
 | TypeScript         | Description                                                    |
 | ------------------ | -------------------------------------------------------------- |
-| `Number.MAX_VALUE` | The maximum value for an int256 (2^255 - 1)                  |
+| `Number.MAX_VALUE` | The maximum positive value for an int256 (2^255 - 1)         |
 | `null`             | Represents zero/empty value (compiles to 0)                    |
 | `undefined`        | Represents zero/empty value (compiles to 0)                    |
