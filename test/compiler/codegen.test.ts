@@ -34,8 +34,26 @@ describe("generateSolidity", () => {
   it("should generate an empty contract", () => {
     const sol = generateSolidity(emptyContract());
     expect(sol).toContain("pragma solidity ^0.8.20;");
+    expect(sol).toContain("// SPDX-License-Identifier: MIT");
     expect(sol).toContain("contract Test {");
     expect(sol).toContain("}");
+  });
+
+  it("should use custom solidity version and license", () => {
+    const sol = generateSolidity(emptyContract(), undefined, {
+      version: "^0.8.24",
+      license: "GPL-3.0",
+    });
+    expect(sol).toContain("pragma solidity ^0.8.24;");
+    expect(sol).toContain("// SPDX-License-Identifier: GPL-3.0");
+    expect(sol).not.toContain("pragma solidity ^0.8.20;");
+    expect(sol).not.toContain("SPDX-License-Identifier: MIT");
+  });
+
+  it("should use defaults when solidity config is not provided", () => {
+    const sol = generateSolidity(emptyContract());
+    expect(sol).toContain("pragma solidity ^0.8.20;");
+    expect(sol).toContain("// SPDX-License-Identifier: MIT");
   });
 
   it("should generate state variables", () => {

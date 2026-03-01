@@ -70,4 +70,37 @@ describe("loadConfig", () => {
       "Failed to load config"
     );
   });
+
+  it("should load solidity version and license from config", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ solidity: { version: "^0.8.24", license: "GPL-3.0" } })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.solidity.version).toBe("^0.8.24");
+    expect(config.solidity.license).toBe("GPL-3.0");
+  });
+
+  it("should use default solidity config when not specified", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ typeCheck: false })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.solidity.version).toBe("^0.8.20");
+    expect(config.solidity.license).toBe("MIT");
+  });
+
+  it("should merge partial solidity config with defaults", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ solidity: { version: "^0.8.26" } })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.solidity.version).toBe("^0.8.26");
+    expect(config.solidity.license).toBe("MIT");
+  });
 });
