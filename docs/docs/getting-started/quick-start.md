@@ -36,35 +36,27 @@ Open `contracts/Token.ts` to see the generated example:
 
 ```typescript title="contracts/Token.ts"
 import { address, msg } from "skittles";
+import { ERC20 } from "skittles/contracts";
 
-export class Token {
-  public name: string = "MyToken";
-  public symbol: string = "MTK";
-  public totalSupply: number = 0;
-  private balances: Record<address, number> = {};
+export class Token extends ERC20 {
+  private _owner: address;
 
   constructor(initialSupply: number) {
-    this.totalSupply = initialSupply;
-    this.balances[msg.sender] = initialSupply;
+    super("MyToken", "MTK");
+    this._owner = msg.sender;
+    this._mint(msg.sender, initialSupply);
   }
 
-  public balanceOf(account: address): number {
-    return this.balances[account];
-  }
-
-  public transfer(to: address, amount: number): boolean {
-    const sender: address = msg.sender;
-    if (this.balances[sender] < amount) {
-      throw new Error("Insufficient balance");
+  public mint(to: address, amount: number): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
     }
-    this.balances[sender] -= amount;
-    this.balances[to] += amount;
-    return true;
+    this._mint(to, amount);
   }
 }
 ```
 
-This creates a simple token contract where users can check their balance and transfer tokens to other addresses. The constructor creates an initial supply and assigns it to the contract deployer.
+This creates a mintable ERC20 token by extending the built-in `ERC20` contract from the [standard library](/guide/standard-library). You get a full token (name, symbol, decimals, transfers, approvals) from just a few lines of code. The constructor sets the initial supply and an owner for the mint function.
 
 ## Compile
 
@@ -102,6 +94,7 @@ See the [Testing Guide](/guide/testing) for more details on writing tests.
 
 ## Next Steps
 
+- [Standard Library](/guide/standard-library) for ERC20, ERC721, Ownable, and more
 - [Type System](/guide/types) to learn what TypeScript features you can use
 - [State Variables](/guide/state-variables) for visibility, constants, and immutables
 - [Functions](/guide/functions) for mutability inference, receive/fallback, and more

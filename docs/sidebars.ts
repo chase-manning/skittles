@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
         "guide/inheritance",
         "guide/evm-globals",
         "guide/cross-file",
+        "guide/standard-library",
         "guide/testing",
         "guide/debugging",
         "guide/configuration",

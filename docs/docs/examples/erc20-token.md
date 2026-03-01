@@ -5,9 +5,43 @@ title: ERC20 Token
 
 # ERC20 Token Example
 
-A full ERC20 token implementation with transfers, approvals, events, and custom errors.
+## Using the Standard Library (Recommended)
 
-## Interface
+The fastest way to create an ERC20 token is extending the built-in `ERC20` contract from the standard library:
+
+```typescript title="contracts/Token.ts"
+import { address, msg } from "skittles";
+import { ERC20 } from "skittles/contracts";
+
+export class Token extends ERC20 {
+  private _owner: address;
+
+  constructor(initialSupply: number) {
+    super("MyToken", "MTK");
+    this._owner = msg.sender;
+    this._mint(msg.sender, initialSupply);
+  }
+
+  public mint(to: address, amount: number): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
+    }
+    this._mint(to, amount);
+  }
+
+  public burn(amount: number): void {
+    this._burn(msg.sender, amount);
+  }
+}
+```
+
+This gives you a complete ERC20 with name, symbol, decimals, totalSupply, balanceOf, transfer, approve, transferFrom, and allowance — all from a few lines of code. See the [Standard Library](/guide/standard-library) guide for details on all available contracts.
+
+## From Scratch
+
+You can also build an ERC20 from scratch for full control over the implementation.
+
+### Interface
 
 First, define the token interface:
 

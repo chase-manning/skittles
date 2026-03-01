@@ -117,7 +117,6 @@ describe("initCommand", () => {
     expect(content).toContain("network.connect()");
     expect(content).toContain("loadFixture");
     expect(content).toContain("to.emit");
-    expect(content).toContain("revertedWith");
     expect(content).toContain("getContractAt");
     expect(content).not.toContain("skittles/testing");
   });

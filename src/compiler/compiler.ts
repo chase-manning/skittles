@@ -10,9 +10,10 @@ import type {
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions, collectClassNames } from "./parser.ts";
-import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement } from "../types/index.ts";
+import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement, StateMutability } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
+import { getStdlibClassNames, resolveStdlibFiles, getStdlibContractsDir } from "../stdlib/resolver.ts";
 
 export interface CompilationResult {
   success: boolean;
@@ -25,7 +26,7 @@ export interface CompilationResult {
 // Incremental compilation cache
 // ============================================================
 
-const CACHE_VERSION = "4";
+const CACHE_VERSION = "5";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_VERSION: string = JSON.parse(
@@ -35,11 +36,13 @@ const PACKAGE_VERSION: string = JSON.parse(
 interface CacheEntry {
   fileHash: string;
   sharedHash: string;
+  depsHash: string;
   contracts: {
     name: string;
     solidity: string;
   }[];
   resolvedMutabilities?: Record<string, Record<string, string>>;
+  contractFunctions?: Record<string, Record<string, string>>;
 }
 
 interface CompilationCache {
@@ -91,13 +94,13 @@ export async function compile(
   const warnings: string[] = [];
 
   // Step 1: Find source files
-  const sourceFiles = findTypeScriptFiles(contractsDir);
-  if (sourceFiles.length === 0) {
+  const userSourceFiles = findTypeScriptFiles(contractsDir);
+  if (userSourceFiles.length === 0) {
     logInfo("No TypeScript contract files found.");
     return { success: true, artifacts, errors, warnings: [] };
   }
 
-  logInfo(`Found ${sourceFiles.length} contract file(s)`);
+  logInfo(`Found ${userSourceFiles.length} contract file(s)`);
 
   // Pre-scan all files to collect shared types (type alias structs, contract
   // interfaces, enums), file level functions, and file level constants.
@@ -111,10 +114,14 @@ export async function compile(
   const interfaceOriginFile = new Map<string, string>();
   const contractOriginFile = new Map<string, string>();
   const preScanContractFiles: string[] = [];
+  const stdlibFileSet = new Set<string>();
 
-  for (const filePath of sourceFiles) {
+  // First pass: pre-scan user files
+  const userSources = new Map<string, string>();
+  for (const filePath of userSourceFiles) {
     try {
       const source = readFile(filePath);
+      userSources.set(filePath, source);
       const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
       const baseName = path.basename(filePath, path.extname(filePath));
       for (const [name, fields] of structs) globalStructs.set(name, fields);
@@ -150,6 +157,119 @@ export async function compile(
     }
   }
 
+  // Detect stdlib contract references: scan user sources for `extends`
+  // clauses that reference stdlib classes, then include those files.
+  const stdlibClassNames = getStdlibClassNames();
+  const referencedStdlib = new Set<string>();
+  for (const source of userSources.values()) {
+    const matches = source.matchAll(/extends\s+(\w+)/g);
+    for (const m of matches) {
+      if (stdlibClassNames.has(m[1]) && !contractOriginFile.has(m[1])) {
+        referencedStdlib.add(m[1]);
+      }
+    }
+  }
+
+  const stdlibFiles = resolveStdlibFiles(referencedStdlib);
+  for (const stdlibPath of stdlibFiles) {
+    stdlibFileSet.add(stdlibPath);
+  }
+
+  // Pre-scan stdlib files into the global maps
+  for (const filePath of stdlibFiles) {
+    try {
+      const source = readFile(filePath);
+      const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
+      const baseName = path.basename(filePath, path.extname(filePath));
+      for (const [name, fields] of structs) globalStructs.set(name, fields);
+      for (const [name, members] of enums) globalEnums.set(name, members);
+      for (const [name, iface] of contractInterfaces) {
+        const existingOrigin = interfaceOriginFile.get(name);
+        if (!existingOrigin || baseName < existingOrigin) {
+          globalContractInterfaces.set(name, iface);
+          interfaceOriginFile.set(name, baseName);
+        }
+      }
+
+      const { functions, constants } = collectFunctions(source, filePath);
+      for (const fn of functions) {
+        if (!globalFunctions.some((f) => f.name === fn.name)) {
+          globalFunctions.push(fn);
+        }
+      }
+      for (const [name, expr] of constants) globalConstants.set(name, expr);
+
+      const classNames = collectClassNames(source, filePath);
+      for (const className of classNames) {
+        const existingOrigin = contractOriginFile.get(className);
+        if (!existingOrigin || baseName < existingOrigin) {
+          contractOriginFile.set(className, baseName);
+        }
+      }
+      if (classNames.length > 0) {
+        preScanContractFiles.push(baseName);
+      }
+    } catch {
+      // Errors handled in the main compilation loop
+    }
+  }
+
+  if (stdlibFiles.length > 0) {
+    logInfo(`Including ${stdlibFiles.length} standard library contract(s)`);
+  }
+
+  const sourceFiles = [...userSourceFiles, ...stdlibFiles];
+
+  // Build maps for dependency-aware cache invalidation.
+  // Track which parent classes each file extends (cross-file only) and
+  // precompute source hashes so we can detect when parent sources change.
+  const allSourceHashes = new Map<string, string>();
+  const baseNameToFilePath = new Map<string, string>();
+  const fileExtendsParents = new Map<string, string[]>();
+
+  for (const filePath of sourceFiles) {
+    const baseName = path.basename(filePath, path.extname(filePath));
+    baseNameToFilePath.set(baseName, filePath);
+    const source = userSources.get(filePath) ?? readFile(filePath);
+    allSourceHashes.set(filePath, hashString(source));
+
+    const parents: string[] = [];
+    const extMatches = source.matchAll(/extends\s+(\w+)/g);
+    for (const m of extMatches) {
+      const parentBase = contractOriginFile.get(m[1]);
+      if (parentBase && parentBase !== baseName) {
+        parents.push(m[1]);
+      }
+    }
+    fileExtendsParents.set(filePath, parents);
+  }
+
+  function computeDepsHash(filePath: string): string {
+    const visited = new Set<string>();
+    const queue = [filePath];
+    const hashes: string[] = [];
+
+    while (queue.length > 0) {
+      const current = queue.pop()!;
+      const parents = fileExtendsParents.get(current);
+      if (!parents) continue;
+      for (const parentName of parents) {
+        const parentBase = contractOriginFile.get(parentName);
+        if (!parentBase) continue;
+        const parentPath = baseNameToFilePath.get(parentBase);
+        if (!parentPath || visited.has(parentPath)) continue;
+        visited.add(parentPath);
+        const h = allSourceHashes.get(parentPath);
+        if (h) hashes.push(h);
+        queue.push(parentPath);
+      }
+    }
+
+    if (hashes.length === 0) return "";
+    hashes.sort();
+    return hashString(hashes.join(":"));
+  }
+
   const externalTypes = { structs: globalStructs, enums: globalEnums, contractInterfaces: globalContractInterfaces };
   const externalFunctions = { functions: globalFunctions, constants: globalConstants };
 
@@ -179,6 +299,7 @@ export async function compile(
     relativePath: string;
     source: string;
     fileHash: string;
+    depsHash: string;
     contracts: SkittlesContract[];
   }
   const parsedFiles: ParsedFile[] = [];
@@ -186,13 +307,17 @@ export async function compile(
   const filesWithContracts = new Set<string>();
 
   for (const filePath of sourceFiles) {
-    const relativePath = path.relative(projectRoot, filePath);
+    const isStdlib = stdlibFileSet.has(filePath);
+    const relativePath = isStdlib
+      ? `stdlib/${path.relative(getStdlibContractsDir(), filePath)}`
+      : path.relative(projectRoot, filePath);
     try {
       const source = readFile(filePath);
       const fileHash = hashString(source);
+      const depsHash = computeDepsHash(filePath);
       const cached = cache.files[relativePath];
 
-      if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash) {
+      if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash && cached.depsHash === depsHash) {
         cachedFiles.push({ filePath, relativePath, cached });
         if (cached.contracts.length > 0) {
           filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
@@ -205,11 +330,73 @@ export async function compile(
       if (contracts.length > 0) {
         filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
       }
-      parsedFiles.push({ filePath, relativePath, source, fileHash, contracts });
+      parsedFiles.push({ filePath, relativePath, source, fileHash, depsHash, contracts });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
       logError(`Failed to compile ${relativePath}: ${message}`);
+    }
+  }
+
+  // Cross-file mutability propagation: when a child contract extends a
+  // parent from another file, calls to inherited internal functions (e.g.
+  // _mint, _burn) need to propagate the callee's mutability to the caller.
+  const allParsedContracts = new Map<string, SkittlesContract>();
+  for (const { contracts } of parsedFiles) {
+    for (const c of contracts) allParsedContracts.set(c.name, c);
+  }
+
+  // Include function mutabilities from cached contracts so that freshly
+  // parsed children can propagate mutability from cached parents.
+  const cachedFnMutabilities = new Map<string, Map<string, string>>();
+  for (const { cached } of cachedFiles) {
+    if (!cached.contractFunctions) continue;
+    for (const [contractName, fns] of Object.entries(cached.contractFunctions)) {
+      cachedFnMutabilities.set(contractName, new Map(Object.entries(fns)));
+    }
+  }
+
+  for (const { contracts } of parsedFiles) {
+    for (const contract of contracts) {
+      const parentMutabilities = new Map<string, string>();
+      for (const parentName of contract.inherits) {
+        const parent = allParsedContracts.get(parentName);
+        if (parent) {
+          for (const fn of parent.functions) {
+            if (!parentMutabilities.has(fn.name)) parentMutabilities.set(fn.name, fn.stateMutability);
+          }
+        } else {
+          const cachedFns = cachedFnMutabilities.get(parentName);
+          if (cachedFns) {
+            for (const [fnName, mut] of cachedFns) {
+              if (!parentMutabilities.has(fnName)) parentMutabilities.set(fnName, mut);
+            }
+          }
+        }
+      }
+      if (parentMutabilities.size === 0) continue;
+
+      const ownMutabilities = new Map<string, string>();
+      for (const fn of contract.functions) ownMutabilities.set(fn.name, fn.stateMutability);
+      const allMutabilities = new Map([...parentMutabilities, ...ownMutabilities]);
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const fn of contract.functions) {
+          const callNames = collectThisCallNames(fn.body);
+          for (const name of callNames) {
+            const calleeMut = allMutabilities.get(name);
+            if (!calleeMut) continue;
+            const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+            if (rank[calleeMut] > rank[fn.stateMutability]) {
+              fn.stateMutability = calleeMut as StateMutability;
+              allMutabilities.set(fn.name, fn.stateMutability);
+              changed = true;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -277,7 +464,7 @@ export async function compile(
   }
 
   // Phase 4: Generate Solidity for parsed files, with imports for external interfaces
-  for (const { filePath, relativePath, fileHash, contracts } of parsedFiles) {
+  for (const { filePath, relativePath, fileHash, depsHash, contracts } of parsedFiles) {
     try {
       const baseName = path.basename(filePath, path.extname(filePath));
 
@@ -371,7 +558,14 @@ export async function compile(
         JSON.stringify(sourceMap, null, 2)
       );
 
-      const cacheEntry: CacheEntry = { fileHash, sharedHash, contracts: [], resolvedMutabilities };
+      const contractFns: Record<string, Record<string, string>> = {};
+      for (const contract of contracts) {
+        const fns: Record<string, string> = {};
+        for (const fn of contract.functions) fns[fn.name] = fn.stateMutability;
+        contractFns[contract.name] = fns;
+      }
+
+      const cacheEntry: CacheEntry = { fileHash, sharedHash, depsHash, contracts: [], resolvedMutabilities, contractFunctions: contractFns };
       writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
       for (const contract of contracts) {
@@ -401,6 +595,123 @@ export async function compile(
     errors,
     warnings,
   };
+}
+
+/**
+ * Collect all `this.foo()` call names from a statement tree by walking
+ * every expression recursively. Unlike the flat statement walker, this
+ * detects calls inside return statements, assignments, conditionals, etc.
+ */
+function collectThisCallNames(stmts: Statement[]): string[] {
+  const names: string[] = [];
+
+  function walkExpr(expr: Expression): void {
+    switch (expr.kind) {
+      case "call":
+        if (
+          expr.callee.kind === "property-access" &&
+          expr.callee.object.kind === "identifier" &&
+          expr.callee.object.name === "this"
+        ) {
+          names.push(expr.callee.property);
+        }
+        walkExpr(expr.callee);
+        expr.args.forEach(walkExpr);
+        break;
+      case "binary":
+        walkExpr(expr.left);
+        walkExpr(expr.right);
+        break;
+      case "unary":
+        walkExpr(expr.operand);
+        break;
+      case "assignment":
+        walkExpr(expr.target);
+        walkExpr(expr.value);
+        break;
+      case "property-access":
+        walkExpr(expr.object);
+        break;
+      case "element-access":
+        walkExpr(expr.object);
+        walkExpr(expr.index);
+        break;
+      case "conditional":
+        walkExpr(expr.condition);
+        walkExpr(expr.whenTrue);
+        walkExpr(expr.whenFalse);
+        break;
+      case "new":
+        expr.args.forEach(walkExpr);
+        break;
+      case "object-literal":
+        expr.properties.forEach((p) => walkExpr(p.value));
+        break;
+      case "tuple-literal":
+        expr.elements.forEach(walkExpr);
+        break;
+    }
+  }
+
+  function walkStmt(stmt: Statement): void {
+    switch (stmt.kind) {
+      case "return":
+        if (stmt.value) walkExpr(stmt.value);
+        break;
+      case "variable-declaration":
+        if (stmt.initializer) walkExpr(stmt.initializer);
+        break;
+      case "expression":
+        walkExpr(stmt.expression);
+        break;
+      case "if":
+        walkExpr(stmt.condition);
+        stmt.thenBody.forEach(walkStmt);
+        stmt.elseBody?.forEach(walkStmt);
+        break;
+      case "for":
+        if (stmt.initializer) walkStmt(stmt.initializer);
+        if (stmt.condition) walkExpr(stmt.condition);
+        if (stmt.incrementor) walkExpr(stmt.incrementor);
+        stmt.body.forEach(walkStmt);
+        break;
+      case "while":
+        walkExpr(stmt.condition);
+        stmt.body.forEach(walkStmt);
+        break;
+      case "revert":
+        if (stmt.message) walkExpr(stmt.message);
+        break;
+      case "do-while":
+        walkExpr(stmt.condition);
+        stmt.body.forEach(walkStmt);
+        break;
+      case "emit":
+        stmt.args.forEach(walkExpr);
+        break;
+      case "switch":
+        walkExpr(stmt.discriminant);
+        for (const c of stmt.cases) {
+          if (c.value) walkExpr(c.value);
+          c.body.forEach(walkStmt);
+        }
+        break;
+      case "delete":
+        walkExpr(stmt.target);
+        break;
+      case "try-catch":
+        walkExpr(stmt.call);
+        stmt.successBody.forEach(walkStmt);
+        stmt.catchBody.forEach(walkStmt);
+        break;
+      case "console-log":
+        stmt.args.forEach(walkExpr);
+        break;
+    }
+  }
+
+  stmts.forEach(walkStmt);
+  return names;
 }
 
 /**

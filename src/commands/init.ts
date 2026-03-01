@@ -67,39 +67,23 @@ export default defineConfig({
 });
 `;
 
-const EXAMPLE_CONTRACT = `import { address, msg, SkittlesEvent, Indexed } from "skittles";
+const EXAMPLE_CONTRACT = `import { address, msg } from "skittles";
+import { ERC20 } from "skittles/contracts";
 
-export class Token {
-  Transfer: SkittlesEvent<{
-    from: Indexed<address>;
-    to: Indexed<address>;
-    value: number;
-  }>;
-
-  public name: string = "MyToken";
-  public symbol: string = "MTK";
-  public totalSupply: number = 0;
-  private balances: Record<address, number> = {};
+export class Token extends ERC20 {
+  private _owner: address;
 
   constructor(initialSupply: number) {
-    this.totalSupply = initialSupply;
-    this.balances[msg.sender] = initialSupply;
+    super("MyToken", "MTK");
+    this._owner = msg.sender;
+    this._mint(msg.sender, initialSupply);
   }
 
-  public balanceOf(account: address): number {
-    return this.balances[account];
-  }
-
-  public transfer(to: address, amount: number): boolean {
-    const sender: address = msg.sender;
-    console.log("transfer", sender, to, amount);
-    if (this.balances[sender] < amount) {
-      throw new Error("Insufficient balance");
+  public mint(to: address, amount: number): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
     }
-    this.balances[sender] -= amount;
-    this.balances[to] += amount;
-    this.Transfer.emit(sender, to, amount);
-    return true;
+    this._mint(to, amount);
   }
 }
 `;
@@ -127,6 +111,11 @@ describe("Token", function () {
     expect(await token.name()).to.equal("MyToken");
   });
 
+  it("assigns initial supply to deployer", async function () {
+    const { token, owner } = await networkHelpers.loadFixture(deployTokenFixture);
+    expect(await token.balanceOf(owner.address)).to.equal(INITIAL_SUPPLY);
+  });
+
   it("emits Transfer event when transferring tokens", async function () {
     const { token, owner, alice } = await networkHelpers.loadFixture(deployTokenFixture);
     const amount = 100n;
@@ -136,12 +125,11 @@ describe("Token", function () {
       .withArgs(owner.address, alice.address, amount);
   });
 
-  it("reverts on insufficient balance", async function () {
-    const { token, tokenAsAlice, bob } = await networkHelpers.loadFixture(deployTokenFixture);
-
-    await expect(
-      tokenAsAlice.transfer(bob.address, 999_999_999n)
-    ).to.be.revertedWith("Insufficient balance");
+  it("allows owner to mint new tokens", async function () {
+    const { token, alice } = await networkHelpers.loadFixture(deployTokenFixture);
+    const mintAmount = 500n;
+    await (await token.mint(alice.address, mintAmount)).wait();
+    expect(await token.balanceOf(alice.address)).to.equal(mintAmount);
   });
 });
 `;
