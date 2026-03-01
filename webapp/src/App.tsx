@@ -1,6 +1,8 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import { Zap, Shuffle, Code, Shield, Layers, Timer } from "lucide-react";
 import "./App.css";
+
+const Playground = lazy(() => import("./Playground.tsx"));
 
 const VersionContext = createContext<string | null>(null);
 
@@ -32,6 +34,9 @@ function Header() {
     <header className="header">
       <Logo />
       <nav className="nav">
+        <a href="#playground" className="nav-link">
+          Playground
+        </a>
         <a href="https://docs.skittles.dev" className="nav-link">
           Docs
         </a>
@@ -236,8 +241,8 @@ function Hero() {
           <span>Read the Docs</span>
           <span>&rarr;</span>
         </a>
-        <a href="https://github.com/chase-manning/skittles" target="_blank" rel="noopener noreferrer" className="btn-secondary">
-          <span>View on GitHub</span>
+        <a href="#playground" className="btn-secondary">
+          <span>Try it Online</span>
         </a>
       </div>
       <CodeWindow />
@@ -541,6 +546,7 @@ function Footer() {
           <div className="footer-col">
             <span className="footer-col-title">PRODUCT</span>
             <a href="https://docs.skittles.dev" className="footer-link">Documentation</a>
+            <a href="#playground" className="footer-link">Playground</a>
             <a href="https://github.com/chase-manning/skittles/tree/main/example" target="_blank" rel="noopener noreferrer" className="footer-link">Examples</a>
             <a href="https://github.com/chase-manning/skittles/releases" target="_blank" rel="noopener noreferrer" className="footer-link">Changelog</a>
           </div>
@@ -577,26 +583,51 @@ function Divider() {
   return <div className="divider" />;
 }
 
+function useRoute() {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const handler = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
+  }, []);
+  return hash;
+}
+
+function LandingPage() {
+  return (
+    <div className="page">
+      <Header />
+      <Hero />
+      <Divider />
+      <HowItWorks />
+      <Divider />
+      <CodeComparison />
+      <Divider />
+      <Features />
+      <Divider />
+      <QuickStart />
+      <Divider />
+      <FinalCTA />
+      <Divider />
+      <Footer />
+    </div>
+  );
+}
+
 function App() {
   const version = useNpmVersion();
+  const hash = useRoute();
+  const isPlayground = hash.startsWith("#playground");
+
   return (
     <VersionContext.Provider value={version}>
-      <div className="page">
-        <Header />
-        <Hero />
-        <Divider />
-        <HowItWorks />
-        <Divider />
-        <CodeComparison />
-        <Divider />
-        <Features />
-        <Divider />
-        <QuickStart />
-        <Divider />
-        <FinalCTA />
-        <Divider />
-        <Footer />
-      </div>
+      {isPlayground ? (
+        <Suspense fallback={<div className="pg-loading">Loading playground…</div>}>
+          <Playground />
+        </Suspense>
+      ) : (
+        <LandingPage />
+      )}
     </VersionContext.Provider>
   );
 }
