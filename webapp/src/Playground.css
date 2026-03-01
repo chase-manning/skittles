@@ -53,11 +53,17 @@
   border-radius: 6px;
   padding: 8px 12px;
   cursor: pointer;
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
 .pg-select:hover {
   border-color: var(--text-muted);
+}
+
+.pg-select:focus,
+.pg-select:focus-visible {
+  outline-color: var(--accent);
 }
 
 .pg-share-btn {
@@ -132,7 +138,8 @@
   font-size: 13px;
   line-height: 1.8;
   border: none;
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
   resize: none;
   white-space: pre;
   overflow: auto;
@@ -141,6 +148,11 @@
 
 .pg-editor::placeholder {
   color: var(--text-muted);
+}
+
+.pg-editor:focus,
+.pg-editor:focus-visible {
+  outline-color: var(--accent);
 }
 
 /* ==================== Output ==================== */

@@ -20,7 +20,7 @@ export function compileSource(source: string): CompileResult {
 
     const contracts = parse(source, "playground.ts", externalTypes, externalFunctions);
     if (contracts.length === 0) {
-      return { solidity: "", error: "No contract class found. Export a class to compile." };
+      return { solidity: "", error: "No contract class found. Define a class to compile." };
     }
 
     const solidity =

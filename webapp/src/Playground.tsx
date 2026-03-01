@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { compileSource } from "./compiler.ts";
 import "./Playground.css";
 
@@ -179,11 +179,20 @@ function SolLine({ line }: { line: string }) {
   );
 }
 
+let _cachedInitial: { source: string; solidity: string; error: string | null } | null = null;
+function getInitialData() {
+  if (!_cachedInitial) {
+    const source = getInitialSource();
+    const result = compileSource(source);
+    _cachedInitial = { source, solidity: result.solidity, error: result.error };
+  }
+  return _cachedInitial;
+}
+
 export default function Playground() {
-  const initialResult = compileSource(getInitialSource());
-  const [source, setSource] = useState(getInitialSource);
-  const [solidity, setSolidity] = useState(initialResult.solidity);
-  const [error, setError] = useState<string | null>(initialResult.error);
+  const [source, setSource] = useState(() => getInitialData().source);
+  const [solidity, setSolidity] = useState(() => getInitialData().solidity);
+  const [error, setError] = useState<string | null>(() => getInitialData().error);
   const [selectedExample, setSelectedExample] = useState(() => {
     const hash = window.location.hash;
     if (hash.includes("code=")) return "";
@@ -191,6 +200,12 @@ export default function Playground() {
   });
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const compile = useCallback((src: string) => {
     const result = compileSource(src);
