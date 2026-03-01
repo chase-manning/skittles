@@ -128,7 +128,7 @@ describe("Token", function () {
   it("allows owner to mint new tokens", async function () {
     const { token, alice } = await networkHelpers.loadFixture(deployTokenFixture);
     const mintAmount = 500n;
-    await token.mint(alice.address, mintAmount);
+    await (await token.mint(alice.address, mintAmount)).wait();
     expect(await token.balanceOf(alice.address)).to.equal(mintAmount);
   });
 });

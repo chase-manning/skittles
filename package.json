@@ -12,8 +12,8 @@
       "default": "./dist/exports.js"
     },
     "./contracts": {
-      "types": "./stdlib/contracts/index.ts",
-      "default": "./stdlib/contracts/index.ts"
+      "types": "./dist/stdlib/contracts/index.d.ts",
+      "default": "./dist/stdlib/contracts/index.js"
     }
   },
   "files": [

@@ -42,12 +42,18 @@ import { address, msg } from "skittles";
 import { ERC20 } from "skittles/contracts";
 
 export class MyToken extends ERC20 {
+  private _owner: address;
+
   constructor() {
     super("MyToken", "MTK");
+    this._owner = msg.sender;
     this._mint(msg.sender, 1000000);
   }
 
   public mint(to: address, amount: number): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
+    }
     this._mint(to, amount);
   }
 
@@ -106,12 +112,17 @@ import { ERC721 } from "skittles/contracts";
 
 export class MyNFT extends ERC721 {
   private nextTokenId: number = 0;
+  private _owner: address;
 
   constructor() {
     super("MyNFT", "MNFT");
+    this._owner = msg.sender;
   }
 
   public mint(to: address): number {
+    if (msg.sender != this._owner) {
+      throw new Error("Caller is not the owner");
+    }
     let tokenId: number = this.nextTokenId;
     this.nextTokenId += 1;
     this._mint(to, tokenId);
