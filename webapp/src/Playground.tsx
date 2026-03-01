@@ -363,6 +363,20 @@ export default function Playground() {
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                 handleSourceChange(e.target.value)
               }
+              onKeyDown={(e) => {
+                if (e.key === "Tab") {
+                  e.preventDefault();
+                  const ta = e.currentTarget;
+                  const start = ta.selectionStart;
+                  const end = ta.selectionEnd;
+                  const newValue =
+                    source.substring(0, start) + "  " + source.substring(end);
+                  handleSourceChange(newValue);
+                  requestAnimationFrame(() => {
+                    ta.selectionStart = ta.selectionEnd = start + 2;
+                  });
+                }
+              }}
               onScroll={syncScroll}
               spellCheck={false}
               autoCapitalize="off"
