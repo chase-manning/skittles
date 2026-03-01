@@ -16,7 +16,7 @@ import {
   type SourceMapping,
   type SolidityConfig,
 } from "../types/index.ts";
-import { DEFAULT_CONFIG } from "../config/config.ts";
+import { DEFAULT_CONFIG } from "../config/defaults.ts";
 
 // ============================================================
 // Main entry

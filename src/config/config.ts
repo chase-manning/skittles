@@ -2,24 +2,9 @@ import path from "path";
 import fs from "fs";
 import { pathToFileURL } from "url";
 import type { SkittlesConfig } from "../types/index.ts";
+import { DEFAULT_CONFIG } from "./defaults.ts";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
-
-const DEFAULT_CONFIG: Required<SkittlesConfig> = {
-  typeCheck: true,
-  optimizer: {
-    enabled: false,
-    runs: 200,
-  },
-  contractsDir: "contracts",
-  outputDir: "artifacts",
-  cacheDir: "cache",
-  consoleLog: false,
-  solidity: {
-    version: "^0.8.20",
-    license: "MIT",
-  },
-};
 
 /**
  * Load the skittles config from the project root.
@@ -82,4 +67,4 @@ function mergeConfig(
   };
 }
 
-export { DEFAULT_CONFIG };
+export { DEFAULT_CONFIG } from "./defaults.ts";
