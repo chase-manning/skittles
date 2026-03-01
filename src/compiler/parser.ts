@@ -1540,6 +1540,35 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isCallExpression(node)) {
+    // Map.get(key) → mapping[key]
+    if (ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "get" &&
+        node.arguments.length === 1 &&
+        isMappingLikeReceiver(node.expression.expression)) {
+      return {
+        kind: "element-access" as const,
+        object: parseExpression(node.expression.expression),
+        index: parseExpression(node.arguments[0]),
+      };
+    }
+
+    // Map.has(key) → mapping[key] != 0
+    if (ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "has" &&
+        node.arguments.length === 1 &&
+        isMappingLikeReceiver(node.expression.expression)) {
+      return {
+        kind: "binary" as const,
+        operator: "!=",
+        left: {
+          kind: "element-access" as const,
+          object: parseExpression(node.expression.expression),
+          index: parseExpression(node.arguments[0]),
+        },
+        right: { kind: "number-literal" as const, value: "0" },
+      };
+    }
+
     const callExpr: {
       kind: "call";
       callee: Expression;
@@ -1714,6 +1743,45 @@ export function parseStatement(
     // Detect delete expressions: `delete this.mapping[key]`
     if (ts.isDeleteExpression(node.expression)) {
       return { kind: "delete", target: parseExpression(node.expression.expression), sourceLine: getSourceLine(node) };
+    }
+
+    // Map.delete(key) → delete mapping[key]
+    if (ts.isCallExpression(node.expression) &&
+        ts.isPropertyAccessExpression(node.expression.expression) &&
+        node.expression.expression.name.text === "delete" &&
+        node.expression.arguments.length === 1 &&
+        isMappingLikeReceiver(node.expression.expression.expression)) {
+      return {
+        kind: "delete" as const,
+        target: {
+          kind: "element-access" as const,
+          object: parseExpression(node.expression.expression.expression),
+          index: parseExpression(node.expression.arguments[0]),
+        },
+        sourceLine: getSourceLine(node),
+      };
+    }
+
+    // Map.set(key, value) → mapping[key] = value
+    if (ts.isCallExpression(node.expression) &&
+        ts.isPropertyAccessExpression(node.expression.expression) &&
+        node.expression.expression.name.text === "set" &&
+        node.expression.arguments.length === 2 &&
+        isMappingLikeReceiver(node.expression.expression.expression)) {
+      return {
+        kind: "expression" as const,
+        expression: {
+          kind: "assignment" as const,
+          operator: "=",
+          target: {
+            kind: "element-access" as const,
+            object: parseExpression(node.expression.expression.expression),
+            index: parseExpression(node.expression.arguments[0]),
+          },
+          value: parseExpression(node.expression.arguments[1]),
+        },
+        sourceLine: getSourceLine(node),
+      };
     }
 
     return { kind: "expression", expression: parseExpression(node.expression), sourceLine: getSourceLine(node) };
@@ -2572,6 +2640,24 @@ function isStateMutatingCall(expr: { callee: Expression }): boolean {
   const method = expr.callee.property;
   if (!["push", "pop"].includes(method)) return false;
   return isStateAccess(expr.callee.object);
+}
+
+/**
+ * Check if a TypeScript AST expression represents a mapping-like receiver
+ * (this.xxx where xxx is a mapping state variable, or this.xxx[key] for nested mappings).
+ * Used to detect Map method calls (.get, .set, .has, .delete) that should be
+ * transformed into Solidity mapping operations.
+ */
+function isMappingLikeReceiver(node: ts.Expression): boolean {
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    return type?.kind === ("mapping" as SkittlesTypeKind);
+  }
+  if (ts.isElementAccessExpression(node)) {
+    return isMappingLikeReceiver(node.expression);
+  }
+  return false;
 }
 
 /**

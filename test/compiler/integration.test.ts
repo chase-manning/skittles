@@ -2382,8 +2382,160 @@ describe("integration: delete expressions", () => {
 });
 
 // ============================================================
-// For...of loops
+// Map method support
 // ============================================================
+
+describe("integration: Map method support", () => {
+  it("should compile map.delete(key) to delete mapping[key]", () => {
+    const { errors, solidity } = compileTS(`
+      class Registry {
+        private data: Map<address, number> = {};
+
+        public remove(addr: address): void {
+          this.data.delete(addr);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("delete data[addr];");
+  });
+
+  it("should detect map.delete() as state mutation", () => {
+    const contracts = parse(`
+      class Registry {
+        private data: Map<address, number> = {};
+
+        public remove(addr: address): void {
+          this.data.delete(addr);
+        }
+      }
+    `, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
+  });
+
+  it("should compile map.set(key, value) to mapping[key] = value", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private balances: Map<address, number> = {};
+
+        public setBalance(addr: address, amount: number): void {
+          this.balances.set(addr, amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("balances[addr] = amount;");
+  });
+
+  it("should detect map.set() as state mutation", () => {
+    const contracts = parse(`
+      class Token {
+        private balances: Map<address, number> = {};
+
+        public setBalance(addr: address, amount: number): void {
+          this.balances.set(addr, amount);
+        }
+      }
+    `, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
+  });
+
+  it("should compile map.get(key) to mapping[key]", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private balances: Map<address, number> = {};
+
+        public getBalance(addr: address): number {
+          return this.balances.get(addr);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return balances[addr];");
+  });
+
+  it("should detect map.get() as view", () => {
+    const contracts = parse(`
+      class Token {
+        private balances: Map<address, number> = {};
+
+        public getBalance(addr: address): number {
+          return this.balances.get(addr);
+        }
+      }
+    `, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should compile map.has(key) to mapping[key] != 0", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private balances: Map<address, number> = {};
+
+        public hasBalance(addr: address): boolean {
+          return this.balances.has(addr);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return (balances[addr] != 0);");
+  });
+
+  it("should detect map.has() as view", () => {
+    const contracts = parse(`
+      class Token {
+        private balances: Map<address, number> = {};
+
+        public hasBalance(addr: address): boolean {
+          return this.balances.has(addr);
+        }
+      }
+    `, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should compile map.get() on nested mapping", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private allowances: Map<address, Map<address, number>> = {};
+
+        public getAllowance(owner: address, spender: address): number {
+          return this.allowances[owner].get(spender);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return allowances[owner][spender];");
+  });
+
+  it("should compile map.set() on nested mapping", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        private allowances: Map<address, Map<address, number>> = {};
+
+        public setAllowance(owner: address, spender: address, amount: number): void {
+          this.allowances[owner].set(spender, amount);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("allowances[owner][spender] = amount;");
+  });
+
+  it("should not transform .get() on non-mapping state variables", () => {
+    const { errors, solidity } = compileTS(`
+      class Registry {
+        private items: number[] = [];
+
+        public getFirst(): number {
+          return this.items[0];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("return items[0];");
+  });
+});
 
 describe("integration: for...of loops", () => {
   it("should compile for...of to indexed for loop", () => {
