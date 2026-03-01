@@ -10,6 +10,10 @@ title: Installation
 - **Node.js** 22.0 or higher
 - A package manager: **npm**, **yarn**, or **pnpm**
 
+:::tip Try it online first
+Want to try Skittles without installing anything? Use the [online playground](https://skittles.dev/#playground) to write TypeScript contracts and see the generated Solidity in real-time.
+:::
+
 ## Get Started
 
 The fastest way to get started is to scaffold a new project. This downloads the compiler, creates an example contract, installs dependencies, and sets up Hardhat for you:
