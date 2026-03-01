@@ -696,8 +696,29 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return `${indent}${type} ${stmt.name};`;
     }
 
-    case "expression":
+    case "expression": {
+      if (stmt.expression.kind === "conditional" && indent) {
+        const conditionalExpr = stmt.expression;
+        const lines: string[] = [];
+        lines.push(`${indent}if (${generateExpression(conditionalExpr.condition)}) {`);
+        lines.push(
+          generateStatement(
+            { kind: "expression", expression: conditionalExpr.whenTrue },
+            inner,
+          ),
+        );
+        lines.push(`${indent}} else {`);
+        lines.push(
+          generateStatement(
+            { kind: "expression", expression: conditionalExpr.whenFalse },
+            inner,
+          ),
+        );
+        lines.push(`${indent}}`);
+        return lines.join("\n");
+      }
       return `${indent}${generateExpression(stmt.expression)};`;
+    }
 
     case "if": {
       if (isRequirePattern(stmt)) {
@@ -1087,6 +1108,11 @@ export function buildSourceMap(
             currentIdx + 1 + thenLineCount + 1,
             indent + "    "
           );
+        }
+      } else if (stmt.kind === "expression" && stmt.expression.kind === "conditional" && indent) {
+        // Lowered void ternary: map all generated lines to the original source line
+        for (let i = 1; i < stmtLineCount; i++) {
+          addMapping(currentIdx + i, stmt.sourceLine);
         }
       } else if (stmt.kind === "for" || stmt.kind === "while") {
         mapBodyStatements(stmt.body, currentIdx + 1, indent + "    ");
