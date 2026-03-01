@@ -1,0 +1,192 @@
+/* ==================== Playground Layout ==================== */
+.pg {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  background-color: var(--bg-primary);
+}
+
+/* ==================== Playground Header ==================== */
+.pg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pg-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pg-logo-img {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.pg-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pg-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pg-select {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.pg-select:hover {
+  border-color: var(--text-muted);
+}
+
+.pg-share-btn {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-inverted);
+  background-color: var(--accent);
+  border-radius: 6px;
+  padding: 8px 16px;
+  transition: opacity 0.2s;
+}
+
+.pg-share-btn:hover {
+  opacity: 0.9;
+}
+
+/* ==================== Split Panes ==================== */
+.pg-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.pg-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pg-pane--input {
+  border-right: 1px solid var(--border);
+}
+
+.pg-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pg-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pg-dots .dot {
+  width: 10px;
+  height: 10px;
+}
+
+.pg-pane-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* ==================== Editor ==================== */
+.pg-editor {
+  flex: 1;
+  width: 100%;
+  padding: 20px;
+  background-color: var(--bg-inset);
+  color: var(--text-secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  border: none;
+  outline: none;
+  resize: none;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.pg-editor::placeholder {
+  color: var(--text-muted);
+}
+
+/* ==================== Output ==================== */
+.pg-output {
+  flex: 1;
+  padding: 20px;
+  background-color: var(--bg-inset);
+  overflow: auto;
+}
+
+.pg-code-line {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre;
+  color: var(--text-secondary);
+}
+
+/* ==================== Error ==================== */
+.pg-error {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ef4444;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
+  .pg-main {
+    flex-direction: column;
+  }
+
+  .pg-pane--input {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pg-pane {
+    flex: none;
+    height: 50%;
+  }
+
+  .pg-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
