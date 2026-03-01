@@ -1527,7 +1527,7 @@ describe("integration: built-in functions", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("(value > min ? value : min)");
-    expect(solidity).toContain("max");
+    expect(solidity).toContain("((value > min ? value : min) < max ? (value > min ? value : min) : max)");
   });
 
   it("should compile Math.pow to exponentiation", () => {
