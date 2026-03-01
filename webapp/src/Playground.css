@@ -128,12 +128,36 @@
 }
 
 /* ==================== Editor ==================== */
-.pg-editor {
+.pg-editor-wrap {
+  position: relative;
   flex: 1;
-  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pg-editor-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
   padding: 20px;
   background-color: var(--bg-inset);
-  color: var(--text-secondary);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+  pointer-events: none;
+}
+
+.pg-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-primary);
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
   line-height: 1.8;
@@ -146,8 +170,8 @@
   tab-size: 2;
 }
 
-.pg-editor::placeholder {
-  color: var(--text-muted);
+.pg-editor::selection {
+  background-color: rgba(56, 189, 248, 0.2);
 }
 
 .pg-editor:focus,

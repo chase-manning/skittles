@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, type ChangeEvent } from "react";
 import { compileSource } from "./compiler.ts";
 import "./Playground.css";
 
@@ -118,7 +118,6 @@ function getInitialSource(): string {
   return EXAMPLES[DEFAULT_EXAMPLE];
 }
 
-// Simple syntax highlighting for Solidity output
 type Token = { text: string; type: "keyword" | "string" | "type" | "comment" | "number" | "plain" };
 
 function highlightSol(line: string): Token[] {
@@ -179,6 +178,64 @@ function SolLine({ line }: { line: string }) {
   );
 }
 
+function highlightTS(line: string): Token[] {
+  const tokens: Token[] = [];
+  const keywords = /\b(import|from|export|class|private|constructor|if|throw|new|return|this|const|let|var|function|extends|implements)\b/g;
+  const types = /\b(string|number|boolean|void|address|Record|Map|Error|Indexed)\b/g;
+  const strings = /"[^"]*"|'[^']*'/g;
+  const numbers = /\b\d+\b/g;
+  const comments = /\/\/.*/g;
+
+  const spans: { start: number; end: number; type: Token["type"] }[] = [];
+
+  for (const r of [
+    { regex: comments, type: "comment" as const },
+    { regex: strings, type: "string" as const },
+    { regex: keywords, type: "keyword" as const },
+    { regex: types, type: "type" as const },
+    { regex: numbers, type: "number" as const },
+  ]) {
+    let m;
+    while ((m = r.regex.exec(line)) !== null) {
+      spans.push({ start: m.index, end: m.index + m[0].length, type: r.type });
+    }
+  }
+
+  spans.sort((a, b) => a.start - b.start);
+
+  const merged: typeof spans = [];
+  for (const s of spans) {
+    if (merged.length > 0 && s.start < merged[merged.length - 1].end) continue;
+    merged.push(s);
+  }
+
+  let cursor = 0;
+  for (const s of merged) {
+    if (cursor < s.start) {
+      tokens.push({ text: line.slice(cursor, s.start), type: "plain" });
+    }
+    tokens.push({ text: line.slice(s.start, s.end), type: s.type });
+    cursor = s.end;
+  }
+  if (cursor < line.length) {
+    tokens.push({ text: line.slice(cursor), type: "plain" });
+  }
+
+  return tokens.length > 0 ? tokens : [{ text: line, type: "plain" }];
+}
+
+function TSLine({ line }: { line: string }) {
+  if (!line.trim()) return <div className="pg-code-line">{"\u00A0"}</div>;
+  const tokens = highlightTS(line);
+  return (
+    <div className="pg-code-line">
+      {tokens.map((t, i) => (
+        <span key={i} className={`tok-${t.type}`}>{t.text}</span>
+      ))}
+    </div>
+  );
+}
+
 let _cachedInitial: { source: string; solidity: string; error: string | null } | null = null;
 function getInitialData() {
   if (!_cachedInitial) {
@@ -200,11 +257,20 @@ export default function Playground() {
   });
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
+  }, []);
+
+  const syncScroll = useCallback(() => {
+    if (textareaRef.current && highlightRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
   }, []);
 
   const compile = useCallback((src: string) => {
@@ -280,15 +346,30 @@ export default function Playground() {
             </div>
             <span className="pg-pane-label">Contract.ts</span>
           </div>
-          <textarea
-            className="pg-editor"
-            value={source}
-            onChange={(e) => handleSourceChange(e.target.value)}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoComplete="off"
-            autoCorrect="off"
-          />
+          <div className="pg-editor-wrap">
+            <pre
+              ref={highlightRef}
+              className="pg-editor-highlight"
+              aria-hidden="true"
+            >
+              {source.split("\n").map((line, i) => (
+                <TSLine key={i} line={line} />
+              ))}
+            </pre>
+            <textarea
+              ref={textareaRef}
+              className="pg-editor"
+              value={source}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                handleSourceChange(e.target.value)
+              }
+              onScroll={syncScroll}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoComplete="off"
+              autoCorrect="off"
+            />
+          </div>
         </div>
 
         <div className="pg-pane pg-pane--output">
