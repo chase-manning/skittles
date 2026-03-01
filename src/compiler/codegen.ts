@@ -244,7 +244,7 @@ function generateContractBody(
   }
 
   if (contract.ctor) {
-    parts.push(generateConstructor(contract.ctor));
+    parts.push(generateConstructor(contract.ctor, contract.inherits));
     if (functionsToEmit.length > 0 || readonlyArrayVars.length > 0) {
       parts.push("");
     }
@@ -452,7 +452,28 @@ function generateFunction(f: SkittlesFunction): string {
   return lines.join("\n");
 }
 
-function generateConstructor(c: SkittlesConstructor): string {
+function isSuperCall(stmt: Statement): boolean {
+  return (
+    stmt.kind === "expression" &&
+    stmt.expression.kind === "call" &&
+    stmt.expression.callee.kind === "identifier" &&
+    stmt.expression.callee.name === "super"
+  );
+}
+
+function getSuperCallArgs(stmt: Statement): Expression[] | null {
+  if (
+    stmt.kind === "expression" &&
+    stmt.expression.kind === "call" &&
+    stmt.expression.callee.kind === "identifier" &&
+    stmt.expression.callee.name === "super"
+  ) {
+    return stmt.expression.args;
+  }
+  return null;
+}
+
+function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): string {
   const regularParams = c.parameters.filter((p) => !p.defaultValue);
   const defaultParams = c.parameters.filter((p) => p.defaultValue);
 
@@ -460,12 +481,36 @@ function generateConstructor(c: SkittlesConstructor): string {
     .map((p) => `${generateParamType(p.type)} ${p.name}`)
     .join(", ");
 
+  // Extract super() call(s) from the body and validate.
+  const superCalls = c.body.filter(isSuperCall);
+  if (superCalls.length > 1) {
+    throw new Error("Constructor contains multiple super() calls, but only one is allowed");
+  }
+  const bodyWithoutSuper = c.body.filter((s) => !isSuperCall(s));
+  let parentModifier = "";
+  if (superCalls.length === 1) {
+    const args = getSuperCallArgs(superCalls[0])!;
+    if (args.length > 0) {
+      if (inherits.length === 0) {
+        throw new Error(
+          "Constructor contains a super(...) call, but no parent contract is specified in 'inherits'"
+        );
+      }
+      if (defaultParams.length > 0) {
+        throw new Error(
+          "super(...) with constructor parameters that have default values is not supported"
+        );
+      }
+      parentModifier = ` ${inherits[0]}(${args.map(generateExpression).join(", ")})`;
+    }
+  }
+
   const lines: string[] = [];
-  lines.push(`    constructor(${params}) {`);
+  lines.push(`    constructor(${params})${parentModifier} {`);
   for (const p of defaultParams) {
     lines.push(`        ${generateParamType(p.type)} ${p.name} = ${generateExpression(p.defaultValue!)};`);
   }
-  for (const s of c.body) {
+  for (const s of bodyWithoutSuper) {
     lines.push(generateStatement(s, "        "));
   }
   lines.push("    }");
