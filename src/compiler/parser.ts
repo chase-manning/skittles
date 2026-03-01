@@ -66,8 +66,30 @@ function isStringExpr(expr: Expression): boolean {
   ) {
     return true;
   }
+  if (
+    expr.kind === "call" &&
+    expr.callee.kind === "identifier" &&
+    STRING_RETURNING_HELPERS.has(expr.callee.name)
+  ) {
+    return true;
+  }
   return false;
 }
+
+const STRING_RETURNING_HELPERS = new Set([
+  "_charAt", "_substring", "_toLowerCase", "_toUpperCase", "_trim",
+]);
+
+const STRING_METHODS: Record<string, string> = {
+  charAt: "_charAt",
+  substring: "_substring",
+  toLowerCase: "_toLowerCase",
+  toUpperCase: "_toUpperCase",
+  startsWith: "_startsWith",
+  endsWith: "_endsWith",
+  trim: "_trim",
+  split: "_split",
+};
 
 // ============================================================
 // Main entry
@@ -1584,6 +1606,23 @@ export function parseExpression(node: ts.Expression): Expression {
       };
     }
 
+    // String method calls: str.charAt(i) → _charAt(str, i), etc.
+    if (ts.isPropertyAccessExpression(node.expression)) {
+      const methodName = node.expression.name.text;
+      const helperName = STRING_METHODS[methodName];
+      if (helperName) {
+        const receiver = parseExpression(node.expression.expression);
+        if (isStringExpr(receiver)) {
+          const args = node.arguments.map(parseExpression);
+          return {
+            kind: "call" as const,
+            callee: { kind: "identifier" as const, name: helperName },
+            args: [receiver, ...args],
+          };
+        }
+      }
+    }
+
     const callExpr: {
       kind: "call";
       callee: Expression;
@@ -2615,6 +2654,19 @@ export function inferType(
       if (expr.operator === "!")
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
+    case "call":
+      if (expr.callee.kind === "identifier") {
+        if (STRING_RETURNING_HELPERS.has(expr.callee.name)) {
+          return { kind: "string" as SkittlesTypeKind };
+        }
+        if (expr.callee.name === "_startsWith" || expr.callee.name === "_endsWith") {
+          return { kind: "bool" as SkittlesTypeKind };
+        }
+        if (expr.callee.name === "_split") {
+          return { kind: "array" as SkittlesTypeKind, valueType: { kind: "string" as SkittlesTypeKind } };
+        }
+      }
+      return undefined;
     default:
       return undefined;
   }

@@ -1685,6 +1685,228 @@ describe("integration: string operations", () => {
 });
 
 // ============================================================
+// String methods
+// ============================================================
+
+describe("integration: string methods", () => {
+  it("should compile charAt on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getInitial(name: string): string {
+          return name.charAt(0);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_charAt(name, 0)");
+    expect(solidity).toContain("function _charAt(string memory str, uint256 index)");
+  });
+
+  it("should compile charAt on state variable", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public name: string = "hello";
+
+        public getInitial(): string {
+          return this.name.charAt(0);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_charAt(name, 0)");
+  });
+
+  it("should compile substring on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getSlice(text: string): string {
+          return text.substring(0, 3);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_substring(text, 0, 3)");
+    expect(solidity).toContain("function _substring(string memory str, uint256 start, uint256 end)");
+  });
+
+  it("should compile toLowerCase on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public lower(text: string): string {
+          return text.toLowerCase();
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_toLowerCase(text)");
+    expect(solidity).toContain("function _toLowerCase(string memory str)");
+  });
+
+  it("should compile toUpperCase on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public upper(text: string): string {
+          return text.toUpperCase();
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_toUpperCase(text)");
+    expect(solidity).toContain("function _toUpperCase(string memory str)");
+  });
+
+  it("should compile startsWith on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public checkPrefix(text: string, prefix: string): boolean {
+          return text.startsWith(prefix);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_startsWith(text, prefix)");
+    expect(solidity).toContain("function _startsWith(string memory str, string memory prefix)");
+  });
+
+  it("should compile endsWith on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public checkSuffix(text: string, suffix: string): boolean {
+          return text.endsWith(suffix);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_endsWith(text, suffix)");
+    expect(solidity).toContain("function _endsWith(string memory str, string memory suffix)");
+  });
+
+  it("should compile trim on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public clean(text: string): string {
+          return text.trim();
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_trim(text)");
+    expect(solidity).toContain("function _trim(string memory str)");
+  });
+
+  it("should compile split on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public splitText(text: string, delimiter: string): string[] {
+          return text.split(delimiter);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_split(text, delimiter)");
+    expect(solidity).toContain("function _split(string memory str, string memory delimiter)");
+  });
+
+  it("should compile chained string methods", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getUpperInitial(name: string): string {
+          return name.charAt(0).toUpperCase();
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_toUpperCase(_charAt(name, 0))");
+  });
+
+  it("should compile string methods on string literals", () => {
+    const contracts = parse(`
+      class StringMethods {
+        public getFirst(): string {
+          return "hello".charAt(0);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('_charAt("hello", 0)');
+  });
+
+  it("should only inject helpers that are used", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getInitial(name: string): string {
+          return name.charAt(0);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function _charAt(");
+    expect(solidity).not.toContain("function _substring(");
+    expect(solidity).not.toContain("function _toLowerCase(");
+    expect(solidity).not.toContain("function _toUpperCase(");
+    expect(solidity).not.toContain("function _startsWith(");
+    expect(solidity).not.toContain("function _endsWith(");
+    expect(solidity).not.toContain("function _trim(");
+    expect(solidity).not.toContain("function _split(");
+  });
+
+  it("should infer string type from charAt result", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getInitial(name: string): string {
+          const first = name.charAt(0);
+          return first;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("string memory first = _charAt(name, 0)");
+  });
+
+  it("should infer boolean type from startsWith result", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public checkPrefix(text: string, prefix: string): boolean {
+          const result = text.startsWith(prefix);
+          return result;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bool result = _startsWith(text, prefix)");
+  });
+
+  it("should compile string methods on state variable with string concat result", () => {
+    const contracts = parse(`
+      class StringMethods {
+        public name: string = "hello";
+
+        public getUpperName(): string {
+          return this.name.toUpperCase();
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("_toUpperCase(name)");
+  });
+
+  it("should not transform non-string method calls", () => {
+    const { errors, solidity } = compileTS(`
+      class Example {
+        public items: number[] = [];
+
+        public getCount(): number {
+          return this.items.length;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).not.toContain("_charAt");
+    expect(solidity).not.toContain("_substring");
+  });
+});
+
+// ============================================================
 // Structs
 // ============================================================
 

@@ -25,6 +25,14 @@ import { DEFAULT_CONFIG } from "../config/defaults.ts";
 let _needsMinHelper = false;
 let _needsMaxHelper = false;
 let _needsSqrtHelper = false;
+let _needsCharAtHelper = false;
+let _needsSubstringHelper = false;
+let _needsToLowerCaseHelper = false;
+let _needsToUpperCaseHelper = false;
+let _needsStartsWithHelper = false;
+let _needsEndsWithHelper = false;
+let _needsTrimHelper = false;
+let _needsSplitHelper = false;
 
 // ============================================================
 // Main entry
@@ -169,6 +177,14 @@ function generateContractBody(
   _needsMinHelper = false;
   _needsMaxHelper = false;
   _needsSqrtHelper = false;
+  _needsCharAtHelper = false;
+  _needsSubstringHelper = false;
+  _needsToLowerCaseHelper = false;
+  _needsToUpperCaseHelper = false;
+  _needsStartsWithHelper = false;
+  _needsEndsWithHelper = false;
+  _needsTrimHelper = false;
+  _needsSplitHelper = false;
 
   const inheritance =
     contract.inherits.length > 0
@@ -304,6 +320,143 @@ function generateContractBody(
     parts.push("            z = (x / z + z) / 2;");
     parts.push("        }");
     parts.push("        return y;");
+    parts.push("    }");
+  }
+
+  if (_needsCharAtHelper) {
+    parts.push("");
+    parts.push("    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        require(index < strBytes.length);");
+    parts.push("        bytes memory result = new bytes(1);");
+    parts.push("        result[0] = strBytes[index];");
+    parts.push("        return string(result);");
+    parts.push("    }");
+  }
+
+  if (_needsSubstringHelper) {
+    parts.push("");
+    parts.push("    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        require(start <= end && end <= strBytes.length);");
+    parts.push("        bytes memory result = new bytes(end - start);");
+    parts.push("        for (uint256 i = start; i < end; i++) {");
+    parts.push("            result[i - start] = strBytes[i];");
+    parts.push("        }");
+    parts.push("        return string(result);");
+    parts.push("    }");
+  }
+
+  if (_needsToLowerCaseHelper) {
+    parts.push("");
+    parts.push("    function _toLowerCase(string memory str) internal pure returns (string memory) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        bytes memory result = new bytes(strBytes.length);");
+    parts.push("        for (uint256 i = 0; i < strBytes.length; i++) {");
+    parts.push("            uint8 c = uint8(strBytes[i]);");
+    parts.push("            if (c >= 65 && c <= 90) {");
+    parts.push("                result[i] = bytes1(c + 32);");
+    parts.push("            } else {");
+    parts.push("                result[i] = strBytes[i];");
+    parts.push("            }");
+    parts.push("        }");
+    parts.push("        return string(result);");
+    parts.push("    }");
+  }
+
+  if (_needsToUpperCaseHelper) {
+    parts.push("");
+    parts.push("    function _toUpperCase(string memory str) internal pure returns (string memory) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        bytes memory result = new bytes(strBytes.length);");
+    parts.push("        for (uint256 i = 0; i < strBytes.length; i++) {");
+    parts.push("            uint8 c = uint8(strBytes[i]);");
+    parts.push("            if (c >= 97 && c <= 122) {");
+    parts.push("                result[i] = bytes1(c - 32);");
+    parts.push("            } else {");
+    parts.push("                result[i] = strBytes[i];");
+    parts.push("            }");
+    parts.push("        }");
+    parts.push("        return string(result);");
+    parts.push("    }");
+  }
+
+  if (_needsStartsWithHelper) {
+    parts.push("");
+    parts.push("    function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        bytes memory prefixBytes = bytes(prefix);");
+    parts.push("        if (prefixBytes.length > strBytes.length) return false;");
+    parts.push("        for (uint256 i = 0; i < prefixBytes.length; i++) {");
+    parts.push("            if (strBytes[i] != prefixBytes[i]) return false;");
+    parts.push("        }");
+    parts.push("        return true;");
+    parts.push("    }");
+  }
+
+  if (_needsEndsWithHelper) {
+    parts.push("");
+    parts.push("    function _endsWith(string memory str, string memory suffix) internal pure returns (bool) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        bytes memory suffixBytes = bytes(suffix);");
+    parts.push("        if (suffixBytes.length > strBytes.length) return false;");
+    parts.push("        uint256 offset = strBytes.length - suffixBytes.length;");
+    parts.push("        for (uint256 i = 0; i < suffixBytes.length; i++) {");
+    parts.push("            if (strBytes[offset + i] != suffixBytes[i]) return false;");
+    parts.push("        }");
+    parts.push("        return true;");
+    parts.push("    }");
+  }
+
+  if (_needsTrimHelper) {
+    parts.push("");
+    parts.push("    function _trim(string memory str) internal pure returns (string memory) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        uint256 start = 0;");
+    parts.push("        uint256 end = strBytes.length;");
+    parts.push("        while (start < end && uint8(strBytes[start]) == 32) { start++; }");
+    parts.push("        while (end > start && uint8(strBytes[end - 1]) == 32) { end--; }");
+    parts.push("        bytes memory result = new bytes(end - start);");
+    parts.push("        for (uint256 i = start; i < end; i++) {");
+    parts.push("            result[i - start] = strBytes[i];");
+    parts.push("        }");
+    parts.push("        return string(result);");
+    parts.push("    }");
+  }
+
+  if (_needsSplitHelper) {
+    parts.push("");
+    parts.push("    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {");
+    parts.push("        bytes memory strBytes = bytes(str);");
+    parts.push("        bytes memory delimBytes = bytes(delimiter);");
+    parts.push("        uint256 count = 1;");
+    parts.push("        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {");
+    parts.push("            bool found = true;");
+    parts.push("            for (uint256 j = 0; j < delimBytes.length; j++) {");
+    parts.push("                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }");
+    parts.push("            }");
+    parts.push("            if (found) { count++; i += delimBytes.length - 1; }");
+    parts.push("        }");
+    parts.push("        string[] memory parts = new string[](count);");
+    parts.push("        uint256 partIndex = 0;");
+    parts.push("        uint256 start = 0;");
+    parts.push("        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {");
+    parts.push("            bool found = true;");
+    parts.push("            for (uint256 j = 0; j < delimBytes.length; j++) {");
+    parts.push("                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }");
+    parts.push("            }");
+    parts.push("            if (found) {");
+    parts.push("                bytes memory part = new bytes(i - start);");
+    parts.push("                for (uint256 k = start; k < i; k++) { part[k - start] = strBytes[k]; }");
+    parts.push("                parts[partIndex++] = string(part);");
+    parts.push("                start = i + delimBytes.length;");
+    parts.push("                i += delimBytes.length - 1;");
+    parts.push("            }");
+    parts.push("        }");
+    parts.push("        bytes memory lastPart = new bytes(strBytes.length - start);");
+    parts.push("        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }");
+    parts.push("        parts[partIndex] = string(lastPart);");
+    parts.push("        return parts;");
     parts.push("    }");
   }
 
@@ -1053,6 +1206,38 @@ function tryGenerateBuiltinCall(expr: {
       _needsSqrtHelper = true;
       const x = generateExpression(expr.args[0]);
       return `_sqrt(${x})`;
+    }
+    case "_charAt": {
+      _needsCharAtHelper = true;
+      return `_charAt(${args})`;
+    }
+    case "_substring": {
+      _needsSubstringHelper = true;
+      return `_substring(${args})`;
+    }
+    case "_toLowerCase": {
+      _needsToLowerCaseHelper = true;
+      return `_toLowerCase(${args})`;
+    }
+    case "_toUpperCase": {
+      _needsToUpperCaseHelper = true;
+      return `_toUpperCase(${args})`;
+    }
+    case "_startsWith": {
+      _needsStartsWithHelper = true;
+      return `_startsWith(${args})`;
+    }
+    case "_endsWith": {
+      _needsEndsWithHelper = true;
+      return `_endsWith(${args})`;
+    }
+    case "_trim": {
+      _needsTrimHelper = true;
+      return `_trim(${args})`;
+    }
+    case "_split": {
+      _needsSplitHelper = true;
+      return `_split(${args})`;
     }
     default:
       return null;
