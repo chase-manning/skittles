@@ -1492,6 +1492,68 @@ describe("integration: built-in functions", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("string.concat(a, b)");
   });
+
+  it("should compile Math.min to ternary", () => {
+    const contracts = parse(`
+      class MathTest {
+        public getMin(a: number, b: number): number {
+          return Math.min(a, b);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("(a < b ? a : b)");
+  });
+
+  it("should compile Math.max to ternary", () => {
+    const contracts = parse(`
+      class MathTest {
+        public getMax(a: number, b: number): number {
+          return Math.max(a, b);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("(a > b ? a : b)");
+  });
+
+  it("should compile nested Math.min and Math.max (clamp)", () => {
+    const { errors, solidity } = compileTS(`
+      class Clamper {
+        public clamp(value: number, min: number, max: number): number {
+          return Math.min(Math.max(value, min), max);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(value > min ? value : min)");
+    expect(solidity).toContain("max");
+  });
+
+  it("should compile Math.pow to exponentiation", () => {
+    const contracts = parse(`
+      class MathTest {
+        public power(base: number, exp: number): number {
+          return Math.pow(base, exp);
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("(base ** exp)");
+  });
+
+  it("should compile Math.sqrt and generate helper function", () => {
+    const { errors, solidity } = compileTS(`
+      class MathTest {
+        public root(x: number): number {
+          return Math.sqrt(x);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_sqrt(x)");
+    expect(solidity).toContain("function _sqrt(uint256 x) internal pure returns (uint256)");
+  });
 });
 
 // ============================================================

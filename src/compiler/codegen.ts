@@ -17,6 +17,12 @@ import {
 } from "../types/index.ts";
 
 // ============================================================
+// Helper function tracking
+// ============================================================
+
+let _needsSqrtHelper = false;
+
+// ============================================================
 // Main entry
 // ============================================================
 
@@ -154,6 +160,7 @@ function generateContractBody(
   ancestors: Set<string> = new Set()
 ): string {
   const parts: string[] = [];
+  _needsSqrtHelper = false;
 
   const inheritance =
     contract.inherits.length > 0
@@ -262,6 +269,20 @@ function generateContractBody(
     if (i < readonlyArrayVars.length - 1) {
       parts.push("");
     }
+  }
+
+  if (_needsSqrtHelper) {
+    parts.push("");
+    parts.push("    function _sqrt(uint256 x) internal pure returns (uint256) {");
+    parts.push("        if (x == 0) return 0;");
+    parts.push("        uint256 z = (x + 1) / 2;");
+    parts.push("        uint256 y = x;");
+    parts.push("        while (z < y) {");
+    parts.push("            y = z;");
+    parts.push("            z = (x / z + z) / 2;");
+    parts.push("        }");
+    parts.push("        return y;");
+    parts.push("    }");
   }
 
   parts.push("}");
@@ -989,6 +1010,26 @@ function tryGenerateBuiltinCall(expr: {
       return `string.concat(${args})`;
     case "bytes.concat":
       return `bytes.concat(${args})`;
+    case "Math.min": {
+      const a = generateExpression(expr.args[0]);
+      const b = generateExpression(expr.args[1]);
+      return `(${a} < ${b} ? ${a} : ${b})`;
+    }
+    case "Math.max": {
+      const a = generateExpression(expr.args[0]);
+      const b = generateExpression(expr.args[1]);
+      return `(${a} > ${b} ? ${a} : ${b})`;
+    }
+    case "Math.pow": {
+      const base = generateExpression(expr.args[0]);
+      const exp = generateExpression(expr.args[1]);
+      return `(${base} ** ${exp})`;
+    }
+    case "Math.sqrt": {
+      _needsSqrtHelper = true;
+      const x = generateExpression(expr.args[0]);
+      return `_sqrt(${x})`;
+    }
     default:
       return null;
   }
