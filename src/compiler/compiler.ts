@@ -9,7 +9,7 @@ import type {
 } from "../types/index.ts";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
-import { parse, collectTypes, collectFunctions } from "./parser.ts";
+import { parse, collectTypes, collectFunctions, collectClassNames } from "./parser.ts";
 import type { SkittlesParameter, SkittlesFunction, SkittlesConstructor, SkittlesContractInterface, Expression, Statement } from "../types/index.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
@@ -109,6 +109,7 @@ export async function compile(
   const globalFunctions: SkittlesFunction[] = [];
   const globalConstants: Map<string, Expression> = new Map();
   const interfaceOriginFile = new Map<string, string>();
+  const contractOriginFile = new Map<string, string>();
   const preScanContractFiles: string[] = [];
 
   for (const filePath of sourceFiles) {
@@ -134,7 +135,14 @@ export async function compile(
       }
       for (const [name, expr] of constants) globalConstants.set(name, expr);
 
-      if (/\bclass\s+\w+/.test(source)) {
+      const classNames = collectClassNames(source, filePath);
+      for (const className of classNames) {
+        const existingOrigin = contractOriginFile.get(className);
+        if (!existingOrigin || baseName < existingOrigin) {
+          contractOriginFile.set(className, baseName);
+        }
+      }
+      if (classNames.length > 0) {
         preScanContractFiles.push(baseName);
       }
     } catch {
@@ -157,6 +165,7 @@ export async function compile(
     functions: [...globalFunctions].sort((a, b) => a.name.localeCompare(b.name)),
     constants: Array.from(globalConstants.entries()).sort(([a], [b]) => a.localeCompare(b)),
     contractFiles: preScanContractFiles.sort(),
+    contractOrigins: Array.from(contractOriginFile.entries()).sort(([a], [b]) => a.localeCompare(b)),
   };
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 
@@ -283,6 +292,14 @@ export async function compile(
               importedIfaceNames.add(iface.name);
               imports.push(`./${originBase}.sol`);
             }
+          }
+        }
+
+        // Import parent contracts defined in other files
+        for (const parentName of contract.inherits) {
+          const originBase = contractOriginFile.get(parentName);
+          if (originBase && originBase !== baseName && filesWithContracts.has(originBase)) {
+            imports.push(`./${originBase}.sol`);
           }
         }
       }

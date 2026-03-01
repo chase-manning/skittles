@@ -343,6 +343,28 @@ export function collectFunctions(source: string, filePath: string): {
   return { functions, constants };
 }
 
+/**
+ * Pre-scan a source file to collect the names of all contract classes
+ * (top-level class declarations that do not extend Error).
+ * Used by the compiler to track which file defines each contract.
+ */
+export function collectClassNames(source: string, filePath: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true
+  );
+
+  const names: string[] = [];
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isClassDeclaration(node) && node.name && !extendsError(node)) {
+      names.push(node.name.text);
+    }
+  });
+  return names;
+}
+
 function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,

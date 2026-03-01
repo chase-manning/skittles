@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { parse, collectTypes, collectFunctions } from "../../src/compiler/parser";
 import { generateSolidity, generateSolidityFile } from "../../src/compiler/codegen";
 import { compileSolidity } from "../../src/compiler/solc";
+import { compile } from "../../src/compiler/compiler";
 import { defaultConfig } from "../fixtures";
 
 function compileTS(source: string): {
@@ -4350,5 +4354,71 @@ describe("integration: same-file inheritance deduplication", () => {
     expect(resultUnrelated.errors).toHaveLength(0);
     const resultChild = compileSolidity("Child", solidity, defaultConfig);
     expect(resultChild.errors).toHaveLength(0);
+  });
+});
+
+describe("integration: cross-file contract inheritance", () => {
+  function createTempProject() {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "skittles-inherit-test-"));
+    fs.mkdirSync(path.join(tmpDir, "contracts"), { recursive: true });
+    return tmpDir;
+  }
+
+  function writeContract(projectRoot: string, fileName: string, source: string) {
+    fs.writeFileSync(path.join(projectRoot, "contracts", fileName), source, "utf-8");
+  }
+
+  it("should generate import statement for parent contract from another file", async () => {
+    const projectRoot = createTempProject();
+    try {
+      writeContract(projectRoot, "BaseToken.ts", `
+        class BaseToken {
+          public totalSupply: number = 0;
+          protected balances: Record<address, number> = {};
+          public balanceOf(account: address): number {
+            return this.balances[account];
+          }
+        }
+      `);
+      writeContract(projectRoot, "ChildToken.ts", `
+        class ChildToken extends BaseToken {
+          public mint(to: address, amount: number): void {
+            this.balances[to] += amount;
+            this.totalSupply += amount;
+          }
+        }
+      `);
+
+      const result = await compile(projectRoot, defaultConfig);
+      expect(result.success).toBe(true);
+
+      const childArtifact = result.artifacts.find((a) => a.contractName === "ChildToken");
+      expect(childArtifact).toBeDefined();
+      expect(childArtifact!.solidity).toContain('import "./BaseToken.sol";');
+      expect(childArtifact!.solidity).toContain("contract ChildToken is BaseToken {");
+    } finally {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("should compile parent contract successfully", () => {
+    const baseTokenSource = `
+      class BaseToken {
+        public totalSupply: number = 0;
+        protected balances: Record<address, number> = {};
+        public balanceOf(account: address): number {
+          return this.balances[account];
+        }
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(baseTokenSource, "BaseToken.ts");
+    const { functions, constants } = collectFunctions(baseTokenSource, "BaseToken.ts");
+    const baseContracts = parse(baseTokenSource, "BaseToken.ts",
+      { structs, enums, contractInterfaces },
+      { functions, constants }
+    );
+    const baseSolidity = generateSolidity(baseContracts[0]);
+    const result = compileSolidity("BaseToken", baseSolidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
   });
 });
