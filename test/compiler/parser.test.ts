@@ -82,7 +82,7 @@ describe("parse", () => {
     const vars = contracts[0].variables;
     expect(vars).toHaveLength(3);
     expect(vars[0].name).toBe("x");
-    expect(vars[0].type.kind).toBe("uint256");
+    expect(vars[0].type.kind).toBe("int256");
     expect(vars[1].name).toBe("name");
     expect(vars[1].type.kind).toBe("string");
     expect(vars[2].name).toBe("flag");
@@ -105,7 +105,7 @@ describe("parse", () => {
     const v = contracts[0].variables[0];
     expect(v.type.kind).toBe("mapping");
     expect(v.type.keyType?.kind).toBe("address");
-    expect(v.type.valueType?.kind).toBe("uint256");
+    expect(v.type.valueType?.kind).toBe("int256");
     expect(v.initialValue).toBeUndefined();
   });
 
@@ -117,7 +117,7 @@ describe("parse", () => {
     const v = contracts[0].variables[0];
     expect(v.type.kind).toBe("mapping");
     expect(v.type.keyType?.kind).toBe("address");
-    expect(v.type.valueType?.kind).toBe("uint256");
+    expect(v.type.valueType?.kind).toBe("int256");
     expect(v.initialValue).toBeUndefined();
   });
 
@@ -130,7 +130,7 @@ describe("parse", () => {
     expect(v.type.kind).toBe("mapping");
     expect(v.type.valueType?.kind).toBe("mapping");
     expect(v.type.valueType?.keyType?.kind).toBe("address");
-    expect(v.type.valueType?.valueType?.kind).toBe("uint256");
+    expect(v.type.valueType?.valueType?.kind).toBe("int256");
   });
 
   it("should parse nested Map types", () => {
@@ -142,7 +142,7 @@ describe("parse", () => {
     expect(v.type.kind).toBe("mapping");
     expect(v.type.valueType?.kind).toBe("mapping");
     expect(v.type.valueType?.keyType?.kind).toBe("address");
-    expect(v.type.valueType?.valueType?.kind).toBe("uint256");
+    expect(v.type.valueType?.valueType?.kind).toBe("int256");
   });
 
   it("should parse visibility modifiers", () => {
@@ -192,7 +192,7 @@ describe("parse", () => {
     const ctor = contracts[0].ctor!;
     expect(ctor.parameters).toHaveLength(1);
     expect(ctor.parameters[0].name).toBe("val");
-    expect(ctor.parameters[0].type.kind).toBe("uint256");
+    expect(ctor.parameters[0].type.kind).toBe("int256");
     expect(ctor.parameters[0].defaultValue).toBeUndefined();
     expect(ctor.body).toHaveLength(1);
   });
@@ -210,7 +210,7 @@ describe("parse", () => {
     const ctor = contracts[0].ctor!;
     expect(ctor.parameters).toHaveLength(1);
     expect(ctor.parameters[0].name).toBe("supply");
-    expect(ctor.parameters[0].type.kind).toBe("uint256");
+    expect(ctor.parameters[0].type.kind).toBe("int256");
     expect(ctor.parameters[0].defaultValue).toEqual({
       kind: "number-literal",
       value: "1000000",
@@ -253,7 +253,7 @@ describe("parse", () => {
     const fn = contracts[0].functions[0];
     expect(fn.name).toBe("getX");
     expect(fn.parameters).toHaveLength(0);
-    expect(fn.returnType?.kind).toBe("uint256");
+    expect(fn.returnType?.kind).toBe("int256");
     expect(fn.visibility).toBe("public");
     expect(fn.stateMutability).toBe("view");
     expect(fn.body).toHaveLength(1);
@@ -274,7 +274,7 @@ describe("parse", () => {
     expect(fn.name).toBe("getValues");
     expect(fn.returnType?.kind).toBe("tuple");
     expect(fn.returnType?.tupleTypes).toHaveLength(2);
-    expect(fn.returnType?.tupleTypes![0].kind).toBe("uint256");
+    expect(fn.returnType?.tupleTypes![0].kind).toBe("int256");
     expect(fn.returnType?.tupleTypes![1].kind).toBe("bool");
     expect(fn.body).toHaveLength(1);
     expect(fn.body[0].kind).toBe("return");
@@ -336,7 +336,7 @@ describe("parse", () => {
     expect(contracts[0].events[0].parameters[0].name).toBe("from");
     expect(contracts[0].events[0].parameters[0].type.kind).toBe("address");
     expect(contracts[0].events[0].parameters[2].name).toBe("value");
-    expect(contracts[0].events[0].parameters[2].type.kind).toBe("uint256");
+    expect(contracts[0].events[0].parameters[2].type.kind).toBe("int256");
     // Events should NOT appear in variables
     expect(contracts[0].variables).toHaveLength(0);
   });
@@ -462,8 +462,8 @@ describe("parse", () => {
 // ============================================================
 
 describe("parseType", () => {
-  it("should parse number as uint256", () => {
-    expect(parseType(makeTypeNode("number")).kind).toBe("uint256");
+  it("should parse number as int256", () => {
+    expect(parseType(makeTypeNode("number")).kind).toBe("int256");
   });
 
   it("should parse string as string", () => {
@@ -486,32 +486,32 @@ describe("parseType", () => {
     const t = parseType(makeTypeNode("Record<address, number>"));
     expect(t.kind).toBe("mapping");
     expect(t.keyType?.kind).toBe("address");
-    expect(t.valueType?.kind).toBe("uint256");
+    expect(t.valueType?.kind).toBe("int256");
   });
 
   it("should parse Map as mapping", () => {
     const t = parseType(makeTypeNode("Map<address, number>"));
     expect(t.kind).toBe("mapping");
     expect(t.keyType?.kind).toBe("address");
-    expect(t.valueType?.kind).toBe("uint256");
+    expect(t.valueType?.kind).toBe("int256");
   });
 
   it("should parse number[] as array", () => {
     const t = parseType(makeTypeNode("number[]"));
     expect(t.kind).toBe("array");
-    expect(t.valueType?.kind).toBe("uint256");
+    expect(t.valueType?.kind).toBe("int256");
   });
 
   it("should parse ReadonlyArray<number> as array", () => {
     const t = parseType(makeTypeNode("ReadonlyArray<number>"));
     expect(t.kind).toBe("array");
-    expect(t.valueType?.kind).toBe("uint256");
+    expect(t.valueType?.kind).toBe("int256");
   });
 
   it("should parse readonly number[] as array", () => {
     const t = parseType(makeTypeNode("readonly number[]"));
     expect(t.kind).toBe("array");
-    expect(t.valueType?.kind).toBe("uint256");
+    expect(t.valueType?.kind).toBe("int256");
   });
 
   it("should parse ReadonlyArray<address> as array", () => {
@@ -524,7 +524,7 @@ describe("parseType", () => {
     const t = parseType(makeTypeNode("[number, boolean, string]"));
     expect(t.kind).toBe("tuple");
     expect(t.tupleTypes).toHaveLength(3);
-    expect(t.tupleTypes![0].kind).toBe("uint256");
+    expect(t.tupleTypes![0].kind).toBe("int256");
     expect(t.tupleTypes![1].kind).toBe("bool");
     expect(t.tupleTypes![2].kind).toBe("string");
   });

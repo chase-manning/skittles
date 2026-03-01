@@ -508,7 +508,7 @@ export function generateType(type: SkittlesType): string {
     case SkittlesTypeKind.Void:
       return "";
     default:
-      return "uint256";
+      return "int256";
   }
 }
 
@@ -564,13 +564,13 @@ export function generateExpression(expr: Expression): string {
       ) {
         return expr.property;
       }
-      // Number.MAX_VALUE → type(uint256).max
+      // Number.MAX_VALUE → type(int256).max
       if (
         expr.object.kind === "identifier" &&
         expr.object.name === "Number" &&
         expr.property === "MAX_VALUE"
       ) {
-        return "type(uint256).max";
+        return "type(int256).max";
       }
       // Number.MAX_SAFE_INTEGER → 9007199254740991 (2^53 - 1)
       if (
@@ -580,10 +580,33 @@ export function generateExpression(expr: Expression): string {
       ) {
         return "9007199254740991";
       }
+      // Wrap EVM uint256 globals with int256() cast
+      if (expr.object.kind === "identifier") {
+        if (expr.object.name === "msg" && expr.property === "value") {
+          return "int256(msg.value)";
+        }
+        if (expr.object.name === "block" && expr.property !== "coinbase") {
+          return `int256(block.${expr.property})`;
+        }
+        if (expr.object.name === "tx" && expr.property !== "origin") {
+          return `int256(tx.${expr.property})`;
+        }
+      }
+      // Wrap .length with int256() since arrays/bytes return uint256
+      if (expr.property === "length") {
+        return `int256(${generateExpression(expr.object)}.length)`;
+      }
       return `${generateExpression(expr.object)}.${expr.property}`;
     case "element-access":
       return `${generateExpression(expr.object)}[${generateExpression(expr.index)}]`;
     case "binary":
+      // Solidity requires uint256 for exponentiation and shift amounts
+      if (expr.operator === "**") {
+        return `int256(uint256(${generateExpression(expr.left)}) ** uint256(${generateExpression(expr.right)}))`;
+      }
+      if (expr.operator === "<<" || expr.operator === ">>") {
+        return `(${generateExpression(expr.left)} ${expr.operator} uint256(${generateExpression(expr.right)}))`;
+      }
       return `(${generateExpression(expr.left)} ${expr.operator} ${generateExpression(expr.right)})`;
     case "unary":
       if (expr.prefix) {
@@ -605,7 +628,7 @@ export function generateExpression(expr: Expression): string {
         !isThisOrContractCall(expr.callee.object)
       ) {
         const addr = generateExpression(expr.callee.object);
-        return `payable(${addr}).transfer(${generateExpression(expr.args[0])})`;
+        return `payable(${addr}).transfer(uint256(${generateExpression(expr.args[0])}))`;
       }
       return `${generateExpression(expr.callee)}(${expr.args.map(generateExpression).join(", ")})`;
     }
@@ -639,7 +662,7 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return `${indent}return;`;
 
     case "variable-declaration": {
-      const type = stmt.type ? generateParamType(stmt.type) : "uint256";
+      const type = stmt.type ? generateParamType(stmt.type) : "int256";
       if (stmt.initializer) {
         let initExpr = generateExpression(stmt.initializer);
         // Wrap object literal in struct constructor when the type is a struct

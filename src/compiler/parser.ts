@@ -30,6 +30,8 @@ let _currentSourceFile: ts.SourceFile | null = null;
 // String type tracking for string.length and string comparison transforms
 let _currentVarTypes: Map<string, SkittlesType> = new Map();
 let _currentStringNames: Set<string> = new Set();
+// Global accumulation of variable types across all contracts (for inherited field lookups)
+let _allVarTypes: Map<string, SkittlesType> = new Map();
 
 function getSourceLine(node: ts.Node): number | undefined {
   if (!_currentSourceFile) return undefined;
@@ -40,6 +42,7 @@ function setupStringTracking(parameters: SkittlesParameter[], varTypes: Map<stri
   _currentVarTypes = varTypes;
   _currentStringNames = new Set();
   for (const param of parameters) {
+    _currentVarTypes.set(param.name, param.type);
     if (param.type.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(param.name);
     }
@@ -101,6 +104,7 @@ export function collectTypes(source: string, filePath: string): {
   _knownStructs = structs;
   _knownEnums = new Map();
   _knownContractInterfaces = new Set();
+  _allVarTypes = new Map();
 
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
@@ -672,7 +676,7 @@ function parseTypeLiteralFields(node: ts.TypeLiteralNode): SkittlesParameter[] {
       const name = member.name.text;
       const type: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       fields.push({ name, type });
     }
   }
@@ -690,7 +694,7 @@ function parseInterfaceAsContractInterface(
       const propName = member.name.text;
       const returnType: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       functions.push({ name: propName, parameters: [], returnType, stateMutability: "view" });
     }
 
@@ -776,8 +780,13 @@ function parseClass(
   }
 
   const varTypes = new Map<string, SkittlesType>();
+  // Include inherited variable types from parent contracts
+  for (const [k, v] of _allVarTypes) {
+    varTypes.set(k, v);
+  }
   for (const v of variables) {
     varTypes.set(v.name, v.type);
+    _allVarTypes.set(v.name, v.type);
   }
 
   const eventNames = new Set(events.map((e) => e.name));
@@ -1084,7 +1093,7 @@ function tryParseEvent(
 
       const paramType: SkittlesType = typeNode
         ? parseType(typeNode)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       parameters.push({ name: paramName, type: paramType, indexed });
     }
   }
@@ -1128,7 +1137,7 @@ function tryParseError(
       const paramName = member.name.text;
       const paramType: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       parameters.push({ name: paramName, type: paramType });
     }
   }
@@ -1142,7 +1151,7 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
 
   const type: SkittlesType = node.type
     ? parseType(node.type)
-    : { kind: "uint256" as SkittlesTypeKind };
+    : { kind: "int256" as SkittlesTypeKind };
 
   const visibility = getVisibility(node.modifiers);
   const isStatic = hasModifier(node.modifiers, ts.SyntaxKind.StaticKeyword);
@@ -1283,7 +1292,7 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const name = ts.isIdentifier(node.name) ? node.name.text : "unknown";
   const type: SkittlesType = node.type
     ? parseType(node.type)
-    : { kind: "uint256" as SkittlesTypeKind };
+    : { kind: "int256" as SkittlesTypeKind };
   const param: SkittlesParameter = { name, type };
   if (node.initializer) {
     param.defaultValue = parseExpression(node.initializer);
@@ -1377,7 +1386,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
   switch (node.kind) {
     case ts.SyntaxKind.NumberKeyword:
-      return { kind: "uint256" as SkittlesTypeKind };
+      return { kind: "int256" as SkittlesTypeKind };
     case ts.SyntaxKind.StringKeyword:
       return { kind: "string" as SkittlesTypeKind };
     case ts.SyntaxKind.BooleanKeyword:
@@ -1458,10 +1467,34 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isElementAccessExpression(node)) {
+    const object = parseExpression(node.expression);
+    const indexExpr = parseExpression(node.argumentExpression);
+    // If accessing an array with an int256-typed index, wrap with uint256() for Solidity array indexing
+    // Don't wrap for mapping access (where the key type matches)
+    let index = indexExpr;
+    let objectIsArray = false;
+    // Check if the object is an array type via varTypes
+    if (object.kind === "identifier") {
+      const objType = _currentVarTypes.get(object.name);
+      if (objType?.kind === ("array" as SkittlesTypeKind)) objectIsArray = true;
+    } else if (object.kind === "property-access" && object.object.kind === "identifier" && object.object.name === "this") {
+      const objType = _currentVarTypes.get(object.property);
+      if (objType?.kind === ("array" as SkittlesTypeKind)) objectIsArray = true;
+    }
+    if (objectIsArray) {
+      if (ts.isIdentifier(node.argumentExpression)) {
+        const varType = _currentVarTypes.get(node.argumentExpression.text);
+        if (varType && varType.kind === ("int256" as SkittlesTypeKind)) {
+          index = { kind: "call", callee: { kind: "identifier", name: "uint256" }, args: [indexExpr] };
+        }
+      } else if (ts.isNumericLiteral(node.argumentExpression)) {
+        index = { kind: "call", callee: { kind: "identifier", name: "uint256" }, args: [indexExpr] };
+      }
+    }
     return {
       kind: "element-access",
-      object: parseExpression(node.expression),
-      index: parseExpression(node.argumentExpression),
+      object,
+      index,
     };
   }
 
@@ -1798,7 +1831,7 @@ export function parseStatement(
 
   if (ts.isForOfStatement(node)) {
     // Desugar: for (const item of arr) { ... }
-    // →  for (uint256 _i = 0; _i < arr.length; _i++) { T item = arr[_i]; ... }
+    // →  for (int256 _i = 0; _i < arr.length; _i++) { T item = arr[_i]; ... }
     const arrExpr = parseExpression(node.expression);
     const itemName = ts.isVariableDeclarationList(node.initializer)
       ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
@@ -1811,7 +1844,7 @@ export function parseStatement(
     const indexName = `_i_${itemName}`;
     const innerBody = parseBlock(node.statement, varTypes, eventNames);
 
-    // Prepend: T item = arr[_i];
+    // Prepend: T item = arr[uint256(_i)];
     const itemDecl: Statement = {
       kind: "variable-declaration",
       name: itemName,
@@ -1819,7 +1852,11 @@ export function parseStatement(
       initializer: {
         kind: "element-access",
         object: arrExpr,
-        index: { kind: "identifier", name: indexName },
+        index: {
+          kind: "call",
+          callee: { kind: "identifier", name: "uint256" },
+          args: [{ kind: "identifier", name: indexName }],
+        },
       },
     };
 
@@ -1828,7 +1865,7 @@ export function parseStatement(
       initializer: {
         kind: "variable-declaration",
         name: indexName,
-        type: { kind: "uint256" as SkittlesTypeKind },
+        type: { kind: "int256" as SkittlesTypeKind },
         initializer: { kind: "number-literal", value: "0" },
       },
       condition: {
@@ -1854,7 +1891,7 @@ export function parseStatement(
 
   if (ts.isForInStatement(node)) {
     // Desugar: for (const item in EnumType) { ... }
-    // →  for (uint256 _i = 0; _i < memberCount; _i++) { EnumType item = EnumType(_i); ... }
+    // →  for (int256 _i = 0; _i < memberCount; _i++) { EnumType item = EnumType(_i); ... }
     const enumName = ts.isIdentifier(node.expression) ? node.expression.text : "";
     const enumMembers = _knownEnums.get(enumName);
 
@@ -1883,7 +1920,7 @@ export function parseStatement(
         initializer: {
           kind: "variable-declaration",
           name: indexName,
-          type: { kind: "uint256" as SkittlesTypeKind },
+          type: { kind: "int256" as SkittlesTypeKind },
           initializer: { kind: "number-literal", value: "0" },
         },
         condition: {
@@ -2426,7 +2463,7 @@ export function inferType(
 ): SkittlesType | undefined {
   switch (expr.kind) {
     case "number-literal":
-      return { kind: "uint256" as SkittlesTypeKind };
+      return { kind: "int256" as SkittlesTypeKind };
     case "string-literal":
       return { kind: "string" as SkittlesTypeKind };
     case "boolean-literal":
@@ -2444,7 +2481,7 @@ export function inferType(
           if (expr.property === "sender")
             return { kind: "address" as SkittlesTypeKind };
           if (expr.property === "value")
-            return { kind: "uint256" as SkittlesTypeKind };
+            return { kind: "int256" as SkittlesTypeKind };
           if (expr.property === "data")
             return { kind: "bytes" as SkittlesTypeKind };
           if (expr.property === "sig")
@@ -2453,12 +2490,12 @@ export function inferType(
         if (expr.object.name === "block") {
           if (expr.property === "coinbase")
             return { kind: "address" as SkittlesTypeKind };
-          return { kind: "uint256" as SkittlesTypeKind };
+          return { kind: "int256" as SkittlesTypeKind };
         }
         if (expr.object.name === "tx") {
           if (expr.property === "origin")
             return { kind: "address" as SkittlesTypeKind };
-          return { kind: "uint256" as SkittlesTypeKind };
+          return { kind: "int256" as SkittlesTypeKind };
         }
       }
       return undefined;

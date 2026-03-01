@@ -143,8 +143,8 @@ This compiles to standard Solidity interface calls:
 
 ```solidity
 interface IToken {
-    function balanceOf(address account) external view returns (uint256);
-    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (int256);
+    function transfer(address to, int256 amount) external returns (bool);
 }
 
 contract Vault {
@@ -154,11 +154,11 @@ contract Vault {
         token = IToken(tokenAddress);
     }
 
-    function getBalance(address account) public view virtual returns (uint256) {
+    function getBalance(address account) public view virtual returns (int256) {
         return token.balanceOf(account);
     }
 
-    function withdraw(address to, uint256 amount) public virtual {
+    function withdraw(address to, int256 amount) public virtual {
         token.transfer(to, amount);
     }
 }

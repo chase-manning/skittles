@@ -18,7 +18,7 @@ import { msg, block, tx } from "skittles";
 | Property     | Type      | Description                                                                  |
 | ------------ | --------- | ---------------------------------------------------------------------------- |
 | `msg.sender` | `address` | The wallet address that called your function                                 |
-| `msg.value`  | `uint256` | The amount of ETH sent with the call                                        |
+| `msg.value`  | `int256` | The amount of ETH sent with the call                                        |
 | `msg.data`   | `bytes`   | The raw data of the function call                                            |
 
 ```typescript
@@ -36,9 +36,9 @@ class Token {
 
 | Property          | Type      | Description                                                     |
 | ----------------- | --------- | --------------------------------------------------------------- |
-| `block.timestamp` | `uint256` | The timestamp of the current block (in seconds since Unix epoch)|
-| `block.number`    | `uint256` | The current block number                                        |
-| `block.chainid`   | `uint256` | The chain ID (1 for Ethereum mainnet, etc.)                     |
+| `block.timestamp` | `int256` | The timestamp of the current block (in seconds since Unix epoch)|
+| `block.number`    | `int256` | The current block number                                        |
+| `block.chainid`   | `int256` | The chain ID (1 for Ethereum mainnet, etc.)                     |
 | `block.coinbase`  | `address` | The address of the block miner or validator                     |
 
 ```typescript
@@ -56,7 +56,7 @@ class Staking {
 | Property      | Type      | Description                                                          |
 | ------------- | --------- | -------------------------------------------------------------------- |
 | `tx.origin`   | `address` | The original sender of the transaction (the wallet that started it)  |
-| `tx.gasprice` | `uint256` | The gas price of the transaction                                     |
+| `tx.gasprice` | `int256` | The gas price of the transaction                                     |
 
 ## self
 
@@ -126,7 +126,7 @@ Use type parameters to specify the types you want to decode into:
 const [amount, addr] = abi.decode<[number, address]>(data);
 ```
 
-This compiles to Solidity's `abi.decode(data, (uint256, address))`.
+This compiles to Solidity's `abi.decode(data, (int256, address))`.
 
 ### Cryptography
 
@@ -165,6 +165,6 @@ let greeting: string = `Hello ${name}!`;
 
 | TypeScript         | Description                                                    |
 | ------------------ | -------------------------------------------------------------- |
-| `Number.MAX_VALUE` | The maximum value for a uint256 (2^256 - 1)                   |
+| `Number.MAX_VALUE` | The maximum value for an int256 (2^255 - 1)                  |
 | `null`             | Represents zero/empty value (compiles to 0)                    |
 | `undefined`        | Represents zero/empty value (compiles to 0)                    |

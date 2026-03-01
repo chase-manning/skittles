@@ -44,7 +44,7 @@ describe("generateSolidity", () => {
         variables: [
           {
             name: "x",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             initialValue: { kind: "number-literal", value: "0" },
@@ -59,7 +59,7 @@ describe("generateSolidity", () => {
         ],
       })
     );
-    expect(sol).toContain('uint256 public x = 0;');
+    expect(sol).toContain('int256 public x = 0;');
     expect(sol).toContain('string public name = "Token";');
   });
 
@@ -72,7 +72,7 @@ describe("generateSolidity", () => {
             type: {
               kind: SkittlesTypeKind.Mapping,
               keyType: { kind: SkittlesTypeKind.Address },
-              valueType: { kind: SkittlesTypeKind.Uint256 },
+              valueType: { kind: SkittlesTypeKind.Int256 },
             },
             visibility: "private",
             immutable: false,
@@ -81,7 +81,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain(
-      "mapping(address => uint256) internal balances;"
+      "mapping(address => int256) internal balances;"
     );
   });
 
@@ -112,7 +112,7 @@ describe("generateSolidity", () => {
       emptyContract({
         ctor: {
           parameters: [
-            { name: "val", type: { kind: SkittlesTypeKind.Uint256 } },
+            { name: "val", type: { kind: SkittlesTypeKind.Int256 } },
           ],
           body: [
             {
@@ -132,7 +132,7 @@ describe("generateSolidity", () => {
         },
       })
     );
-    expect(sol).toContain("constructor(uint256 val) {");
+    expect(sol).toContain("constructor(int256 val) {");
     expect(sol).toContain("x = val;");
   });
 
@@ -143,7 +143,7 @@ describe("generateSolidity", () => {
           parameters: [
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
           ],
@@ -166,7 +166,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("constructor() {");
-    expect(sol).toContain("uint256 supply = 1000000;");
+    expect(sol).toContain("int256 supply = 1000000;");
     expect(sol).toContain("totalSupply = supply;");
   });
 
@@ -178,7 +178,7 @@ describe("generateSolidity", () => {
             { name: "name", type: { kind: SkittlesTypeKind.String } },
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
           ],
@@ -201,7 +201,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("constructor(string memory name) {");
-    expect(sol).toContain("uint256 supply = 1000000;");
+    expect(sol).toContain("int256 supply = 1000000;");
     expect(sol).toContain("tokenName = name;");
   });
 
@@ -212,7 +212,7 @@ describe("generateSolidity", () => {
           {
             name: "getX",
             parameters: [],
-            returnType: { kind: SkittlesTypeKind.Uint256 },
+            returnType: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             stateMutability: "view",
             body: [
@@ -230,7 +230,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain(
-      "function getX() public view returns (uint256) {"
+      "function getX() public view returns (int256) {"
     );
     expect(sol).toContain("return x;");
   });
@@ -267,14 +267,14 @@ describe("generateSolidity", () => {
             parameters: [
               { name: "from", type: { kind: SkittlesTypeKind.Address } },
               { name: "to", type: { kind: SkittlesTypeKind.Address } },
-              { name: "amount", type: { kind: SkittlesTypeKind.Uint256 } },
+              { name: "amount", type: { kind: SkittlesTypeKind.Int256 } },
             ],
           },
         ],
       })
     );
     expect(sol).toContain(
-      "event Transfer(address from, address to, uint256 amount);"
+      "event Transfer(address from, address to, int256 amount);"
     );
   });
 
@@ -301,7 +301,7 @@ describe("generateSolidity", () => {
           {
             name: "getValue",
             parameters: [],
-            returnType: { kind: SkittlesTypeKind.Uint256 },
+            returnType: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             stateMutability: "nonpayable",
             isVirtual: true,
@@ -313,8 +313,8 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("abstract contract Base {");
-    expect(sol).toContain("function getValue() public virtual returns (uint256);");
-    expect(sol).not.toContain("function getValue() public virtual returns (uint256) {");
+    expect(sol).toContain("function getValue() public virtual returns (int256);");
+    expect(sol).not.toContain("function getValue() public virtual returns (int256) {");
   });
 
   it("should generate a function with tuple return type", () => {
@@ -323,7 +323,7 @@ describe("generateSolidity", () => {
         variables: [
           {
             name: "reserve0",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -331,7 +331,7 @@ describe("generateSolidity", () => {
           },
           {
             name: "reserve1",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -345,9 +345,9 @@ describe("generateSolidity", () => {
             returnType: {
               kind: SkittlesTypeKind.Tuple,
               tupleTypes: [
-                { kind: SkittlesTypeKind.Uint256 },
-                { kind: SkittlesTypeKind.Uint256 },
-                { kind: SkittlesTypeKind.Uint256 },
+                { kind: SkittlesTypeKind.Int256 },
+                { kind: SkittlesTypeKind.Int256 },
+                { kind: SkittlesTypeKind.Int256 },
               ],
             },
             visibility: "public",
@@ -384,9 +384,9 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain(
-      "function getReserves() public view virtual returns (uint256, uint256, uint256) {"
+      "function getReserves() public view virtual returns (int256, int256, int256) {"
     );
-    expect(sol).toContain("return (reserve0, reserve1, block.timestamp);");
+    expect(sol).toContain("return (reserve0, reserve1, int256(block.timestamp));");
   });
 
   it("should add hardhat console import when contract uses console.log", () => {
@@ -439,7 +439,7 @@ describe("generateSolidity", () => {
               {
                 name: "balanceOf",
                 parameters: [{ name: "account", type: { kind: SkittlesTypeKind.Address } }],
-                returnType: { kind: SkittlesTypeKind.Uint256 },
+                returnType: { kind: SkittlesTypeKind.Int256 },
                 stateMutability: "view",
               },
             ],
@@ -458,7 +458,7 @@ describe("generateSolidity", () => {
 
 describe("generateType", () => {
   it("should generate primitive types", () => {
-    expect(generateType({ kind: SkittlesTypeKind.Uint256 })).toBe("uint256");
+    expect(generateType({ kind: SkittlesTypeKind.Int256 })).toBe("int256");
     expect(generateType({ kind: SkittlesTypeKind.Address })).toBe("address");
     expect(generateType({ kind: SkittlesTypeKind.Bool })).toBe("bool");
     expect(generateType({ kind: SkittlesTypeKind.String })).toBe("string");
@@ -468,9 +468,9 @@ describe("generateType", () => {
     const t: SkittlesType = {
       kind: SkittlesTypeKind.Mapping,
       keyType: { kind: SkittlesTypeKind.Address },
-      valueType: { kind: SkittlesTypeKind.Uint256 },
+      valueType: { kind: SkittlesTypeKind.Int256 },
     };
-    expect(generateType(t)).toBe("mapping(address => uint256)");
+    expect(generateType(t)).toBe("mapping(address => int256)");
   });
 
   it("should generate nested mapping", () => {
@@ -480,32 +480,32 @@ describe("generateType", () => {
       valueType: {
         kind: SkittlesTypeKind.Mapping,
         keyType: { kind: SkittlesTypeKind.Address },
-        valueType: { kind: SkittlesTypeKind.Uint256 },
+        valueType: { kind: SkittlesTypeKind.Int256 },
       },
     };
     expect(generateType(t)).toBe(
-      "mapping(address => mapping(address => uint256))"
+      "mapping(address => mapping(address => int256))"
     );
   });
 
   it("should generate array type", () => {
     const t: SkittlesType = {
       kind: SkittlesTypeKind.Array,
-      valueType: { kind: SkittlesTypeKind.Uint256 },
+      valueType: { kind: SkittlesTypeKind.Int256 },
     };
-    expect(generateType(t)).toBe("uint256[]");
+    expect(generateType(t)).toBe("int256[]");
   });
 
   it("should generate tuple type", () => {
     const t: SkittlesType = {
       kind: SkittlesTypeKind.Tuple,
       tupleTypes: [
-        { kind: SkittlesTypeKind.Uint256 },
+        { kind: SkittlesTypeKind.Int256 },
         { kind: SkittlesTypeKind.Bool },
         { kind: SkittlesTypeKind.Address },
       ],
     };
-    expect(generateType(t)).toBe("(uint256, bool, address)");
+    expect(generateType(t)).toBe("(int256, bool, address)");
   });
 });
 
@@ -619,7 +619,7 @@ describe("generateExpression", () => {
       },
       args: [{ kind: "identifier", name: "amount" }],
     };
-    expect(generateExpression(expr)).toBe("payable(recipient).transfer(amount)");
+    expect(generateExpression(expr)).toBe("payable(recipient).transfer(uint256(amount))");
   });
 
   it("should generate msg.sender.transfer(amount) as payable(msg.sender).transfer(amount)", () => {
@@ -636,7 +636,7 @@ describe("generateExpression", () => {
       },
       args: [{ kind: "identifier", name: "amount" }],
     };
-    expect(generateExpression(expr)).toBe("payable(msg.sender).transfer(amount)");
+    expect(generateExpression(expr)).toBe("payable(msg.sender).transfer(uint256(amount))");
   });
 
   it("should not wrap this.transfer in payable", () => {
@@ -673,10 +673,10 @@ describe("generateStatement", () => {
     const stmt: Statement = {
       kind: "variable-declaration",
       name: "x",
-      type: { kind: SkittlesTypeKind.Uint256 },
+      type: { kind: SkittlesTypeKind.Int256 },
       initializer: { kind: "number-literal", value: "5" },
     };
-    expect(generateStatement(stmt, "")).toBe("uint256 x = 5;");
+    expect(generateStatement(stmt, "")).toBe("int256 x = 5;");
   });
 
   it("should generate require from if + revert pattern", () => {
@@ -730,7 +730,7 @@ describe("generateStatement", () => {
       initializer: {
         kind: "variable-declaration",
         name: "i",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
         initializer: { kind: "number-literal", value: "0" },
       },
       condition: {
@@ -748,7 +748,7 @@ describe("generateStatement", () => {
       body: [],
     };
     const result = generateStatement(stmt, "");
-    expect(result).toContain("for (uint256 i = 0; (i < 10); i++)");
+    expect(result).toContain("for (int256 i = 0; (i < 10); i++)");
   });
 
   it("should generate revert statement", () => {
@@ -772,7 +772,7 @@ describe("generateStatement", () => {
         args: [{ kind: "identifier", name: "account" }],
       },
       returnVarName: "balance",
-      returnType: { kind: SkittlesTypeKind.Uint256 },
+      returnType: { kind: SkittlesTypeKind.Int256 },
       successBody: [
         {
           kind: "return",
@@ -787,7 +787,7 @@ describe("generateStatement", () => {
       ],
     };
     const result = generateStatement(stmt, "");
-    expect(result).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(result).toContain("try token.balanceOf(account) returns (int256 balance) {");
     expect(result).toContain("return balance;");
     expect(result).toContain("} catch {");
     expect(result).toContain("return 0;");

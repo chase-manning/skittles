@@ -50,9 +50,9 @@ pragma solidity ^0.8.20;
 import "hardhat/console.sol";
 
 contract Token {
-    mapping(address => uint256) internal balances;
+    mapping(address => int256) internal balances;
 
-    function transfer(address to, uint256 amount) public returns (bool) {
+    function transfer(address to, int256 amount) public returns (bool) {
         console.log("Transfer called by", msg.sender);
         console.log("Amount:", amount);
         require(balances[msg.sender] >= amount, "Insufficient balance");

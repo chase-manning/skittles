@@ -131,7 +131,7 @@ This example demonstrates several Skittles features:
 - **`SkittlesEvent<T>` with `Indexed<T>`**: Events with indexed parameters for efficient off chain filtering
 - **`SkittlesError<T>`**: Gas efficient custom errors with typed parameters
 - **Nested mappings**: `Record<address, Record<address, number>>` for the allowances mapping
-- **`Number.MAX_VALUE`**: Compiles to `type(uint256).max` for unlimited allowance patterns
+- **`Number.MAX_VALUE`**: Compiles to `type(int256).max` for unlimited allowance patterns
 - **Private helper functions**: `_transfer` and `_approve` encapsulate reusable logic
 - **State mutability inference**: `balanceOf` and `allowance` are automatically `view`, `transfer` and `approve` are automatically nonpayable
 
