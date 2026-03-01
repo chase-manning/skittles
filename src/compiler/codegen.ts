@@ -481,15 +481,27 @@ function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): s
     .map((p) => `${generateParamType(p.type)} ${p.name}`)
     .join(", ");
 
-  // Extract super() call from the body. TypeScript only allows one super()
-  // call and single-class inheritance, so inherits[0] is the parent.
+  // Extract super() call(s) from the body and validate.
+  const superCalls = c.body.filter(isSuperCall);
+  if (superCalls.length > 1) {
+    throw new Error("Constructor contains multiple super() calls, but only one is allowed");
+  }
   const bodyWithoutSuper = c.body.filter((s) => !isSuperCall(s));
   let parentModifier = "";
-  for (const s of c.body) {
-    const args = getSuperCallArgs(s);
-    if (args && args.length > 0 && inherits.length > 0) {
+  if (superCalls.length === 1) {
+    const args = getSuperCallArgs(superCalls[0])!;
+    if (args.length > 0) {
+      if (inherits.length === 0) {
+        throw new Error(
+          "Constructor contains a super(...) call, but no parent contract is specified in 'inherits'"
+        );
+      }
+      if (defaultParams.length > 0) {
+        throw new Error(
+          "super(...) with constructor parameters that have default values is not supported"
+        );
+      }
       parentModifier = ` ${inherits[0]}(${args.map(generateExpression).join(", ")})`;
-      break;
     }
   }
 

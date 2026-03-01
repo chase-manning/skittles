@@ -282,6 +282,89 @@ describe("generateSolidity", () => {
     expect(sol).toContain("_mint(msg.sender, initialSupply);");
   });
 
+  it("should throw when super() is called with args but no parent in inherits", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          inherits: [],
+          ctor: {
+            parameters: [],
+            body: [
+              {
+                kind: "expression",
+                expression: {
+                  kind: "call",
+                  callee: { kind: "identifier", name: "super" },
+                  args: [{ kind: "string-literal", value: "Token" }],
+                },
+              },
+            ],
+          },
+        })
+      )
+    ).toThrow("no parent contract is specified");
+  });
+
+  it("should throw when super() with args is used alongside default parameters", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          inherits: ["Base"],
+          ctor: {
+            parameters: [
+              {
+                name: "supply",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "1000" },
+              },
+            ],
+            body: [
+              {
+                kind: "expression",
+                expression: {
+                  kind: "call",
+                  callee: { kind: "identifier", name: "super" },
+                  args: [{ kind: "identifier", name: "supply" }],
+                },
+              },
+            ],
+          },
+        })
+      )
+    ).toThrow("default values is not supported");
+  });
+
+  it("should throw when multiple super() calls are present", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          inherits: ["Base"],
+          ctor: {
+            parameters: [],
+            body: [
+              {
+                kind: "expression",
+                expression: {
+                  kind: "call",
+                  callee: { kind: "identifier", name: "super" },
+                  args: [],
+                },
+              },
+              {
+                kind: "expression",
+                expression: {
+                  kind: "call",
+                  callee: { kind: "identifier", name: "super" },
+                  args: [],
+                },
+              },
+            ],
+          },
+        })
+      )
+    ).toThrow("multiple super() calls");
+  });
+
   it("should generate a view function", () => {
     const sol = generateSolidity(
       emptyContract({
