@@ -1540,6 +1540,43 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isCallExpression(node)) {
+    // Map.get(key) → mapping[key]
+    if (ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "get" &&
+        node.arguments.length === 1 &&
+        isMappingLikeReceiver(node.expression.expression)) {
+      return {
+        kind: "element-access" as const,
+        object: parseExpression(node.expression.expression),
+        index: parseExpression(node.arguments[0]),
+      };
+    }
+
+    // Map.has(key) → mapping[key] != <default>
+    if (ts.isPropertyAccessExpression(node.expression) &&
+        node.expression.name.text === "has" &&
+        node.arguments.length === 1 &&
+        isMappingLikeReceiver(node.expression.expression)) {
+      const valueType = resolveMappingValueType(node.expression.expression);
+      const defaultExpr = defaultValueForType(valueType);
+      if (!defaultExpr) {
+        throw new Error(
+          "Map.has(key) is not supported for this mapping value type. " +
+          "Please use an explicit comparison against the mapping's default value."
+        );
+      }
+      return {
+        kind: "binary" as const,
+        operator: "!=",
+        left: {
+          kind: "element-access" as const,
+          object: parseExpression(node.expression.expression),
+          index: parseExpression(node.arguments[0]),
+        },
+        right: defaultExpr,
+      };
+    }
+
     const callExpr: {
       kind: "call";
       callee: Expression;
@@ -1714,6 +1751,45 @@ export function parseStatement(
     // Detect delete expressions: `delete this.mapping[key]`
     if (ts.isDeleteExpression(node.expression)) {
       return { kind: "delete", target: parseExpression(node.expression.expression), sourceLine: getSourceLine(node) };
+    }
+
+    // Map.delete(key) → delete mapping[key]
+    if (ts.isCallExpression(node.expression) &&
+        ts.isPropertyAccessExpression(node.expression.expression) &&
+        node.expression.expression.name.text === "delete" &&
+        node.expression.arguments.length === 1 &&
+        isMappingLikeReceiver(node.expression.expression.expression)) {
+      return {
+        kind: "delete" as const,
+        target: {
+          kind: "element-access" as const,
+          object: parseExpression(node.expression.expression.expression),
+          index: parseExpression(node.expression.arguments[0]),
+        },
+        sourceLine: getSourceLine(node),
+      };
+    }
+
+    // Map.set(key, value) → mapping[key] = value
+    if (ts.isCallExpression(node.expression) &&
+        ts.isPropertyAccessExpression(node.expression.expression) &&
+        node.expression.expression.name.text === "set" &&
+        node.expression.arguments.length === 2 &&
+        isMappingLikeReceiver(node.expression.expression.expression)) {
+      return {
+        kind: "expression" as const,
+        expression: {
+          kind: "assignment" as const,
+          operator: "=",
+          target: {
+            kind: "element-access" as const,
+            object: parseExpression(node.expression.expression.expression),
+            index: parseExpression(node.expression.arguments[0]),
+          },
+          value: parseExpression(node.expression.arguments[1]),
+        },
+        sourceLine: getSourceLine(node),
+      };
     }
 
     return { kind: "expression", expression: parseExpression(node.expression), sourceLine: getSourceLine(node) };
@@ -2572,6 +2648,68 @@ function isStateMutatingCall(expr: { callee: Expression }): boolean {
   const method = expr.callee.property;
   if (!["push", "pop"].includes(method)) return false;
   return isStateAccess(expr.callee.object);
+}
+
+/**
+ * Check if a TypeScript AST expression represents a mapping-like receiver
+ * (this.xxx where xxx is a mapping state variable, or this.xxx[key] for nested mappings).
+ * Used to detect Map method calls (.get, .set, .has, .delete) that should be
+ * transformed into Solidity mapping operations.
+ */
+function isMappingLikeReceiver(node: ts.Expression): boolean {
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    return type?.kind === ("mapping" as SkittlesTypeKind);
+  }
+  if (ts.isElementAccessExpression(node)) {
+    return isMappingLikeReceiver(node.expression);
+  }
+  return false;
+}
+
+/**
+ * Resolve the mapping value type for a mapping-like receiver expression.
+ * For `this.balances` where balances is `Map<address, number>`, returns the `number` type.
+ * For `this.allowances[owner]` where allowances is `Map<address, Map<address, number>>`,
+ * returns the inner `number` type.
+ */
+function resolveMappingValueType(node: ts.Expression): SkittlesType | undefined {
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    if (type?.kind === ("mapping" as SkittlesTypeKind)) {
+      return type.valueType;
+    }
+    return undefined;
+  }
+  if (ts.isElementAccessExpression(node)) {
+    const parentValueType = resolveMappingValueType(node.expression);
+    if (parentValueType?.kind === ("mapping" as SkittlesTypeKind)) {
+      return parentValueType.valueType;
+    }
+    return undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Return the default-value expression for a given Solidity type, used by Map.has().
+ * Returns null for types that have no meaningful default comparison (structs, mappings).
+ */
+function defaultValueForType(type: SkittlesType | undefined): Expression | null {
+  if (!type) return null;
+  switch (type.kind) {
+    case "uint256" as SkittlesTypeKind:
+    case "int256" as SkittlesTypeKind:
+      return { kind: "number-literal", value: "0" };
+    case "bool" as SkittlesTypeKind:
+      return { kind: "boolean-literal", value: false };
+    case "address" as SkittlesTypeKind:
+      return { kind: "identifier", name: "address(0)" };
+    default:
+      return null;
+  }
 }
 
 /**
