@@ -80,16 +80,30 @@ const STRING_RETURNING_HELPERS = new Set([
   "_charAt", "_substring", "_toLowerCase", "_toUpperCase", "_trim",
 ]);
 
-const STRING_METHODS: Record<string, string> = {
-  charAt: "_charAt",
-  substring: "_substring",
-  toLowerCase: "_toLowerCase",
-  toUpperCase: "_toUpperCase",
-  startsWith: "_startsWith",
-  endsWith: "_endsWith",
-  trim: "_trim",
-  split: "_split",
+const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
+  charAt: { helper: "_charAt", minArgs: 0, maxArgs: 1 },
+  substring: { helper: "_substring", minArgs: 1, maxArgs: 2 },
+  toLowerCase: { helper: "_toLowerCase", minArgs: 0, maxArgs: 0 },
+  toUpperCase: { helper: "_toUpperCase", minArgs: 0, maxArgs: 0 },
+  startsWith: { helper: "_startsWith", minArgs: 1, maxArgs: 1 },
+  endsWith: { helper: "_endsWith", minArgs: 1, maxArgs: 1 },
+  trim: { helper: "_trim", minArgs: 0, maxArgs: 0 },
+  split: { helper: "_split", minArgs: 1, maxArgs: 1 },
 };
+
+function describeExpectedArgs(method: string): string {
+  const sigs: Record<string, string> = {
+    charAt: "index",
+    substring: "start, end",
+    toLowerCase: "",
+    toUpperCase: "",
+    startsWith: "prefix",
+    endsWith: "suffix",
+    trim: "",
+    split: "delimiter",
+  };
+  return sigs[method] ?? "";
+}
 
 // ============================================================
 // Main entry
@@ -1609,14 +1623,42 @@ export function parseExpression(node: ts.Expression): Expression {
     // String method calls: str.charAt(i) → _charAt(str, i), etc.
     if (ts.isPropertyAccessExpression(node.expression)) {
       const methodName = node.expression.name.text;
-      const helperName = STRING_METHODS[methodName];
-      if (helperName) {
+      const methodDef = STRING_METHODS[methodName];
+      if (methodDef) {
         const receiver = parseExpression(node.expression.expression);
         if (isStringExpr(receiver)) {
+          const argCount = node.arguments.length;
+          if (argCount > methodDef.maxArgs) {
+            throw new Error(
+              `String method .${methodName}() accepts at most ${methodDef.maxArgs} argument(s), but ${argCount} were provided. ` +
+              `Skittles only supports the simple overload: str.${methodName}(${describeExpectedArgs(methodName)}).`
+            );
+          }
+          if (argCount < methodDef.minArgs) {
+            throw new Error(
+              `String method .${methodName}() requires at least ${methodDef.minArgs} argument(s), but ${argCount} were provided.`
+            );
+          }
           const args = node.arguments.map(parseExpression);
+          // charAt() without index → charAt(0)
+          if (methodName === "charAt" && args.length === 0) {
+            args.push({ kind: "number-literal" as const, value: "0" });
+          }
+          // substring(start) without end → substring(start, bytes(str).length)
+          if (methodName === "substring" && args.length === 1) {
+            args.push({
+              kind: "property-access" as const,
+              object: {
+                kind: "call" as const,
+                callee: { kind: "identifier" as const, name: "bytes" },
+                args: [receiver],
+              },
+              property: "length",
+            });
+          }
           return {
             kind: "call" as const,
-            callee: { kind: "identifier" as const, name: helperName },
+            callee: { kind: "identifier" as const, name: methodDef.helper },
             args: [receiver, ...args],
           };
         }

@@ -1904,6 +1904,106 @@ describe("integration: string methods", () => {
     expect(solidity).not.toContain("_charAt");
     expect(solidity).not.toContain("_substring");
   });
+
+  it("should compile substring with single argument (start only)", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getSuffix(text: string): string {
+          return text.substring(3);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_substring(text, 3, bytes(text).length)");
+  });
+
+  it("should compile charAt with no argument defaulting to index 0", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getFirst(text: string): string {
+          return text.charAt();
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_charAt(text, 0)");
+  });
+
+  it("should generate split helper with empty delimiter guard", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public tokenize(text: string, sep: string): string[] {
+          return text.split(sep);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("require(delimBytes.length > 0)");
+  });
+
+  it("should throw on startsWith with unsupported position argument", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public check(text: string, prefix: string): boolean {
+          return text.startsWith(prefix, 5);
+        }
+      }
+    `, "test.ts")).toThrow(/startsWith.*accepts at most 1 argument/);
+  });
+
+  it("should throw on endsWith with unsupported length argument", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public check(text: string, suffix: string): boolean {
+          return text.endsWith(suffix, 3);
+        }
+      }
+    `, "test.ts")).toThrow(/endsWith.*accepts at most 1 argument/);
+  });
+
+  it("should throw on split with unsupported extra argument", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public tokenize(text: string): string[] {
+          return text.split(",", 2);
+        }
+      }
+    `, "test.ts")).toThrow(/split.*accepts at most 1 argument/);
+  });
+
+  it("should throw on toLowerCase with unexpected argument", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public lower(text: string): string {
+          return text.toLowerCase("en");
+        }
+      }
+    `, "test.ts")).toThrow(/toLowerCase.*accepts at most 0 argument/);
+  });
+
+  it("should generate charAt helper with bounds check", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public getChar(text: string, i: number): string {
+          return text.charAt(i);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("require(index < strBytes.length)");
+  });
+
+  it("should generate substring helper with range validation", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public slice(text: string): string {
+          return text.substring(1, 3);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("require(start <= end && end <= strBytes.length)");
+  });
 });
 
 // ============================================================

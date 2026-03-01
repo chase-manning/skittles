@@ -429,6 +429,7 @@ function generateContractBody(
     parts.push("    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {");
     parts.push("        bytes memory strBytes = bytes(str);");
     parts.push("        bytes memory delimBytes = bytes(delimiter);");
+    parts.push("        require(delimBytes.length > 0);");
     parts.push("        uint256 count = 1;");
     parts.push("        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {");
     parts.push("            bool found = true;");

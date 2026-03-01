@@ -25,7 +25,7 @@ class Example {
 
 ### String Operations
 
-Strings support `.length`, comparison operators, and common methods just like in TypeScript:
+Strings support `.length`, comparison operators, and common methods with TypeScript-like syntax:
 
 ```typescript
 class Example {
@@ -99,7 +99,14 @@ public getUpperInitial(name: string): string {
 | `str.split(delimiter)` | Split string by delimiter | `string[]` |
 
 :::note
-String methods compile to internal helper functions that operate on bytes. They work with ASCII characters. `trim()` removes space characters (ASCII 32).
+String methods compile to internal helper functions that operate on bytes and are **not** full JavaScript/TypeScript implementations:
+
+- They operate on ASCII bytes. Non-ASCII UTF-8 characters may behave unexpectedly (for example, `.length` counts bytes, not user-perceived characters).
+- `charAt(index)` and `substring(start, end)` require in-range indices. If an index is out of bounds, or `start > end`, the call reverts instead of clamping or returning `""`.
+- `substring(start)` without `end` is supported and defaults to the end of the string.
+- Only the simple overloads shown above are supported: `startsWith(prefix)` and `endsWith(suffix)` without a position argument.
+- `split(delimiter)` requires a non-empty delimiter. Using `split("")` (empty string) will revert.
+- `trim()` only removes ASCII space characters (code point 32) from the start and end of the string; it does not remove other whitespace characters.
 :::
 
 ## Ethereum Types
