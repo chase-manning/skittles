@@ -2341,6 +2341,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
           usesMsgValue = true;
         }
         // EVM environment reads: msg.sender, msg.data, msg.sig, block.*, tx.*
+        // (msg.value is excluded here because it is handled separately as payable)
         if (
           expr.object.kind === "identifier" &&
           (
