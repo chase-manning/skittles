@@ -25,7 +25,7 @@ class Example {
 
 ### String Operations
 
-Strings support `.length` and comparison operators just like in TypeScript:
+Strings support `.length`, comparison operators, and common methods with TypeScript-like syntax:
 
 ```typescript
 class Example {
@@ -46,6 +46,68 @@ class Example {
 ```
 
 Under the hood, `str.length` compiles to `bytes(str).length` and string comparisons use `keccak256` hashing — but you don't need to worry about that. Just write natural TypeScript.
+
+### String Methods
+
+Common string methods are supported:
+
+```typescript
+class StringExample {
+  public getInitial(name: string): string {
+    return name.charAt(0);
+  }
+
+  public getSlice(text: string): string {
+    return text.substring(0, 5);
+  }
+
+  public normalize(text: string): string {
+    return text.toLowerCase();
+  }
+
+  public checkPrefix(text: string, prefix: string): boolean {
+    return text.startsWith(prefix);
+  }
+
+  public clean(text: string): string {
+    return text.trim();
+  }
+
+  public tokenize(csv: string): string[] {
+    return csv.split(",");
+  }
+}
+```
+
+Methods can be chained:
+
+```typescript
+public getUpperInitial(name: string): string {
+  return name.charAt(0).toUpperCase();
+}
+```
+
+| Method | Description | Return Type |
+|--------|-------------|-------------|
+| `str.charAt(index)` | Get character at index | `string` |
+| `str.substring(start, end)` | Extract part of string | `string` |
+| `str.toLowerCase()` | Convert to lowercase | `string` |
+| `str.toUpperCase()` | Convert to uppercase | `string` |
+| `str.startsWith(prefix)` | Check if string starts with prefix | `boolean` |
+| `str.endsWith(suffix)` | Check if string ends with suffix | `boolean` |
+| `str.trim()` | Remove leading/trailing spaces | `string` |
+| `str.split(delimiter)` | Split string by delimiter | `string[]` |
+
+:::note
+String methods compile to internal helper functions that operate on bytes and are **not** full JavaScript/TypeScript implementations:
+
+- They operate on ASCII bytes. Non-ASCII UTF-8 characters may behave unexpectedly (for example, `.length` counts bytes, not user-perceived characters).
+- `charAt(index)` and `substring(start, end)` require in-range indices. If an index is out of bounds, or `start > end`, the call reverts instead of clamping or returning `""`.
+- `substring(start)` without `end` is supported and defaults to the end of the string.
+- Only the simple overloads shown above are supported: `startsWith(prefix)` and `endsWith(suffix)` without a position argument.
+- `split(delimiter)` requires a non-empty delimiter. Using `split("")` (empty string) will revert.
+- `trim()` only removes ASCII space characters (code point 32) from the start and end of the string; it does not remove other whitespace characters.
+:::
 
 ## Ethereum Types
 

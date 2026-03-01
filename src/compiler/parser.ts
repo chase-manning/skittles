@@ -66,7 +66,45 @@ function isStringExpr(expr: Expression): boolean {
   ) {
     return true;
   }
+  if (
+    expr.kind === "call" &&
+    expr.callee.kind === "identifier" &&
+    STRING_RETURNING_HELPERS.has(expr.callee.name)
+  ) {
+    return true;
+  }
   return false;
+}
+
+const STRING_RETURNING_HELPERS = new Set([
+  "_charAt", "_substring", "_toLowerCase", "_toUpperCase", "_trim",
+]);
+
+const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
+  charAt: { helper: "_charAt", minArgs: 0, maxArgs: 1 },
+  substring: { helper: "_substring", minArgs: 1, maxArgs: 2 },
+  toLowerCase: { helper: "_toLowerCase", minArgs: 0, maxArgs: 0 },
+  toUpperCase: { helper: "_toUpperCase", minArgs: 0, maxArgs: 0 },
+  startsWith: { helper: "_startsWith", minArgs: 1, maxArgs: 1 },
+  endsWith: { helper: "_endsWith", minArgs: 1, maxArgs: 1 },
+  trim: { helper: "_trim", minArgs: 0, maxArgs: 0 },
+  split: { helper: "_split", minArgs: 1, maxArgs: 1 },
+};
+
+function describeExpectedArgs(method: string, argCount?: number): string {
+  const allArgs: Record<string, string[]> = {
+    charAt: ["index"],
+    substring: ["start", "end"],
+    toLowerCase: [],
+    toUpperCase: [],
+    startsWith: ["prefix"],
+    endsWith: ["suffix"],
+    trim: [],
+    split: ["delimiter"],
+  };
+  const args = allArgs[method] ?? [];
+  if (argCount !== undefined) return args.slice(0, argCount).join(", ");
+  return args.join(", ");
 }
 
 // ============================================================
@@ -1584,6 +1622,54 @@ export function parseExpression(node: ts.Expression): Expression {
       };
     }
 
+    // String method calls: str.charAt(i) → _charAt(str, i), etc.
+    if (ts.isPropertyAccessExpression(node.expression)) {
+      const methodName = node.expression.name.text;
+      const methodDef = STRING_METHODS[methodName];
+      if (methodDef) {
+        const receiver = parseExpression(node.expression.expression);
+        if (isStringExpr(receiver)) {
+          const argCount = node.arguments.length;
+          if (argCount > methodDef.maxArgs) {
+            const overloadHint = methodDef.minArgs < methodDef.maxArgs
+              ? `Skittles supports: str.${methodName}(${describeExpectedArgs(methodName, methodDef.minArgs)}) or str.${methodName}(${describeExpectedArgs(methodName, methodDef.maxArgs)}).`
+              : `Skittles only supports: str.${methodName}(${describeExpectedArgs(methodName, methodDef.maxArgs)}).`;
+            throw new Error(
+              `String method .${methodName}() accepts at most ${methodDef.maxArgs} argument(s), but ${argCount} were provided. ` +
+              overloadHint
+            );
+          }
+          if (argCount < methodDef.minArgs) {
+            throw new Error(
+              `String method .${methodName}() requires at least ${methodDef.minArgs} argument(s), but ${argCount} were provided.`
+            );
+          }
+          const args = node.arguments.map(parseExpression);
+          // charAt() without index → charAt(0)
+          if (methodName === "charAt" && args.length === 0) {
+            args.push({ kind: "number-literal" as const, value: "0" });
+          }
+          // substring(start) without end → substring(start, bytes(str).length)
+          if (methodName === "substring" && args.length === 1) {
+            args.push({
+              kind: "property-access" as const,
+              object: {
+                kind: "call" as const,
+                callee: { kind: "identifier" as const, name: "bytes" },
+                args: [receiver],
+              },
+              property: "length",
+            });
+          }
+          return {
+            kind: "call" as const,
+            callee: { kind: "identifier" as const, name: methodDef.helper },
+            args: [receiver, ...args],
+          };
+        }
+      }
+    }
+
     const callExpr: {
       kind: "call";
       callee: Expression;
@@ -2615,6 +2701,19 @@ export function inferType(
       if (expr.operator === "!")
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
+    case "call":
+      if (expr.callee.kind === "identifier") {
+        if (STRING_RETURNING_HELPERS.has(expr.callee.name)) {
+          return { kind: "string" as SkittlesTypeKind };
+        }
+        if (expr.callee.name === "_startsWith" || expr.callee.name === "_endsWith") {
+          return { kind: "bool" as SkittlesTypeKind };
+        }
+        if (expr.callee.name === "_split") {
+          return { kind: "array" as SkittlesTypeKind, valueType: { kind: "string" as SkittlesTypeKind } };
+        }
+      }
+      return undefined;
     default:
       return undefined;
   }
