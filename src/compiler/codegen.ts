@@ -295,170 +295,191 @@ function generateContractBody(
     }
   }
 
-  if (_needsMinHelper) {
+  // Emit helper functions, skipping any already emitted by an ancestor contract
+  const needsHelper = (name: string, flag: boolean): boolean =>
+    flag && !hasAncestorOrigin(functionOrigins.get(name));
+
+  const emitHelper = (name: string, lines: string[]): void => {
+    addOrigin(functionOrigins, name);
     parts.push("");
-    parts.push("    function _min(uint256 a, uint256 b) internal pure returns (uint256) {");
-    parts.push("        return a < b ? a : b;");
-    parts.push("    }");
+    for (const line of lines) parts.push(line);
+  };
+
+  if (needsHelper("_min", _needsMinHelper)) {
+    emitHelper("_min", [
+      "    function _min(uint256 a, uint256 b) internal pure returns (uint256) {",
+      "        return a < b ? a : b;",
+      "    }",
+    ]);
   }
 
-  if (_needsMaxHelper) {
-    parts.push("");
-    parts.push("    function _max(uint256 a, uint256 b) internal pure returns (uint256) {");
-    parts.push("        return a > b ? a : b;");
-    parts.push("    }");
+  if (needsHelper("_max", _needsMaxHelper)) {
+    emitHelper("_max", [
+      "    function _max(uint256 a, uint256 b) internal pure returns (uint256) {",
+      "        return a > b ? a : b;",
+      "    }",
+    ]);
   }
 
-  if (_needsSqrtHelper) {
-    parts.push("");
-    parts.push("    function _sqrt(uint256 x) internal pure returns (uint256) {");
-    parts.push("        if (x == 0) return 0;");
-    parts.push("        uint256 z = (x >> 1) + 1;");
-    parts.push("        uint256 y = x;");
-    parts.push("        while (z < y) {");
-    parts.push("            y = z;");
-    parts.push("            z = (x / z + z) / 2;");
-    parts.push("        }");
-    parts.push("        return y;");
-    parts.push("    }");
+  if (needsHelper("_sqrt", _needsSqrtHelper)) {
+    emitHelper("_sqrt", [
+      "    function _sqrt(uint256 x) internal pure returns (uint256) {",
+      "        if (x == 0) return 0;",
+      "        uint256 z = (x >> 1) + 1;",
+      "        uint256 y = x;",
+      "        while (z < y) {",
+      "            y = z;",
+      "            z = (x / z + z) / 2;",
+      "        }",
+      "        return y;",
+      "    }",
+    ]);
   }
 
-  if (_needsCharAtHelper) {
-    parts.push("");
-    parts.push("    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        require(index < strBytes.length);");
-    parts.push("        bytes memory result = new bytes(1);");
-    parts.push("        result[0] = strBytes[index];");
-    parts.push("        return string(result);");
-    parts.push("    }");
+  if (needsHelper("_charAt", _needsCharAtHelper)) {
+    emitHelper("_charAt", [
+      "    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        require(index < strBytes.length);",
+      "        bytes memory result = new bytes(1);",
+      "        result[0] = strBytes[index];",
+      "        return string(result);",
+      "    }",
+    ]);
   }
 
-  if (_needsSubstringHelper) {
-    parts.push("");
-    parts.push("    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        require(start <= end && end <= strBytes.length);");
-    parts.push("        bytes memory result = new bytes(end - start);");
-    parts.push("        for (uint256 i = start; i < end; i++) {");
-    parts.push("            result[i - start] = strBytes[i];");
-    parts.push("        }");
-    parts.push("        return string(result);");
-    parts.push("    }");
+  if (needsHelper("_substring", _needsSubstringHelper)) {
+    emitHelper("_substring", [
+      "    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        require(start <= end && end <= strBytes.length);",
+      "        bytes memory result = new bytes(end - start);",
+      "        for (uint256 i = start; i < end; i++) {",
+      "            result[i - start] = strBytes[i];",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ]);
   }
 
-  if (_needsToLowerCaseHelper) {
-    parts.push("");
-    parts.push("    function _toLowerCase(string memory str) internal pure returns (string memory) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        bytes memory result = new bytes(strBytes.length);");
-    parts.push("        for (uint256 i = 0; i < strBytes.length; i++) {");
-    parts.push("            uint8 c = uint8(strBytes[i]);");
-    parts.push("            if (c >= 65 && c <= 90) {");
-    parts.push("                result[i] = bytes1(c + 32);");
-    parts.push("            } else {");
-    parts.push("                result[i] = strBytes[i];");
-    parts.push("            }");
-    parts.push("        }");
-    parts.push("        return string(result);");
-    parts.push("    }");
+  if (needsHelper("_toLowerCase", _needsToLowerCaseHelper)) {
+    emitHelper("_toLowerCase", [
+      "    function _toLowerCase(string memory str) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory result = new bytes(strBytes.length);",
+      "        for (uint256 i = 0; i < strBytes.length; i++) {",
+      "            uint8 c = uint8(strBytes[i]);",
+      "            if (c >= 65 && c <= 90) {",
+      "                result[i] = bytes1(c + 32);",
+      "            } else {",
+      "                result[i] = strBytes[i];",
+      "            }",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ]);
   }
 
-  if (_needsToUpperCaseHelper) {
-    parts.push("");
-    parts.push("    function _toUpperCase(string memory str) internal pure returns (string memory) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        bytes memory result = new bytes(strBytes.length);");
-    parts.push("        for (uint256 i = 0; i < strBytes.length; i++) {");
-    parts.push("            uint8 c = uint8(strBytes[i]);");
-    parts.push("            if (c >= 97 && c <= 122) {");
-    parts.push("                result[i] = bytes1(c - 32);");
-    parts.push("            } else {");
-    parts.push("                result[i] = strBytes[i];");
-    parts.push("            }");
-    parts.push("        }");
-    parts.push("        return string(result);");
-    parts.push("    }");
+  if (needsHelper("_toUpperCase", _needsToUpperCaseHelper)) {
+    emitHelper("_toUpperCase", [
+      "    function _toUpperCase(string memory str) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory result = new bytes(strBytes.length);",
+      "        for (uint256 i = 0; i < strBytes.length; i++) {",
+      "            uint8 c = uint8(strBytes[i]);",
+      "            if (c >= 97 && c <= 122) {",
+      "                result[i] = bytes1(c - 32);",
+      "            } else {",
+      "                result[i] = strBytes[i];",
+      "            }",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ]);
   }
 
-  if (_needsStartsWithHelper) {
-    parts.push("");
-    parts.push("    function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        bytes memory prefixBytes = bytes(prefix);");
-    parts.push("        if (prefixBytes.length > strBytes.length) return false;");
-    parts.push("        for (uint256 i = 0; i < prefixBytes.length; i++) {");
-    parts.push("            if (strBytes[i] != prefixBytes[i]) return false;");
-    parts.push("        }");
-    parts.push("        return true;");
-    parts.push("    }");
+  if (needsHelper("_startsWith", _needsStartsWithHelper)) {
+    emitHelper("_startsWith", [
+      "    function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory prefixBytes = bytes(prefix);",
+      "        if (prefixBytes.length > strBytes.length) return false;",
+      "        for (uint256 i = 0; i < prefixBytes.length; i++) {",
+      "            if (strBytes[i] != prefixBytes[i]) return false;",
+      "        }",
+      "        return true;",
+      "    }",
+    ]);
   }
 
-  if (_needsEndsWithHelper) {
-    parts.push("");
-    parts.push("    function _endsWith(string memory str, string memory suffix) internal pure returns (bool) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        bytes memory suffixBytes = bytes(suffix);");
-    parts.push("        if (suffixBytes.length > strBytes.length) return false;");
-    parts.push("        uint256 offset = strBytes.length - suffixBytes.length;");
-    parts.push("        for (uint256 i = 0; i < suffixBytes.length; i++) {");
-    parts.push("            if (strBytes[offset + i] != suffixBytes[i]) return false;");
-    parts.push("        }");
-    parts.push("        return true;");
-    parts.push("    }");
+  if (needsHelper("_endsWith", _needsEndsWithHelper)) {
+    emitHelper("_endsWith", [
+      "    function _endsWith(string memory str, string memory suffix) internal pure returns (bool) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory suffixBytes = bytes(suffix);",
+      "        if (suffixBytes.length > strBytes.length) return false;",
+      "        uint256 offset = strBytes.length - suffixBytes.length;",
+      "        for (uint256 i = 0; i < suffixBytes.length; i++) {",
+      "            if (strBytes[offset + i] != suffixBytes[i]) return false;",
+      "        }",
+      "        return true;",
+      "    }",
+    ]);
   }
 
-  if (_needsTrimHelper) {
-    parts.push("");
-    parts.push("    function _trim(string memory str) internal pure returns (string memory) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        uint256 start = 0;");
-    parts.push("        uint256 end = strBytes.length;");
-    parts.push("        while (start < end && uint8(strBytes[start]) == 32) { start++; }");
-    parts.push("        while (end > start && uint8(strBytes[end - 1]) == 32) { end--; }");
-    parts.push("        bytes memory result = new bytes(end - start);");
-    parts.push("        for (uint256 i = start; i < end; i++) {");
-    parts.push("            result[i - start] = strBytes[i];");
-    parts.push("        }");
-    parts.push("        return string(result);");
-    parts.push("    }");
+  if (needsHelper("_trim", _needsTrimHelper)) {
+    emitHelper("_trim", [
+      "    function _trim(string memory str) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        uint256 start = 0;",
+      "        uint256 end = strBytes.length;",
+      "        while (start < end && uint8(strBytes[start]) == 32) { start++; }",
+      "        while (end > start && uint8(strBytes[end - 1]) == 32) { end--; }",
+      "        bytes memory result = new bytes(end - start);",
+      "        for (uint256 i = start; i < end; i++) {",
+      "            result[i - start] = strBytes[i];",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ]);
   }
 
-  if (_needsSplitHelper) {
-    parts.push("");
-    parts.push("    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {");
-    parts.push("        bytes memory strBytes = bytes(str);");
-    parts.push("        bytes memory delimBytes = bytes(delimiter);");
-    parts.push("        require(delimBytes.length > 0);");
-    parts.push("        uint256 count = 1;");
-    parts.push("        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {");
-    parts.push("            bool found = true;");
-    parts.push("            for (uint256 j = 0; j < delimBytes.length; j++) {");
-    parts.push("                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }");
-    parts.push("            }");
-    parts.push("            if (found) { count++; i += delimBytes.length - 1; }");
-    parts.push("        }");
-    parts.push("        string[] memory parts = new string[](count);");
-    parts.push("        uint256 partIndex = 0;");
-    parts.push("        uint256 start = 0;");
-    parts.push("        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {");
-    parts.push("            bool found = true;");
-    parts.push("            for (uint256 j = 0; j < delimBytes.length; j++) {");
-    parts.push("                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }");
-    parts.push("            }");
-    parts.push("            if (found) {");
-    parts.push("                bytes memory part = new bytes(i - start);");
-    parts.push("                for (uint256 k = start; k < i; k++) { part[k - start] = strBytes[k]; }");
-    parts.push("                parts[partIndex++] = string(part);");
-    parts.push("                start = i + delimBytes.length;");
-    parts.push("                i += delimBytes.length - 1;");
-    parts.push("            }");
-    parts.push("        }");
-    parts.push("        bytes memory lastPart = new bytes(strBytes.length - start);");
-    parts.push("        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }");
-    parts.push("        parts[partIndex] = string(lastPart);");
-    parts.push("        return parts;");
-    parts.push("    }");
+  if (needsHelper("_split", _needsSplitHelper)) {
+    emitHelper("_split", [
+      "    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory delimBytes = bytes(delimiter);",
+      "        require(delimBytes.length > 0);",
+      "        uint256 count = 1;",
+      "        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < delimBytes.length; j++) {",
+      "                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) { count++; i += delimBytes.length - 1; }",
+      "        }",
+      "        string[] memory parts = new string[](count);",
+      "        uint256 partIndex = 0;",
+      "        uint256 start = 0;",
+      "        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < delimBytes.length; j++) {",
+      "                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) {",
+      "                bytes memory part = new bytes(i - start);",
+      "                for (uint256 k = start; k < i; k++) { part[k - start] = strBytes[k]; }",
+      "                parts[partIndex++] = string(part);",
+      "                start = i + delimBytes.length;",
+      "                i += delimBytes.length - 1;",
+      "            }",
+      "        }",
+      "        bytes memory lastPart = new bytes(strBytes.length - start);",
+      "        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }",
+      "        parts[partIndex] = string(lastPart);",
+      "        return parts;",
+      "    }",
+    ]);
   }
 
   parts.push("}");

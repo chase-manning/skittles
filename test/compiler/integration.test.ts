@@ -2004,6 +2004,27 @@ describe("integration: string methods", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("require(start <= end && end <= strBytes.length)");
   });
+
+  it("should not duplicate helper functions in child contract when parent already has them", () => {
+    const source = `
+      class Parent {
+        public getInitial(name: string): string {
+          return name.charAt(0);
+        }
+      }
+
+      class Child extends Parent {
+        public getUpper(name: string): string {
+          return name.charAt(0).toUpperCase();
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    const charAtCount = (solidity.match(/function _charAt\(/g) ?? []).length;
+    expect(charAtCount).toBe(1);
+    expect(solidity).toContain("function _toUpperCase(");
+  });
 });
 
 // ============================================================

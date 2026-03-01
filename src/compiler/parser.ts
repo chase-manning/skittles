@@ -91,18 +91,20 @@ const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs:
   split: { helper: "_split", minArgs: 1, maxArgs: 1 },
 };
 
-function describeExpectedArgs(method: string): string {
-  const sigs: Record<string, string> = {
-    charAt: "index",
-    substring: "start, end",
-    toLowerCase: "",
-    toUpperCase: "",
-    startsWith: "prefix",
-    endsWith: "suffix",
-    trim: "",
-    split: "delimiter",
+function describeExpectedArgs(method: string, argCount?: number): string {
+  const allArgs: Record<string, string[]> = {
+    charAt: ["index"],
+    substring: ["start", "end"],
+    toLowerCase: [],
+    toUpperCase: [],
+    startsWith: ["prefix"],
+    endsWith: ["suffix"],
+    trim: [],
+    split: ["delimiter"],
   };
-  return sigs[method] ?? "";
+  const args = allArgs[method] ?? [];
+  if (argCount !== undefined) return args.slice(0, argCount).join(", ");
+  return args.join(", ");
 }
 
 // ============================================================
@@ -1629,9 +1631,12 @@ export function parseExpression(node: ts.Expression): Expression {
         if (isStringExpr(receiver)) {
           const argCount = node.arguments.length;
           if (argCount > methodDef.maxArgs) {
+            const overloadHint = methodDef.minArgs < methodDef.maxArgs
+              ? `Skittles supports: str.${methodName}(${describeExpectedArgs(methodName, methodDef.minArgs)}) or str.${methodName}(${describeExpectedArgs(methodName, methodDef.maxArgs)}).`
+              : `Skittles only supports: str.${methodName}(${describeExpectedArgs(methodName, methodDef.maxArgs)}).`;
             throw new Error(
               `String method .${methodName}() accepts at most ${methodDef.maxArgs} argument(s), but ${argCount} were provided. ` +
-              `Skittles only supports the simple overload: str.${methodName}(${describeExpectedArgs(methodName)}).`
+              overloadHint
             );
           }
           if (argCount < methodDef.minArgs) {
