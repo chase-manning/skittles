@@ -614,8 +614,8 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("if (condition) {\n            doA();\n        } else {\n            doB();\n        }");
-    expect(solidity).not.toContain("? doA()");
+    expect(solidity).toMatch(/if\s*\(\s*condition\s*\)\s*\{\s*doA\(\);\s*\}\s*else\s*\{\s*doB\(\);\s*\}/);
+    expect(solidity).not.toMatch(/\?\s*doA\(\)/);
   });
 
   it("should compile Number.MAX_SAFE_INTEGER as 9007199254740991", () => {
