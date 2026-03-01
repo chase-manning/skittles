@@ -20,6 +20,8 @@ import {
 // Helper function tracking
 // ============================================================
 
+let _needsMinHelper = false;
+let _needsMaxHelper = false;
 let _needsSqrtHelper = false;
 
 // ============================================================
@@ -160,6 +162,8 @@ function generateContractBody(
   ancestors: Set<string> = new Set()
 ): string {
   const parts: string[] = [];
+  _needsMinHelper = false;
+  _needsMaxHelper = false;
   _needsSqrtHelper = false;
 
   const inheritance =
@@ -271,11 +275,25 @@ function generateContractBody(
     }
   }
 
+  if (_needsMinHelper) {
+    parts.push("");
+    parts.push("    function _min(uint256 a, uint256 b) internal pure returns (uint256) {");
+    parts.push("        return a < b ? a : b;");
+    parts.push("    }");
+  }
+
+  if (_needsMaxHelper) {
+    parts.push("");
+    parts.push("    function _max(uint256 a, uint256 b) internal pure returns (uint256) {");
+    parts.push("        return a > b ? a : b;");
+    parts.push("    }");
+  }
+
   if (_needsSqrtHelper) {
     parts.push("");
     parts.push("    function _sqrt(uint256 x) internal pure returns (uint256) {");
     parts.push("        if (x == 0) return 0;");
-    parts.push("        uint256 z = (x + 1) / 2;");
+    parts.push("        uint256 z = (x >> 1) + 1;");
     parts.push("        uint256 y = x;");
     parts.push("        while (z < y) {");
     parts.push("            y = z;");
@@ -1011,14 +1029,16 @@ function tryGenerateBuiltinCall(expr: {
     case "bytes.concat":
       return `bytes.concat(${args})`;
     case "Math.min": {
+      _needsMinHelper = true;
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
-      return `(${a} < ${b} ? ${a} : ${b})`;
+      return `_min(${a}, ${b})`;
     }
     case "Math.max": {
+      _needsMaxHelper = true;
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
-      return `(${a} > ${b} ? ${a} : ${b})`;
+      return `_max(${a}, ${b})`;
     }
     case "Math.pow": {
       const base = generateExpression(expr.args[0]);

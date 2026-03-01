@@ -97,7 +97,7 @@ Skittles applies several optimizations to generate idiomatic Solidity:
 - **`for...of` desugaring**: `for...of` loops over arrays are converted to index-based `for` loops
 - **`switch/case` → `if/else`**: Switch statements are converted to if/else chains (Solidity has no native switch)
 - **`Number.MAX_VALUE` → `type(uint256).max`**: Maximum integer value
-- **`Math.min(a, b)` / `Math.max(a, b)` → ternary**: Compiled to `(a < b ? a : b)` and `(a > b ? a : b)`
+- **`Math.min(a, b)` / `Math.max(a, b)` → helper functions**: Auto-generates internal `_min` / `_max` helpers to ensure each argument is evaluated exactly once
 - **`Math.pow(a, b)` → `a ** b`**: Uses Solidity's exponentiation operator
 - **`Math.sqrt(x)` → Babylonian method**: Auto-generates an internal `_sqrt` helper function
 - **Template literals → `string.concat()`**: Template strings are converted to Solidity string concatenation

@@ -1493,7 +1493,7 @@ describe("integration: built-in functions", () => {
     expect(solidity).toContain("string.concat(a, b)");
   });
 
-  it("should compile Math.min to ternary", () => {
+  it("should compile Math.min using helper function", () => {
     const contracts = parse(`
       class MathTest {
         public getMin(a: number, b: number): number {
@@ -1502,10 +1502,11 @@ describe("integration: built-in functions", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("(a < b ? a : b)");
+    expect(solidity).toContain("_min(a, b)");
+    expect(solidity).toContain("function _min(uint256 a, uint256 b) internal pure returns (uint256)");
   });
 
-  it("should compile Math.max to ternary", () => {
+  it("should compile Math.max using helper function", () => {
     const contracts = parse(`
       class MathTest {
         public getMax(a: number, b: number): number {
@@ -1514,7 +1515,8 @@ describe("integration: built-in functions", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("(a > b ? a : b)");
+    expect(solidity).toContain("_max(a, b)");
+    expect(solidity).toContain("function _max(uint256 a, uint256 b) internal pure returns (uint256)");
   });
 
   it("should compile nested Math.min and Math.max (clamp)", () => {
@@ -1526,8 +1528,7 @@ describe("integration: built-in functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("(value > min ? value : min)");
-    expect(solidity).toContain("((value > min ? value : min) < max ? (value > min ? value : min) : max)");
+    expect(solidity).toContain("_min(_max(value, min), max)");
   });
 
   it("should compile Math.pow to exponentiation", () => {
