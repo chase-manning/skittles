@@ -241,9 +241,6 @@ function Hero() {
           <span>Read the Docs</span>
           <span>&rarr;</span>
         </a>
-        <a href="#playground" className="btn-secondary">
-          <span>Try it Online</span>
-        </a>
       </div>
       <CodeWindow />
     </section>
@@ -400,6 +397,10 @@ function CodeComparison() {
         <CodeComparisonPanel label="Token.ts" lines={compTsLines} lang="ts" />
         <CodeComparisonPanel label="Token.sol — generated" lines={compSolLines} lang="sol" highlighted />
       </div>
+      <a href="#playground" className="btn-primary btn-primary--lg comparison-cta">
+        <span>Open the Playground</span>
+        <span>&rarr;</span>
+      </a>
     </section>
   );
 }
