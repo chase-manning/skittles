@@ -17,6 +17,14 @@ import {
 } from "../types/index.ts";
 
 // ============================================================
+// Helper function tracking
+// ============================================================
+
+let _needsMinHelper = false;
+let _needsMaxHelper = false;
+let _needsSqrtHelper = false;
+
+// ============================================================
 // Main entry
 // ============================================================
 
@@ -154,6 +162,9 @@ function generateContractBody(
   ancestors: Set<string> = new Set()
 ): string {
   const parts: string[] = [];
+  _needsMinHelper = false;
+  _needsMaxHelper = false;
+  _needsSqrtHelper = false;
 
   const inheritance =
     contract.inherits.length > 0
@@ -262,6 +273,34 @@ function generateContractBody(
     if (i < readonlyArrayVars.length - 1) {
       parts.push("");
     }
+  }
+
+  if (_needsMinHelper) {
+    parts.push("");
+    parts.push("    function _min(uint256 a, uint256 b) internal pure returns (uint256) {");
+    parts.push("        return a < b ? a : b;");
+    parts.push("    }");
+  }
+
+  if (_needsMaxHelper) {
+    parts.push("");
+    parts.push("    function _max(uint256 a, uint256 b) internal pure returns (uint256) {");
+    parts.push("        return a > b ? a : b;");
+    parts.push("    }");
+  }
+
+  if (_needsSqrtHelper) {
+    parts.push("");
+    parts.push("    function _sqrt(uint256 x) internal pure returns (uint256) {");
+    parts.push("        if (x == 0) return 0;");
+    parts.push("        uint256 z = (x >> 1) + 1;");
+    parts.push("        uint256 y = x;");
+    parts.push("        while (z < y) {");
+    parts.push("            y = z;");
+    parts.push("            z = (x / z + z) / 2;");
+    parts.push("        }");
+    parts.push("        return y;");
+    parts.push("    }");
   }
 
   parts.push("}");
@@ -989,6 +1028,28 @@ function tryGenerateBuiltinCall(expr: {
       return `string.concat(${args})`;
     case "bytes.concat":
       return `bytes.concat(${args})`;
+    case "Math.min": {
+      _needsMinHelper = true;
+      const a = generateExpression(expr.args[0]);
+      const b = generateExpression(expr.args[1]);
+      return `_min(${a}, ${b})`;
+    }
+    case "Math.max": {
+      _needsMaxHelper = true;
+      const a = generateExpression(expr.args[0]);
+      const b = generateExpression(expr.args[1]);
+      return `_max(${a}, ${b})`;
+    }
+    case "Math.pow": {
+      const base = generateExpression(expr.args[0]);
+      const exp = generateExpression(expr.args[1]);
+      return `(${base} ** ${exp})`;
+    }
+    case "Math.sqrt": {
+      _needsSqrtHelper = true;
+      const x = generateExpression(expr.args[0]);
+      return `_sqrt(${x})`;
+    }
     default:
       return null;
   }
