@@ -452,13 +452,25 @@ function generateFunction(f: SkittlesFunction): string {
   return lines.join("\n");
 }
 
-function isSuperCall(stmt: Statement): stmt is { kind: "expression"; expression: { kind: "call"; callee: { kind: "identifier"; name: "super" }; args: Expression[] } } {
+function isSuperCall(stmt: Statement): boolean {
   return (
     stmt.kind === "expression" &&
     stmt.expression.kind === "call" &&
     stmt.expression.callee.kind === "identifier" &&
     stmt.expression.callee.name === "super"
   );
+}
+
+function getSuperCallArgs(stmt: Statement): Expression[] | null {
+  if (
+    stmt.kind === "expression" &&
+    stmt.expression.kind === "call" &&
+    stmt.expression.callee.kind === "identifier" &&
+    stmt.expression.callee.name === "super"
+  ) {
+    return stmt.expression.args;
+  }
+  return null;
 }
 
 function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): string {
@@ -469,15 +481,16 @@ function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): s
     .map((p) => `${generateParamType(p.type)} ${p.name}`)
     .join(", ");
 
-  // Extract super() call from the body (if any)
-  const superStmt = c.body.find(isSuperCall);
+  // Extract super() call from the body. TypeScript only allows one super()
+  // call and single-class inheritance, so inherits[0] is the parent.
   const bodyWithoutSuper = c.body.filter((s) => !isSuperCall(s));
-
-  // Build the parent constructor modifier for the Solidity constructor signature
   let parentModifier = "";
-  if (superStmt && superStmt.expression.args.length > 0 && inherits.length > 0) {
-    const args = superStmt.expression.args.map(generateExpression).join(", ");
-    parentModifier = ` ${inherits[0]}(${args})`;
+  for (const s of c.body) {
+    const args = getSuperCallArgs(s);
+    if (args && args.length > 0 && inherits.length > 0) {
+      parentModifier = ` ${inherits[0]}(${args.map(generateExpression).join(", ")})`;
+      break;
+    }
   }
 
   const lines: string[] = [];
