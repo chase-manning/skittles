@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { compileSource } from "./compiler.ts";
 import "./Playground.css";
 
@@ -180,9 +180,10 @@ function SolLine({ line }: { line: string }) {
 }
 
 export default function Playground() {
+  const initialResult = compileSource(getInitialSource());
   const [source, setSource] = useState(getInitialSource);
-  const [solidity, setSolidity] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [solidity, setSolidity] = useState(initialResult.solidity);
+  const [error, setError] = useState<string | null>(initialResult.error);
   const [selectedExample, setSelectedExample] = useState(() => {
     const hash = window.location.hash;
     if (hash.includes("code=")) return "";
@@ -195,12 +196,6 @@ export default function Playground() {
     const result = compileSource(src);
     setSolidity(result.solidity);
     setError(result.error);
-  }, []);
-
-  // Compile on mount
-  useEffect(() => {
-    compile(source);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSourceChange = (value: string) => {
