@@ -41,6 +41,9 @@ function Header() {
         <a href="https://github.com/chase-manning/skittles/tree/main/example" target="_blank" rel="noopener noreferrer" className="nav-link">
           Examples
         </a>
+        <a href="https://www.npmjs.com/package/skittles" target="_blank" rel="noopener noreferrer" className="nav-link">
+          npm
+        </a>
         <a href="#get-started" className="header-cta">
           <span>Get Started</span>
           <span>&rarr;</span>
