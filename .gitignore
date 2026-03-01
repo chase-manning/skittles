@@ -7,4 +7,4 @@ coverage
 *.tsbuildinfo
 .DS_Store
 .env*
-node_modules
+package-lock.json
