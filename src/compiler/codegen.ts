@@ -33,7 +33,20 @@ let _needsStartsWithHelper = false;
 let _needsEndsWithHelper = false;
 let _needsTrimHelper = false;
 let _needsSplitHelper = false;
-let _currentNeededArrayHelpers = new Set<string>();
+let _currentNeededArrayHelpers: string[] = [];
+let _allKnownEnumNames = new Set<string>();
+
+const SOLIDITY_VALUE_TYPES = new Set([
+  "uint256", "int256", "address", "bool", "bytes32",
+  "uint8", "uint16", "uint32", "uint64", "uint128",
+  "int8", "int16", "int32", "int64", "int128",
+  "bytes1", "bytes2", "bytes3", "bytes4",
+]);
+
+function suffixToSolType(suffix: string): string {
+  if (suffix.startsWith("arr_")) return `${suffixToSolType(suffix.slice(4))}[]`;
+  return suffix;
+}
 
 // ============================================================
 // Main entry
@@ -66,6 +79,8 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   if (needsConsoleImport || (imports && imports.length > 0)) {
     parts.push("");
   }
+
+  _allKnownEnumNames = new Set<string>();
 
   // Collect and deduplicate contract interfaces across all contracts
   const allInterfaces: SkittlesContractInterface[] = [];
@@ -186,7 +201,8 @@ function generateContractBody(
   _needsEndsWithHelper = false;
   _needsTrimHelper = false;
   _needsSplitHelper = false;
-  _currentNeededArrayHelpers = contract.neededArrayHelpers ?? new Set();
+  _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
+  for (const en of contract.enums ?? []) _allKnownEnumNames.add(en.name);
 
   const inheritance =
     contract.inherits.length > 0
@@ -484,18 +500,22 @@ function generateContractBody(
     ]);
   }
 
-  // Emit array helper functions based on what methods are used
+  // Emit array helper functions based on what methods are used,
+  // skipping any already emitted by an ancestor contract in this file
   for (const helperKey of _currentNeededArrayHelpers) {
     const [method, ...typeParts] = helperKey.split("_");
-    const solType = typeParts.join("_");
-    const isString = solType === "string";
-    const eqCheck = isString
+    const suffix = typeParts.join("_");
+    const solType = suffixToSolType(suffix);
+    const isRefType = !SOLIDITY_VALUE_TYPES.has(solType) && !_allKnownEnumNames.has(solType);
+    const useHashEq = solType === "string" || solType === "bytes";
+    const memAnnotation = isRefType ? "memory " : "";
+    const eqCheck = useHashEq
       ? `keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(value))`
       : `arr[i] == value`;
 
-    if (method === "includes") {
-      emitHelper(`_arrIncludes_${solType}`, [
-        `    function _arrIncludes_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal view returns (bool) {`,
+    if (method === "includes" && needsHelper(`_arrIncludes_${suffix}`, true)) {
+      emitHelper(`_arrIncludes_${suffix}`, [
+        `    function _arrIncludes_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (bool) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
         `            if (${eqCheck}) return true;`,
         `        }`,
@@ -504,9 +524,9 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "indexOf") {
-      emitHelper(`_arrIndexOf_${solType}`, [
-        `    function _arrIndexOf_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal view returns (uint256) {`,
+    if (method === "indexOf" && needsHelper(`_arrIndexOf_${suffix}`, true)) {
+      emitHelper(`_arrIndexOf_${suffix}`, [
+        `    function _arrIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
         `            if (${eqCheck}) return i;`,
         `        }`,
@@ -515,9 +535,9 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "lastIndexOf") {
-      emitHelper(`_arrLastIndexOf_${solType}`, [
-        `    function _arrLastIndexOf_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal view returns (uint256) {`,
+    if (method === "lastIndexOf" && needsHelper(`_arrLastIndexOf_${suffix}`, true)) {
+      emitHelper(`_arrLastIndexOf_${suffix}`, [
+        `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
         `        for (uint256 i = arr.length; i > 0; i--) {`,
         `            if (${eqCheck.replace(/arr\[i\]/g, "arr[i - 1]")}) return i - 1;`,
         `        }`,
@@ -526,9 +546,9 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "remove") {
-      emitHelper(`_arrRemove_${solType}`, [
-        `    function _arrRemove_${solType}(${solType}[] storage arr, ${solType} ${isString ? "memory " : ""}value) internal returns (bool) {`,
+    if (method === "remove" && needsHelper(`_arrRemove_${suffix}`, true)) {
+      emitHelper(`_arrRemove_${suffix}`, [
+        `    function _arrRemove_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal returns (bool) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
         `            if (${eqCheck}) {`,
         `                arr[i] = arr[arr.length - 1];`,
@@ -541,12 +561,12 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "reverse") {
-      emitHelper(`_arrReverse_${solType}`, [
-        `    function _arrReverse_${solType}(${solType}[] storage arr) internal {`,
+    if (method === "reverse" && needsHelper(`_arrReverse_${suffix}`, true)) {
+      emitHelper(`_arrReverse_${suffix}`, [
+        `    function _arrReverse_${suffix}(${solType}[] storage arr) internal {`,
         `        uint256 len = arr.length;`,
         `        for (uint256 i = 0; i < len / 2; i++) {`,
-        `            ${solType} ${isString ? "memory " : ""}temp = arr[i];`,
+        `            ${solType} ${memAnnotation}temp = arr[i];`,
         `            arr[i] = arr[len - 1 - i];`,
         `            arr[len - 1 - i] = temp;`,
         `        }`,
@@ -554,9 +574,9 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "splice") {
-      emitHelper(`_arrSplice_${solType}`, [
-        `    function _arrSplice_${solType}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
+    if (method === "splice" && needsHelper(`_arrSplice_${suffix}`, true)) {
+      emitHelper(`_arrSplice_${suffix}`, [
+        `    function _arrSplice_${suffix}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
         `        require(start < arr.length, "start out of bounds");`,
         `        uint256 end = start + deleteCount;`,
         `        if (end > arr.length) end = arr.length;`,
@@ -571,9 +591,9 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "slice") {
-      emitHelper(`_arrSlice_${solType}`, [
-        `    function _arrSlice_${solType}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
+    if (method === "slice" && needsHelper(`_arrSlice_${suffix}`, true)) {
+      emitHelper(`_arrSlice_${suffix}`, [
+        `    function _arrSlice_${suffix}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
         `        if (end > arr.length) end = arr.length;`,
         `        require(start <= end, "invalid slice range");`,
         `        ${solType}[] memory result = new ${solType}[](end - start);`,
@@ -585,9 +605,9 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "concat") {
-      emitHelper(`_arrConcat_${solType}`, [
-        `    function _arrConcat_${solType}(${solType}[] storage arr, ${solType}[] memory other) internal view returns (${solType}[] memory) {`,
+    if (method === "concat" && needsHelper(`_arrConcat_${suffix}`, true)) {
+      emitHelper(`_arrConcat_${suffix}`, [
+        `    function _arrConcat_${suffix}(${solType}[] storage arr, ${solType}[] memory other) internal view returns (${solType}[] memory) {`,
         `        ${solType}[] memory result = new ${solType}[](arr.length + other.length);`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
         `            result[i] = arr[i];`,

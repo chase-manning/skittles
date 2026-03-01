@@ -312,7 +312,7 @@ for (const owner of this.owners) {
 | `some(fn)` | `boolean` | No | True if any element matches |
 | `every(fn)` | `boolean` | No | True if all elements match |
 | `find(fn)` | `T` | No | First matching element (reverts if none) |
-| `findIndex(fn)` | `number` | No | Index of first match |
+| `findIndex(fn)` | `number` | No | Index of first match (`type(uint256).max` if none) |
 | `filter(fn)` | `T[]` | No | New array of matching elements |
 | `map(fn)` | `U[]` | No | New array with transformed elements |
 | `reduce(fn, init)` | `U` | No | Accumulate to single value |
@@ -323,7 +323,7 @@ for (const owner of this.owners) {
 
 :::note
 - `remove(value)` uses a **swap-and-pop** strategy for gas efficiency — the removed element is replaced with the last element, so array order is not preserved. If you need ordered removal, use `splice()` instead.
-- `indexOf` and `lastIndexOf` return `type(uint256).max` (a very large number) when the value is not found, since Solidity uses unsigned integers.
+- `indexOf`, `lastIndexOf`, and `findIndex` return `type(uint256).max` (a very large number) when no match is found, since Solidity uses unsigned integers.
 - `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
 - Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
 - All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.

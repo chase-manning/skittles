@@ -67,7 +67,7 @@ export interface SkittlesContract {
   inherits: string[];
   isAbstract?: boolean;
   sourceLine?: number;
-  neededArrayHelpers?: Set<string>;
+  neededArrayHelpers?: string[];
 }
 
 export interface SkittlesVariable {

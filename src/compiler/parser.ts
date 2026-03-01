@@ -195,6 +195,7 @@ export function parse(
   );
 
   _currentSourceFile = sourceFile;
+  _arrayMethodCounter = 0;
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -777,9 +778,9 @@ function parseClass(
   let ctor: SkittlesConstructor | undefined;
   const inherits: string[] = [];
 
-  // Reset array method state for this contract
+  // Reset per-contract array method state (counter stays file-global to avoid
+  // name collisions across inherited contracts emitted into the same file)
   _generatedArrayFunctions = [];
-  _arrayMethodCounter = 0;
   _neededArrayHelpers = new Set();
 
   if (node.heritageClauses) {
@@ -1092,7 +1093,7 @@ function parseClass(
     inherits,
     isAbstract,
     sourceLine: getSourceLine(node),
-    neededArrayHelpers: _neededArrayHelpers.size > 0 ? new Set(_neededArrayHelpers) : undefined,
+    neededArrayHelpers: _neededArrayHelpers.size > 0 ? [..._neededArrayHelpers] : undefined,
   };
 }
 
@@ -1648,8 +1649,11 @@ export function parseExpression(node: ts.Expression): Expression {
       const receiverExpr = parseExpression(node.expression.expression);
       const typeSuffix = getArrayHelperSuffix(elementType);
 
+      const isStructElement = elementType?.kind === ("struct" as SkittlesTypeKind);
+
       // includes(value) → _arrIncludes_T(arr, value)
       if (methodName === "includes" && node.arguments.length === 1) {
+        if (isStructElement) throw new Error(`Unsupported: .includes() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity. Use .some() with a callback instead.`);
         _neededArrayHelpers.add(`includes_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1660,6 +1664,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // indexOf(value) → _arrIndexOf_T(arr, value)
       if (methodName === "indexOf" && node.arguments.length === 1) {
+        if (isStructElement) throw new Error(`Unsupported: .indexOf() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity. Use .findIndex() with a callback instead.`);
         _neededArrayHelpers.add(`indexOf_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1670,6 +1675,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // lastIndexOf(value) → _arrLastIndexOf_T(arr, value)
       if (methodName === "lastIndexOf" && node.arguments.length === 1) {
+        if (isStructElement) throw new Error(`Unsupported: .lastIndexOf() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity.`);
         _neededArrayHelpers.add(`lastIndexOf_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1681,8 +1687,11 @@ export function parseExpression(node: ts.Expression): Expression {
       // at(index) → arr[index] with negative index support
       if (methodName === "at" && node.arguments.length === 1) {
         const indexArg = node.arguments[0];
-        if (ts.isPrefixUnaryExpression(indexArg) && indexArg.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(indexArg.operand)) {
-          return mkElem(receiverExpr, mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)));
+        if (ts.isPrefixUnaryExpression(indexArg) && indexArg.operator === ts.SyntaxKind.MinusToken) {
+          if (ts.isNumericLiteral(indexArg.operand)) {
+            return mkElem(receiverExpr, mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)));
+          }
+          throw new Error("Array .at() only supports negative numeric literals (e.g., .at(-1)). Non-literal negative indices would produce invalid uint256 values in Solidity.");
         }
         return mkElem(receiverExpr, parseExpression(indexArg));
       }
@@ -1778,9 +1787,10 @@ export function parseExpression(node: ts.Expression): Expression {
               forBody.push(...callback.bodyStmts);
             }
             const body: Statement[] = [mkForLoop("_i", receiverExpr, forBody)];
+            const helperMutability = inferStateMutability(body, _currentVarTypes);
             const helper: SkittlesFunction = {
               name: helperName, parameters: [], returnType: null,
-              visibility: "private", stateMutability: "nonpayable",
+              visibility: "private", stateMutability: helperMutability,
               isVirtual: false, isOverride: false, body,
             };
             _generatedArrayFunctions.push(helper);
@@ -1791,6 +1801,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // remove(value) → _arrRemove_T(arr, value)
       if (methodName === "remove" && node.arguments.length === 1) {
+        if (isStructElement) throw new Error(`Unsupported: .remove() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity. Use .findIndex() with a callback and .splice() instead.`);
         _neededArrayHelpers.add(`remove_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -3054,7 +3065,23 @@ function typeToSolidityName(type: SkittlesType): string {
 
 function getArrayHelperSuffix(elementType: SkittlesType | undefined): string {
   if (!elementType) return "uint256";
-  return typeToSolidityName(elementType);
+  return identifierSafeType(elementType);
+}
+
+function identifierSafeType(type: SkittlesType): string {
+  switch (type.kind) {
+    case "uint256" as SkittlesTypeKind: return "uint256";
+    case "int256" as SkittlesTypeKind: return "int256";
+    case "address" as SkittlesTypeKind: return "address";
+    case "bool" as SkittlesTypeKind: return "bool";
+    case "string" as SkittlesTypeKind: return "string";
+    case "bytes32" as SkittlesTypeKind: return "bytes32";
+    case "bytes" as SkittlesTypeKind: return "bytes";
+    case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
+    case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
+    case "array" as SkittlesTypeKind: return `arr_${identifierSafeType(type.valueType!)}`;
+    default: return "uint256";
+  }
 }
 
 // IR construction helpers for generated array method code
