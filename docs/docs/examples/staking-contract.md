@@ -100,6 +100,7 @@ export class Staking {
     this.totalDeposited -= amount;
     this.totalFees += fee;
 
+    msg.sender.transfer(payout);
     this.Withdrawn.emit(msg.sender, payout);
   }
 
