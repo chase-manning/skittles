@@ -17,6 +17,7 @@ const sidebars: SidebarsConfig = {
         "guide/functions",
         "guide/events-and-errors",
         "guide/control-flow",
+        "guide/operators",
         "guide/inheritance",
         "guide/evm-globals",
         "guide/cross-file",
