@@ -14,6 +14,7 @@ import {
   type Visibility,
   type SkittlesParameter,
   type SourceMapping,
+  type SolidityConfig,
 } from "../types/index.ts";
 
 // ============================================================
@@ -24,10 +25,12 @@ import {
  * Generate a Solidity file containing multiple contracts.
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
-export function generateSolidityFile(contracts: SkittlesContract[], imports?: string[]): string {
+export function generateSolidityFile(contracts: SkittlesContract[], imports?: string[], solidityConfig?: SolidityConfig): string {
+  const license = solidityConfig?.license ?? "MIT";
+  const version = solidityConfig?.version ?? "^0.8.20";
   const parts: string[] = [];
-  parts.push("// SPDX-License-Identifier: MIT");
-  parts.push("pragma solidity ^0.8.20;");
+  parts.push(`// SPDX-License-Identifier: ${license}`);
+  parts.push(`pragma solidity ${version};`);
   parts.push("");
 
   // Add Hardhat console import if any contract uses console.log
@@ -142,8 +145,8 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   return parts.join("\n");
 }
 
-export function generateSolidity(contract: SkittlesContract, imports?: string[]): string {
-  return generateSolidityFile([contract], imports);
+export function generateSolidity(contract: SkittlesContract, imports?: string[], solidityConfig?: SolidityConfig): string {
+  return generateSolidityFile([contract], imports, solidityConfig);
 }
 
 function generateContractBody(

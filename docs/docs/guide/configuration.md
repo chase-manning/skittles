@@ -38,6 +38,25 @@ module.exports = {
 | `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored |
 | `typeCheck`    | `boolean` | `true`         | Enable TypeScript type checking during compilation |
 | `consoleLog`   | `boolean` | `false`        | Enable `console.log()` support for debugging (compiles to Hardhat's `console.log`) |
+| `solidity`     | `object`  | See below      | Solidity output settings (pragma version and SPDX license) |
+
+### Solidity Options
+
+| Option              | Type     | Default      | Description                                    |
+| ------------------- | -------- | ------------ | ---------------------------------------------- |
+| `solidity.version`  | `string` | `"^0.8.20"`  | Solidity pragma version for generated files    |
+| `solidity.license`  | `string` | `"MIT"`      | SPDX license identifier for generated files    |
+
+Example with custom Solidity settings:
+
+```json title="skittles.config.json"
+{
+  "solidity": {
+    "version": "^0.8.24",
+    "license": "GPL-3.0"
+  }
+}
+```
 
 ## Default Behavior
 

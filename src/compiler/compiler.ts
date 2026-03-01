@@ -544,9 +544,9 @@ export async function compile(
 
       const solidity =
         contracts.length > 1
-          ? generateSolidityFile(contracts, uniqueImports)
+          ? generateSolidityFile(contracts, uniqueImports, config.solidity)
           : contracts.length === 1
-            ? generateSolidity(contracts[0], uniqueImports)
+            ? generateSolidity(contracts[0], uniqueImports, config.solidity)
             : "";
 
       if (!solidity) continue;

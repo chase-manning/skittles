@@ -15,6 +15,10 @@ const DEFAULT_CONFIG: Required<SkittlesConfig> = {
   outputDir: "artifacts",
   cacheDir: "cache",
   consoleLog: false,
+  solidity: {
+    version: "^0.8.20",
+    license: "MIT",
+  },
 };
 
 /**
@@ -69,6 +73,12 @@ function mergeConfig(
     outputDir: userConfig.outputDir ?? DEFAULT_CONFIG.outputDir,
     cacheDir: userConfig.cacheDir ?? DEFAULT_CONFIG.cacheDir,
     consoleLog: userConfig.consoleLog ?? DEFAULT_CONFIG.consoleLog,
+    solidity: {
+      version:
+        userConfig.solidity?.version ?? DEFAULT_CONFIG.solidity.version,
+      license:
+        userConfig.solidity?.license ?? DEFAULT_CONFIG.solidity.license,
+    },
   };
 }
 
