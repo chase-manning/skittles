@@ -693,6 +693,110 @@ describe("integration: additional features", () => {
   });
 });
 
+describe("integration: EVM globals mutability inference", () => {
+  it("should infer view for msg.sender access", () => {
+    const source = `
+      class Example {
+        public getSender(): address {
+          return msg.sender;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+    const { solidity } = compileTS(source);
+    expect(solidity).toContain("function getSender() public view virtual returns (address)");
+  });
+
+  it("should infer view for block.timestamp access", () => {
+    const source = `
+      class Example {
+        public getTimestamp(): number {
+          return block.timestamp;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+    const { solidity } = compileTS(source);
+    expect(solidity).toContain("function getTimestamp() public view virtual returns (uint256)");
+  });
+
+  it("should infer view for block.number access", () => {
+    const source = `
+      class Example {
+        public getBlockNumber(): number {
+          return block.number;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should infer view for tx.origin access", () => {
+    const source = `
+      class Example {
+        public getOrigin(): address {
+          return tx.origin;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should infer view for self access", () => {
+    const source = `
+      class Example {
+        public getAddress(): address {
+          return self;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should infer view for gasleft() call", () => {
+    const source = `
+      class Example {
+        public getGas(): number {
+          return gasleft();
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should still infer payable for msg.value access", () => {
+    const source = `
+      class Example {
+        private total: number = 0;
+        public deposit(): void {
+          this.total += msg.value;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("payable");
+  });
+
+  it("should infer nonpayable when writing state with EVM globals", () => {
+    const source = `
+      class Example {
+        private lastSender: address = msg.sender;
+        public updateSender(): void {
+          this.lastSender = msg.sender;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
+  });
+});
+
 describe("integration: cross-function mutability propagation", () => {
   it("should propagate nonpayable through internal call chains", () => {
     const source = `

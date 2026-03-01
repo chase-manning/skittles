@@ -2306,6 +2306,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
   let readsState = false;
   let writesState = false;
   let usesMsgValue = false;
+  let readsEnvironment = false;
 
   const thisCallCallees = new Set<Expression>();
 
@@ -2339,6 +2340,30 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         ) {
           usesMsgValue = true;
         }
+        // EVM environment reads: msg.sender, msg.data, msg.sig, block.*, tx.*
+        // (msg.value is excluded here because it is handled separately as payable)
+        if (
+          expr.object.kind === "identifier" &&
+          (
+            (expr.object.name === "msg" && expr.property !== "value") ||
+            expr.object.name === "block" ||
+            expr.object.name === "tx"
+          )
+        ) {
+          readsEnvironment = true;
+        }
+      }
+      // `self` reads the contract's own address (address(this))
+      if (expr.kind === "identifier" && expr.name === "self") {
+        readsEnvironment = true;
+      }
+      // `gasleft()` reads remaining gas from the environment
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "identifier" &&
+        expr.callee.name === "gasleft"
+      ) {
+        readsEnvironment = true;
       }
       if (expr.kind === "assignment" && isStateAccess(expr.target)) {
         writesState = true;
@@ -2387,7 +2412,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
 
   if (usesMsgValue) return "payable";
   if (writesState) return "nonpayable";
-  if (readsState) return "view";
+  if (readsState || readsEnvironment) return "view";
   return "pure";
 }
 
