@@ -141,6 +141,32 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.getAt(2)).toBe(15n);
   });
 
+  it("at: negative literal index access", async () => {
+    const source = `
+      class AtNegTest {
+        private items: number[] = [];
+
+        public addItem(value: number): void {
+          this.items.push(value);
+        }
+
+        public getLast(): number {
+          return this.items.at(-1);
+        }
+
+        public getSecondLast(): number {
+          return this.items.at(-2);
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "AtNegTest");
+    await (await contract.addItem(5)).wait();
+    await (await contract.addItem(10)).wait();
+    await (await contract.addItem(15)).wait();
+    expect(await contract.getLast()).toBe(15n);
+    expect(await contract.getSecondLast()).toBe(10n);
+  });
+
   // ============================================================
   // remove
   // ============================================================
@@ -315,6 +341,26 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.findAbove()).toBe(15n);
   });
 
+  it("find: reverts when no element matches", async () => {
+    const source = `
+      class FindRevertTest {
+        private values: number[] = [];
+
+        public addValue(v: number): void {
+          this.values.push(v);
+        }
+
+        public findAbove(): number {
+          return this.values.find(v => v > 100);
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "FindRevertTest");
+    await (await contract.addValue(5)).wait();
+    await (await contract.addValue(15)).wait();
+    await expect(contract.findAbove()).rejects.toThrow();
+  });
+
   // ============================================================
   // findIndex
   // ============================================================
@@ -338,6 +384,28 @@ describe("Array Methods (behavioral)", () => {
     await (await contract.addValue(15)).wait();
     await (await contract.addValue(25)).wait();
     expect(await contract.findLargeIndex()).toBe(1n);
+  });
+
+  it("findIndex: returns max uint256 when no element matches", async () => {
+    const source = `
+      class FindIndexNotFoundTest {
+        private values: number[] = [];
+
+        public addValue(v: number): void {
+          this.values.push(v);
+        }
+
+        public findLargeIndex(): number {
+          return this.values.findIndex(v => v > 100);
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "FindIndexNotFoundTest");
+    await (await contract.addValue(5)).wait();
+    await (await contract.addValue(15)).wait();
+    const result = await contract.findLargeIndex();
+    const MAX_UINT256 = (1n << 256n) - 1n;
+    expect(result).toBe(MAX_UINT256);
   });
 
   // ============================================================

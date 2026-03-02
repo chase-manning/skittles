@@ -1786,13 +1786,13 @@ export function parseExpression(node: ts.Expression): Expression {
           if (methodName === "forEach") {
             const helperName = `_forEach_${_arrayMethodCounter++}`;
             const elemType = elementType ?? UINT256_TYPE;
-            const forBody: Statement[] = [mkVarDecl(callback.paramName, elemType, mkElem(receiverExpr, mkId("_i")))];
+            const forBody: Statement[] = [mkVarDecl(callback.paramName, elemType, mkElem(receiverExpr, mkId("__sk_i")))];
             if (callback.bodyExpr) {
               forBody.push(mkExprStmt(callback.bodyExpr));
             } else if (callback.bodyStmts) {
               forBody.push(...callback.bodyStmts);
             }
-            const body: Statement[] = [mkForLoop("_i", receiverExpr, forBody)];
+            const body: Statement[] = [mkForLoop("__sk_i", receiverExpr, forBody)];
             const helperMutability = inferStateMutability(body, _currentVarTypes);
             const helper: SkittlesFunction = {
               name: helperName, parameters: [], returnType: null,
@@ -3142,7 +3142,7 @@ function parseArrowCallback(
     if (stmts.length === 1 && ts.isReturnStatement(stmts[0]) && stmts[0].expression) {
       return { paramName, secondParamName, bodyExpr: parseExpression(stmts[0].expression) };
     }
-    const varTypes = new Map<string, SkittlesType>();
+    const varTypes = new Map(_currentVarTypes);
     if (paramTypes?.first) varTypes.set(paramName, paramTypes.first);
     if (paramTypes?.second && secondParamName) varTypes.set(secondParamName, paramTypes.second);
     const eventNames = new Set<string>();
@@ -3166,23 +3166,23 @@ function generateFilterHelper(
   const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: elemType };
   const elemTypeName = typeToSolidityName(elemType);
   const body: Statement[] = [
-    mkVarDecl("_count", UINT256_TYPE, mkNum("0")),
-    mkForLoop("_i", arrayExpr, [
-      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("_i"))),
-      mkIf(condExpr, [mkExprStmt(mkIncr("_count"))]),
+    mkVarDecl("__sk_count", UINT256_TYPE, mkNum("0")),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkIf(condExpr, [mkExprStmt(mkIncr("__sk_count"))]),
     ]),
-    mkVarDecl("_result", arrType, { kind: "new", callee: `${elemTypeName}[]`, args: [mkId("_count")] }),
-    mkVarDecl("_j", UINT256_TYPE, mkNum("0")),
-    mkForLoop("_i2", arrayExpr, [
-      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("_i2"))),
+    mkVarDecl("__sk_result", arrType, { kind: "new", callee: `${elemTypeName}[]`, args: [mkId("__sk_count")] }),
+    mkVarDecl("__sk_j", UINT256_TYPE, mkNum("0")),
+    mkForLoop("__sk_i2", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i2"))),
       mkIf(condExpr, [
-        mkExprStmt(mkAssign(mkElem(mkId("_result"), mkId("_j")), mkElem(arrayExpr, mkId("_i2")))),
-        mkExprStmt(mkIncr("_j")),
+        mkExprStmt(mkAssign(mkElem(mkId("__sk_result"), mkId("__sk_j")), mkElem(arrayExpr, mkId("__sk_i2")))),
+        mkExprStmt(mkIncr("__sk_j")),
       ]),
     ]),
-    mkReturn(mkId("_result")),
+    mkReturn(mkId("__sk_result")),
   ];
-  return { name: helperName, parameters: [], returnType: arrType, visibility: "private", stateMutability: "view", isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType: arrType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 function generateMapHelper(
@@ -3198,14 +3198,14 @@ function generateMapHelper(
   const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: resultElemType };
   const resultTypeName = typeToSolidityName(resultElemType);
   const body: Statement[] = [
-    mkVarDecl("_result", arrType, { kind: "new", callee: `${resultTypeName}[]`, args: [mkProp(arrayExpr, "length")] }),
-    mkForLoop("_i", arrayExpr, [
-      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("_i"))),
-      mkExprStmt(mkAssign(mkElem(mkId("_result"), mkId("_i")), transformExpr)),
+    mkVarDecl("__sk_result", arrType, { kind: "new", callee: `${resultTypeName}[]`, args: [mkProp(arrayExpr, "length")] }),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkExprStmt(mkAssign(mkElem(mkId("__sk_result"), mkId("__sk_i")), transformExpr)),
     ]),
-    mkReturn(mkId("_result")),
+    mkReturn(mkId("__sk_result")),
   ];
-  return { name: helperName, parameters: [], returnType: arrType, visibility: "private", stateMutability: "view", isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType: arrType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 function generateSomeEveryHelper(
@@ -3219,15 +3219,15 @@ function generateSomeEveryHelper(
   const elemType = elementType ?? UINT256_TYPE;
   const isSome = method === "some";
   const body: Statement[] = [
-    mkForLoop("_i", arrayExpr, [
-      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("_i"))),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
       mkIf(isSome ? condExpr : { kind: "unary", operator: "!", operand: condExpr, prefix: true }, [
         mkReturn(isSome ? { kind: "boolean-literal", value: true } : { kind: "boolean-literal", value: false }),
       ]),
     ]),
     mkReturn(isSome ? { kind: "boolean-literal", value: false } : { kind: "boolean-literal", value: true }),
   ];
-  return { name: helperName, parameters: [], returnType: BOOL_TYPE, visibility: "private", stateMutability: "view", isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType: BOOL_TYPE, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 function generateFindHelper(
@@ -3239,13 +3239,13 @@ function generateFindHelper(
   const helperName = `_find_${_arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
   const body: Statement[] = [
-    mkForLoop("_i", arrayExpr, [
-      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("_i"))),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
       mkIf(condExpr, [mkReturn(mkId(paramName))]),
     ]),
     { kind: "revert", message: { kind: "string-literal", value: "not found" } },
   ];
-  return { name: helperName, parameters: [], returnType: elemType, visibility: "private", stateMutability: "view", isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType: elemType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 function generateFindIndexHelper(
@@ -3257,13 +3257,13 @@ function generateFindIndexHelper(
   const helperName = `_findIndex_${_arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
   const body: Statement[] = [
-    mkForLoop("_i", arrayExpr, [
-      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("_i"))),
-      mkIf(condExpr, [mkReturn(mkId("_i"))]),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkIf(condExpr, [mkReturn(mkId("__sk_i"))]),
     ]),
     mkReturn(mkProp(mkId("type(uint256)"), "max")),
   ];
-  return { name: helperName, parameters: [], returnType: UINT256_TYPE, visibility: "private", stateMutability: "view", isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType: UINT256_TYPE, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 function generateReduceHelper(
@@ -3279,15 +3279,15 @@ function generateReduceHelper(
   const elemType = elementType ?? UINT256_TYPE;
   const returnType = accType ?? UINT256_TYPE;
   const body: Statement[] = [
-    mkVarDecl("_acc", returnType, initialValue),
-    mkForLoop("_i", arrayExpr, [
-      mkVarDecl(accParamName, returnType, mkId("_acc")),
-      mkVarDecl(itemParamName, elemType, mkElem(arrayExpr, mkId("_i"))),
-      mkExprStmt(mkAssign(mkId("_acc"), bodyExpr)),
+    mkVarDecl("__sk_acc", returnType, initialValue),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(accParamName, returnType, mkId("__sk_acc")),
+      mkVarDecl(itemParamName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkExprStmt(mkAssign(mkId("__sk_acc"), bodyExpr)),
     ]),
-    mkReturn(mkId("_acc")),
+    mkReturn(mkId("__sk_acc")),
   ];
-  return { name: helperName, parameters: [], returnType, visibility: "private", stateMutability: "view", isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 /**
