@@ -325,7 +325,8 @@ for (const owner of this.owners) {
 - `remove(value)` uses a **swap-and-pop** strategy for gas efficiency — the removed element is replaced with the last element, so array order is not preserved. If you need ordered removal, use `splice()` instead.
 - `indexOf`, `lastIndexOf`, and `findIndex` return `type(uint256).max` (a very large number) when no match is found, since Solidity uses unsigned integers.
 - `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
-- `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`.
+- `at(index)` **reverts** on out-of-bounds access (unlike JavaScript which returns `undefined`). Negative literal indices (e.g., `at(-1)`) are supported and desugared at compile time, but negative non-literal indices are not supported.
+- `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
 - Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
 - All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
 :::

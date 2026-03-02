@@ -61,6 +61,27 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.has(addr2)).toBe(false);
   });
 
+  it("includes: works with string arrays using keccak256 equality", async () => {
+    const source = `
+      class StringIncludesTest {
+        private names: string[] = [];
+
+        public addName(name: string): void {
+          this.names.push(name);
+        }
+
+        public hasName(name: string): boolean {
+          return this.names.includes(name);
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "StringIncludesTest");
+    await (await contract.addName("alice")).wait();
+    await (await contract.addName("bob")).wait();
+    expect(await contract.hasName("alice")).toBe(true);
+    expect(await contract.hasName("charlie")).toBe(false);
+  });
+
   // ============================================================
   // indexOf
   // ============================================================

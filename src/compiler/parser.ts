@@ -1704,6 +1704,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // slice(start?, end?) → _arrSlice_T(arr, start, end)
       if (methodName === "slice") {
+        if (node.arguments.length > 2) throw new Error("Array .slice() accepts at most 2 arguments: .slice(start?, end?).");
         for (const arg of node.arguments) {
           if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
             throw new Error("Array .slice() does not support negative indices. Solidity uses uint256 for array indices.");
@@ -1883,6 +1884,15 @@ export function parseExpression(node: ts.Expression): Expression {
           callee: { kind: "identifier" as const, name: `_arrSplice_${typeSuffix}` },
           args: [receiverExpr, startArg, countArg],
         };
+      }
+
+      const KNOWN_ARRAY_METHODS = new Set([
+        "includes", "indexOf", "lastIndexOf", "at",
+        "slice", "concat", "filter", "map", "forEach", "some", "every",
+        "find", "findIndex", "reduce", "remove", "reverse", "splice",
+      ]);
+      if (KNOWN_ARRAY_METHODS.has(methodName)) {
+        throw new Error(`Array .${methodName}() called with unsupported arguments. Check the method signature in the Skittles documentation.`);
       }
     }
 
