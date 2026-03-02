@@ -1701,6 +1701,11 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // slice(start?, end?) → _arrSlice_T(arr, start, end)
       if (methodName === "slice") {
+        for (const arg of node.arguments) {
+          if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
+            throw new Error("Array .slice() does not support negative indices. Solidity uses uint256 for array indices.");
+          }
+        }
         _neededArrayHelpers.add(`slice_${typeSuffix}`);
         const startArg = node.arguments.length >= 1 ? parseExpression(node.arguments[0]) : mkNum("0");
         const endArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : mkProp(receiverExpr, "length");
@@ -1713,11 +1718,21 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // concat(other) → _arrConcat_T(arr, other)
       if (methodName === "concat" && node.arguments.length === 1) {
+        const otherArg = node.arguments[0];
+        if (ts.isPropertyAccessExpression(otherArg) && otherArg.expression.kind === ts.SyntaxKind.ThisKeyword) {
+          const otherType = _currentVarTypes.get(otherArg.name.text);
+          if (otherType?.kind === ("array" as SkittlesTypeKind)) {
+            throw new Error(
+              "Array .concat() cannot accept a storage array directly (e.g., this.a.concat(this.b)). " +
+              "Use .slice() to copy to memory first: this.a.concat(this.b.slice(0, this.b.length))."
+            );
+          }
+        }
         _neededArrayHelpers.add(`concat_${typeSuffix}`);
         return {
           kind: "call" as const,
           callee: { kind: "identifier" as const, name: `_arrConcat_${typeSuffix}` },
-          args: [receiverExpr, parseExpression(node.arguments[0])],
+          args: [receiverExpr, parseExpression(otherArg)],
         };
       }
 
@@ -1737,10 +1752,10 @@ export function parseExpression(node: ts.Expression): Expression {
             throw new Error(`Array .${methodName}() requires an arrow function with an expression body (e.g., v => v > 10). Block-bodied callbacks are only supported for .forEach().`);
           }
 
-          if (condExpr) {
+          {
             const allowedNames = new Set<string>([callback.paramName]);
             if (callback.secondParamName) allowedNames.add(callback.secondParamName);
-            validateCallbackScope(condExpr, allowedNames, methodName);
+            validateCallbackScope(condExpr ?? null, callback.bodyStmts, allowedNames, methodName);
           }
 
           // Helper to create a this._helperName() call for mutability propagation
@@ -1852,6 +1867,11 @@ export function parseExpression(node: ts.Expression): Expression {
           throw new Error("Array .splice() modifies the array in place and does not return a value. Use it as a standalone statement.");
         }
         if (node.arguments.length > 2) throw new Error("Array .splice() only supports deletion (up to 2 arguments). Insertion via splice(start, count, ...items) is not supported.");
+        for (const arg of node.arguments) {
+          if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
+            throw new Error("Array .splice() does not support negative indices. Solidity uses uint256 for array indices.");
+          }
+        }
         _neededArrayHelpers.add(`splice_${typeSuffix}`);
         const startArg = parseExpression(node.arguments[0]);
         const countArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : mkNum("1");
@@ -3159,8 +3179,43 @@ function collectBareIdentifiers(expr: Expression): Set<string> {
   return ids;
 }
 
-function validateCallbackScope(expr: Expression, allowedNames: Set<string>, methodName: string): void {
-  const ids = collectBareIdentifiers(expr);
+function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string> {
+  const ids = new Set<string>();
+  function walkExpr(e: Expression) {
+    for (const id of collectBareIdentifiers(e)) ids.add(id);
+  }
+  function walkStmts(ss: Statement[]) {
+    for (const s of ss) walkStmt(s);
+  }
+  function walkStmt(s: Statement) {
+    switch (s.kind) {
+      case "expression": walkExpr(s.expression); break;
+      case "return": if (s.value) walkExpr(s.value); break;
+      case "variable-declaration": if (s.initializer) walkExpr(s.initializer); break;
+      case "if": walkExpr(s.condition); walkStmts(s.thenBody); if (s.elseBody) walkStmts(s.elseBody); break;
+      case "for": {
+        if (s.initializer) walkStmt(s.initializer);
+        if (s.condition) walkExpr(s.condition);
+        if (s.incrementor) walkExpr(s.incrementor);
+        walkStmts(s.body);
+        break;
+      }
+      case "while": walkExpr(s.condition); walkStmts(s.body); break;
+      case "do-while": walkExpr(s.condition); walkStmts(s.body); break;
+      case "emit": s.args.forEach(walkExpr); break;
+      case "revert": if (s.message) walkExpr(s.message); if (s.customErrorArgs) s.customErrorArgs.forEach(walkExpr); break;
+      case "delete": walkExpr(s.target); break;
+      case "switch": walkExpr(s.discriminant); s.cases.forEach(c => { if (c.value) walkExpr(c.value); walkStmts(c.body); }); break;
+      case "try-catch": walkExpr(s.call); walkStmts(s.successBody); walkStmts(s.catchBody); break;
+      case "console-log": s.args.forEach(walkExpr); break;
+    }
+  }
+  walkStmts(stmts);
+  return ids;
+}
+
+function validateCallbackScope(expr: Expression | null, stmts: Statement[] | undefined, allowedNames: Set<string>, methodName: string): void {
+  const ids = expr ? collectBareIdentifiers(expr) : stmts ? collectBareIdentifiersFromStmts(stmts) : new Set<string>();
   for (const id of ids) {
     if (BUILTIN_IDENTIFIERS.has(id)) continue;
     if (allowedNames.has(id)) continue;
