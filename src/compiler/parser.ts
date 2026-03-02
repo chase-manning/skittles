@@ -30,6 +30,7 @@ let _currentSourceFile: ts.SourceFile | null = null;
 // String type tracking for string.length and string comparison transforms
 let _currentVarTypes: Map<string, SkittlesType> = new Map();
 let _currentStringNames: Set<string> = new Set();
+let _currentEventNames: Set<string> = new Set();
 
 // Array method support: generated helper functions and tracking
 let _generatedArrayFunctions: SkittlesFunction[] = [];
@@ -837,6 +838,7 @@ function parseClass(
   }
 
   const eventNames = new Set(events.map((e) => e.name));
+  _currentEventNames = eventNames;
 
   // Second pass: methods (instance and static), constructor, and arrow function properties
   for (const member of node.members) {
@@ -1725,8 +1727,15 @@ export function parseExpression(node: ts.Expression): Expression {
           ? { first: undefined, second: elementType }
           : { first: elementType };
         const callback = parseArrowCallback(node.arguments[0], callbackParamTypes);
-        if (callback) {
+        if (!callback) {
+          throw new Error(`Array .${methodName}() requires an arrow function callback.`);
+        }
+        {
           const condExpr = callback.bodyExpr;
+
+          if (!condExpr && methodName !== "forEach") {
+            throw new Error(`Array .${methodName}() requires an arrow function with an expression body (e.g., v => v > 10). Block-bodied callbacks are only supported for .forEach().`);
+          }
 
           // Helper to create a this._helperName() call for mutability propagation
           const mkHelperCall = (name: string): Expression => ({
@@ -3145,10 +3154,9 @@ function parseArrowCallback(
     const varTypes = new Map(_currentVarTypes);
     if (paramTypes?.first) varTypes.set(paramName, paramTypes.first);
     if (paramTypes?.second && secondParamName) varTypes.set(secondParamName, paramTypes.second);
-    const eventNames = new Set<string>();
     const parsedStmts: Statement[] = [];
     for (const s of stmts) {
-      parsedStmts.push(parseStatement(s, varTypes, eventNames));
+      parsedStmts.push(parseStatement(s, varTypes, _currentEventNames));
     }
     return { paramName, secondParamName, bodyStmts: parsedStmts };
   }
