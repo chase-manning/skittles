@@ -91,6 +91,26 @@ class MyToken extends BaseToken {
 }
 ```
 
+## Function Overloading
+
+TypeScript supports function overloading through overload signatures, and Skittles compiles these into separate Solidity functions. This is commonly used in Solidity standards like ERC721's `safeTransferFrom`:
+
+```typescript
+class Token {
+  transfer(to: address, amount: number): boolean;
+  transfer(to: address, amount: number, data: string): boolean;
+  transfer(to: address, amount: number, data?: string): boolean {
+    // implementation
+    return true;
+  }
+}
+```
+
+The overload signatures (without bodies) define the public API, while the implementation signature (with the body) provides the logic. Skittles generates a separate Solidity function for each overload signature:
+
+- The overload with the most parameters gets the implementation body
+- Shorter overloads automatically forward to the longest overload with default values
+
 ## Arrow Functions
 
 Arrow function properties work just like regular methods:

@@ -785,3 +785,101 @@ describe("inferStateMutability", () => {
     ).toBe("view");
   });
 });
+
+// ============================================================
+// Function overloading
+// ============================================================
+
+describe("parse: function overloading", () => {
+  it("should parse overloaded methods into separate functions", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions).toHaveLength(2);
+    expect(contracts[0].functions[0].name).toBe("transfer");
+    expect(contracts[0].functions[0].parameters).toHaveLength(2);
+    expect(contracts[0].functions[1].name).toBe("transfer");
+    expect(contracts[0].functions[1].parameters).toHaveLength(3);
+  });
+
+  it("should give the longest overload the implementation body", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const longest = contracts[0].functions[1];
+    expect(longest.parameters).toHaveLength(3);
+    expect(longest.body).toHaveLength(1);
+    expect(longest.body[0].kind).toBe("return");
+  });
+
+  it("should give shorter overloads a forwarding call body", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const shorter = contracts[0].functions[0];
+    expect(shorter.parameters).toHaveLength(2);
+    expect(shorter.body).toHaveLength(1);
+    expect(shorter.body[0].kind).toBe("return");
+    const ret = shorter.body[0] as { kind: "return"; value?: { kind: string; callee?: { name: string }; args?: unknown[] } };
+    expect(ret.value?.kind).toBe("call");
+    expect(ret.value?.callee?.name).toBe("transfer");
+    expect(ret.value?.args).toHaveLength(3);
+  });
+
+  it("should inherit visibility from the implementation", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        public transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].visibility).toBe("public");
+    expect(contracts[0].functions[1].visibility).toBe("public");
+  });
+
+  it("should not affect methods without overloads", () => {
+    const contracts = parse(
+      `class Token {
+        balanceOf(account: string): number {
+          return 0;
+        }
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions).toHaveLength(3);
+    expect(contracts[0].functions[0].name).toBe("balanceOf");
+    expect(contracts[0].functions[0].parameters).toHaveLength(1);
+    expect(contracts[0].functions[1].name).toBe("transfer");
+    expect(contracts[0].functions[2].name).toBe("transfer");
+  });
+});

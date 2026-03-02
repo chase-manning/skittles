@@ -5242,3 +5242,72 @@ describe("integration: cross-file contract inheritance", () => {
     expect(result.errors).toHaveLength(0);
   });
 });
+
+// ============================================================
+// Function overloading
+// ============================================================
+
+describe("integration: function overloading", () => {
+  it("should compile overloaded methods to separate Solidity functions", () => {
+    const { solidity, errors } = compileTS(`
+      class Token {
+        transfer(to: address, amount: number): boolean;
+        transfer(to: address, amount: number, data: string): boolean;
+        transfer(to: address, amount: number, data?: string): boolean {
+          return true;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function transfer(address to, uint256 amount)");
+    expect(solidity).toContain("function transfer(address to, uint256 amount, string memory data)");
+  });
+
+  it("should generate valid forwarding call for short overload", () => {
+    const { solidity, errors } = compileTS(`
+      class Token {
+        transfer(to: address, amount: number): boolean;
+        transfer(to: address, amount: number, data: string): boolean;
+        transfer(to: address, amount: number, data?: string): boolean {
+          return true;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    // The short overload should forward: return transfer(to, amount, "")
+    expect(solidity).toContain('return transfer(to, amount, "")');
+  });
+
+  it("should compile overloads with different parameter types", () => {
+    const { solidity, errors } = compileTS(`
+      class Vault {
+        deposit(amount: number): void;
+        deposit(amount: number, receiver: address): void;
+        deposit(amount?: number, receiver?: address): void {
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function deposit(uint256 amount)");
+    expect(solidity).toContain("function deposit(uint256 amount, address receiver)");
+  });
+
+  it("should compile overloaded methods alongside normal methods", () => {
+    const { solidity, errors } = compileTS(`
+      class Token {
+        balanceOf(account: address): number {
+          return 0;
+        }
+        transfer(to: address, amount: number): boolean;
+        transfer(to: address, amount: number, data: string): boolean;
+        transfer(to: address, amount: number, data?: string): boolean {
+          return true;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function balanceOf(address account)");
+    expect(solidity).toContain("function transfer(address to, uint256 amount)");
+    expect(solidity).toContain("function transfer(address to, uint256 amount, string memory data)");
+  });
+});
