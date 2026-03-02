@@ -1692,6 +1692,9 @@ export function parseExpression(node: ts.Expression): Expression {
         const indexArg = node.arguments[0];
         if (ts.isPrefixUnaryExpression(indexArg) && indexArg.operator === ts.SyntaxKind.MinusToken) {
           if (ts.isNumericLiteral(indexArg.operand)) {
+            if (Number(indexArg.operand.text) === 0) {
+              return mkElem(receiverExpr, mkNum("0"));
+            }
             return mkElem(receiverExpr, mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)));
           }
           throw new Error("Array .at() only supports negative numeric literals (e.g., .at(-1)). Non-literal negative indices would produce invalid uint256 values in Solidity.");
@@ -3249,6 +3252,13 @@ function parseArrowCallback(
   const paramName = ts.isIdentifier(node.parameters[0].name) ? node.parameters[0].name.text : "_item";
   const secondParamName = node.parameters.length >= 2 && ts.isIdentifier(node.parameters[1].name)
     ? node.parameters[1].name.text : undefined;
+
+  if (paramName.startsWith("__sk_")) {
+    throw new Error(`Callback parameter name '${paramName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
+  }
+  if (secondParamName?.startsWith("__sk_")) {
+    throw new Error(`Callback parameter name '${secondParamName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
+  }
 
   if (ts.isBlock(node.body)) {
     const stmts = node.body.statements;

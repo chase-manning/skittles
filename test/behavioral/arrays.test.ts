@@ -86,7 +86,8 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.findItem(200)).toBe(1n);
     // Not found returns type(uint256).max
     const notFound = await contract.findItem(999);
-    expect(notFound).toBe(BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935"));
+    const MAX_UINT256 = (1n << 256n) - 1n;
+    expect(notFound).toBe(MAX_UINT256);
   });
 
   // ============================================================
