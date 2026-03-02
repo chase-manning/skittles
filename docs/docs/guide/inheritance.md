@@ -126,6 +126,48 @@ export class Token implements IToken {
 }
 ```
 
+### Multiple Interfaces
+
+A contract can implement multiple interfaces, just like in TypeScript and Solidity. Separate the interfaces with commas:
+
+```typescript
+interface IOwnable {
+  owner: address;
+  transferOwnership(newOwner: address): void;
+}
+
+interface IPausable {
+  paused: boolean;
+  pause(): void;
+  unpause(): void;
+}
+
+class MyContract implements IOwnable, IPausable {
+  owner: address = msg.sender;
+  paused: boolean = false;
+
+  transferOwnership(newOwner: address): void {
+    this.owner = newOwner;
+  }
+
+  pause(): void {
+    this.paused = true;
+  }
+
+  unpause(): void {
+    this.paused = false;
+  }
+}
+```
+
+You can also combine `extends` with multiple `implements`:
+
+```typescript
+class MyContract extends Base implements IOwnable, IPausable {
+  // ...
+}
+```
+
 ## Cross-File Inheritance
 
 You can extend a base contract defined in another file. Skittles automatically generates the correct Solidity `import` statement so the child contract can reference the parent.
