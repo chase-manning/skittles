@@ -1737,6 +1737,12 @@ export function parseExpression(node: ts.Expression): Expression {
             throw new Error(`Array .${methodName}() requires an arrow function with an expression body (e.g., v => v > 10). Block-bodied callbacks are only supported for .forEach().`);
           }
 
+          if (condExpr) {
+            const allowedNames = new Set<string>([callback.paramName]);
+            if (callback.secondParamName) allowedNames.add(callback.secondParamName);
+            validateCallbackScope(condExpr, allowedNames, methodName);
+          }
+
           // Helper to create a this._helperName() call for mutability propagation
           const mkHelperCall = (name: string): Expression => ({
             kind: "call" as const,
@@ -1783,10 +1789,12 @@ export function parseExpression(node: ts.Expression): Expression {
             return mkHelperCall(helper.name);
           }
 
-          if (methodName === "reduce" && condExpr && callback.secondParamName && node.arguments.length >= 2) {
+          if (methodName === "reduce") {
+            if (!callback.secondParamName) throw new Error("Array .reduce() callback must have two parameters: (accumulator, item) => expression.");
+            if (node.arguments.length < 2) throw new Error("Array .reduce() requires an initial value as the second argument.");
             const initialValue = parseExpression(node.arguments[1]);
             const accType = inferType(initialValue, _currentVarTypes);
-            const helper = generateReduceHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr, initialValue, accType);
+            const helper = generateReduceHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr!, initialValue, accType);
             _generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -1827,6 +1835,9 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // reverse() → _arrReverse_T(arr)
       if (methodName === "reverse" && node.arguments.length === 0) {
+        if (node.parent && !ts.isExpressionStatement(node.parent)) {
+          throw new Error("Array .reverse() modifies the array in place and does not return a value. Use it as a standalone statement.");
+        }
         _neededArrayHelpers.add(`reverse_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1837,6 +1848,9 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // splice(start, deleteCount) → _arrSplice_T(arr, start, deleteCount)
       if (methodName === "splice" && node.arguments.length >= 1) {
+        if (node.parent && !ts.isExpressionStatement(node.parent)) {
+          throw new Error("Array .splice() modifies the array in place and does not return a value. Use it as a standalone statement.");
+        }
         if (node.arguments.length > 2) throw new Error("Array .splice() only supports deletion (up to 2 arguments). Insertion via splice(start, count, ...items) is not supported.");
         _neededArrayHelpers.add(`splice_${typeSuffix}`);
         const startArg = parseExpression(node.arguments[0]);
@@ -3121,6 +3135,41 @@ function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): 
 }
 const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
 const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
+
+const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
+
+function collectBareIdentifiers(expr: Expression): Set<string> {
+  const ids = new Set<string>();
+  function walkExpr(e: Expression) {
+    switch (e.kind) {
+      case "identifier": ids.add(e.name); break;
+      case "binary": walkExpr(e.left); walkExpr(e.right); break;
+      case "unary": walkExpr(e.operand); break;
+      case "call": walkExpr(e.callee); e.args.forEach(walkExpr); break;
+      case "property-access": walkExpr(e.object); break;
+      case "element-access": walkExpr(e.object); walkExpr(e.index); break;
+      case "assignment": walkExpr(e.target); walkExpr(e.value); break;
+      case "conditional": walkExpr(e.condition); walkExpr(e.whenTrue); walkExpr(e.whenFalse); break;
+      case "new": e.args.forEach(walkExpr); break;
+      case "object-literal": e.properties.forEach(p => walkExpr(p.value)); break;
+      case "tuple-literal": e.elements.forEach(walkExpr); break;
+    }
+  }
+  walkExpr(expr);
+  return ids;
+}
+
+function validateCallbackScope(expr: Expression, allowedNames: Set<string>, methodName: string): void {
+  const ids = collectBareIdentifiers(expr);
+  for (const id of ids) {
+    if (BUILTIN_IDENTIFIERS.has(id)) continue;
+    if (allowedNames.has(id)) continue;
+    throw new Error(
+      `Array .${methodName}() callback references '${id}', which is not accessible in the generated helper. ` +
+      `Callbacks can only reference their parameters, literals, and state variables (this.*).`
+    );
+  }
+}
 
 function mkForLoop(
   indexName: string,
