@@ -14,7 +14,6 @@ Create `skittles.config.json`:
 ```json title="skittles.config.json"
 {
   "contractsDir": "contracts",
-  "outputDir": "artifacts",
   "typeCheck": true
 }
 ```
@@ -24,7 +23,6 @@ Or use JavaScript for dynamic configuration:
 ```javascript title="skittles.config.js"
 module.exports = {
   contractsDir: "contracts",
-  outputDir: "artifacts",
   typeCheck: true,
 };
 ```
@@ -35,7 +33,7 @@ module.exports = {
 | -------------- | --------- | -------------- | ------------------------------------------ |
 | `contractsDir` | `string`  | `"contracts"`  | Directory containing your TypeScript contract files |
 | `outputDir`    | `string`  | `"artifacts"`  | Directory where compiled output is written |
-| `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored |
+| `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored (cache file is written to `<cacheDir>/.skittles-cache.json`) |
 | `typeCheck`    | `boolean` | `true`         | Enable TypeScript type checking during compilation |
 | `consoleLog`   | `boolean` | `false`        | Enable `console.log()` support for debugging (compiles to Hardhat's `console.log`) |
 | `solidity`     | `object`  | See below      | Solidity output settings (pragma version and SPDX license) |

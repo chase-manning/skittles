@@ -35,7 +35,7 @@ describe("initCommand", () => {
 
     const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
     expect(config.contractsDir).toBe("contracts");
-    expect(config.outputDir).toBe("artifacts");
+    expect(config.outputDir).toBeUndefined();
     expect(config.consoleLog).toBe(true);
   });
 

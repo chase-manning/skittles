@@ -101,7 +101,7 @@ This creates:
 | ---------------------- | ------------------------------------------------- |
 | `contracts/Token.ts`   | Example ERC20 token contract with Transfer event  |
 | `test/Token.test.ts`  | Example test using Hardhat + Mocha + fixtures    |
-| `skittles.config.json` | Compiler configuration with defaults              |
+| `skittles.config.json` | Compiler configuration (only non-default values included) |
 | `tsconfig.json`        | TypeScript configuration for contract development |
 | `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths      |
 | `.gitignore` (updated) | Adds `artifacts/`, `cache/`, `dist/`, `node_modules/`          |

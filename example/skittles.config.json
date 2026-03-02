@@ -1,6 +1,5 @@
 {
     "typeCheck": true,
     "consoleLog": true,
-    "contractsDir": "contracts",
-    "outputDir": "artifacts"
+    "contractsDir": "contracts"
 }

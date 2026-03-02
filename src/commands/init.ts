@@ -9,7 +9,6 @@ const CONFIG_TEMPLATE = JSON.stringify(
     typeCheck: true,
     consoleLog: true,
     contractsDir: "contracts",
-    outputDir: "artifacts",
   },
   null,
   2
