@@ -5,6 +5,7 @@ import {
   parseExpression,
   inferStateMutability,
 } from "../../src/compiler/parser";
+import type { ReturnStatement, CallExpression } from "../../src/types";
 import ts from "typescript";
 
 function makeTypeNode(code: string): ts.TypeNode {
@@ -841,10 +842,11 @@ describe("parse: function overloading", () => {
     expect(shorter.parameters).toHaveLength(2);
     expect(shorter.body).toHaveLength(1);
     expect(shorter.body[0].kind).toBe("return");
-    const ret = shorter.body[0] as { kind: "return"; value?: { kind: string; callee?: { name: string }; args?: unknown[] } };
-    expect(ret.value?.kind).toBe("call");
-    expect(ret.value?.callee?.name).toBe("transfer");
-    expect(ret.value?.args).toHaveLength(3);
+    const ret = shorter.body[0] as ReturnStatement;
+    const call = ret.value as CallExpression;
+    expect(call.kind).toBe("call");
+    expect((call.callee as { name: string }).name).toBe("transfer");
+    expect(call.args).toHaveLength(3);
   });
 
   it("should inherit visibility from the implementation", () => {
