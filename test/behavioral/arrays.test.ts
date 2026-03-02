@@ -238,7 +238,7 @@ describe("Array Methods (behavioral)", () => {
 
   it("filter: returns filtered array with literal condition", async () => {
     const source = `
-      class FilterTest2 {
+      class FilterTest {
         private values: number[] = [];
 
         public addValue(v: number): void {
@@ -250,7 +250,7 @@ describe("Array Methods (behavioral)", () => {
         }
       }
     `;
-    const { contract } = await compileAndDeploy(env, source, "FilterTest2");
+    const { contract } = await compileAndDeploy(env, source, "FilterTest");
     await (await contract.addValue(5)).wait();
     await (await contract.addValue(15)).wait();
     await (await contract.addValue(25)).wait();

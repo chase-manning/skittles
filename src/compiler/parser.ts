@@ -1721,7 +1721,10 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce
       if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce"].includes(methodName) && node.arguments.length >= 1) {
-        const callback = parseArrowCallback(node.arguments[0]);
+        const callbackParamTypes = methodName === "reduce"
+          ? { first: undefined, second: elementType }
+          : { first: elementType };
+        const callback = parseArrowCallback(node.arguments[0], callbackParamTypes);
         if (callback) {
           const condExpr = callback.bodyExpr;
 
@@ -1825,6 +1828,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // splice(start, deleteCount) → _arrSplice_T(arr, start, deleteCount)
       if (methodName === "splice" && node.arguments.length >= 1) {
+        if (node.arguments.length > 2) throw new Error("Array .splice() only supports deletion (up to 2 arguments). Insertion via splice(start, count, ...items) is not supported.");
         _neededArrayHelpers.add(`splice_${typeSuffix}`);
         const startArg = parseExpression(node.arguments[0]);
         const countArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : mkNum("1");
@@ -3123,7 +3127,10 @@ function mkForLoop(
   };
 }
 
-function parseArrowCallback(node: ts.Expression): { paramName: string; secondParamName?: string; bodyExpr?: Expression; bodyStmts?: Statement[] } | null {
+function parseArrowCallback(
+  node: ts.Expression,
+  paramTypes?: { first?: SkittlesType; second?: SkittlesType }
+): { paramName: string; secondParamName?: string; bodyExpr?: Expression; bodyStmts?: Statement[] } | null {
   if (!ts.isArrowFunction(node)) return null;
   if (node.parameters.length < 1) return null;
   const paramName = ts.isIdentifier(node.parameters[0].name) ? node.parameters[0].name.text : "_item";
@@ -3136,6 +3143,8 @@ function parseArrowCallback(node: ts.Expression): { paramName: string; secondPar
       return { paramName, secondParamName, bodyExpr: parseExpression(stmts[0].expression) };
     }
     const varTypes = new Map<string, SkittlesType>();
+    if (paramTypes?.first) varTypes.set(paramName, paramTypes.first);
+    if (paramTypes?.second && secondParamName) varTypes.set(secondParamName, paramTypes.second);
     const eventNames = new Set<string>();
     const parsedStmts: Statement[] = [];
     for (const s of stmts) {
