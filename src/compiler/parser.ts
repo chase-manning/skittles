@@ -1649,11 +1649,12 @@ export function parseExpression(node: ts.Expression): Expression {
       const receiverExpr = parseExpression(node.expression.expression);
       const typeSuffix = getArrayHelperSuffix(elementType);
 
-      const isStructElement = elementType?.kind === ("struct" as SkittlesTypeKind);
+      const NON_COMPARABLE_KINDS = new Set(["struct", "array", "tuple", "mapping"] as SkittlesTypeKind[]);
+      const isNonComparable = elementType != null && NON_COMPARABLE_KINDS.has(elementType.kind);
 
       // includes(value) → _arrIncludes_T(arr, value)
       if (methodName === "includes" && node.arguments.length === 1) {
-        if (isStructElement) throw new Error(`Unsupported: .includes() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity. Use .some() with a callback instead.`);
+        if (isNonComparable) throw new Error(`Unsupported: .includes() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .some() with a callback instead.`);
         _neededArrayHelpers.add(`includes_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1664,7 +1665,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // indexOf(value) → _arrIndexOf_T(arr, value)
       if (methodName === "indexOf" && node.arguments.length === 1) {
-        if (isStructElement) throw new Error(`Unsupported: .indexOf() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity. Use .findIndex() with a callback instead.`);
+        if (isNonComparable) throw new Error(`Unsupported: .indexOf() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .findIndex() with a callback instead.`);
         _neededArrayHelpers.add(`indexOf_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1675,7 +1676,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // lastIndexOf(value) → _arrLastIndexOf_T(arr, value)
       if (methodName === "lastIndexOf" && node.arguments.length === 1) {
-        if (isStructElement) throw new Error(`Unsupported: .lastIndexOf() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity.`);
+        if (isNonComparable) throw new Error(`Unsupported: .lastIndexOf() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity.`);
         _neededArrayHelpers.add(`lastIndexOf_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -1738,7 +1739,9 @@ export function parseExpression(node: ts.Expression): Expression {
           }
 
           if (methodName === "map" && condExpr) {
-            const resultType = inferType(condExpr, _currentVarTypes);
+            const callbackEnv = new Map(_currentVarTypes);
+            if (callback.paramName && elementType) callbackEnv.set(callback.paramName, elementType);
+            const resultType = inferType(condExpr, callbackEnv);
             const helper = generateMapHelper(receiverExpr, elementType, callback.paramName, condExpr, resultType);
             _generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
@@ -1801,7 +1804,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // remove(value) → _arrRemove_T(arr, value)
       if (methodName === "remove" && node.arguments.length === 1) {
-        if (isStructElement) throw new Error(`Unsupported: .remove() on struct arrays (${typeSuffix}[]). Struct equality is not supported in Solidity. Use .findIndex() with a callback and .splice() instead.`);
+        if (isNonComparable) throw new Error(`Unsupported: .remove() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .findIndex() with a callback and .splice() instead.`);
         _neededArrayHelpers.add(`remove_${typeSuffix}`);
         return {
           kind: "call" as const,
@@ -2870,7 +2873,7 @@ export function inferType(
     case "identifier":
       if (expr.name === "self")
         return { kind: "address" as SkittlesTypeKind };
-      return undefined;
+      return varTypes.get(expr.name);
     case "property-access":
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
@@ -3058,6 +3061,7 @@ function typeToSolidityName(type: SkittlesType): string {
     case "bytes" as SkittlesTypeKind: return "bytes";
     case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
     case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
+    case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
     case "array" as SkittlesTypeKind: return `${typeToSolidityName(type.valueType!)}[]`;
     default: return "uint256";
   }
@@ -3079,6 +3083,7 @@ function identifierSafeType(type: SkittlesType): string {
     case "bytes" as SkittlesTypeKind: return "bytes";
     case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
     case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
+    case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
     case "array" as SkittlesTypeKind: return `arr_${identifierSafeType(type.valueType!)}`;
     default: return "uint256";
   }

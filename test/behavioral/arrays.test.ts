@@ -303,7 +303,7 @@ describe("Array Methods (behavioral)", () => {
           this.values.push(v);
         }
 
-        public findAbove(threshold: number): number {
+        public findAbove(): number {
           return this.values.find(v => v > 10);
         }
       }
@@ -312,7 +312,7 @@ describe("Array Methods (behavioral)", () => {
     await (await contract.addValue(5)).wait();
     await (await contract.addValue(15)).wait();
     await (await contract.addValue(25)).wait();
-    expect(await contract.findAbove(10)).toBe(15n);
+    expect(await contract.findAbove()).toBe(15n);
   });
 
   // ============================================================

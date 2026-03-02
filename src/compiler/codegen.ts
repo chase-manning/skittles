@@ -35,6 +35,7 @@ let _needsTrimHelper = false;
 let _needsSplitHelper = false;
 let _currentNeededArrayHelpers: string[] = [];
 let _allKnownEnumNames = new Set<string>();
+let _allKnownInterfaceNames = new Set<string>();
 
 const SOLIDITY_VALUE_TYPES = new Set([
   "uint256", "int256", "address", "bool", "bytes32",
@@ -81,6 +82,11 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   }
 
   _allKnownEnumNames = new Set<string>();
+  _allKnownInterfaceNames = new Set<string>();
+  for (const c of contracts) {
+    for (const en of c.enums ?? []) _allKnownEnumNames.add(en.name);
+    for (const iface of c.contractInterfaces ?? []) _allKnownInterfaceNames.add(iface.name);
+  }
 
   // Collect and deduplicate contract interfaces across all contracts
   const allInterfaces: SkittlesContractInterface[] = [];
@@ -202,7 +208,6 @@ function generateContractBody(
   _needsTrimHelper = false;
   _needsSplitHelper = false;
   _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
-  for (const en of contract.enums ?? []) _allKnownEnumNames.add(en.name);
 
   const inheritance =
     contract.inherits.length > 0
@@ -506,7 +511,7 @@ function generateContractBody(
     const [method, ...typeParts] = helperKey.split("_");
     const suffix = typeParts.join("_");
     const solType = suffixToSolType(suffix);
-    const isRefType = !SOLIDITY_VALUE_TYPES.has(solType) && !_allKnownEnumNames.has(solType);
+    const isRefType = !SOLIDITY_VALUE_TYPES.has(solType) && !_allKnownEnumNames.has(solType) && !_allKnownInterfaceNames.has(solType);
     const useHashEq = solType === "string" || solType === "bytes";
     const memAnnotation = isRefType ? "memory " : "";
     const eqCheck = useHashEq
