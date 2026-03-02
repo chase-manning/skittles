@@ -33,6 +33,21 @@ let _needsStartsWithHelper = false;
 let _needsEndsWithHelper = false;
 let _needsTrimHelper = false;
 let _needsSplitHelper = false;
+let _currentNeededArrayHelpers: string[] = [];
+let _allKnownEnumNames = new Set<string>();
+let _allKnownInterfaceNames = new Set<string>();
+
+const SOLIDITY_VALUE_TYPES = new Set([
+  "uint256", "int256", "address", "bool", "bytes32",
+  "uint8", "uint16", "uint32", "uint64", "uint128",
+  "int8", "int16", "int32", "int64", "int128",
+  "bytes1", "bytes2", "bytes3", "bytes4",
+]);
+
+function suffixToSolType(suffix: string): string {
+  if (suffix.startsWith("arr_")) return `${suffixToSolType(suffix.slice(4))}[]`;
+  return suffix;
+}
 
 // ============================================================
 // Main entry
@@ -64,6 +79,13 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
 
   if (needsConsoleImport || (imports && imports.length > 0)) {
     parts.push("");
+  }
+
+  _allKnownEnumNames = new Set<string>();
+  _allKnownInterfaceNames = new Set<string>();
+  for (const c of contracts) {
+    for (const en of c.enums ?? []) _allKnownEnumNames.add(en.name);
+    for (const iface of c.contractInterfaces ?? []) _allKnownInterfaceNames.add(iface.name);
   }
 
   // Collect and deduplicate contract interfaces across all contracts
@@ -185,6 +207,7 @@ function generateContractBody(
   _needsEndsWithHelper = false;
   _needsTrimHelper = false;
   _needsSplitHelper = false;
+  _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
     contract.inherits.length > 0
@@ -480,6 +503,127 @@ function generateContractBody(
       "        return parts;",
       "    }",
     ]);
+  }
+
+  // Emit array helper functions based on what methods are used,
+  // skipping any already emitted by an ancestor contract in this file
+  for (const helperKey of _currentNeededArrayHelpers) {
+    const [method, ...typeParts] = helperKey.split("_");
+    const suffix = typeParts.join("_");
+    const solType = suffixToSolType(suffix);
+    const isRefType = !SOLIDITY_VALUE_TYPES.has(solType) && !_allKnownEnumNames.has(solType) && !_allKnownInterfaceNames.has(solType);
+    const useHashEq = solType === "string" || solType === "bytes";
+    const memAnnotation = isRefType ? "memory " : "";
+    const eqCheck = useHashEq
+      ? `keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(value))`
+      : `arr[i] == value`;
+
+    if (method === "includes" && needsHelper(`_arrIncludes_${suffix}`, true)) {
+      emitHelper(`_arrIncludes_${suffix}`, [
+        `    function _arrIncludes_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (bool) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${eqCheck}) return true;`,
+        `        }`,
+        `        return false;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "indexOf" && needsHelper(`_arrIndexOf_${suffix}`, true)) {
+      emitHelper(`_arrIndexOf_${suffix}`, [
+        `    function _arrIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${eqCheck}) return i;`,
+        `        }`,
+        `        return type(uint256).max;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "lastIndexOf" && needsHelper(`_arrLastIndexOf_${suffix}`, true)) {
+      emitHelper(`_arrLastIndexOf_${suffix}`, [
+        `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
+        `        for (uint256 i = arr.length; i > 0; i--) {`,
+        `            if (${eqCheck.replace(/arr\[i\]/g, "arr[i - 1]")}) return i - 1;`,
+        `        }`,
+        `        return type(uint256).max;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "remove" && needsHelper(`_arrRemove_${suffix}`, true)) {
+      emitHelper(`_arrRemove_${suffix}`, [
+        `    function _arrRemove_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal returns (bool) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${eqCheck}) {`,
+        `                arr[i] = arr[arr.length - 1];`,
+        `                arr.pop();`,
+        `                return true;`,
+        `            }`,
+        `        }`,
+        `        return false;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "reverse" && needsHelper(`_arrReverse_${suffix}`, true)) {
+      emitHelper(`_arrReverse_${suffix}`, [
+        `    function _arrReverse_${suffix}(${solType}[] storage arr) internal {`,
+        `        uint256 len = arr.length;`,
+        `        for (uint256 i = 0; i < len / 2; i++) {`,
+        `            ${solType} ${memAnnotation}temp = arr[i];`,
+        `            arr[i] = arr[len - 1 - i];`,
+        `            arr[len - 1 - i] = temp;`,
+        `        }`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "splice" && needsHelper(`_arrSplice_${suffix}`, true)) {
+      emitHelper(`_arrSplice_${suffix}`, [
+        `    function _arrSplice_${suffix}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
+        `        require(start < arr.length, "start out of bounds");`,
+        `        uint256 end = start + deleteCount;`,
+        `        if (end > arr.length) end = arr.length;`,
+        `        uint256 removed = end - start;`,
+        `        for (uint256 i = start; i < arr.length - removed; i++) {`,
+        `            arr[i] = arr[i + removed];`,
+        `        }`,
+        `        for (uint256 i = 0; i < removed; i++) {`,
+        `            arr.pop();`,
+        `        }`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "slice" && needsHelper(`_arrSlice_${suffix}`, true)) {
+      emitHelper(`_arrSlice_${suffix}`, [
+        `    function _arrSlice_${suffix}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
+        `        if (end > arr.length) end = arr.length;`,
+        `        require(start <= end, "invalid slice range");`,
+        `        ${solType}[] memory result = new ${solType}[](end - start);`,
+        `        for (uint256 i = start; i < end; i++) {`,
+        `            result[i - start] = arr[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "concat" && needsHelper(`_arrConcat_${suffix}`, true)) {
+      emitHelper(`_arrConcat_${suffix}`, [
+        `    function _arrConcat_${suffix}(${solType}[] storage arr, ${solType}[] memory other) internal view returns (${solType}[] memory) {`,
+        `        ${solType}[] memory result = new ${solType}[](arr.length + other.length);`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            result[i] = arr[i];`,
+        `        }`,
+        `        for (uint256 i = 0; i < other.length; i++) {`,
+        `            result[arr.length + i] = other[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
   }
 
   parts.push("}");

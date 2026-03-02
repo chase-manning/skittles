@@ -30,6 +30,12 @@ let _currentSourceFile: ts.SourceFile | null = null;
 // String type tracking for string.length and string comparison transforms
 let _currentVarTypes: Map<string, SkittlesType> = new Map();
 let _currentStringNames: Set<string> = new Set();
+let _currentEventNames: Set<string> = new Set();
+
+// Array method support: generated helper functions and tracking
+let _generatedArrayFunctions: SkittlesFunction[] = [];
+let _arrayMethodCounter = 0;
+let _neededArrayHelpers = new Set<string>();
 
 function getSourceLine(node: ts.Node): number | undefined {
   if (!_currentSourceFile) return undefined;
@@ -190,6 +196,7 @@ export function parse(
   );
 
   _currentSourceFile = sourceFile;
+  _arrayMethodCounter = 0;
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -772,6 +779,11 @@ function parseClass(
   let ctor: SkittlesConstructor | undefined;
   const inherits: string[] = [];
 
+  // Reset per-contract array method state (counter stays file-global to avoid
+  // name collisions across inherited contracts emitted into the same file)
+  _generatedArrayFunctions = [];
+  _neededArrayHelpers = new Set();
+
   if (node.heritageClauses) {
     for (const clause of node.heritageClauses) {
       if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
@@ -826,6 +838,7 @@ function parseClass(
   }
 
   const eventNames = new Set(events.map((e) => e.name));
+  _currentEventNames = eventNames;
 
   // Second pass: methods (instance and static), constructor, and arrow function properties
   for (const member of node.members) {
@@ -853,6 +866,13 @@ function parseClass(
       functions.push(parseGetAccessor(member, varTypes, eventNames));
     } else if (ts.isSetAccessorDeclaration(member)) {
       functions.push(parseSetAccessor(member, varTypes, eventNames));
+    }
+  }
+
+  // Inject generated array method helper functions
+  for (const fn of _generatedArrayFunctions) {
+    if (!functions.some((f) => f.name === fn.name)) {
+      functions.push(fn);
     }
   }
 
@@ -1075,6 +1095,7 @@ function parseClass(
     inherits,
     isAbstract,
     sourceLine: getSourceLine(node),
+    neededArrayHelpers: _neededArrayHelpers.size > 0 ? [..._neededArrayHelpers] : undefined,
   };
 }
 
@@ -1620,6 +1641,249 @@ export function parseExpression(node: ts.Expression): Expression {
         },
         right: defaultExpr,
       };
+    }
+
+    // Array method calls on storage arrays
+    if (ts.isPropertyAccessExpression(node.expression) &&
+        isArrayLikeReceiver(node.expression.expression)) {
+      const methodName = node.expression.name.text;
+      const elementType = resolveArrayElementType(node.expression.expression);
+      const receiverExpr = parseExpression(node.expression.expression);
+      const typeSuffix = getArrayHelperSuffix(elementType);
+
+      const NON_COMPARABLE_KINDS = new Set(["struct", "array", "tuple", "mapping"] as SkittlesTypeKind[]);
+      const isNonComparable = elementType != null && NON_COMPARABLE_KINDS.has(elementType.kind);
+
+      // includes(value) → _arrIncludes_T(arr, value)
+      if (methodName === "includes" && node.arguments.length === 1) {
+        if (isNonComparable) throw new Error(`Unsupported: .includes() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .some() with a callback instead.`);
+        _neededArrayHelpers.add(`includes_${typeSuffix}`);
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrIncludes_${typeSuffix}` },
+          args: [receiverExpr, parseExpression(node.arguments[0])],
+        };
+      }
+
+      // indexOf(value) → _arrIndexOf_T(arr, value)
+      if (methodName === "indexOf" && node.arguments.length === 1) {
+        if (isNonComparable) throw new Error(`Unsupported: .indexOf() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .findIndex() with a callback instead.`);
+        _neededArrayHelpers.add(`indexOf_${typeSuffix}`);
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrIndexOf_${typeSuffix}` },
+          args: [receiverExpr, parseExpression(node.arguments[0])],
+        };
+      }
+
+      // lastIndexOf(value) → _arrLastIndexOf_T(arr, value)
+      if (methodName === "lastIndexOf" && node.arguments.length === 1) {
+        if (isNonComparable) throw new Error(`Unsupported: .lastIndexOf() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity.`);
+        _neededArrayHelpers.add(`lastIndexOf_${typeSuffix}`);
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrLastIndexOf_${typeSuffix}` },
+          args: [receiverExpr, parseExpression(node.arguments[0])],
+        };
+      }
+
+      // at(index) → arr[index] with negative index support
+      if (methodName === "at" && node.arguments.length === 1) {
+        const indexArg = node.arguments[0];
+        if (ts.isPrefixUnaryExpression(indexArg) && indexArg.operator === ts.SyntaxKind.MinusToken) {
+          if (ts.isNumericLiteral(indexArg.operand)) {
+            if (Number(indexArg.operand.text) === 0) {
+              return mkElem(receiverExpr, mkNum("0"));
+            }
+            return mkElem(receiverExpr, mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)));
+          }
+          throw new Error("Array .at() only supports negative numeric literals (e.g., .at(-1)). Non-literal negative indices would produce invalid uint256 values in Solidity.");
+        }
+        return mkElem(receiverExpr, parseExpression(indexArg));
+      }
+
+      // slice(start?, end?) → _arrSlice_T(arr, start, end)
+      if (methodName === "slice") {
+        for (const arg of node.arguments) {
+          if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
+            throw new Error("Array .slice() does not support negative indices. Solidity uses uint256 for array indices.");
+          }
+        }
+        _neededArrayHelpers.add(`slice_${typeSuffix}`);
+        const startArg = node.arguments.length >= 1 ? parseExpression(node.arguments[0]) : mkNum("0");
+        const endArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : mkProp(receiverExpr, "length");
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrSlice_${typeSuffix}` },
+          args: [receiverExpr, startArg, endArg],
+        };
+      }
+
+      // concat(other) → _arrConcat_T(arr, other)
+      if (methodName === "concat" && node.arguments.length === 1) {
+        const otherArg = node.arguments[0];
+        if (ts.isPropertyAccessExpression(otherArg) && otherArg.expression.kind === ts.SyntaxKind.ThisKeyword) {
+          const otherType = _currentVarTypes.get(otherArg.name.text);
+          if (otherType?.kind === ("array" as SkittlesTypeKind)) {
+            throw new Error(
+              "Array .concat() cannot accept a storage array directly (e.g., this.a.concat(this.b)). " +
+              "Use .slice() to copy to memory first: this.a.concat(this.b.slice(0, this.b.length))."
+            );
+          }
+        }
+        _neededArrayHelpers.add(`concat_${typeSuffix}`);
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrConcat_${typeSuffix}` },
+          args: [receiverExpr, parseExpression(otherArg)],
+        };
+      }
+
+      // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce
+      if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce"].includes(methodName) && node.arguments.length >= 1) {
+        const callbackParamTypes = methodName === "reduce"
+          ? { first: undefined, second: elementType }
+          : { first: elementType };
+        const callback = parseArrowCallback(node.arguments[0], callbackParamTypes);
+        if (!callback) {
+          throw new Error(`Array .${methodName}() requires an arrow function callback.`);
+        }
+        {
+          const condExpr = callback.bodyExpr;
+
+          if (!condExpr && methodName !== "forEach") {
+            throw new Error(`Array .${methodName}() requires an arrow function with an expression body (e.g., v => v > 10). Block-bodied callbacks are only supported for .forEach().`);
+          }
+
+          {
+            const allowedNames = new Set<string>([callback.paramName]);
+            if (callback.secondParamName) allowedNames.add(callback.secondParamName);
+            validateCallbackScope(condExpr ?? null, callback.bodyStmts, allowedNames, methodName);
+          }
+
+          // Helper to create a this._helperName() call for mutability propagation
+          const mkHelperCall = (name: string): Expression => ({
+            kind: "call" as const,
+            callee: mkProp(mkId("this"), name),
+            args: [],
+          });
+
+          if (methodName === "filter" && condExpr) {
+            const helper = generateFilterHelper(receiverExpr, elementType, callback.paramName, condExpr);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          if (methodName === "map" && condExpr) {
+            const callbackEnv = new Map(_currentVarTypes);
+            if (callback.paramName && elementType) callbackEnv.set(callback.paramName, elementType);
+            const resultType = inferType(condExpr, callbackEnv);
+            const helper = generateMapHelper(receiverExpr, elementType, callback.paramName, condExpr, resultType);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          if (methodName === "some" && condExpr) {
+            const helper = generateSomeEveryHelper("some", receiverExpr, elementType, callback.paramName, condExpr);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          if (methodName === "every" && condExpr) {
+            const helper = generateSomeEveryHelper("every", receiverExpr, elementType, callback.paramName, condExpr);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          if (methodName === "find" && condExpr) {
+            const helper = generateFindHelper(receiverExpr, elementType, callback.paramName, condExpr);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          if (methodName === "findIndex" && condExpr) {
+            const helper = generateFindIndexHelper(receiverExpr, elementType, callback.paramName, condExpr);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          if (methodName === "reduce") {
+            if (!callback.secondParamName) throw new Error("Array .reduce() callback must have two parameters: (accumulator, item) => expression.");
+            if (node.arguments.length < 2) throw new Error("Array .reduce() requires an initial value as the second argument.");
+            const initialValue = parseExpression(node.arguments[1]);
+            const accType = inferType(initialValue, _currentVarTypes);
+            const helper = generateReduceHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr!, initialValue, accType);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          // forEach: desugar to a for loop (via a helper that returns nothing)
+          if (methodName === "forEach") {
+            const helperName = `_forEach_${_arrayMethodCounter++}`;
+            const elemType = elementType ?? UINT256_TYPE;
+            const forBody: Statement[] = [mkVarDecl(callback.paramName, elemType, mkElem(receiverExpr, mkId("__sk_i")))];
+            if (callback.bodyExpr) {
+              forBody.push(mkExprStmt(callback.bodyExpr));
+            } else if (callback.bodyStmts) {
+              forBody.push(...callback.bodyStmts);
+            }
+            const body: Statement[] = [mkForLoop("__sk_i", receiverExpr, forBody)];
+            const helperMutability = inferStateMutability(body, _currentVarTypes);
+            const helper: SkittlesFunction = {
+              name: helperName, parameters: [], returnType: null,
+              visibility: "private", stateMutability: helperMutability,
+              isVirtual: false, isOverride: false, body,
+            };
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helperName);
+          }
+        }
+      }
+
+      // remove(value) → _arrRemove_T(arr, value)
+      if (methodName === "remove" && node.arguments.length === 1) {
+        if (isNonComparable) throw new Error(`Unsupported: .remove() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .findIndex() with a callback and .splice() instead.`);
+        _neededArrayHelpers.add(`remove_${typeSuffix}`);
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrRemove_${typeSuffix}` },
+          args: [receiverExpr, parseExpression(node.arguments[0])],
+        };
+      }
+
+      // reverse() → _arrReverse_T(arr)
+      if (methodName === "reverse" && node.arguments.length === 0) {
+        if (node.parent && !ts.isExpressionStatement(node.parent)) {
+          throw new Error("Array .reverse() modifies the array in place and does not return a value. Use it as a standalone statement.");
+        }
+        _neededArrayHelpers.add(`reverse_${typeSuffix}`);
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrReverse_${typeSuffix}` },
+          args: [receiverExpr],
+        };
+      }
+
+      // splice(start, deleteCount) → _arrSplice_T(arr, start, deleteCount)
+      if (methodName === "splice" && node.arguments.length >= 1) {
+        if (node.parent && !ts.isExpressionStatement(node.parent)) {
+          throw new Error("Array .splice() modifies the array in place and does not return a value. Use it as a standalone statement.");
+        }
+        if (node.arguments.length > 2) throw new Error("Array .splice() only supports deletion (up to 2 arguments). Insertion via splice(start, count, ...items) is not supported.");
+        for (const arg of node.arguments) {
+          if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
+            throw new Error("Array .splice() does not support negative indices. Solidity uses uint256 for array indices.");
+          }
+        }
+        _neededArrayHelpers.add(`splice_${typeSuffix}`);
+        const startArg = parseExpression(node.arguments[0]);
+        const countArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : mkNum("1");
+        return {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrSplice_${typeSuffix}` },
+          args: [receiverExpr, startArg, countArg],
+        };
+      }
     }
 
     // String method calls: str.charAt(i) → _charAt(str, i), etc.
@@ -2547,6 +2811,13 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (expr.kind === "call" && isStateMutatingCall(expr)) {
         writesState = true;
       }
+      // Per-type array mutating helpers (codegen-emitted)
+      if (expr.kind === "call" && expr.callee.kind === "identifier") {
+        const n = expr.callee.name;
+        if (n.startsWith("_arrRemove_") || n.startsWith("_arrReverse_") || n.startsWith("_arrSplice_")) {
+          writesState = true;
+        }
+      }
       // addr.transfer(amount) sends ETH, which is state-mutating
       // Only match when the receiver is not `this` and not a contract-interface variable
       if (
@@ -2652,7 +2923,7 @@ export function inferType(
     case "identifier":
       if (expr.name === "self")
         return { kind: "address" as SkittlesTypeKind };
-      return undefined;
+      return varTypes.get(expr.name);
     case "property-access":
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
@@ -2801,8 +3072,344 @@ function isExternalContractCallOnLocal(expr: { callee: Expression }, localVarTyp
 function isStateMutatingCall(expr: { callee: Expression }): boolean {
   if (expr.callee.kind !== "property-access") return false;
   const method = expr.callee.property;
-  if (!["push", "pop"].includes(method)) return false;
+  if (!["push", "pop", "remove", "splice", "reverse"].includes(method)) return false;
   return isStateAccess(expr.callee.object);
+}
+
+// ============================================================
+// Array method helpers
+// ============================================================
+
+function isArrayLikeReceiver(node: ts.Expression): boolean {
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    return type?.kind === ("array" as SkittlesTypeKind);
+  }
+  return false;
+}
+
+function resolveArrayElementType(node: ts.Expression): SkittlesType | undefined {
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    if (type?.kind === ("array" as SkittlesTypeKind)) {
+      return type.valueType;
+    }
+  }
+  return undefined;
+}
+
+function typeToSolidityName(type: SkittlesType): string {
+  switch (type.kind) {
+    case "uint256" as SkittlesTypeKind: return "uint256";
+    case "int256" as SkittlesTypeKind: return "int256";
+    case "address" as SkittlesTypeKind: return "address";
+    case "bool" as SkittlesTypeKind: return "bool";
+    case "string" as SkittlesTypeKind: return "string";
+    case "bytes32" as SkittlesTypeKind: return "bytes32";
+    case "bytes" as SkittlesTypeKind: return "bytes";
+    case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
+    case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
+    case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
+    case "array" as SkittlesTypeKind: return `${typeToSolidityName(type.valueType!)}[]`;
+    default: return "uint256";
+  }
+}
+
+function getArrayHelperSuffix(elementType: SkittlesType | undefined): string {
+  if (!elementType) return "uint256";
+  return identifierSafeType(elementType);
+}
+
+function identifierSafeType(type: SkittlesType): string {
+  switch (type.kind) {
+    case "uint256" as SkittlesTypeKind: return "uint256";
+    case "int256" as SkittlesTypeKind: return "int256";
+    case "address" as SkittlesTypeKind: return "address";
+    case "bool" as SkittlesTypeKind: return "bool";
+    case "string" as SkittlesTypeKind: return "string";
+    case "bytes32" as SkittlesTypeKind: return "bytes32";
+    case "bytes" as SkittlesTypeKind: return "bytes";
+    case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
+    case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
+    case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
+    case "array" as SkittlesTypeKind: return `arr_${identifierSafeType(type.valueType!)}`;
+    default: return "uint256";
+  }
+}
+
+// IR construction helpers for generated array method code
+function mkId(name: string): Expression { return { kind: "identifier", name }; }
+function mkNum(value: string): Expression { return { kind: "number-literal", value }; }
+function mkProp(obj: Expression, prop: string): Expression { return { kind: "property-access", object: obj, property: prop }; }
+function mkElem(obj: Expression, index: Expression): Expression { return { kind: "element-access", object: obj, index }; }
+function mkBin(left: Expression, op: string, right: Expression): Expression { return { kind: "binary", operator: op, left, right }; }
+function mkAssign(target: Expression, value: Expression): Expression { return { kind: "assignment", operator: "=", target, value }; }
+function mkIncr(name: string): Expression { return { kind: "unary", operator: "++", operand: mkId(name), prefix: false }; }
+function mkDecr(name: string): Expression { return { kind: "unary", operator: "--", operand: mkId(name), prefix: false }; }
+function mkVarDecl(name: string, type: SkittlesType | undefined, init?: Expression): Statement {
+  return { kind: "variable-declaration", name, type: type, initializer: init };
+}
+function mkExprStmt(expr: Expression): Statement { return { kind: "expression", expression: expr }; }
+function mkReturn(value?: Expression): Statement { return { kind: "return", value }; }
+function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): Statement {
+  return { kind: "if", condition: cond, thenBody, elseBody };
+}
+const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
+const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
+
+const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
+
+function collectBareIdentifiers(expr: Expression): Set<string> {
+  const ids = new Set<string>();
+  function walkExpr(e: Expression) {
+    switch (e.kind) {
+      case "identifier": ids.add(e.name); break;
+      case "binary": walkExpr(e.left); walkExpr(e.right); break;
+      case "unary": walkExpr(e.operand); break;
+      case "call": walkExpr(e.callee); e.args.forEach(walkExpr); break;
+      case "property-access": walkExpr(e.object); break;
+      case "element-access": walkExpr(e.object); walkExpr(e.index); break;
+      case "assignment": walkExpr(e.target); walkExpr(e.value); break;
+      case "conditional": walkExpr(e.condition); walkExpr(e.whenTrue); walkExpr(e.whenFalse); break;
+      case "new": e.args.forEach(walkExpr); break;
+      case "object-literal": e.properties.forEach(p => walkExpr(p.value)); break;
+      case "tuple-literal": e.elements.forEach(walkExpr); break;
+    }
+  }
+  walkExpr(expr);
+  return ids;
+}
+
+function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string> {
+  const ids = new Set<string>();
+  function walkExpr(e: Expression) {
+    for (const id of collectBareIdentifiers(e)) ids.add(id);
+  }
+  function walkStmts(ss: Statement[]) {
+    for (const s of ss) walkStmt(s);
+  }
+  function walkStmt(s: Statement) {
+    switch (s.kind) {
+      case "expression": walkExpr(s.expression); break;
+      case "return": if (s.value) walkExpr(s.value); break;
+      case "variable-declaration": if (s.initializer) walkExpr(s.initializer); break;
+      case "if": walkExpr(s.condition); walkStmts(s.thenBody); if (s.elseBody) walkStmts(s.elseBody); break;
+      case "for": {
+        if (s.initializer) walkStmt(s.initializer);
+        if (s.condition) walkExpr(s.condition);
+        if (s.incrementor) walkExpr(s.incrementor);
+        walkStmts(s.body);
+        break;
+      }
+      case "while": walkExpr(s.condition); walkStmts(s.body); break;
+      case "do-while": walkExpr(s.condition); walkStmts(s.body); break;
+      case "emit": s.args.forEach(walkExpr); break;
+      case "revert": if (s.message) walkExpr(s.message); if (s.customErrorArgs) s.customErrorArgs.forEach(walkExpr); break;
+      case "delete": walkExpr(s.target); break;
+      case "switch": walkExpr(s.discriminant); s.cases.forEach(c => { if (c.value) walkExpr(c.value); walkStmts(c.body); }); break;
+      case "try-catch": walkExpr(s.call); walkStmts(s.successBody); walkStmts(s.catchBody); break;
+      case "console-log": s.args.forEach(walkExpr); break;
+    }
+  }
+  walkStmts(stmts);
+  return ids;
+}
+
+function validateCallbackScope(expr: Expression | null, stmts: Statement[] | undefined, allowedNames: Set<string>, methodName: string): void {
+  const ids = expr ? collectBareIdentifiers(expr) : stmts ? collectBareIdentifiersFromStmts(stmts) : new Set<string>();
+  for (const id of ids) {
+    if (BUILTIN_IDENTIFIERS.has(id)) continue;
+    if (allowedNames.has(id)) continue;
+    throw new Error(
+      `Array .${methodName}() callback references '${id}', which is not accessible in the generated helper. ` +
+      `Callbacks can only reference their parameters, literals, and state variables (this.*).`
+    );
+  }
+}
+
+function mkForLoop(
+  indexName: string,
+  arrayExpr: Expression,
+  body: Statement[]
+): Statement {
+  return {
+    kind: "for",
+    initializer: { kind: "variable-declaration", name: indexName, type: UINT256_TYPE, initializer: mkNum("0") },
+    condition: mkBin(mkId(indexName), "<", mkProp(arrayExpr, "length")),
+    incrementor: mkIncr(indexName),
+    body,
+  };
+}
+
+function parseArrowCallback(
+  node: ts.Expression,
+  paramTypes?: { first?: SkittlesType; second?: SkittlesType }
+): { paramName: string; secondParamName?: string; bodyExpr?: Expression; bodyStmts?: Statement[] } | null {
+  if (!ts.isArrowFunction(node)) return null;
+  if (node.parameters.length < 1) return null;
+  const paramName = ts.isIdentifier(node.parameters[0].name) ? node.parameters[0].name.text : "_item";
+  const secondParamName = node.parameters.length >= 2 && ts.isIdentifier(node.parameters[1].name)
+    ? node.parameters[1].name.text : undefined;
+
+  if (paramName.startsWith("__sk_")) {
+    throw new Error(`Callback parameter name '${paramName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
+  }
+  if (secondParamName?.startsWith("__sk_")) {
+    throw new Error(`Callback parameter name '${secondParamName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
+  }
+
+  if (ts.isBlock(node.body)) {
+    const stmts = node.body.statements;
+    if (stmts.length === 1 && ts.isReturnStatement(stmts[0]) && stmts[0].expression) {
+      return { paramName, secondParamName, bodyExpr: parseExpression(stmts[0].expression) };
+    }
+    const varTypes = new Map(_currentVarTypes);
+    if (paramTypes?.first) varTypes.set(paramName, paramTypes.first);
+    if (paramTypes?.second && secondParamName) varTypes.set(secondParamName, paramTypes.second);
+    const parsedStmts: Statement[] = [];
+    for (const s of stmts) {
+      parsedStmts.push(parseStatement(s, varTypes, _currentEventNames));
+    }
+    return { paramName, secondParamName, bodyStmts: parsedStmts };
+  }
+  return { paramName, secondParamName, bodyExpr: parseExpression(node.body as ts.Expression) };
+}
+
+function generateFilterHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramName: string,
+  condExpr: Expression
+): SkittlesFunction {
+  const helperName = `_filter_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: elemType };
+  const elemTypeName = typeToSolidityName(elemType);
+  const body: Statement[] = [
+    mkVarDecl("__sk_count", UINT256_TYPE, mkNum("0")),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkIf(condExpr, [mkExprStmt(mkIncr("__sk_count"))]),
+    ]),
+    mkVarDecl("__sk_result", arrType, { kind: "new", callee: `${elemTypeName}[]`, args: [mkId("__sk_count")] }),
+    mkVarDecl("__sk_j", UINT256_TYPE, mkNum("0")),
+    mkForLoop("__sk_i2", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i2"))),
+      mkIf(condExpr, [
+        mkExprStmt(mkAssign(mkElem(mkId("__sk_result"), mkId("__sk_j")), mkElem(arrayExpr, mkId("__sk_i2")))),
+        mkExprStmt(mkIncr("__sk_j")),
+      ]),
+    ]),
+    mkReturn(mkId("__sk_result")),
+  ];
+  return { name: helperName, parameters: [], returnType: arrType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateMapHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramName: string,
+  transformExpr: Expression,
+  resultElementType: SkittlesType | undefined
+): SkittlesFunction {
+  const helperName = `_map_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const resultElemType = resultElementType ?? UINT256_TYPE;
+  const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: resultElemType };
+  const resultTypeName = typeToSolidityName(resultElemType);
+  const body: Statement[] = [
+    mkVarDecl("__sk_result", arrType, { kind: "new", callee: `${resultTypeName}[]`, args: [mkProp(arrayExpr, "length")] }),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkExprStmt(mkAssign(mkElem(mkId("__sk_result"), mkId("__sk_i")), transformExpr)),
+    ]),
+    mkReturn(mkId("__sk_result")),
+  ];
+  return { name: helperName, parameters: [], returnType: arrType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateSomeEveryHelper(
+  method: "some" | "every",
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramName: string,
+  condExpr: Expression
+): SkittlesFunction {
+  const helperName = `_${method}_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const isSome = method === "some";
+  const body: Statement[] = [
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkIf(isSome ? condExpr : { kind: "unary", operator: "!", operand: condExpr, prefix: true }, [
+        mkReturn(isSome ? { kind: "boolean-literal", value: true } : { kind: "boolean-literal", value: false }),
+      ]),
+    ]),
+    mkReturn(isSome ? { kind: "boolean-literal", value: false } : { kind: "boolean-literal", value: true }),
+  ];
+  return { name: helperName, parameters: [], returnType: BOOL_TYPE, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateFindHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramName: string,
+  condExpr: Expression
+): SkittlesFunction {
+  const helperName = `_find_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const body: Statement[] = [
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkIf(condExpr, [mkReturn(mkId(paramName))]),
+    ]),
+    { kind: "revert", message: { kind: "string-literal", value: "not found" } },
+  ];
+  return { name: helperName, parameters: [], returnType: elemType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateFindIndexHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramName: string,
+  condExpr: Expression
+): SkittlesFunction {
+  const helperName = `_findIndex_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const body: Statement[] = [
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkIf(condExpr, [mkReturn(mkId("__sk_i"))]),
+    ]),
+    mkReturn(mkProp(mkId("type(uint256)"), "max")),
+  ];
+  return { name: helperName, parameters: [], returnType: UINT256_TYPE, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateReduceHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  accParamName: string,
+  itemParamName: string,
+  bodyExpr: Expression,
+  initialValue: Expression,
+  accType: SkittlesType | undefined
+): SkittlesFunction {
+  const helperName = `_reduce_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const returnType = accType ?? UINT256_TYPE;
+  const body: Statement[] = [
+    mkVarDecl("__sk_acc", returnType, initialValue),
+    mkForLoop("__sk_i", arrayExpr, [
+      mkVarDecl(accParamName, returnType, mkId("__sk_acc")),
+      mkVarDecl(itemParamName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+      mkExprStmt(mkAssign(mkId("__sk_acc"), bodyExpr)),
+    ]),
+    mkReturn(mkId("__sk_acc")),
+  ];
+  return { name: helperName, parameters: [], returnType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 /**

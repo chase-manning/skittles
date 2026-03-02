@@ -109,3 +109,15 @@ export declare function gasleft(): number;
  * ```
  */
 export declare function Contract<T>(address: string): T;
+
+// Augment Array with Skittles-specific methods for IDE support
+declare global {
+  interface Array<T> {
+    /**
+     * Remove the first occurrence of a value from the array using swap-and-pop.
+     * Returns true if the value was found and removed, false otherwise.
+     * Note: does not preserve array order.
+     */
+    remove(value: T): boolean;
+  }
+}
