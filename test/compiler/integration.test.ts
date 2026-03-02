@@ -3902,6 +3902,103 @@ describe("integration: implements keyword", () => {
     const result = compileSolidity("Child", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should compile multiple interface implementations", () => {
+    const source = `
+      interface IOwnable {
+        owner: address;
+        transferOwnership(newOwner: address): void;
+      }
+
+      interface IPausable {
+        paused: boolean;
+        pause(): void;
+        unpause(): void;
+      }
+
+      class MyContract implements IOwnable, IPausable {
+        public owner: address = msg.sender;
+        public paused: boolean = false;
+
+        public transferOwnership(newOwner: address): void {
+          this.owner = newOwner;
+        }
+
+        public pause(): void {
+          this.paused = true;
+        }
+
+        public unpause(): void {
+          this.paused = false;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(1);
+    expect(contracts[0].name).toBe("MyContract");
+    expect(contracts[0].inherits).toEqual(["IOwnable", "IPausable"]);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("interface IOwnable {");
+    expect(solidity).toContain("interface IPausable {");
+    expect(solidity).toContain("contract MyContract is IOwnable, IPausable {");
+    expect(solidity).toContain("function transferOwnership(address newOwner) public override");
+    expect(solidity).toContain("function pause() public override");
+    expect(solidity).toContain("function unpause() public override");
+    expect(solidity).toContain("address public override owner");
+    expect(solidity).toContain("bool public override paused");
+    const result = compileSolidity("MyContract", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile extends with multiple implements", () => {
+    const source = `
+      interface IOwnable {
+        owner: address;
+        transferOwnership(newOwner: address): void;
+      }
+
+      interface IPausable {
+        paused: boolean;
+        pause(): void;
+        unpause(): void;
+      }
+
+      class Base {
+        public value: number = 0;
+
+        public getValue(): number {
+          return this.value;
+        }
+      }
+
+      class MyContract extends Base implements IOwnable, IPausable {
+        public owner: address = msg.sender;
+        public paused: boolean = false;
+
+        public transferOwnership(newOwner: address): void {
+          this.owner = newOwner;
+        }
+
+        public pause(): void {
+          this.paused = true;
+        }
+
+        public unpause(): void {
+          this.paused = false;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(2);
+    expect(contracts[1].name).toBe("MyContract");
+    expect(contracts[1].inherits).toEqual(["Base", "IOwnable", "IPausable"]);
+    const solidity = generateSolidityFile(contracts);
+    expect(solidity).toContain("contract MyContract is Base, IOwnable, IPausable {");
+    expect(solidity).toContain("function transferOwnership(address newOwner) public override");
+    expect(solidity).toContain("function pause() public override");
+    const result = compileSolidity("MyContract", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 // ============================================================
