@@ -884,4 +884,50 @@ describe("parse: function overloading", () => {
     expect(contracts[0].functions[1].name).toBe("transfer");
     expect(contracts[0].functions[2].name).toBe("transfer");
   });
+
+  it("should throw when overload signatures exist but no implementation", () => {
+    expect(() =>
+      parse(
+        `class Token {
+          transfer(to: string, amount: number): boolean;
+          transfer(to: string, amount: number, data: string): boolean;
+        }`,
+        "test.ts"
+      )
+    ).toThrow("expected exactly one implementation");
+  });
+
+  it("should throw when multiple overload signatures have the same parameter count", () => {
+    expect(() =>
+      parse(
+        `class Token {
+          transfer(to: string, amount: number): boolean;
+          transfer(to: address, value: number): boolean;
+          transfer(to: string, amount: number): boolean {
+            return true;
+          }
+        }`,
+        "test.ts"
+      )
+    ).toThrow("same parameter count");
+  });
+
+  it("should use implementation parameter names for longest overload body", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(recipient: string, amt: number): boolean;
+        transfer(recipient: string, amt: number, payload: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const longest = contracts[0].functions[1];
+    expect(longest.parameters).toHaveLength(3);
+    // Parameter names should come from implementation, not overload signature
+    expect(longest.parameters[0].name).toBe("to");
+    expect(longest.parameters[1].name).toBe("amount");
+    expect(longest.parameters[2].name).toBe("data");
+  });
 });

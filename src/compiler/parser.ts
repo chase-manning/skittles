@@ -866,11 +866,17 @@ function parseClass(
 
   for (const name of methodOrder) {
     const decls = methodGroups.get(name)!;
-    const overloadSigs = decls.filter(d => !d.body);
+    const overloadSigs = decls.filter(d => !d.body && !hasModifier(d.modifiers, ts.SyntaxKind.AbstractKeyword));
     const impls = decls.filter(d => !!d.body);
 
-    if (overloadSigs.length > 0 && impls.length === 1) {
-      // Overloaded method: resolve signatures with the implementation body
+    if (overloadSigs.length > 0) {
+      if (impls.length !== 1) {
+        throw new Error(
+          `Method "${name}" has ${overloadSigs.length} overload signature(s) but ${impls.length} implementation(s); ` +
+            "expected exactly one implementation for an overloaded method."
+        );
+      }
+      // Overloaded method: resolve signatures with the single implementation body
       resolveOverloadedMethods(overloadSigs, impls[0], varTypes, eventNames, functions);
     } else {
       // Normal methods (no overloading)
@@ -1301,6 +1307,17 @@ function resolveOverloadedMethods(
     (a, b) => a.parameters.length - b.parameters.length
   );
 
+  // Reject overload sets where multiple signatures share the same parameter count
+  const paramCounts = sortedSigs.map(s => s.parameters.length);
+  const uniqueCounts = new Set(paramCounts);
+  if (uniqueCounts.size !== paramCounts.length) {
+    const name = impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
+    throw new Error(
+      `Method "${name}" has multiple overload signatures with the same parameter count. ` +
+        "Skittles only supports overloads distinguished by parameter count."
+    );
+  }
+
   const longestSig = sortedSigs[sortedSigs.length - 1];
   const longestParams = longestSig.parameters.map(parseParameter);
 
@@ -1313,7 +1330,17 @@ function resolveOverloadedMethods(
     sigFn.isVirtual = implFn.isVirtual;
 
     if (sig === longestSig) {
-      // Longest overload gets the implementation body
+      // Longest overload gets the implementation body.
+      // Ensure parameter names come from the implementation so that the
+      // body does not reference undeclared identifiers when overload
+      // signature parameter names differ from the implementation's.
+      const minParamLen = Math.min(
+        sigFn.parameters.length,
+        implFn.parameters.length,
+      );
+      for (let i = 0; i < minParamLen; i++) {
+        sigFn.parameters[i].name = implFn.parameters[i].name;
+      }
       sigFn.body = implFn.body;
       sigFn.stateMutability = implFn.stateMutability;
     } else {
@@ -1387,7 +1414,9 @@ function getDefaultValueForType(type: SkittlesType): Expression {
         args: [{ kind: "number-literal", value: "0" }],
       };
     default:
-      return { kind: "number-literal", value: "0" };
+      throw new Error(
+        `Cannot generate default value for unsupported type: ${type.kind}`
+      );
   }
 }
 
