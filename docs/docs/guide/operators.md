@@ -104,7 +104,7 @@ class Fallback {
 ```
 
 :::note
-Since Solidity has no `null` or `undefined`, `??` checks for the zero value of the type. `x ?? y` compiles to `x == 0 ? y : x`. Optional chaining (`?.`) compiles to regular property access since all Solidity values are non-nullable.
+Since Solidity has no `null` or `undefined`, `??` checks for the zero value of the type. `x ?? y` compiles to `(x == 0) ? y : x`. Optional chaining (`?.`) compiles to regular property access since all Solidity values are non-nullable.
 :::
 
 ## Compound Assignment Operators
