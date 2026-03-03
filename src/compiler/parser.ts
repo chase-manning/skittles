@@ -2216,6 +2216,12 @@ export function parseExpression(node: ts.Expression): Expression {
         elementType = resolveSpreadElementType(spreadExpr);
         if (elementType) break;
       }
+      if (!elementType) {
+        throw new Error(
+          "Could not resolve element type for array spread. " +
+          "Ensure spread operands are arrays with statically known element types."
+        );
+      }
       const typeSuffix = getArrayHelperSuffix(elementType);
 
       _neededArrayHelpers.add(`spread_${typeSuffix}`);
@@ -2228,13 +2234,14 @@ export function parseExpression(node: ts.Expression): Expression {
           if (type?.kind === ("array" as SkittlesTypeKind)) {
             // Storage array: wrap in slice to copy to memory
             _neededArrayHelpers.add(`slice_${typeSuffix}`);
+            const parsed = parseExpression(e);
             return {
               kind: "call" as const,
               callee: { kind: "identifier" as const, name: `_arrSlice_${typeSuffix}` },
               args: [
-                parseExpression(e),
+                parsed,
                 { kind: "number-literal" as const, value: "0" },
-                { kind: "property-access" as const, object: parseExpression(e), property: "length" },
+                { kind: "property-access" as const, object: parsed, property: "length" },
               ],
             };
           }
