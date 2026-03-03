@@ -275,6 +275,42 @@ const middle = this.values.slice(1, 3);
 const combined = this.values.concat(otherArray);
 ```
 
+### Spread Operator
+
+Use the spread operator (`...`) to combine arrays — just like in TypeScript:
+
+```typescript
+class Example {
+  public combineArrays(a: number[], b: number[]): number[] {
+    return [...a, ...b];
+  }
+}
+```
+
+Spread works with any number of arrays:
+
+```typescript
+return [...arr1, ...arr2, ...arr3];
+```
+
+You can also spread storage arrays (state variables). The compiler automatically copies them to memory:
+
+```typescript
+class Example {
+  private items1: number[] = [];
+  private items2: number[] = [];
+
+  public combined(): number[] {
+    return [...this.items1, ...this.items2];
+  }
+}
+```
+
+:::note
+- Only spread elements are supported: `[...a, ...b]`. Mixing spread and non-spread elements (e.g. `[...a, 42]`) is not currently supported.
+- Spread creates a new memory array, so it has O(n) gas cost where n is the total number of elements.
+:::
+
 ### Side Effects
 
 ```typescript
@@ -319,6 +355,7 @@ for (const owner of this.owners) {
 | `forEach(fn)` | — | Depends | Execute callback for each element |
 | `slice(start, end)` | `T[]` | No | Copy sub-array |
 | `concat(other)` | `T[]` | No | Combine two arrays |
+| `[...a, ...b]` | `T[]` | No | Combine arrays with spread |
 | `length` | `number` | No | Number of elements |
 
 :::note

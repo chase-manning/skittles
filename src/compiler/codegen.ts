@@ -624,6 +624,21 @@ function generateContractBody(
         `    }`,
       ]);
     }
+
+    if (method === "spread" && needsHelper(`_arrSpread_${suffix}`, true)) {
+      emitHelper(`_arrSpread_${suffix}`, [
+        `    function _arrSpread_${suffix}(${solType}[] memory a, ${solType}[] memory b) internal pure returns (${solType}[] memory) {`,
+        `        ${solType}[] memory result = new ${solType}[](a.length + b.length);`,
+        `        for (uint256 i = 0; i < a.length; i++) {`,
+        `            result[i] = a[i];`,
+        `        }`,
+        `        for (uint256 i = 0; i < b.length; i++) {`,
+        `            result[a.length + i] = b[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
   }
 
   parts.push("}");
