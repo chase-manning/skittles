@@ -5311,3 +5311,71 @@ describe("integration: function overloading", () => {
     expect(solidity).toContain("function transfer(address to, uint256 amount, string memory data)");
   });
 });
+
+describe("integration: spread operator", () => {
+  it("should compile [...a, ...b] with memory array parameters", () => {
+    const { solidity, errors } = compileTS(`
+      class SpreadTest {
+        public combineArrays(a: number[], b: number[]): number[] {
+          return [...a, ...b];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_arrSpread_uint256");
+    expect(solidity).toContain("function _arrSpread_uint256(uint256[] memory a, uint256[] memory b)");
+  });
+
+  it("should compile [...a, ...b] with address arrays", () => {
+    const { solidity, errors } = compileTS(`
+      import { address } from "skittles";
+      class AddrSpread {
+        public merge(a: address[], b: address[]): address[] {
+          return [...a, ...b];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_arrSpread_address");
+  });
+
+  it("should compile [...a, ...b, ...c] with three arrays", () => {
+    const { solidity, errors } = compileTS(`
+      class ThreeSpread {
+        public mergeThree(a: number[], b: number[], c: number[]): number[] {
+          return [...a, ...b, ...c];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_arrSpread_uint256");
+  });
+
+  it("should compile spread of storage arrays with automatic slice conversion", () => {
+    const { solidity, errors } = compileTS(`
+      class StorageSpread {
+        private items1: number[] = [];
+        private items2: number[] = [];
+
+        public combined(): number[] {
+          return [...this.items1, ...this.items2];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_arrSpread_uint256");
+    expect(solidity).toContain("_arrSlice_uint256");
+  });
+
+  it("should throw error for mixed spread and non-spread elements", () => {
+    expect(() =>
+      compileTS(`
+        class MixedSpread {
+          public bad(a: number[]): number[] {
+            return [...a, 42];
+          }
+        }
+      `)
+    ).toThrow("Array spread does not support mixing spread and non-spread elements");
+  });
+});

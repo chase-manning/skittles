@@ -37,6 +37,9 @@ let _generatedArrayFunctions: SkittlesFunction[] = [];
 let _arrayMethodCounter = 0;
 let _neededArrayHelpers = new Set<string>();
 
+// Function parameter type tracking (for spread operator type resolution)
+let _currentParamTypes: Map<string, SkittlesType> = new Map();
+
 function getSourceLine(node: ts.Node): number | undefined {
   if (!_currentSourceFile) return undefined;
   return _currentSourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1; // 1-based
@@ -45,10 +48,12 @@ function getSourceLine(node: ts.Node): number | undefined {
 function setupStringTracking(parameters: SkittlesParameter[], varTypes: Map<string, SkittlesType>) {
   _currentVarTypes = varTypes;
   _currentStringNames = new Set();
+  _currentParamTypes = new Map();
   for (const param of parameters) {
     if (param.type.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(param.name);
     }
+    _currentParamTypes.set(param.name, param.type);
   }
 }
 
@@ -2191,6 +2196,64 @@ export function parseExpression(node: ts.Expression): Expression {
 
   // Array literal expressions: [a, b, c] → tuple literal
   if (ts.isArrayLiteralExpression(node)) {
+    const hasSpread = node.elements.some(ts.isSpreadElement);
+
+    if (hasSpread) {
+      // Spread array expression: [...a, ...b] → _arrSpread_T(a, b)
+      const nonSpread = node.elements.find((e: ts.Expression) => !ts.isSpreadElement(e));
+      if (nonSpread) {
+        throw new Error("Array spread does not support mixing spread and non-spread elements. Use [...a, ...b] or build the array manually.");
+      }
+
+      const spreadExprs = node.elements.map((e: ts.Expression) => {
+        if (!ts.isSpreadElement(e)) throw new Error("Unexpected non-spread element");
+        return e.expression;
+      });
+
+      // Resolve element type from the first spread operand
+      let elementType: SkittlesType | undefined;
+      for (const spreadExpr of spreadExprs) {
+        elementType = resolveSpreadElementType(spreadExpr);
+        if (elementType) break;
+      }
+      const typeSuffix = getArrayHelperSuffix(elementType);
+
+      _neededArrayHelpers.add(`spread_${typeSuffix}`);
+
+      // Parse each spread operand, wrapping storage arrays in a slice call
+      const parsedOperands: Expression[] = spreadExprs.map((e: ts.Expression) => {
+        if (ts.isPropertyAccessExpression(e) && e.expression.kind === ts.SyntaxKind.ThisKeyword) {
+          const name = e.name.text;
+          const type = _currentVarTypes.get(name);
+          if (type?.kind === ("array" as SkittlesTypeKind)) {
+            // Storage array: wrap in slice to copy to memory
+            _neededArrayHelpers.add(`slice_${typeSuffix}`);
+            return {
+              kind: "call" as const,
+              callee: { kind: "identifier" as const, name: `_arrSlice_${typeSuffix}` },
+              args: [
+                parseExpression(e),
+                { kind: "number-literal" as const, value: "0" },
+                { kind: "property-access" as const, object: parseExpression(e), property: "length" },
+              ],
+            };
+          }
+        }
+        return parseExpression(e);
+      });
+
+      // Chain calls for 2+ arrays: _arrSpread_T(_arrSpread_T(a, b), c)
+      let result: Expression = parsedOperands[0];
+      for (let i = 1; i < parsedOperands.length; i++) {
+        result = {
+          kind: "call" as const,
+          callee: { kind: "identifier" as const, name: `_arrSpread_${typeSuffix}` },
+          args: [result, parsedOperands[i]],
+        };
+      }
+      return result;
+    }
+
     return {
       kind: "tuple-literal",
       elements: node.elements.map(parseExpression),
@@ -3282,6 +3345,21 @@ function resolveArrayElementType(node: ts.Expression): SkittlesType | undefined 
     if (type?.kind === ("array" as SkittlesTypeKind)) {
       return type.valueType;
     }
+  }
+  return undefined;
+}
+
+function resolveSpreadElementType(node: ts.Expression): SkittlesType | undefined {
+  // this.arr case (storage array)
+  if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
+    const name = node.name.text;
+    const type = _currentVarTypes.get(name);
+    if (type?.kind === ("array" as SkittlesTypeKind)) return type.valueType;
+  }
+  // function parameter case
+  if (ts.isIdentifier(node)) {
+    const type = _currentParamTypes.get(node.text);
+    if (type?.kind === ("array" as SkittlesTypeKind)) return type.valueType;
   }
   return undefined;
 }
