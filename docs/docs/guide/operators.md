@@ -86,6 +86,27 @@ class Access {
 }
 ```
 
+## Nullish Coalescing and Optional Chaining
+
+| Operator | Description          | Example     |
+| -------- | -------------------- | ----------- |
+| `??`     | Nullish coalescing   | `a ?? b`    |
+| `?.`     | Optional chaining    | `a?.b`      |
+
+```typescript
+class Fallback {
+  balances: Map<address, number> = new Map();
+
+  public getBalanceOrDefault(account: address): number {
+    return this.balances[account] ?? 0;
+  }
+}
+```
+
+:::note
+Since Solidity has no `null` or `undefined`, `??` checks for the zero value of the type. `x ?? y` compiles to `x == 0 ? y : x`. Optional chaining (`?.`) compiles to regular property access since all Solidity values are non-nullable.
+:::
+
 ## Compound Assignment Operators
 
 | Operator | Description              | Equivalent     |
@@ -191,6 +212,7 @@ Here's a quick reference of all supported operators grouped by category:
 | Arithmetic          | `+` `-` `*` `/` `%` `**`                              |
 | Comparison          | `==` `!=` `>` `<` `>=` `<=` `===` `!==`               |
 | Logical             | `&&` <code>&#124;&#124;</code> `!`                     |
+| Nullish             | `??` `?.`                                              |
 | Compound Assignment | `+=` `-=` `*=` `/=` `%=` `**=`                        |
 | Increment/Decrement | `++` `--`                                              |
 | Unary               | `-` `+`                                                |

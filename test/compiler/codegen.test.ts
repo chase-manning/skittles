@@ -832,6 +832,21 @@ describe("generateExpression", () => {
     };
     expect(generateExpression(expr)).toBe("transfer(to, amount)");
   });
+
+  it("should generate nullish coalescing as ternary with zero check", () => {
+    const expr: Expression = {
+      kind: "conditional",
+      condition: {
+        kind: "binary",
+        operator: "==",
+        left: { kind: "identifier", name: "x" },
+        right: { kind: "number-literal", value: "0" },
+      },
+      whenTrue: { kind: "number-literal", value: "5" },
+      whenFalse: { kind: "identifier", name: "x" },
+    };
+    expect(generateExpression(expr)).toBe("((x == 0) ? 5 : x)");
+  });
 });
 
 // ============================================================

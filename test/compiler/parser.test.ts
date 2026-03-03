@@ -645,6 +645,30 @@ describe("parseExpression", () => {
       expect(expr.elements[2]).toEqual({ kind: "number-literal", value: "3" });
     }
   });
+
+  it("should desugar ?? to conditional with zero check", () => {
+    const expr = parseExpression(makeExprNode("x ?? 5"));
+    expect(expr.kind).toBe("conditional");
+    if (expr.kind === "conditional") {
+      expect(expr.condition).toEqual({
+        kind: "binary",
+        operator: "==",
+        left: { kind: "identifier", name: "x" },
+        right: { kind: "number-literal", value: "0" },
+      });
+      expect(expr.whenTrue).toEqual({ kind: "number-literal", value: "5" });
+      expect(expr.whenFalse).toEqual({ kind: "identifier", name: "x" });
+    }
+  });
+
+  it("should parse optional chaining (?.) as regular property access", () => {
+    const expr = parseExpression(makeExprNode("x?.y"));
+    expect(expr.kind).toBe("property-access");
+    if (expr.kind === "property-access") {
+      expect(expr.object).toEqual({ kind: "identifier", name: "x" });
+      expect(expr.property).toBe("y");
+    }
+  });
 });
 
 // ============================================================
