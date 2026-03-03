@@ -930,4 +930,45 @@ describe("parse: function overloading", () => {
     expect(longest.parameters[1].name).toBe("amount");
     expect(longest.parameters[2].name).toBe("data");
   });
+
+  it("should keep static and instance methods with the same name separate", () => {
+    const contracts = parse(
+      `class Token {
+        static create(name: string): boolean {
+          return true;
+        }
+        create(name: string, value: number): boolean;
+        create(name: string, value: number, data: string): boolean;
+        create(name: string, value: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions).toHaveLength(3);
+    // Static method should be separate
+    expect(contracts[0].functions[0].name).toBe("create");
+    expect(contracts[0].functions[0].parameters).toHaveLength(1);
+    expect(contracts[0].functions[0].visibility).toBe("private");
+    // Instance overloads
+    expect(contracts[0].functions[1].name).toBe("create");
+    expect(contracts[0].functions[1].parameters).toHaveLength(2);
+    expect(contracts[0].functions[2].name).toBe("create");
+    expect(contracts[0].functions[2].parameters).toHaveLength(3);
+  });
+
+  it("should throw when implementation has more parameters than longest overload", () => {
+    expect(() =>
+      parse(
+        `class Token {
+          transfer(to: string): boolean;
+          transfer(to: string, amount: number): boolean;
+          transfer(to: string, amount: number, data?: string, extra?: number): boolean {
+            return true;
+          }
+        }`,
+        "test.ts"
+      )
+    ).toThrow("same number of parameters as the longest overload signature");
+  });
 });

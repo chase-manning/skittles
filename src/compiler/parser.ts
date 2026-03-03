@@ -847,25 +847,28 @@ function parseClass(
   _currentEventNames = eventNames;
 
   // Second pass: methods (instance and static), constructor, and arrow function properties
-  // Group method declarations by name to detect overloads
+  // Group method declarations by static/instance + name to detect overloads
   const methodGroups = new Map<string, ts.MethodDeclaration[]>();
   const methodOrder: string[] = [];
 
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member)) {
       const name = member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
-      if (!methodGroups.has(name)) {
-        methodGroups.set(name, []);
-        methodOrder.push(name);
+      const isStatic = hasModifier(member.modifiers, ts.SyntaxKind.StaticKeyword);
+      const key = `${isStatic ? "static" : "instance"}:${name}`;
+      if (!methodGroups.has(key)) {
+        methodGroups.set(key, []);
+        methodOrder.push(key);
       }
-      methodGroups.get(name)!.push(member);
+      methodGroups.get(key)!.push(member);
     } else if (ts.isConstructorDeclaration(member)) {
       ctor = parseConstructorDecl(member, varTypes, eventNames);
     }
   }
 
-  for (const name of methodOrder) {
-    const decls = methodGroups.get(name)!;
+  for (const key of methodOrder) {
+    const decls = methodGroups.get(key)!;
+    const name = key.split(":").slice(1).join(":");
     const overloadSigs = decls.filter(d => !d.body && !hasModifier(d.modifiers, ts.SyntaxKind.AbstractKeyword));
     const impls = decls.filter(d => !!d.body);
 
@@ -1320,6 +1323,15 @@ function resolveOverloadedMethods(
 
   const longestSig = sortedSigs[sortedSigs.length - 1];
   const longestParams = longestSig.parameters.map(parseParameter);
+
+  // Validate that implementation has the same parameter count as the longest overload
+  if (impl.parameters.length !== longestSig.parameters.length) {
+    const name = impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
+    throw new Error(
+      `Method "${name}" implementation has ${impl.parameters.length} parameter(s) but the longest overload signature has ${longestSig.parameters.length}. ` +
+        "The implementation must have the same number of parameters as the longest overload signature."
+    );
+  }
 
   for (const sig of sortedSigs) {
     const sigFn = parseMethod(sig, varTypes, eventNames);
