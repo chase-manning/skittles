@@ -847,17 +847,51 @@ function parseClass(
   _currentEventNames = eventNames;
 
   // Second pass: methods (instance and static), constructor, and arrow function properties
+  // Group method declarations by static/instance + name to detect overloads
+  const methodGroups = new Map<string, ts.MethodDeclaration[]>();
+  const methodOrder: string[] = [];
+
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member)) {
+      const name = member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
       const isStatic = hasModifier(member.modifiers, ts.SyntaxKind.StaticKeyword);
-      const fn = parseMethod(member, varTypes, eventNames);
-      // Static methods are internal pure/view helpers
-      if (isStatic) {
-        fn.visibility = "private";
+      const key = `${isStatic ? "static" : "instance"}:${name}`;
+      if (!methodGroups.has(key)) {
+        methodGroups.set(key, []);
+        methodOrder.push(key);
       }
-      functions.push(fn);
+      methodGroups.get(key)!.push(member);
     } else if (ts.isConstructorDeclaration(member)) {
       ctor = parseConstructorDecl(member, varTypes, eventNames);
+    }
+  }
+
+  for (const key of methodOrder) {
+    const decls = methodGroups.get(key)!;
+    const name = key.split(":").slice(1).join(":");
+    const overloadSigs = decls.filter(d => !d.body && !hasModifier(d.modifiers, ts.SyntaxKind.AbstractKeyword));
+    const impls = decls.filter(d => !!d.body);
+
+    if (overloadSigs.length > 0) {
+      if (impls.length !== 1) {
+        throw new Error(
+          `Method "${name}" has ${overloadSigs.length} overload signature(s) but ${impls.length} implementation(s); ` +
+            "expected exactly one implementation for an overloaded method."
+        );
+      }
+      // Overloaded method: resolve signatures with the single implementation body
+      resolveOverloadedMethods(overloadSigs, impls[0], varTypes, eventNames, functions);
+    } else {
+      // Normal methods (no overloading)
+      for (const decl of decls) {
+        const isStatic = hasModifier(decl.modifiers, ts.SyntaxKind.StaticKeyword);
+        const fn = parseMethod(decl, varTypes, eventNames);
+        // Static methods are internal pure/view helpers
+        if (isStatic) {
+          fn.visibility = "private";
+        }
+        functions.push(fn);
+      }
     }
   }
 
@@ -1259,6 +1293,143 @@ function parseMethod(
   const isVirtual = !isOverride;
 
   return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, isAbstract: isAbstractMethod ? true : undefined, body, sourceLine: getSourceLine(node) };
+}
+
+function resolveOverloadedMethods(
+  overloadSigs: ts.MethodDeclaration[],
+  impl: ts.MethodDeclaration,
+  varTypes: Map<string, SkittlesType>,
+  eventNames: Set<string>,
+  functions: SkittlesFunction[]
+): void {
+  const implFn = parseMethod(impl, varTypes, eventNames);
+  const isStatic = hasModifier(impl.modifiers, ts.SyntaxKind.StaticKeyword);
+
+  // Sort overload signatures by parameter count (most params last)
+  const sortedSigs = [...overloadSigs].sort(
+    (a, b) => a.parameters.length - b.parameters.length
+  );
+
+  // Reject overload sets where multiple signatures share the same parameter count
+  const paramCounts = sortedSigs.map(s => s.parameters.length);
+  const uniqueCounts = new Set(paramCounts);
+  if (uniqueCounts.size !== paramCounts.length) {
+    const name = impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
+    throw new Error(
+      `Method "${name}" has multiple overload signatures with the same parameter count. ` +
+        "Skittles only supports overloads distinguished by parameter count."
+    );
+  }
+
+  const longestSig = sortedSigs[sortedSigs.length - 1];
+  const longestParams = longestSig.parameters.map(parseParameter);
+
+  // Validate that implementation has the same parameter count as the longest overload
+  if (impl.parameters.length !== longestSig.parameters.length) {
+    const name = impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
+    throw new Error(
+      `Method "${name}" implementation has ${impl.parameters.length} parameter(s) but the longest overload signature has ${longestSig.parameters.length}. ` +
+        "The implementation must have the same number of parameters as the longest overload signature."
+    );
+  }
+
+  for (const sig of sortedSigs) {
+    const sigFn = parseMethod(sig, varTypes, eventNames);
+
+    // Inherit visibility and override/virtual from implementation
+    sigFn.visibility = implFn.visibility;
+    sigFn.isOverride = implFn.isOverride;
+    sigFn.isVirtual = implFn.isVirtual;
+
+    if (sig === longestSig) {
+      // Longest overload gets the implementation body.
+      // Ensure parameter names come from the implementation so that the
+      // body does not reference undeclared identifiers when overload
+      // signature parameter names differ from the implementation's.
+      const minParamLen = Math.min(
+        sigFn.parameters.length,
+        implFn.parameters.length,
+      );
+      for (let i = 0; i < minParamLen; i++) {
+        sigFn.parameters[i].name = implFn.parameters[i].name;
+      }
+      sigFn.body = implFn.body;
+      sigFn.stateMutability = implFn.stateMutability;
+    } else {
+      // Shorter overloads forward to the longest overload with type defaults
+      sigFn.body = buildOverloadForwardingBody(
+        sigFn.name,
+        sigFn.parameters,
+        longestParams,
+        implFn,
+        sigFn.returnType
+      );
+      sigFn.stateMutability = implFn.stateMutability;
+    }
+
+    if (isStatic) sigFn.visibility = "private";
+    functions.push(sigFn);
+  }
+}
+
+function buildOverloadForwardingBody(
+  fnName: string,
+  shortParams: SkittlesParameter[],
+  longParams: SkittlesParameter[],
+  implFn: SkittlesFunction,
+  returnType: SkittlesType | null
+): Statement[] {
+  const args: Expression[] = [];
+
+  for (let i = 0; i < longParams.length; i++) {
+    if (i < shortParams.length) {
+      args.push({ kind: "identifier", name: shortParams[i].name });
+    } else {
+      // Use implementation default value if available, else type default
+      const implParam = implFn.parameters[i];
+      if (implParam?.defaultValue) {
+        args.push(implParam.defaultValue);
+      } else {
+        args.push(getDefaultValueForType(longParams[i].type));
+      }
+    }
+  }
+
+  const callExpr: Expression = {
+    kind: "call",
+    callee: { kind: "identifier", name: fnName },
+    args,
+  };
+
+  if (returnType && returnType.kind !== ("void" as SkittlesTypeKind)) {
+    return [{ kind: "return", value: callExpr }];
+  } else {
+    return [{ kind: "expression", expression: callExpr }];
+  }
+}
+
+function getDefaultValueForType(type: SkittlesType): Expression {
+  switch (type.kind) {
+    case "uint256" as SkittlesTypeKind:
+    case "int256" as SkittlesTypeKind:
+    case "bytes32" as SkittlesTypeKind:
+      return { kind: "number-literal", value: "0" };
+    case "bool" as SkittlesTypeKind:
+      return { kind: "boolean-literal", value: false };
+    case "string" as SkittlesTypeKind:
+    case "bytes" as SkittlesTypeKind:
+      return { kind: "string-literal", value: "" };
+    case "address" as SkittlesTypeKind:
+      return {
+        kind: "call",
+        callee: { kind: "identifier", name: "address" },
+        args: [{ kind: "number-literal", value: "0" }],
+      };
+    default:
+      throw new Error(
+        `Cannot generate default value for unsupported type: ${type.kind}`
+      );
+  }
 }
 
 function parseGetAccessor(

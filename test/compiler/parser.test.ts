@@ -5,6 +5,7 @@ import {
   parseExpression,
   inferStateMutability,
 } from "../../src/compiler/parser";
+import type { ReturnStatement, CallExpression } from "../../src/types";
 import ts from "typescript";
 
 function makeTypeNode(code: string): ts.TypeNode {
@@ -783,5 +784,191 @@ describe("inferStateMutability", () => {
         },
       ])
     ).toBe("view");
+  });
+});
+
+// ============================================================
+// Function overloading
+// ============================================================
+
+describe("parse: function overloading", () => {
+  it("should parse overloaded methods into separate functions", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions).toHaveLength(2);
+    expect(contracts[0].functions[0].name).toBe("transfer");
+    expect(contracts[0].functions[0].parameters).toHaveLength(2);
+    expect(contracts[0].functions[1].name).toBe("transfer");
+    expect(contracts[0].functions[1].parameters).toHaveLength(3);
+  });
+
+  it("should give the longest overload the implementation body", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const longest = contracts[0].functions[1];
+    expect(longest.parameters).toHaveLength(3);
+    expect(longest.body).toHaveLength(1);
+    expect(longest.body[0].kind).toBe("return");
+  });
+
+  it("should give shorter overloads a forwarding call body", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const shorter = contracts[0].functions[0];
+    expect(shorter.parameters).toHaveLength(2);
+    expect(shorter.body).toHaveLength(1);
+    expect(shorter.body[0].kind).toBe("return");
+    const ret = shorter.body[0] as ReturnStatement;
+    const call = ret.value as CallExpression;
+    expect(call.kind).toBe("call");
+    expect((call.callee as { name: string }).name).toBe("transfer");
+    expect(call.args).toHaveLength(3);
+  });
+
+  it("should inherit visibility from the implementation", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        public transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].visibility).toBe("public");
+    expect(contracts[0].functions[1].visibility).toBe("public");
+  });
+
+  it("should not affect methods without overloads", () => {
+    const contracts = parse(
+      `class Token {
+        balanceOf(account: string): number {
+          return 0;
+        }
+        transfer(to: string, amount: number): boolean;
+        transfer(to: string, amount: number, data: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions).toHaveLength(3);
+    expect(contracts[0].functions[0].name).toBe("balanceOf");
+    expect(contracts[0].functions[0].parameters).toHaveLength(1);
+    expect(contracts[0].functions[1].name).toBe("transfer");
+    expect(contracts[0].functions[2].name).toBe("transfer");
+  });
+
+  it("should throw when overload signatures exist but no implementation", () => {
+    expect(() =>
+      parse(
+        `class Token {
+          transfer(to: string, amount: number): boolean;
+          transfer(to: string, amount: number, data: string): boolean;
+        }`,
+        "test.ts"
+      )
+    ).toThrow("expected exactly one implementation");
+  });
+
+  it("should throw when multiple overload signatures have the same parameter count", () => {
+    expect(() =>
+      parse(
+        `class Token {
+          transfer(to: string, amount: number): boolean;
+          transfer(to: address, value: number): boolean;
+          transfer(to: string, amount: number): boolean {
+            return true;
+          }
+        }`,
+        "test.ts"
+      )
+    ).toThrow("same parameter count");
+  });
+
+  it("should use implementation parameter names for longest overload body", () => {
+    const contracts = parse(
+      `class Token {
+        transfer(recipient: string, amt: number): boolean;
+        transfer(recipient: string, amt: number, payload: string): boolean;
+        transfer(to: string, amount: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const longest = contracts[0].functions[1];
+    expect(longest.parameters).toHaveLength(3);
+    // Parameter names should come from implementation, not overload signature
+    expect(longest.parameters[0].name).toBe("to");
+    expect(longest.parameters[1].name).toBe("amount");
+    expect(longest.parameters[2].name).toBe("data");
+  });
+
+  it("should keep static and instance methods with the same name separate", () => {
+    const contracts = parse(
+      `class Token {
+        static create(name: string): boolean {
+          return true;
+        }
+        create(name: string, value: number): boolean;
+        create(name: string, value: number, data: string): boolean;
+        create(name: string, value: number, data?: string): boolean {
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions).toHaveLength(3);
+    // Static method should be separate
+    expect(contracts[0].functions[0].name).toBe("create");
+    expect(contracts[0].functions[0].parameters).toHaveLength(1);
+    expect(contracts[0].functions[0].visibility).toBe("private");
+    // Instance overloads
+    expect(contracts[0].functions[1].name).toBe("create");
+    expect(contracts[0].functions[1].parameters).toHaveLength(2);
+    expect(contracts[0].functions[2].name).toBe("create");
+    expect(contracts[0].functions[2].parameters).toHaveLength(3);
+  });
+
+  it("should throw when implementation has more parameters than longest overload", () => {
+    expect(() =>
+      parse(
+        `class Token {
+          transfer(to: string): boolean;
+          transfer(to: string, amount: number): boolean;
+          transfer(to: string, amount: number, data?: string, extra?: number): boolean {
+            return true;
+          }
+        }`,
+        "test.ts"
+      )
+    ).toThrow("same number of parameters as the longest overload signature");
   });
 });
