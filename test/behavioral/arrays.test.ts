@@ -610,4 +610,92 @@ describe("Array Methods (behavioral)", () => {
     await (await contract.sumAll()).wait();
     expect(await contract.total()).toBe(60n);
   });
+
+  // ============================================================
+  // spread operator
+  // ============================================================
+
+  it("spread: combines two memory arrays", async () => {
+    const source = `
+      class SpreadTest {
+        public combineArrays(a: number[], b: number[]): number[] {
+          return [...a, ...b];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SpreadTest");
+    const result = await contract.combineArrays([1, 2, 3], [4, 5]);
+    expect(result.length).toBe(5);
+    expect(result[0]).toBe(1n);
+    expect(result[1]).toBe(2n);
+    expect(result[2]).toBe(3n);
+    expect(result[3]).toBe(4n);
+    expect(result[4]).toBe(5n);
+  });
+
+  it("spread: combines three memory arrays", async () => {
+    const source = `
+      class SpreadThreeTest {
+        public mergeThree(a: number[], b: number[], c: number[]): number[] {
+          return [...a, ...b, ...c];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SpreadThreeTest");
+    const result = await contract.mergeThree([1, 2], [3], [4, 5, 6]);
+    expect(result.length).toBe(6);
+    expect(result[0]).toBe(1n);
+    expect(result[1]).toBe(2n);
+    expect(result[2]).toBe(3n);
+    expect(result[3]).toBe(4n);
+    expect(result[4]).toBe(5n);
+    expect(result[5]).toBe(6n);
+  });
+
+  it("spread: combines storage arrays", async () => {
+    const source = `
+      class StorageSpreadTest {
+        private items1: number[] = [];
+        private items2: number[] = [];
+
+        public addItem1(value: number): void {
+          this.items1.push(value);
+        }
+
+        public addItem2(value: number): void {
+          this.items2.push(value);
+        }
+
+        public combined(): number[] {
+          return [...this.items1, ...this.items2];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "StorageSpreadTest");
+    await (await contract.addItem1(10)).wait();
+    await (await contract.addItem1(20)).wait();
+    await (await contract.addItem2(30)).wait();
+    await (await contract.addItem2(40)).wait();
+    const result = await contract.combined();
+    expect(result.length).toBe(4);
+    expect(result[0]).toBe(10n);
+    expect(result[1]).toBe(20n);
+    expect(result[2]).toBe(30n);
+    expect(result[3]).toBe(40n);
+  });
+
+  it("spread: works with empty arrays", async () => {
+    const source = `
+      class EmptySpreadTest {
+        public combineArrays(a: number[], b: number[]): number[] {
+          return [...a, ...b];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "EmptySpreadTest");
+    const result = await contract.combineArrays([], [1, 2]);
+    expect(result.length).toBe(2);
+    expect(result[0]).toBe(1n);
+    expect(result[1]).toBe(2n);
+  });
 });
