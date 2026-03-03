@@ -307,7 +307,7 @@ class Example {
 ```
 
 :::note
-- Only array-only spreads are supported: `[...a, ...b]`. Mixing spread and non-spread elements (e.g. `[...a, 42]`) is not currently supported.
+- Only spread elements are supported: `[...a, ...b]`. Mixing spread and non-spread elements (e.g. `[...a, 42]`) is not currently supported.
 - Spread creates a new memory array, so it has O(n) gas cost where n is the total number of elements.
 :::
 
