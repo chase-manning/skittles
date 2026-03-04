@@ -357,7 +357,7 @@ export function parse(
     const result = new Set<string>();
     const queue = [name];
     while (queue.length > 0) {
-      const current = queue.pop()!;
+      const current = queue.shift()!;
       const children = descendantsOf.get(current);
       if (!children) continue;
       for (const child of children) {
