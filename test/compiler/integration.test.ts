@@ -5379,3 +5379,47 @@ describe("integration: spread operator", () => {
     ).toThrow("Array spread does not support mixing spread and non-spread elements");
   });
 });
+
+// ============================================================
+// Nullish coalescing (??) and optional chaining (?.)
+// ============================================================
+
+describe("integration: nullish coalescing and optional chaining", () => {
+  it("should compile ?? to ternary with zero check", () => {
+    const { errors, solidity } = compileTS(`
+      class Fallback {
+        balances: Map<address, number> = new Map();
+        public getBalanceOrDefault(account: address): number {
+          return this.balances[account] ?? 0;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(balances[account] == 0) ? 0 : balances[account]");
+  });
+
+  it("should compile ?? with address type using address(0)", () => {
+    const { errors, solidity } = compileTS(`
+      class AddressFallback {
+        owners: Map<number, address> = new Map();
+        public getOwnerOrDefault(id: number, defaultAddr: address): address {
+          return this.owners[id] ?? defaultAddr;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(owners[id] == address(0)) ? defaultAddr : owners[id]");
+  });
+
+  it("should compile optional chaining (?.) as regular property access", () => {
+    const { errors, solidity } = compileTS(`
+      class OptChain {
+        public getData(): address {
+          return msg?.sender;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("msg.sender");
+  });
+});

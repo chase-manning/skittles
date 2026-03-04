@@ -1721,6 +1721,27 @@ export function parseExpression(node: ts.Expression): Expression {
       return parseExpression(node.right);
     }
 
+    // Desugar ?? to ternary: x ?? y → (x == defaultZero ? y : x)
+    // Solidity has no null/undefined; all types have default zero values.
+    if (opKind === ts.SyntaxKind.QuestionQuestionToken) {
+      const leftForCondition = parseExpression(node.left);
+      const leftForFallback = parseExpression(node.left);
+      const right = parseExpression(node.right);
+      const leftType = inferType(leftForCondition, _currentVarTypes);
+      const zeroValue = defaultValueForType(leftType) ?? { kind: "number-literal" as const, value: "0" };
+      return {
+        kind: "conditional",
+        condition: {
+          kind: "binary",
+          operator: "==",
+          left: leftForCondition,
+          right: zeroValue,
+        },
+        whenTrue: right,
+        whenFalse: leftForFallback,
+      };
+    }
+
     // Desugar **= to x = x ** y (Solidity has no **= operator)
     if (opKind === ts.SyntaxKind.AsteriskAsteriskEqualsToken) {
       const target = parseExpression(node.left);
