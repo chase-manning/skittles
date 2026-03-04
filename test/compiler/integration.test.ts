@@ -2166,7 +2166,7 @@ describe("integration: abstract contracts", () => {
 
     const solidity = generateSolidityFile(contracts);
     expect(solidity).toContain("abstract contract Base {");
-    expect(solidity).toContain("function getValue() public virtual returns (uint256);");
+    expect(solidity).toContain("function getValue() public pure virtual returns (uint256);");
     expect(solidity).toContain("contract Child is Base {");
     expect(solidity).toContain("function getValue() public pure override returns (uint256)");
 
@@ -2198,7 +2198,7 @@ describe("integration: abstract contracts", () => {
 
     const solidity = generateSolidityFile(contracts);
     expect(solidity).toContain("abstract contract Base {");
-    expect(solidity).toContain("function getValue() public virtual returns (uint256);");
+    expect(solidity).toContain("function getValue() public view virtual returns (uint256);");
     expect(solidity).toContain("function increment() public virtual {");
 
     const result = compileSolidity("Child", solidity, defaultConfig);
@@ -2227,7 +2227,7 @@ describe("integration: abstract contracts", () => {
     const solidity = generateSolidityFile(contracts);
     expect(solidity).toContain("abstract contract Ownable {");
     expect(solidity).toContain("constructor()");
-    expect(solidity).toContain("function getOwner() public virtual returns (address);");
+    expect(solidity).toContain("function getOwner() public view virtual returns (address);");
 
     const result = compileSolidity("Token", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
