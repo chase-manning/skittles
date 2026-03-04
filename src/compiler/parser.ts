@@ -341,15 +341,28 @@ export function parse(
           fn.isVirtual = false;
         }
       }
-      // Propagate state mutability from concrete implementations to abstract declarations
-      const parent = contractByName.get(parentName);
-      if (!parent) continue;
-      for (const abstractFn of parent.functions) {
-        if (!abstractFn.isAbstract) continue;
+    }
+  }
+
+  // Propagate state mutability from concrete implementations to abstract declarations
+  for (const [parentName, abstractMethodNames] of abstractMethodsByContract) {
+    const parent = contractByName.get(parentName);
+    if (!parent) continue;
+    for (const abstractFn of parent.functions) {
+      if (!abstractFn.isAbstract) continue;
+      let inferredRank: number | undefined;
+      for (const contract of contracts) {
+        if (!contract.inherits.includes(parentName)) continue;
         const concreteFn = contract.functions.find((f) => f.name === abstractFn.name && !f.isAbstract);
-        if (concreteFn && abstractFn.stateMutability !== concreteFn.stateMutability) {
-          abstractFn.stateMutability = concreteFn.stateMutability;
+        if (!concreteFn) continue;
+        const rank = MUTABILITY_RANK[concreteFn.stateMutability];
+        if (inferredRank === undefined || rank > inferredRank) {
+          inferredRank = rank;
         }
+      }
+      if (inferredRank !== undefined && inferredRank < MUTABILITY_RANK[abstractFn.stateMutability]) {
+        const rankToMut = ["pure", "view", "nonpayable", "payable"] as const;
+        abstractFn.stateMutability = rankToMut[inferredRank];
       }
     }
   }
