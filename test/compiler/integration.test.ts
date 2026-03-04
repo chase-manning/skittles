@@ -4892,6 +4892,136 @@ describe("integration: external contract calls", () => {
     const result = compileSolidity("Helper", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should mark interface methods as view when used in view-only context", () => {
+    const interfaceSrc = `
+      interface IExternalToken {
+        balanceOf(account: address): number;
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IExternalToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class VaultWithExternal {
+        private token: IExternalToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IExternalToken>(tokenAddress);
+        }
+
+        public getTokenBalance(account: address): number {
+          return this.token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // balanceOf should be marked as view since getTokenBalance only reads state
+    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
+    // transfer is not used in any function, so it should remain without view
+    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+    // getTokenBalance should be view since it only calls a view interface method
+    expect(solidity).toMatch(/function getTokenBalance\(address account\) public view\b/);
+
+    const result = compileSolidity("VaultWithExternal", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should not mark interface methods as view when used in state-modifying context", () => {
+    const interfaceSrc = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+        private lastSender: address;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public withdraw(to: address, amount: number): void {
+          this.lastSender = msg.sender;
+          this.token.transfer(to, amount);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const withdrawFn = contracts[0].functions.find(f => f.name === "withdraw");
+    expect(withdrawFn).toBeDefined();
+    expect(withdrawFn!.stateMutability).toBe("nonpayable");
+
+    // transfer should not be marked as view since it's used in a state-modifying context
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).not.toContain("function transfer(address to, uint256 amount) external view");
+  });
+
+  it("should mark interface methods as view when called via local variable in view context", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Checker {
+        public checkBalance(tokenAddress: address, account: address): number {
+          let token: IToken = Contract<IToken>(tokenAddress);
+          return token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Checker.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // balanceOf should be view since checkBalance only reads state
+    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
+    // checkBalance should be view
+    expect(solidity).toMatch(/function checkBalance\(address tokenAddress, address account\) public view\b/);
+
+    const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should mark interface methods as view when passed as function parameter in view context", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Helper {
+        public getBalance(token: IToken, account: address): number {
+          return token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Helper.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // balanceOf should be view since getBalance only reads state
+    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
+
+    const result = compileSolidity("Helper", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 describe("integration: ETH transfers", () => {
