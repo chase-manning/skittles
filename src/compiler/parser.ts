@@ -330,6 +330,7 @@ export function parse(
       }
     }
   }
+  const contractByName = new Map(contracts.map((c) => [c.name, c]));
   for (const contract of contracts) {
     for (const parentName of contract.inherits) {
       const abstractMethods = abstractMethodsByContract.get(parentName);
@@ -338,6 +339,16 @@ export function parse(
         if (abstractMethods.has(fn.name) && !fn.isOverride) {
           fn.isOverride = true;
           fn.isVirtual = false;
+        }
+      }
+      // Propagate state mutability from concrete implementations to abstract declarations
+      const parent = contractByName.get(parentName);
+      if (!parent) continue;
+      for (const abstractFn of parent.functions) {
+        if (!abstractFn.isAbstract) continue;
+        const concreteFn = contract.functions.find((f) => f.name === abstractFn.name && !f.isAbstract);
+        if (concreteFn && abstractFn.stateMutability !== concreteFn.stateMutability) {
+          abstractFn.stateMutability = concreteFn.stateMutability;
         }
       }
     }
