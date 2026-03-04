@@ -4964,6 +4964,8 @@ describe("integration: external contract calls", () => {
     // transfer should not be marked as view since it's used in a state-modifying context
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).not.toContain("function transfer(address to, uint256 amount) external view");
+    // withdraw should not be marked as view
+    expect(solidity).not.toMatch(/function withdraw\(.*\) public view/);
   });
 
   it("should mark interface methods as view when called via local variable in view context", () => {

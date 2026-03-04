@@ -83,7 +83,7 @@ Skittles analyzes each function body to determine its Solidity state mutability:
 | Writes `this.*`, emits events, or deletes state | (default, no annotation) |
 | Accesses `msg.value` | `payable` |
 
-This inference propagates through call chains — if function A calls function B, and B writes state, then A is also marked as state-modifying.
+This inference propagates through call chains — if function A calls function B, and B writes state, then A is also marked as state-modifying. For external contract calls via `Contract<T>()`, the compiler infers interface method mutability from usage context: if a function returns a value and only reads state (excluding the external call), the called interface method is marked as `view`.
 
 ## Automatic Optimizations
 
