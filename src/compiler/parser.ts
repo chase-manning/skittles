@@ -1721,21 +1721,24 @@ export function parseExpression(node: ts.Expression): Expression {
       return parseExpression(node.right);
     }
 
-    // Desugar ?? to ternary: x ?? y → (x == 0 ? y : x)
+    // Desugar ?? to ternary: x ?? y → (x == defaultZero ? y : x)
     // Solidity has no null/undefined; all types have default zero values.
     if (opKind === ts.SyntaxKind.QuestionQuestionToken) {
-      const left = parseExpression(node.left);
+      const leftForCondition = parseExpression(node.left);
+      const leftForFallback = parseExpression(node.left);
       const right = parseExpression(node.right);
+      const leftType = inferType(leftForCondition, _currentVarTypes);
+      const zeroValue = defaultValueForType(leftType) ?? { kind: "number-literal" as const, value: "0" };
       return {
         kind: "conditional",
         condition: {
           kind: "binary",
           operator: "==",
-          left,
-          right: { kind: "number-literal", value: "0" },
+          left: leftForCondition,
+          right: zeroValue,
         },
         whenTrue: right,
-        whenFalse: left,
+        whenFalse: leftForFallback,
       };
     }
 

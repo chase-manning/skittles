@@ -5398,14 +5398,28 @@ describe("integration: nullish coalescing and optional chaining", () => {
     expect(solidity).toContain("(balances[account] == 0) ? 0 : balances[account]");
   });
 
+  it("should compile ?? with address type using address(0)", () => {
+    const { errors, solidity } = compileTS(`
+      class AddressFallback {
+        owners: Map<number, address> = new Map();
+        public getOwnerOrDefault(id: number, defaultAddr: address): address {
+          return this.owners[id] ?? defaultAddr;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(owners[id] == address(0)) ? defaultAddr : owners[id]");
+  });
+
   it("should compile optional chaining (?.) as regular property access", () => {
-    const { solidity } = compileTS(`
+    const { errors, solidity } = compileTS(`
       class OptChain {
         public getData(): address {
           return msg?.sender;
         }
       }
     `);
+    expect(errors).toHaveLength(0);
     expect(solidity).toContain("msg.sender");
   });
 });

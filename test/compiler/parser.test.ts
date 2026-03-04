@@ -658,6 +658,8 @@ describe("parseExpression", () => {
       });
       expect(expr.whenTrue).toEqual({ kind: "number-literal", value: "5" });
       expect(expr.whenFalse).toEqual({ kind: "identifier", name: "x" });
+      // Ensure condition.left and whenFalse are separate objects (not same reference)
+      expect(expr.condition.left).not.toBe(expr.whenFalse);
     }
   });
 
