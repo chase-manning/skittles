@@ -1177,46 +1177,44 @@ function parseClass(
     }
   }
 
-  // Fifth pass: infer interface method mutabilities from usage in external contract calls.
-  // For each function that calls external interface methods, compute its "base" mutability
-  // (excluding external calls). If the base is view/pure AND the function returns a
-  // non-void value, the called interface methods should be "view" (the function is
-  // wrapping a read operation). Void-returning functions are assumed to call
-  // state-modifying methods (action wrappers).
+  // Fifth pass: propagate already-known interface method mutabilities to callers.
+  // Only treat external calls as view/pure if the target interface methods are
+  // already explicitly annotated as view or pure (e.g. from an `implements`
+  // resolution or property signatures). Do not infer view for unannotated
+  // interface methods based on wrapper patterns, to avoid misclassifying
+  // state-changing methods that return a value (e.g. ERC20 `transfer`).
   for (const fn of functions) {
-    // Only infer view for functions that return a value (read wrappers)
-    if (!fn.returnType || fn.returnType.kind === ("void" as SkittlesTypeKind)) continue;
-
     const fnVarTypes = new Map(varTypes);
     for (const p of fn.parameters) {
       fnVarTypes.set(p.name, p.type);
     }
-    const externalCalls = collectExternalInterfaceCalls(fn.body, fnVarTypes);
+    const externalCalls = collectExternalInterfaceCalls(fn.body, varTypes, fnVarTypes);
     if (externalCalls.length === 0) continue;
 
-    // Compute base mutability without counting external calls
-    const baseMut = inferStateMutability(fn.body, varTypes, fn.parameters, true);
-    if (baseMut !== "view" && baseMut !== "pure") continue;
-
+    let allExternalAreViewLike = true;
     for (const { ifaceName, methodName } of externalCalls) {
       const iface = contractIfaceList.find(i => i.name === ifaceName);
-      if (!iface) continue;
+      if (!iface) {
+        allExternalAreViewLike = false;
+        break;
+      }
       const ifaceMethod = iface.functions.find(f => f.name === methodName);
-      if (ifaceMethod && !ifaceMethod.stateMutability) {
-        ifaceMethod.stateMutability = "view";
-        // Also update the module-level interface map so re-inference can see it
-        const globalIface = _knownContractInterfaceMap.get(ifaceName);
-        if (globalIface) {
-          const globalMethod = globalIface.functions.find(f => f.name === methodName);
-          if (globalMethod && !globalMethod.stateMutability) {
-            globalMethod.stateMutability = "view";
-          }
-        }
+      if (
+        !ifaceMethod ||
+        (ifaceMethod.stateMutability !== "view" && ifaceMethod.stateMutability !== "pure")
+      ) {
+        allExternalAreViewLike = false;
+        break;
       }
     }
+    if (!allExternalAreViewLike) continue;
 
-    // Re-infer the function's mutability now that called methods are "view"
-    fn.stateMutability = inferStateMutability(fn.body, varTypes, fn.parameters);
+    // All external calls are to explicitly view/pure methods, so the wrapper
+    // itself can safely be marked with the base mutability.
+    const baseMut = inferStateMutability(fn.body, varTypes, fn.parameters, true);
+    if (baseMut === "view" || baseMut === "pure") {
+      fn.stateMutability = baseMut;
+    }
   }
 
   const contractCustomErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
@@ -3116,22 +3114,23 @@ function collectThisCalls(stmts: Statement[]): string[] {
  */
 function collectExternalInterfaceCalls(
   stmts: Statement[],
-  varTypes: Map<string, SkittlesType>
+  stateVarTypes: Map<string, SkittlesType>,
+  allVarTypes: Map<string, SkittlesType>
 ): { ifaceName: string; methodName: string }[] {
   const calls: { ifaceName: string; methodName: string }[] = [];
   // Track local variable types for detecting external contract calls on locals
-  const localVarTypes = new Map<string, SkittlesType>(varTypes);
+  const localVarTypes = new Map<string, SkittlesType>(allVarTypes);
   walkStatements(stmts, (expr) => {
     if (expr.kind !== "call" || expr.callee.kind !== "property-access") return;
     const methodName = expr.callee.property;
 
-    // this.token.method() — state variable access
+    // this.token.method() — state variable access (use stateVarTypes, not locals)
     if (
       expr.callee.object.kind === "property-access" &&
       expr.callee.object.object.kind === "identifier" &&
       expr.callee.object.object.name === "this"
     ) {
-      const propType = localVarTypes.get(expr.callee.object.property);
+      const propType = stateVarTypes.get(expr.callee.object.property);
       if (propType?.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
         calls.push({ ifaceName: propType.structName, methodName });
       }
@@ -3257,17 +3256,17 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       }
       if (!skipExternalCalls && expr.kind === "call" && varTypes && isExternalContractCall(expr, varTypes)) {
         const methodMut = getExternalCallMethodMutability(expr, varTypes, localVarTypes);
-        if (methodMut === "view" || methodMut === "pure") {
+        if (methodMut === "view") {
           readsState = true;
-        } else {
+        } else if (methodMut !== "pure") {
           writesState = true;
         }
       }
       if (!skipExternalCalls && expr.kind === "call" && isExternalContractCallOnLocal(expr, localVarTypes)) {
         const methodMut = getExternalCallMethodMutability(expr, varTypes, localVarTypes);
-        if (methodMut === "view" || methodMut === "pure") {
+        if (methodMut === "view") {
           readsState = true;
-        } else {
+        } else if (methodMut !== "pure") {
           writesState = true;
         }
       }
