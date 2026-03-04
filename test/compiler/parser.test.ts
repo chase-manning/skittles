@@ -63,6 +63,84 @@ describe("parse", () => {
     expect(contracts[0].functions[0].body).toEqual([]);
   });
 
+  it("should propagate view mutability from concrete implementation to abstract method", () => {
+    const contracts = parse(
+      `abstract class Base {
+        public x: number = 0;
+        abstract getValue(): number;
+      }
+      class Child extends Base {
+        public getValue(): number {
+          return this.x;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should propagate pure mutability from concrete implementation to abstract method", () => {
+    const contracts = parse(
+      `abstract class Base {
+        abstract getValue(): number;
+      }
+      class Child extends Base {
+        public getValue(): number {
+          return 42;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].stateMutability).toBe("pure");
+  });
+
+  it("should keep nonpayable when no concrete implementation is found", () => {
+    const contracts = parse(
+      "abstract class Base { abstract getValue(): number; }",
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].stateMutability).toBe("nonpayable");
+  });
+
+  it("should use least restrictive mutability when multiple children implement differently", () => {
+    const contracts = parse(
+      `abstract class Base {
+        public x: number = 0;
+        abstract getValue(): number;
+      }
+      class PureChild extends Base {
+        public getValue(): number {
+          return 42;
+        }
+      }
+      class ViewChild extends Base {
+        public getValue(): number {
+          return this.x;
+        }
+      }`,
+      "test.ts"
+    );
+    // view (rank 1) is least restrictive among pure (rank 0) and view (rank 1)
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should propagate mutability through multi-level inheritance", () => {
+    const contracts = parse(
+      `abstract class A {
+        public x: number = 0;
+        abstract getValue(): number;
+      }
+      abstract class B extends A {}
+      class C extends B {
+        public getValue(): number {
+          return this.x;
+        }
+      }`,
+      "test.ts"
+    );
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
   it("should not mark non-abstract classes as abstract", () => {
     const contracts = parse(
       "class Token { public x: number = 0; }",

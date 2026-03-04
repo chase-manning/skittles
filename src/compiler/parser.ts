@@ -344,16 +344,44 @@ export function parse(
     }
   }
 
+  // Build transitive descendant map so multi-level inheritance is handled
+  // (e.g. abstract A → abstract B extends A → class C extends B)
+  const descendantsOf = new Map<string, Set<string>>();
+  for (const contract of contracts) {
+    for (const parentName of contract.inherits) {
+      if (!descendantsOf.has(parentName)) descendantsOf.set(parentName, new Set());
+      descendantsOf.get(parentName)!.add(contract.name);
+    }
+  }
+  function getAllDescendants(name: string): Set<string> {
+    const result = new Set<string>();
+    const queue = [name];
+    while (queue.length > 0) {
+      const current = queue.pop()!;
+      const children = descendantsOf.get(current);
+      if (!children) continue;
+      for (const child of children) {
+        if (!result.has(child)) {
+          result.add(child);
+          queue.push(child);
+        }
+      }
+    }
+    return result;
+  }
+
   // Propagate state mutability from concrete implementations to abstract declarations
-  for (const [parentName, abstractMethodNames] of abstractMethodsByContract) {
+  for (const [parentName] of abstractMethodsByContract) {
     const parent = contractByName.get(parentName);
     if (!parent) continue;
+    const descendants = getAllDescendants(parentName);
     for (const abstractFn of parent.functions) {
       if (!abstractFn.isAbstract) continue;
       let inferredRank: number | undefined;
-      for (const contract of contracts) {
-        if (!contract.inherits.includes(parentName)) continue;
-        const concreteFn = contract.functions.find((f) => f.name === abstractFn.name && !f.isAbstract);
+      for (const descName of descendants) {
+        const desc = contractByName.get(descName);
+        if (!desc) continue;
+        const concreteFn = desc.functions.find((f) => f.name === abstractFn.name && !f.isAbstract);
         if (!concreteFn) continue;
         const rank = MUTABILITY_RANK[concreteFn.stateMutability];
         if (inferredRank === undefined || rank > inferredRank) {
