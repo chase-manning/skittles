@@ -175,9 +175,12 @@ export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<stri
   }
   if (shadowed.size === 0) return body;
 
+  const taken = new Set([...stateVarNames, ...localNames]);
   const renames = new Map<string, string>();
   for (const name of shadowed) {
-    renames.set(name, pickNewName(name, stateVarNames));
+    const newName = pickNewName(name, taken);
+    renames.set(name, newName);
+    taken.add(newName);
   }
   return renameInStatements(body, renames);
 }

@@ -1177,7 +1177,7 @@ describe("resolveShadowedLocals", () => {
     }
   });
 
-  it("should handle name collision by adding extra underscore prefix", () => {
+  it("should handle name collision with underscore-prefixed state variable", () => {
     const body: Statement[] = [
       {
         kind: "variable-declaration",
@@ -1204,6 +1204,32 @@ describe("resolveShadowedLocals", () => {
     const stateVars = new Set(["result"]);
     const resolved = resolveShadowedLocals(body, stateVars);
     expect(resolved).toBe(body); // same reference, not modified
+  });
+
+  it("should avoid collision with existing local variable names", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "_result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "1" },
+      },
+      {
+        kind: "variable-declaration",
+        name: "result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "2" },
+      },
+    ];
+    // "result" shadows state var; "_result" already taken by local
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("_result"); // unchanged, not shadowed
+    }
+    if (resolved[1].kind === "variable-declaration") {
+      expect(resolved[1].name).toBe("__result"); // skipped _result, went to __result
+    }
   });
 
   it("should rename local variable in full contract generation", () => {
