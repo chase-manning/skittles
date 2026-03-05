@@ -206,6 +206,13 @@ function scopeAwareRenameStmt(
       const init = stmt.initializer
         ? renameInExpression(stmt.initializer, active)
         : undefined;
+      // Suppress pre-activated rename when a body local re-declares the same name
+      // (used for ctor default params where renames start active via parentActive)
+      if (active.has(stmt.name) && !allRenames.has(stmt.name)) {
+        const newActive = new Map(active);
+        newActive.delete(stmt.name);
+        return { stmt: { ...stmt, initializer: init }, active: newActive };
+      }
       return { stmt: { ...stmt, initializer: init }, active };
     }
     case "if":
@@ -234,12 +241,17 @@ function scopeAwareRenameStmt(
             forActive.set(init.name, rename);
             init = { ...init, name: rename, initializer: renamedInit };
           } else {
+            const initName = init.name;
             init = {
               ...init,
               initializer: init.initializer
                 ? renameInExpression(init.initializer, forActive)
                 : undefined,
             } as typeof init;
+            // Suppress pre-activated rename when for-loop init re-declares the same name
+            if (forActive.has(initName) && !allRenames.has(initName)) {
+              forActive.delete(initName);
+            }
           }
         } else {
           init = renameInStatement(init, forActive) as typeof init;
@@ -298,6 +310,9 @@ function scopeAwareRenameStmt(
         const rename = allRenames.get(stmt.returnVarName)!;
         tryActive.set(stmt.returnVarName, rename);
         newReturnVarName = rename;
+      } else if (stmt.returnVarName && tryActive.has(stmt.returnVarName) && !allRenames.has(stmt.returnVarName)) {
+        // Suppress pre-activated rename when try-catch return var re-declares the same name
+        tryActive.delete(stmt.returnVarName);
       }
       return {
         stmt: {
@@ -635,7 +650,7 @@ function generateContractBody(
             ...(renamedDefault ? { defaultValue: renamedDefault } : {}),
           };
         }),
-        body: renameInStatements(contract.ctor.body, defaultParamRenames),
+        body: scopeAwareRenameBlock(contract.ctor.body, new Map(defaultParamRenames), new Map()),
       };
     }
 

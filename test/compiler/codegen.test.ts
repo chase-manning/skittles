@@ -1520,4 +1520,64 @@ describe("resolveShadowedLocals", () => {
     // Later default param "doubled" should reference renamed "_supply"
     expect(sol).toContain("uint256 doubled = (_supply * 2);");
   });
+
+  it("should not rename body local that re-declares a renamed default parameter name", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "supply",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+          ],
+          body: [
+            {
+              kind: "variable-declaration",
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              initializer: {
+                kind: "binary",
+                operator: "*",
+                left: { kind: "identifier", name: "supply" },
+                right: { kind: "number-literal", value: "2" },
+              },
+            },
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "supply",
+                },
+                value: { kind: "identifier", name: "supply" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    // Default param local should be renamed to avoid shadowing state var
+    expect(sol).toContain("uint256 _supply = 1000000;");
+    // Body local should NOT be renamed to _supply (which would collide).
+    // The body local's initializer should reference the renamed default param.
+    // resolveShadowedLocals will then rename this body local to avoid shadowing the state var.
+    expect(sol).not.toMatch(/uint256 _supply = \(_supply/);
+    // After the body local declaration, references should use the body local name
+    expect(sol).toContain("supply =");
+  });
 });
