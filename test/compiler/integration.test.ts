@@ -2721,6 +2721,63 @@ describe("integration: getter/setter accessors", () => {
     expect(solidity).toContain("function threshold() public view virtual returns (uint256)");
     expect(solidity).toContain("function threshold(uint256 val) public virtual {");
   });
+
+  it("should rename setter parameter that shadows a sibling function name", () => {
+    const { errors, solidity } = compileTS(`
+      class GetterSetterTest {
+        private _paused: boolean = false;
+        private _value: number = 0;
+
+        get paused(): boolean {
+          return this._paused;
+        }
+
+        set paused(value: boolean) {
+          this._paused = value;
+        }
+
+        get value(): number {
+          return this._value;
+        }
+
+        set value(val: number) {
+          this._value = val;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    // The parameter "value" in paused(bool value) must be renamed to avoid
+    // shadowing the sibling function value(). Since _value is already a state
+    // variable, the rename produces __value.
+    expect(solidity).toContain("uint256 internal _value");
+    expect(solidity).not.toMatch(/function paused\(bool value\)/);
+    expect(solidity).toMatch(/function paused\(bool __value\)/);
+    expect(solidity).toContain("_paused = __value;");
+    // The getter and setter for "value" itself should be unaffected.
+    expect(solidity).toContain("function value() public view virtual returns (uint256)");
+    expect(solidity).toContain("function value(uint256 val) public virtual {");
+  });
+
+  it("should rename parameter that shadows a regular function name", () => {
+    const { errors, solidity } = compileTS(`
+      class Contract {
+        private stopped: boolean = false;
+
+        public toggle(check: boolean): void {
+          this.stopped = check;
+        }
+
+        public check(): boolean {
+          return this.stopped;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    // The parameter "check" in toggle(bool check) shadows the function check().
+    expect(solidity).not.toMatch(/function toggle\(bool check\)/);
+    expect(solidity).toMatch(/function toggle\(bool _check\)/);
+    expect(solidity).toContain("function check() public view virtual returns (bool)");
+  });
 });
 
 // ============================================================

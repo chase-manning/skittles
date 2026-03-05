@@ -103,6 +103,7 @@ Skittles applies several optimizations to generate idiomatic Solidity:
 - **Template literals → `string.concat()`**: Template strings are converted to Solidity string concatenation
 - **`**=` → `x = x ** y`**: The `**=` compound assignment is desugared because Solidity has no `**=` operator
 - **Local variable shadowing prevention**: When a local variable has the same name as a state variable, it's automatically renamed with an underscore prefix (e.g. `result` → `_result`) to avoid Solidity shadowing warnings
+- **Parameter shadowing prevention**: When a function parameter has the same name as another function in the contract (e.g. a setter parameter `value` shadowing a getter function `value()`), the parameter is automatically renamed to avoid Solidity shadowing warnings
 
 ## Generated Solidity Example
 
