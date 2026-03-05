@@ -4892,6 +4892,187 @@ describe("integration: external contract calls", () => {
     const result = compileSolidity("Helper", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should not infer view on unannotated interface methods from usage patterns", () => {
+    const interfaceSrc = `
+      interface IExternalToken {
+        balanceOf(account: address): number;
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IExternalToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class VaultWithExternal {
+        private token: IExternalToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IExternalToken>(tokenAddress);
+        }
+
+        public getTokenBalance(account: address): number {
+          return this.token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // Unannotated interface methods remain without view/pure (conservative)
+    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+
+    const result = compileSolidity("VaultWithExternal", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should not mark interface methods as view when used in state-modifying context", () => {
+    const interfaceSrc = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+        private lastSender: address;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public withdraw(to: address, amount: number): void {
+          this.lastSender = msg.sender;
+          this.token.transfer(to, amount);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const withdrawFn = contracts[0].functions.find(f => f.name === "withdraw");
+    expect(withdrawFn).toBeDefined();
+    expect(withdrawFn!.stateMutability).toBe("nonpayable");
+
+    // transfer should not be marked as view since it's used in a state-modifying context
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).not.toContain("function transfer(address to, uint256 amount) external view");
+    // withdraw should not be marked as view
+    expect(solidity).not.toMatch(/function withdraw\(.*\) public view/);
+  });
+
+  it("should not incorrectly infer view for state-changing methods that return a value", () => {
+    const interfaceSrc = `
+      interface IToken {
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public doTransfer(to: address, amount: number): boolean {
+          return this.token.transfer(to, amount);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const doTransferFn = contracts[0].functions.find(f => f.name === "doTransfer");
+    expect(doTransferFn).toBeDefined();
+    // transfer is not annotated as view, so doTransfer should be nonpayable (conservative)
+    expect(doTransferFn!.stateMutability).toBe("nonpayable");
+
+    const solidity = generateSolidity(contracts[0]);
+    // transfer should not be marked as view
+    expect(solidity).not.toContain("function transfer(address to, uint256 amount) external view");
+    // doTransfer should not be marked as view
+    expect(solidity).not.toMatch(/function doTransfer\(.*\) public view/);
+  });
+
+  it("should propagate already-known view mutability from interface to caller", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    // name is a property signature, which is parsed as view by default
+    const nameMethod = contractInterfaces.get("IToken")!.functions.find(f => f.name === "name");
+    expect(nameMethod?.stateMutability).toBe("view");
+
+    const contractSrc = `
+      class Reader {
+        private token: IToken;
+
+        constructor(tokenAddress: address) {
+          this.token = Contract<IToken>(tokenAddress);
+        }
+
+        public getTokenName(): string {
+          return this.token.name();
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Reader.ts", externalTypes);
+    const getTokenNameFn = contracts[0].functions.find(f => f.name === "getTokenName");
+    expect(getTokenNameFn).toBeDefined();
+    // name is already view (property signature), so getTokenName should be view
+    expect(getTokenNameFn!.stateMutability).toBe("view");
+
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("function name() external view returns (string memory);");
+    expect(solidity).toMatch(/function getTokenName\(\) public view\b/);
+
+    const result = compileSolidity("Reader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should treat external calls to unannotated methods conservatively", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Checker {
+        public checkBalance(tokenAddress: address, account: address): number {
+          let token: IToken = Contract<IToken>(tokenAddress);
+          return token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Checker.ts", externalTypes);
+    const checkBalanceFn = contracts[0].functions.find(f => f.name === "checkBalance");
+    expect(checkBalanceFn).toBeDefined();
+    // balanceOf is unannotated, so checkBalance should be nonpayable (conservative)
+    expect(checkBalanceFn!.stateMutability).toBe("nonpayable");
+
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+
+    const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 describe("integration: ETH transfers", () => {
