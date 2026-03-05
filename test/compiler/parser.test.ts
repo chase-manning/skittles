@@ -889,6 +889,36 @@ describe("inferStateMutability", () => {
       ])
     ).toBe("view");
   });
+
+  it("should return view for tuple-literal containing state reads", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "return",
+          value: {
+            kind: "tuple-literal",
+            elements: [
+              {
+                kind: "property-access",
+                object: { kind: "identifier", name: "this" },
+                property: "reserve0",
+              },
+              {
+                kind: "property-access",
+                object: { kind: "identifier", name: "this" },
+                property: "reserve1",
+              },
+              {
+                kind: "property-access",
+                object: { kind: "identifier", name: "block" },
+                property: "timestamp",
+              },
+            ],
+          },
+        },
+      ])
+    ).toBe("view");
+  });
 });
 
 // ============================================================
