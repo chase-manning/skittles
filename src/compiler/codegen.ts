@@ -662,8 +662,41 @@ function generateContractBody(
     }
   }
 
+  // Collect all function names in this contract so we can detect when a
+  // parameter name shadows a sibling function (e.g. setter param "value"
+  // shadowing a getter function "value()").
+  const allFunctionNames = new Set(functionsToEmit.map((f) => f.name));
+  for (const ancestorName of ancestors) {
+    const ancestor = contractByName.get(ancestorName);
+    if (ancestor) {
+      for (const fn of ancestor.functions) allFunctionNames.add(fn.name);
+    }
+  }
+
   for (let i = 0; i < functionsToEmit.length; i++) {
-    const f = functionsToEmit[i];
+    let f = functionsToEmit[i];
+
+    // Rename parameters that shadow sibling function names.
+    const paramRenames = new Map<string, string>();
+    const taken = new Set([...stateVarNames, ...allFunctionNames, ...f.parameters.map((p) => p.name), ...collectLocalVarNames(f.body)]);
+    for (const p of f.parameters) {
+      if (allFunctionNames.has(p.name) && p.name !== f.name) {
+        const newName = pickNewName(p.name, taken);
+        paramRenames.set(p.name, newName);
+        taken.add(newName);
+      }
+    }
+    if (paramRenames.size > 0) {
+      f = {
+        ...f,
+        parameters: f.parameters.map((p) => {
+          const renamedName = paramRenames.get(p.name);
+          return renamedName ? { ...p, name: renamedName } : p;
+        }),
+        body: renameInStatements(f.body, paramRenames),
+      };
+    }
+
     const funcParamNames = new Set(f.parameters.map((p) => p.name));
     const resolved = { ...f, body: resolveShadowedLocals(f.body, stateVarNames, funcParamNames) };
     parts.push(generateFunction(resolved));
