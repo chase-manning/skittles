@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   generateSolidity,
+  generateSolidityFile,
   generateType,
   generateExpression,
   generateStatement,
@@ -1289,5 +1290,78 @@ describe("resolveShadowedLocals", () => {
     expect(sol).toContain("return _result;");
     // Should NOT have shadowed local named "result" in the function body
     expect(sol).not.toMatch(/function testTernary[\s\S]*uint256 result =/);
+  });
+
+  it("should avoid collision with function parameter names", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "0" },
+      },
+      {
+        kind: "return",
+        value: { kind: "identifier", name: "result" },
+      },
+    ];
+    // "result" shadows state var; "_result" is a parameter name
+    const stateVars = new Set(["result"]);
+    const paramNames = new Set(["_result"]);
+    const resolved = resolveShadowedLocals(body, stateVars, paramNames);
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("__result"); // skipped _result (param), went to __result
+    }
+    if (resolved[1].kind === "return" && resolved[1].value?.kind === "identifier") {
+      expect(resolved[1].value.name).toBe("__result");
+    }
+  });
+
+  it("should rename local that shadows inherited state variable in multi-contract generation", () => {
+    const parent = emptyContract({
+      name: "Parent",
+      variables: [
+        {
+          name: "balance",
+          type: { kind: SkittlesTypeKind.Uint256 },
+          visibility: "public",
+          immutable: false,
+          constant: false,
+          initialValue: { kind: "number-literal", value: "0" },
+        },
+      ],
+    });
+    const child = emptyContract({
+      name: "Child",
+      inherits: ["Parent"],
+      functions: [
+        {
+          name: "getBalance",
+          parameters: [],
+          returnType: { kind: SkittlesTypeKind.Uint256 },
+          visibility: "public",
+          stateMutability: "view",
+          isVirtual: true,
+          isOverride: false,
+          body: [
+            {
+              kind: "variable-declaration",
+              name: "balance",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              initializer: { kind: "number-literal", value: "42" },
+            },
+            {
+              kind: "return",
+              value: { kind: "identifier", name: "balance" },
+            },
+          ],
+        },
+      ],
+    });
+    const sol = generateSolidityFile([parent, child]);
+    // Local "balance" in child's function should be renamed to avoid
+    // shadowing parent's state variable "balance"
+    expect(sol).toContain("uint256 _balance = 42;");
+    expect(sol).toContain("return _balance;");
   });
 });

@@ -165,7 +165,7 @@ function renameInStatements(stmts: Statement[], renames: Map<string, string>): S
   return stmts.map((s) => renameInStatement(s, renames));
 }
 
-export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<string>): Statement[] {
+export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<string>, paramNames?: Set<string>): Statement[] {
   const localNames = collectLocalVarNames(body);
   const shadowed = new Set<string>();
   for (const name of localNames) {
@@ -175,7 +175,7 @@ export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<stri
   }
   if (shadowed.size === 0) return body;
 
-  const taken = new Set([...stateVarNames, ...localNames]);
+  const taken = new Set([...stateVarNames, ...localNames, ...(paramNames ?? [])]);
   const renames = new Map<string, string>();
   for (const name of shadowed) {
     const newName = pickNewName(name, taken);
@@ -313,7 +313,8 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
         emittedFileScopeTypes,
         definitionOrigins,
         functionOrigins,
-        ancestors
+        ancestors,
+        contractByName
       )
     );
     if (i < contracts.length - 1) {
@@ -334,7 +335,8 @@ function generateContractBody(
   fileScopeTypes: Set<string> = new Set(),
   definitionOrigins: Map<string, Set<string>> = new Map(),
   functionOrigins: Map<string, Set<string>> = new Map(),
-  ancestors: Set<string> = new Set()
+  ancestors: Set<string> = new Set(),
+  contractByName: Map<string, SkittlesContract> = new Map()
 ): string {
   const parts: string[] = [];
   _needsMinHelper = false;
@@ -413,8 +415,17 @@ function generateContractBody(
     (v) => v.immutable && v.type.kind === SkittlesTypeKind.Array
   );
 
-  // Collect state variable names for shadowing detection
+  // Collect state variable names for shadowing detection, including inherited
+  // ones from ancestor contracts.
   const stateVarNames = new Set(contract.variables.map((v) => v.name));
+  for (const ancestorName of ancestors) {
+    const ancestor = contractByName.get(ancestorName);
+    if (ancestor) {
+      for (const v of ancestor.variables) {
+        stateVarNames.add(v.name);
+      }
+    }
+  }
 
   // Skip functions already emitted by an ancestor contract in the same file
   // (shared file-level functions injected into both parent and child), unless
@@ -442,7 +453,8 @@ function generateContractBody(
   }
 
   if (contract.ctor) {
-    const ctorResolved = { ...contract.ctor, body: resolveShadowedLocals(contract.ctor.body, stateVarNames) };
+    const ctorParamNames = new Set(contract.ctor.parameters.map((p) => p.name));
+    const ctorResolved = { ...contract.ctor, body: resolveShadowedLocals(contract.ctor.body, stateVarNames, ctorParamNames) };
     parts.push(generateConstructor(ctorResolved, contract.inherits));
     if (functionsToEmit.length > 0 || readonlyArrayVars.length > 0) {
       parts.push("");
@@ -451,7 +463,8 @@ function generateContractBody(
 
   for (let i = 0; i < functionsToEmit.length; i++) {
     const f = functionsToEmit[i];
-    const resolved = { ...f, body: resolveShadowedLocals(f.body, stateVarNames) };
+    const funcParamNames = new Set(f.parameters.map((p) => p.name));
+    const resolved = { ...f, body: resolveShadowedLocals(f.body, stateVarNames, funcParamNames) };
     parts.push(generateFunction(resolved));
     if (i < functionsToEmit.length - 1 || readonlyArrayVars.length > 0) {
       parts.push("");
