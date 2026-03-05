@@ -4,6 +4,7 @@ import {
   generateType,
   generateExpression,
   generateStatement,
+  resolveShadowedLocals,
 } from "../../src/compiler/codegen";
 import { SkittlesTypeKind } from "../../src/types";
 import type {
@@ -1039,5 +1040,228 @@ describe("generateStatement", () => {
       args: [{ kind: "number-literal", value: "42" }],
     };
     expect(generateStatement(stmt, "        ")).toBe("        console.log(42);");
+  });
+});
+
+// ============================================================
+// resolveShadowedLocals
+// ============================================================
+
+describe("resolveShadowedLocals", () => {
+  it("should rename a local variable that shadows a state variable", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "0" },
+      },
+      {
+        kind: "return",
+        value: { kind: "identifier", name: "result" },
+      },
+    ];
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    expect(resolved[0].kind).toBe("variable-declaration");
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("_result");
+    }
+    expect(resolved[1].kind).toBe("return");
+    if (resolved[1].kind === "return" && resolved[1].value?.kind === "identifier") {
+      expect(resolved[1].value.name).toBe("_result");
+    }
+  });
+
+  it("should not rename local variables that do not shadow state variables", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "temp",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "5" },
+      },
+      {
+        kind: "return",
+        value: { kind: "identifier", name: "temp" },
+      },
+    ];
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    expect(resolved[0].kind).toBe("variable-declaration");
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("temp");
+    }
+  });
+
+  it("should rename local variables in nested blocks", () => {
+    const body: Statement[] = [
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [
+          {
+            kind: "variable-declaration",
+            name: "count",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            initializer: { kind: "number-literal", value: "0" },
+          },
+          {
+            kind: "return",
+            value: { kind: "identifier", name: "count" },
+          },
+        ],
+      },
+    ];
+    const stateVars = new Set(["count"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    const ifStmt = resolved[0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      const decl = ifStmt.thenBody[0];
+      expect(decl.kind).toBe("variable-declaration");
+      if (decl.kind === "variable-declaration") {
+        expect(decl.name).toBe("_count");
+      }
+      const ret = ifStmt.thenBody[1];
+      if (ret.kind === "return" && ret.value?.kind === "identifier") {
+        expect(ret.value.name).toBe("_count");
+      }
+    }
+  });
+
+  it("should rename for-loop initializer that shadows a state variable", () => {
+    const body: Statement[] = [
+      {
+        kind: "for",
+        initializer: {
+          kind: "variable-declaration",
+          name: "index",
+          type: { kind: SkittlesTypeKind.Uint256 },
+          initializer: { kind: "number-literal", value: "0" },
+        },
+        condition: {
+          kind: "binary",
+          operator: "<",
+          left: { kind: "identifier", name: "index" },
+          right: { kind: "number-literal", value: "10" },
+        },
+        incrementor: {
+          kind: "unary",
+          operator: "++",
+          operand: { kind: "identifier", name: "index" },
+          prefix: false,
+        },
+        body: [
+          {
+            kind: "expression",
+            expression: { kind: "identifier", name: "index" },
+          },
+        ],
+      },
+    ];
+    const stateVars = new Set(["index"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    const forStmt = resolved[0];
+    expect(forStmt.kind).toBe("for");
+    if (forStmt.kind === "for") {
+      if (forStmt.initializer?.kind === "variable-declaration") {
+        expect(forStmt.initializer.name).toBe("_index");
+      }
+      if (forStmt.condition?.kind === "binary" && forStmt.condition.left.kind === "identifier") {
+        expect(forStmt.condition.left.name).toBe("_index");
+      }
+      if (forStmt.incrementor?.kind === "unary" && forStmt.incrementor.operand.kind === "identifier") {
+        expect(forStmt.incrementor.operand.name).toBe("_index");
+      }
+    }
+  });
+
+  it("should handle name collision by adding extra underscore prefix", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "x",
+        type: { kind: SkittlesTypeKind.Uint256 },
+      },
+    ];
+    // Both "x" and "_x" are state variables, so it should become "__x"
+    const stateVars = new Set(["x", "_x"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("__x");
+    }
+  });
+
+  it("should return body unchanged when no shadowing occurs", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "temp",
+        type: { kind: SkittlesTypeKind.Uint256 },
+      },
+    ];
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    expect(resolved).toBe(body); // same reference, not modified
+  });
+
+  it("should rename local variable in full contract generation", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "result",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        functions: [
+          {
+            name: "testTernary",
+            parameters: [
+              { name: "x", type: { kind: SkittlesTypeKind.Uint256 } },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "variable-declaration",
+                name: "result",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                initializer: {
+                  kind: "conditional",
+                  condition: {
+                    kind: "binary",
+                    operator: ">",
+                    left: { kind: "identifier", name: "x" },
+                    right: { kind: "number-literal", value: "0" },
+                  },
+                  whenTrue: { kind: "identifier", name: "x" },
+                  whenFalse: { kind: "number-literal", value: "0" },
+                },
+              },
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "result" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // State variable should keep its name
+    expect(sol).toContain("uint256 public result = 0;");
+    // Local variable should be renamed
+    expect(sol).toContain("uint256 _result =");
+    expect(sol).toContain("return _result;");
+    // Should NOT have shadowed local named "result" in the function body
+    expect(sol).not.toMatch(/function testTernary[\s\S]*uint256 result =/);
   });
 });
