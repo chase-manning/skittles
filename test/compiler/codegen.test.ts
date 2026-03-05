@@ -1465,4 +1465,59 @@ describe("resolveShadowedLocals", () => {
     // Body reference should also be renamed
     expect(sol).toContain("supply = _supply;");
   });
+
+  it("should rename references inside default parameter initializers when earlier param is renamed", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "supply",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+            {
+              name: "doubled",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: {
+                kind: "binary",
+                operator: "*",
+                left: { kind: "identifier", name: "supply" },
+                right: { kind: "number-literal", value: "2" },
+              },
+            },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "supply",
+                },
+                value: { kind: "identifier", name: "doubled" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    // Default param "supply" renamed to "_supply"
+    expect(sol).toContain("uint256 _supply = 1000000;");
+    // Later default param "doubled" should reference renamed "_supply"
+    expect(sol).toContain("uint256 doubled = (_supply * 2);");
+  });
 });
