@@ -2749,6 +2749,7 @@ describe("integration: getter/setter accessors", () => {
     // The parameter "value" in paused(bool value) must be renamed to avoid
     // shadowing the sibling function value(). Since _value is already a state
     // variable, the rename produces __value.
+    expect(solidity).toContain("uint256 internal _value");
     expect(solidity).not.toMatch(/function paused\(bool value\)/);
     expect(solidity).toMatch(/function paused\(bool __value\)/);
     expect(solidity).toContain("_paused = __value;");
