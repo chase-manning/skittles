@@ -102,6 +102,7 @@ Skittles applies several optimizations to generate idiomatic Solidity:
 - **`Math.sqrt(x)` → Babylonian method**: Auto-generates an internal `_sqrt` helper function
 - **Template literals → `string.concat()`**: Template strings are converted to Solidity string concatenation
 - **`**=` → `x = x ** y`**: The `**=` compound assignment is desugared because Solidity has no `**=` operator
+- **Local variable shadowing prevention**: When a local variable has the same name as a state variable, it's automatically renamed with an underscore prefix (e.g. `result` → `_result`) to avoid Solidity shadowing warnings
 
 ## Generated Solidity Example
 

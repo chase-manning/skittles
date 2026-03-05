@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   generateSolidity,
+  generateSolidityFile,
   generateType,
   generateExpression,
   generateStatement,
+  resolveShadowedLocals,
 } from "../../src/compiler/codegen";
 import { SkittlesTypeKind } from "../../src/types";
 import type {
@@ -1039,5 +1041,543 @@ describe("generateStatement", () => {
       args: [{ kind: "number-literal", value: "42" }],
     };
     expect(generateStatement(stmt, "        ")).toBe("        console.log(42);");
+  });
+});
+
+// ============================================================
+// resolveShadowedLocals
+// ============================================================
+
+describe("resolveShadowedLocals", () => {
+  it("should rename a local variable that shadows a state variable", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "0" },
+      },
+      {
+        kind: "return",
+        value: { kind: "identifier", name: "result" },
+      },
+    ];
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    expect(resolved[0].kind).toBe("variable-declaration");
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("_result");
+    }
+    expect(resolved[1].kind).toBe("return");
+    if (resolved[1].kind === "return" && resolved[1].value?.kind === "identifier") {
+      expect(resolved[1].value.name).toBe("_result");
+    }
+  });
+
+  it("should not rename local variables that do not shadow state variables", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "temp",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "5" },
+      },
+      {
+        kind: "return",
+        value: { kind: "identifier", name: "temp" },
+      },
+    ];
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    expect(resolved[0].kind).toBe("variable-declaration");
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("temp");
+    }
+  });
+
+  it("should rename local variables in nested blocks", () => {
+    const body: Statement[] = [
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [
+          {
+            kind: "variable-declaration",
+            name: "count",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            initializer: { kind: "number-literal", value: "0" },
+          },
+          {
+            kind: "return",
+            value: { kind: "identifier", name: "count" },
+          },
+        ],
+      },
+    ];
+    const stateVars = new Set(["count"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    const ifStmt = resolved[0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      const decl = ifStmt.thenBody[0];
+      expect(decl.kind).toBe("variable-declaration");
+      if (decl.kind === "variable-declaration") {
+        expect(decl.name).toBe("_count");
+      }
+      const ret = ifStmt.thenBody[1];
+      if (ret.kind === "return" && ret.value?.kind === "identifier") {
+        expect(ret.value.name).toBe("_count");
+      }
+    }
+  });
+
+  it("should rename for-loop initializer that shadows a state variable", () => {
+    const body: Statement[] = [
+      {
+        kind: "for",
+        initializer: {
+          kind: "variable-declaration",
+          name: "index",
+          type: { kind: SkittlesTypeKind.Uint256 },
+          initializer: { kind: "number-literal", value: "0" },
+        },
+        condition: {
+          kind: "binary",
+          operator: "<",
+          left: { kind: "identifier", name: "index" },
+          right: { kind: "number-literal", value: "10" },
+        },
+        incrementor: {
+          kind: "unary",
+          operator: "++",
+          operand: { kind: "identifier", name: "index" },
+          prefix: false,
+        },
+        body: [
+          {
+            kind: "expression",
+            expression: { kind: "identifier", name: "index" },
+          },
+        ],
+      },
+    ];
+    const stateVars = new Set(["index"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    const forStmt = resolved[0];
+    expect(forStmt.kind).toBe("for");
+    if (forStmt.kind === "for") {
+      if (forStmt.initializer?.kind === "variable-declaration") {
+        expect(forStmt.initializer.name).toBe("_index");
+      }
+      if (forStmt.condition?.kind === "binary" && forStmt.condition.left.kind === "identifier") {
+        expect(forStmt.condition.left.name).toBe("_index");
+      }
+      if (forStmt.incrementor?.kind === "unary" && forStmt.incrementor.operand.kind === "identifier") {
+        expect(forStmt.incrementor.operand.name).toBe("_index");
+      }
+    }
+  });
+
+  it("should handle name collision with underscore-prefixed state variable", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "x",
+        type: { kind: SkittlesTypeKind.Uint256 },
+      },
+    ];
+    // Both "x" and "_x" are state variables, so it should become "__x"
+    const stateVars = new Set(["x", "_x"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("__x");
+    }
+  });
+
+  it("should return body unchanged when no shadowing occurs", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "temp",
+        type: { kind: SkittlesTypeKind.Uint256 },
+      },
+    ];
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    expect(resolved).toBe(body); // same reference, not modified
+  });
+
+  it("should avoid collision with existing local variable names", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "_result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "1" },
+      },
+      {
+        kind: "variable-declaration",
+        name: "result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "2" },
+      },
+    ];
+    // "result" shadows state var; "_result" already taken by local
+    const stateVars = new Set(["result"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("_result"); // unchanged, not shadowed
+    }
+    if (resolved[1].kind === "variable-declaration") {
+      expect(resolved[1].name).toBe("__result"); // skipped _result, went to __result
+    }
+  });
+
+  it("should rename local variable in full contract generation", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "result",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        functions: [
+          {
+            name: "testTernary",
+            parameters: [
+              { name: "x", type: { kind: SkittlesTypeKind.Uint256 } },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "variable-declaration",
+                name: "result",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                initializer: {
+                  kind: "conditional",
+                  condition: {
+                    kind: "binary",
+                    operator: ">",
+                    left: { kind: "identifier", name: "x" },
+                    right: { kind: "number-literal", value: "0" },
+                  },
+                  whenTrue: { kind: "identifier", name: "x" },
+                  whenFalse: { kind: "number-literal", value: "0" },
+                },
+              },
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "result" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // State variable should keep its name
+    expect(sol).toContain("uint256 public result = 0;");
+    // Local variable should be renamed
+    expect(sol).toContain("uint256 _result =");
+    expect(sol).toContain("return _result;");
+    // Should NOT have shadowed local named "result" in the function body
+    expect(sol).not.toMatch(/function testTernary[\s\S]*uint256 result =/);
+  });
+
+  it("should avoid collision with function parameter names", () => {
+    const body: Statement[] = [
+      {
+        kind: "variable-declaration",
+        name: "result",
+        type: { kind: SkittlesTypeKind.Uint256 },
+        initializer: { kind: "number-literal", value: "0" },
+      },
+      {
+        kind: "return",
+        value: { kind: "identifier", name: "result" },
+      },
+    ];
+    // "result" shadows state var; "_result" is a parameter name
+    const stateVars = new Set(["result"]);
+    const paramNames = new Set(["_result"]);
+    const resolved = resolveShadowedLocals(body, stateVars, paramNames);
+    if (resolved[0].kind === "variable-declaration") {
+      expect(resolved[0].name).toBe("__result"); // skipped _result (param), went to __result
+    }
+    if (resolved[1].kind === "return" && resolved[1].value?.kind === "identifier") {
+      expect(resolved[1].value.name).toBe("__result");
+    }
+  });
+
+  it("should rename local that shadows inherited state variable in multi-contract generation", () => {
+    const parent = emptyContract({
+      name: "Parent",
+      variables: [
+        {
+          name: "balance",
+          type: { kind: SkittlesTypeKind.Uint256 },
+          visibility: "public",
+          immutable: false,
+          constant: false,
+          initialValue: { kind: "number-literal", value: "0" },
+        },
+      ],
+    });
+    const child = emptyContract({
+      name: "Child",
+      inherits: ["Parent"],
+      functions: [
+        {
+          name: "getBalance",
+          parameters: [],
+          returnType: { kind: SkittlesTypeKind.Uint256 },
+          visibility: "public",
+          stateMutability: "view",
+          isVirtual: true,
+          isOverride: false,
+          body: [
+            {
+              kind: "variable-declaration",
+              name: "balance",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              initializer: { kind: "number-literal", value: "42" },
+            },
+            {
+              kind: "return",
+              value: { kind: "identifier", name: "balance" },
+            },
+          ],
+        },
+      ],
+    });
+    const sol = generateSolidityFile([parent, child]);
+    // Local "balance" in child's function should be renamed to avoid
+    // shadowing parent's state variable "balance"
+    expect(sol).toContain("uint256 _balance = 42;");
+    expect(sol).toContain("return _balance;");
+  });
+
+  it("should only rename references within the scope of the shadowed declaration", () => {
+    // A block-scoped local "count" shadows a state var, but references to "count"
+    // outside that block (e.g., referencing a parameter) should NOT be renamed.
+    const body: Statement[] = [
+      {
+        kind: "expression",
+        expression: { kind: "identifier", name: "count" },
+      },
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [
+          {
+            kind: "variable-declaration",
+            name: "count",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            initializer: { kind: "number-literal", value: "10" },
+          },
+          {
+            kind: "expression",
+            expression: { kind: "identifier", name: "count" },
+          },
+        ],
+      },
+      {
+        kind: "expression",
+        expression: { kind: "identifier", name: "count" },
+      },
+    ];
+    const stateVars = new Set(["count"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+
+    // The first "count" reference (before the block) should NOT be renamed
+    if (resolved[0].kind === "expression" && resolved[0].expression.kind === "identifier") {
+      expect(resolved[0].expression.name).toBe("count");
+    }
+
+    // Inside the if-block, declaration and reference SHOULD be renamed
+    const ifStmt = resolved[1];
+    if (ifStmt.kind === "if") {
+      if (ifStmt.thenBody[0].kind === "variable-declaration") {
+        expect(ifStmt.thenBody[0].name).toBe("_count");
+      }
+      if (ifStmt.thenBody[1].kind === "expression" && ifStmt.thenBody[1].expression.kind === "identifier") {
+        expect(ifStmt.thenBody[1].expression.name).toBe("_count");
+      }
+    }
+
+    // The last "count" reference (after the block) should NOT be renamed
+    if (resolved[2].kind === "expression" && resolved[2].expression.kind === "identifier") {
+      expect(resolved[2].expression.name).toBe("count");
+    }
+  });
+
+  it("should rename constructor default parameter that shadows a state variable", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "supply",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "supply",
+                },
+                value: { kind: "identifier", name: "supply" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    // State variable should keep its name
+    expect(sol).toContain("uint256 public supply = 0;");
+    // Default param local should be renamed to avoid shadowing
+    expect(sol).toContain("uint256 _supply = 1000000;");
+    // Body reference should also be renamed
+    expect(sol).toContain("supply = _supply;");
+  });
+
+  it("should rename references inside default parameter initializers when earlier param is renamed", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "supply",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+            {
+              name: "doubled",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: {
+                kind: "binary",
+                operator: "*",
+                left: { kind: "identifier", name: "supply" },
+                right: { kind: "number-literal", value: "2" },
+              },
+            },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "supply",
+                },
+                value: { kind: "identifier", name: "doubled" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    // Default param "supply" renamed to "_supply"
+    expect(sol).toContain("uint256 _supply = 1000000;");
+    // Later default param "doubled" should reference renamed "_supply"
+    expect(sol).toContain("uint256 doubled = (_supply * 2);");
+  });
+
+  it("should not rename body local that re-declares a renamed default parameter name", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "supply",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+          ],
+          body: [
+            {
+              kind: "variable-declaration",
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              initializer: {
+                kind: "binary",
+                operator: "*",
+                left: { kind: "identifier", name: "supply" },
+                right: { kind: "number-literal", value: "2" },
+              },
+            },
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "supply",
+                },
+                value: { kind: "identifier", name: "supply" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    // Default param local should be renamed to avoid shadowing state var
+    expect(sol).toContain("uint256 _supply = 1000000;");
+    // Body local should NOT be renamed to _supply (which would collide).
+    // The body local's initializer should reference the renamed default param.
+    // resolveShadowedLocals will then rename this body local to avoid shadowing the state var.
+    expect(sol).not.toMatch(/uint256 _supply = \(_supply/);
+    // After the body local declaration, references should use the body local name
+    expect(sol).toContain("supply =");
   });
 });
