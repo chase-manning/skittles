@@ -165,6 +165,157 @@ function renameInStatements(stmts: Statement[], renames: Map<string, string>): S
   return stmts.map((s) => renameInStatement(s, renames));
 }
 
+// Scope-aware renaming: renames are activated only when their declaration is
+// encountered, and inner-block declarations do not leak to outer scopes.
+
+function scopeAwareRenameBlock(
+  stmts: Statement[],
+  parentActive: Map<string, string>,
+  allRenames: Map<string, string>
+): Statement[] {
+  let active = new Map(parentActive);
+  const result: Statement[] = [];
+  for (const stmt of stmts) {
+    const out = scopeAwareRenameStmt(stmt, active, allRenames);
+    result.push(out.stmt);
+    active = out.active;
+  }
+  return result;
+}
+
+function scopeAwareRenameStmt(
+  stmt: Statement,
+  active: Map<string, string>,
+  allRenames: Map<string, string>
+): { stmt: Statement; active: Map<string, string> } {
+  switch (stmt.kind) {
+    case "variable-declaration": {
+      const rename = allRenames.get(stmt.name);
+      if (rename) {
+        const newActive = new Map(active);
+        newActive.set(stmt.name, rename);
+        const init = stmt.initializer
+          ? renameInExpression(stmt.initializer, newActive)
+          : undefined;
+        return {
+          stmt: { ...stmt, name: rename, initializer: init },
+          active: newActive,
+        };
+      }
+      const init = stmt.initializer
+        ? renameInExpression(stmt.initializer, active)
+        : undefined;
+      return { stmt: { ...stmt, initializer: init }, active };
+    }
+    case "if":
+      return {
+        stmt: {
+          ...stmt,
+          condition: renameInExpression(stmt.condition, active),
+          thenBody: scopeAwareRenameBlock(stmt.thenBody, active, allRenames),
+          elseBody: stmt.elseBody
+            ? scopeAwareRenameBlock(stmt.elseBody, active, allRenames)
+            : undefined,
+        },
+        active,
+      };
+    case "for": {
+      const forActive = new Map(active);
+      let init = stmt.initializer;
+      if (init) {
+        if (init.kind === "variable-declaration") {
+          const rename = allRenames.get(init.name);
+          if (rename) {
+            forActive.set(init.name, rename);
+            init = {
+              ...init,
+              name: rename,
+              initializer: init.initializer
+                ? renameInExpression(init.initializer, forActive)
+                : undefined,
+            };
+          } else {
+            init = {
+              ...init,
+              initializer: init.initializer
+                ? renameInExpression(init.initializer, forActive)
+                : undefined,
+            } as typeof init;
+          }
+        } else {
+          init = renameInStatement(init, forActive) as typeof init;
+        }
+      }
+      return {
+        stmt: {
+          ...stmt,
+          initializer: init,
+          condition: stmt.condition
+            ? renameInExpression(stmt.condition, forActive)
+            : undefined,
+          incrementor: stmt.incrementor
+            ? renameInExpression(stmt.incrementor, forActive)
+            : undefined,
+          body: scopeAwareRenameBlock(stmt.body, forActive, allRenames),
+        },
+        active,
+      };
+    }
+    case "while":
+      return {
+        stmt: {
+          ...stmt,
+          condition: renameInExpression(stmt.condition, active),
+          body: scopeAwareRenameBlock(stmt.body, active, allRenames),
+        },
+        active,
+      };
+    case "do-while":
+      return {
+        stmt: {
+          ...stmt,
+          body: scopeAwareRenameBlock(stmt.body, active, allRenames),
+          condition: renameInExpression(stmt.condition, active),
+        },
+        active,
+      };
+    case "switch":
+      return {
+        stmt: {
+          ...stmt,
+          discriminant: renameInExpression(stmt.discriminant, active),
+          cases: stmt.cases.map((c) => ({
+            ...c,
+            value: c.value ? renameInExpression(c.value, active) : undefined,
+            body: scopeAwareRenameBlock(c.body, active, allRenames),
+          })),
+        },
+        active,
+      };
+    case "try-catch": {
+      const tryActive = new Map(active);
+      let newReturnVarName = stmt.returnVarName;
+      if (stmt.returnVarName && allRenames.has(stmt.returnVarName)) {
+        const rename = allRenames.get(stmt.returnVarName)!;
+        tryActive.set(stmt.returnVarName, rename);
+        newReturnVarName = rename;
+      }
+      return {
+        stmt: {
+          ...stmt,
+          call: renameInExpression(stmt.call, active),
+          returnVarName: newReturnVarName,
+          successBody: scopeAwareRenameBlock(stmt.successBody, tryActive, allRenames),
+          catchBody: scopeAwareRenameBlock(stmt.catchBody, active, allRenames),
+        },
+        active,
+      };
+    }
+    default:
+      return { stmt: renameInStatement(stmt, active), active };
+  }
+}
+
 export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<string>, paramNames?: Set<string>): Statement[] {
   const localNames = collectLocalVarNames(body);
   const shadowed = new Set<string>();
@@ -182,7 +333,7 @@ export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<stri
     renames.set(name, newName);
     taken.add(newName);
   }
-  return renameInStatements(body, renames);
+  return scopeAwareRenameBlock(body, new Map(), renames);
 }
 
 function suffixToSolType(suffix: string): string {
@@ -453,8 +604,38 @@ function generateContractBody(
   }
 
   if (contract.ctor) {
-    const ctorParamNames = new Set(contract.ctor.parameters.map((p) => p.name));
-    const ctorResolved = { ...contract.ctor, body: resolveShadowedLocals(contract.ctor.body, stateVarNames, ctorParamNames) };
+    // Rename default constructor parameters that shadow state variables.
+    // Default params become local variable declarations in generateConstructor,
+    // so they can trigger shadowing warnings just like body locals.
+    const defaultParams = contract.ctor.parameters.filter((p) => p.defaultValue);
+    const defaultParamRenames = new Map<string, string>();
+    if (defaultParams.length > 0) {
+      const bodyLocals = collectLocalVarNames(contract.ctor.body);
+      const taken = new Set([...stateVarNames, ...contract.ctor.parameters.map((p) => p.name), ...bodyLocals]);
+      for (const p of defaultParams) {
+        if (stateVarNames.has(p.name)) {
+          const newName = pickNewName(p.name, taken);
+          defaultParamRenames.set(p.name, newName);
+          taken.add(newName);
+        }
+      }
+    }
+
+    let ctorToResolve = contract.ctor;
+    if (defaultParamRenames.size > 0) {
+      ctorToResolve = {
+        ...contract.ctor,
+        parameters: contract.ctor.parameters.map((p) =>
+          defaultParamRenames.has(p.name)
+            ? { ...p, name: defaultParamRenames.get(p.name)! }
+            : p
+        ),
+        body: renameInStatements(contract.ctor.body, defaultParamRenames),
+      };
+    }
+
+    const ctorParamNames = new Set(ctorToResolve.parameters.map((p) => p.name));
+    const ctorResolved = { ...ctorToResolve, body: resolveShadowedLocals(ctorToResolve.body, stateVarNames, ctorParamNames) };
     parts.push(generateConstructor(ctorResolved, contract.inherits));
     if (functionsToEmit.length > 0 || readonlyArrayVars.length > 0) {
       parts.push("");

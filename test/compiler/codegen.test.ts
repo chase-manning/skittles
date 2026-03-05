@@ -1364,4 +1364,105 @@ describe("resolveShadowedLocals", () => {
     expect(sol).toContain("uint256 _balance = 42;");
     expect(sol).toContain("return _balance;");
   });
+
+  it("should only rename references within the scope of the shadowed declaration", () => {
+    // A block-scoped local "count" shadows a state var, but references to "count"
+    // outside that block (e.g., referencing a parameter) should NOT be renamed.
+    const body: Statement[] = [
+      {
+        kind: "expression",
+        expression: { kind: "identifier", name: "count" },
+      },
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [
+          {
+            kind: "variable-declaration",
+            name: "count",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            initializer: { kind: "number-literal", value: "10" },
+          },
+          {
+            kind: "expression",
+            expression: { kind: "identifier", name: "count" },
+          },
+        ],
+      },
+      {
+        kind: "expression",
+        expression: { kind: "identifier", name: "count" },
+      },
+    ];
+    const stateVars = new Set(["count"]);
+    const resolved = resolveShadowedLocals(body, stateVars);
+
+    // The first "count" reference (before the block) should NOT be renamed
+    if (resolved[0].kind === "expression" && resolved[0].expression.kind === "identifier") {
+      expect(resolved[0].expression.name).toBe("count");
+    }
+
+    // Inside the if-block, declaration and reference SHOULD be renamed
+    const ifStmt = resolved[1];
+    if (ifStmt.kind === "if") {
+      if (ifStmt.thenBody[0].kind === "variable-declaration") {
+        expect(ifStmt.thenBody[0].name).toBe("_count");
+      }
+      if (ifStmt.thenBody[1].kind === "expression" && ifStmt.thenBody[1].expression.kind === "identifier") {
+        expect(ifStmt.thenBody[1].expression.name).toBe("_count");
+      }
+    }
+
+    // The last "count" reference (after the block) should NOT be renamed
+    if (resolved[2].kind === "expression" && resolved[2].expression.kind === "identifier") {
+      expect(resolved[2].expression.name).toBe("count");
+    }
+  });
+
+  it("should rename constructor default parameter that shadows a state variable", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "supply",
+            type: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            immutable: false,
+            constant: false,
+            initialValue: { kind: "number-literal", value: "0" },
+          },
+        ],
+        ctor: {
+          parameters: [
+            {
+              name: "supply",
+              type: { kind: SkittlesTypeKind.Uint256 },
+              defaultValue: { kind: "number-literal", value: "1000000" },
+            },
+          ],
+          body: [
+            {
+              kind: "expression",
+              expression: {
+                kind: "assignment",
+                operator: "=",
+                target: {
+                  kind: "property-access",
+                  object: { kind: "identifier", name: "this" },
+                  property: "supply",
+                },
+                value: { kind: "identifier", name: "supply" },
+              },
+            },
+          ],
+        },
+      })
+    );
+    // State variable should keep its name
+    expect(sol).toContain("uint256 public supply = 0;");
+    // Default param local should be renamed to avoid shadowing
+    expect(sol).toContain("uint256 _supply = 1000000;");
+    // Body reference should also be renamed
+    expect(sol).toContain("supply = _supply;");
+  });
 });
