@@ -192,11 +192,12 @@ function scopeAwareRenameStmt(
     case "variable-declaration": {
       const rename = allRenames.get(stmt.name);
       if (rename) {
+        // Rename the initializer with the parent scope (before declaration is active)
+        const init = stmt.initializer
+          ? renameInExpression(stmt.initializer, active)
+          : undefined;
         const newActive = new Map(active);
         newActive.set(stmt.name, rename);
-        const init = stmt.initializer
-          ? renameInExpression(stmt.initializer, newActive)
-          : undefined;
         return {
           stmt: { ...stmt, name: rename, initializer: init },
           active: newActive,
@@ -226,14 +227,12 @@ function scopeAwareRenameStmt(
         if (init.kind === "variable-declaration") {
           const rename = allRenames.get(init.name);
           if (rename) {
+            // Rename the initializer with the parent scope (before loop var is active)
+            const renamedInit = init.initializer
+              ? renameInExpression(init.initializer, forActive)
+              : undefined;
             forActive.set(init.name, rename);
-            init = {
-              ...init,
-              name: rename,
-              initializer: init.initializer
-                ? renameInExpression(init.initializer, forActive)
-                : undefined,
-            };
+            init = { ...init, name: rename, initializer: renamedInit };
           } else {
             init = {
               ...init,
