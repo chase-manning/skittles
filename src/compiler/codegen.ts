@@ -624,11 +624,17 @@ function generateContractBody(
     if (defaultParamRenames.size > 0) {
       ctorToResolve = {
         ...contract.ctor,
-        parameters: contract.ctor.parameters.map((p) => ({
-          ...p,
-          ...(defaultParamRenames.has(p.name) ? { name: defaultParamRenames.get(p.name)! } : {}),
-          ...(p.defaultValue ? { defaultValue: renameInExpression(p.defaultValue, defaultParamRenames) } : {}),
-        })),
+        parameters: contract.ctor.parameters.map((p) => {
+          const renamedName = defaultParamRenames.get(p.name);
+          const renamedDefault = p.defaultValue
+            ? renameInExpression(p.defaultValue, defaultParamRenames)
+            : undefined;
+          return {
+            ...p,
+            ...(renamedName ? { name: renamedName } : {}),
+            ...(renamedDefault ? { defaultValue: renamedDefault } : {}),
+          };
+        }),
         body: renameInStatements(contract.ctor.body, defaultParamRenames),
       };
     }
