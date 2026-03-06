@@ -1639,6 +1639,18 @@ describe("integration: built-in functions", () => {
     expect(solidity).toContain("_sqrt(x)");
     expect(solidity).toContain("function _sqrt(uint256 x) internal pure returns (uint256)");
   });
+
+  it("should wrap ecrecover v argument in uint8() cast", () => {
+    const { errors, solidity } = compileTS(`
+      class SigVerifier {
+        public recover(h: bytes32, v: number, r: bytes32, s: bytes32): address {
+          return ecrecover(h, v, r, s);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("ecrecover(h, uint8(v), r, s)");
+  });
 });
 
 // ============================================================
