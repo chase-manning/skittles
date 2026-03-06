@@ -1741,8 +1741,10 @@ function tryGenerateBuiltinCall(expr: {
       }
       return `abi.decode(${args})`;
     }
-    case "ecrecover":
-      return `ecrecover(${args})`;
+    case "ecrecover": {
+      const [hashArg, vArg, rArg, sArg] = expr.args.map(generateExpression);
+      return `ecrecover(${hashArg}, uint8(${vArg}), ${rArg}, ${sArg})`;
+    }
     case "addmod":
       return `addmod(${args})`;
     case "mulmod":
