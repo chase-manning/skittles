@@ -890,7 +890,7 @@ describe("inferStateMutability", () => {
     ).toBe("view");
   });
 
-  it("should return view for tuple-literal containing state reads", () => {
+  it("should return view for tuple-literal containing state and environment reads", () => {
     expect(
       inferStateMutability([
         {
