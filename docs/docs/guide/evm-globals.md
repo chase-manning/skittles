@@ -97,7 +97,7 @@ The `.transfer(amount)` method sends the specified amount of wei and reverts if 
 Import built in functions from `"skittles"`:
 
 ```typescript
-import { keccak256, sha256, ecrecover, abi, gasleft } from "skittles";
+import { bytes32, keccak256, sha256, ecrecover, abi, gasleft } from "skittles";
 ```
 
 ### Hashing

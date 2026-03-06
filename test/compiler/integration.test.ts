@@ -1506,6 +1506,30 @@ describe("integration: built-in functions", () => {
     expect(solidity).toContain("bytes32 digest = keccak256(abi.encodePacked(a))");
   });
 
+  it("should infer bytes32 type for sha256 call without annotation", () => {
+    const { errors, solidity } = compileTS(`
+      class Hasher {
+        public hashAndStore(a: number): void {
+          const digest = sha256(a);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes32 digest = sha256(abi.encodePacked(a))");
+  });
+
+  it("should infer bytes32 type for hash() alias without annotation", () => {
+    const { errors, solidity } = compileTS(`
+      class Hasher {
+        public hashAndStore(a: number): void {
+          const digest = hash(a);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes32 digest = keccak256(abi.encodePacked(a))");
+  });
+
   it("should compile bytes32 state variable", () => {
     const { errors, solidity } = compileTS(`
       class CommitReveal {

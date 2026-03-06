@@ -85,6 +85,7 @@ export declare const self: string;
 // Solidity built-in functions (stubs for TypeScript type checking)
 export declare function keccak256(...args: unknown[]): bytes32;
 export declare function sha256(...args: unknown[]): bytes32;
+export declare function hash(...args: unknown[]): bytes32;
 export declare function ecrecover(hash: bytes32, v: number, r: bytes32, s: bytes32): address;
 export declare function addmod(x: number, y: number, k: number): number;
 export declare function mulmod(x: number, y: number, k: number): number;
