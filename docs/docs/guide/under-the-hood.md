@@ -56,6 +56,7 @@ Here's how TypeScript types map to Solidity types:
 | `boolean` | `bool` | `true` / `false` |
 | `address` | `address` | Ethereum address |
 | `bytes` | `bytes` | Raw byte data |
+| `bytes32` | `bytes32` | Fixed-size 32-byte value (hashes, keys) |
 | `Record<K, V>` | `mapping(K => V)` | Key-value storage |
 | `T[]` | `T[]` | Dynamic arrays |
 | Type alias | `struct` | Custom data structures |

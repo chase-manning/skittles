@@ -111,14 +111,15 @@ String methods compile to internal helper functions that operate on bytes and ar
 
 ## Ethereum Types
 
-Import `address` and `bytes` from `"skittles"`:
+Import `address`, `bytes`, and `bytes32` from `"skittles"`:
 
 ```typescript
-import { address, bytes } from "skittles";
+import { address, bytes, bytes32 } from "skittles";
 
 class Example {
   owner: address = msg.sender;
   data: bytes = "";
+  commitment: bytes32 = keccak256(msg.sender);
 }
 ```
 
@@ -126,6 +127,7 @@ class Example {
 | ---------- | ------------------------------------------------------------- |
 | `address`  | Represents wallet addresses and contract addresses (20 bytes) |
 | `bytes`    | Represents raw binary data                                    |
+| `bytes32`  | Fixed-size 32-byte value, used for hashes and storage keys    |
 
 Address literals are 42 character hex strings starting with `0x`:
 

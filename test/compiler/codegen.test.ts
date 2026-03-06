@@ -83,6 +83,68 @@ describe("generateSolidity", () => {
     expect(sol).toContain('string public name = "Token";');
   });
 
+  it("should generate bytes32 state variable", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "commitment",
+            type: { kind: SkittlesTypeKind.Bytes32 },
+            visibility: "public",
+            immutable: false,
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("bytes32 public commitment;");
+  });
+
+  it("should generate function with bytes32 parameter and return type", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "getHash",
+            parameters: [
+              { name: "data", type: { kind: SkittlesTypeKind.Bytes32 } },
+            ],
+            returnType: { kind: SkittlesTypeKind.Bytes32 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "data" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("function getHash(bytes32 data) public pure virtual returns (bytes32)");
+  });
+
+  it("should generate mapping with bytes32 key", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        variables: [
+          {
+            name: "commitments",
+            type: {
+              kind: SkittlesTypeKind.Mapping,
+              keyType: { kind: SkittlesTypeKind.Bytes32 },
+              valueType: { kind: SkittlesTypeKind.Address },
+            },
+            visibility: "private",
+            immutable: false,
+          },
+        ],
+      })
+    );
+    expect(sol).toContain("mapping(bytes32 => address) internal commitments;");
+  });
+
   it("should generate mapping variables without initializer", () => {
     const sol = generateSolidity(
       emptyContract({
@@ -642,6 +704,7 @@ describe("generateType", () => {
     expect(generateType({ kind: SkittlesTypeKind.Address })).toBe("address");
     expect(generateType({ kind: SkittlesTypeKind.Bool })).toBe("bool");
     expect(generateType({ kind: SkittlesTypeKind.String })).toBe("string");
+    expect(generateType({ kind: SkittlesTypeKind.Bytes32 })).toBe("bytes32");
   });
 
   it("should generate mapping type", () => {
