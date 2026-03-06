@@ -1481,6 +1481,66 @@ describe("integration: built-in functions", () => {
     expect(solidity).toContain("keccak256(abi.encodePacked(a, b, c))");
   });
 
+  it("should compile keccak256 with bytes32 return type", () => {
+    const { errors, solidity } = compileTS(`
+      class Hasher {
+        public getHash(a: number, b: number): bytes32 {
+          return keccak256(a, b);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("returns (bytes32)");
+    expect(solidity).toContain("keccak256(abi.encodePacked(a, b))");
+  });
+
+  it("should infer bytes32 type for keccak256 call without annotation", () => {
+    const { errors, solidity } = compileTS(`
+      class Hasher {
+        public hashAndStore(a: number): void {
+          const digest = keccak256(a);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes32 digest = keccak256(abi.encodePacked(a))");
+  });
+
+  it("should compile bytes32 state variable", () => {
+    const { errors, solidity } = compileTS(`
+      class CommitReveal {
+        public commitment: bytes32;
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("bytes32 public commitment;");
+  });
+
+  it("should compile bytes32 as mapping key", () => {
+    const { errors, solidity } = compileTS(`
+      class MerkleVerifier {
+        private nodes: Record<bytes32, boolean> = {};
+        public isKnown(h: bytes32): boolean {
+          return this.nodes[h];
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("mapping(bytes32 => bool)");
+  });
+
+  it("should compile bytes32 function parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class Verifier {
+        public verify(hash: bytes32): boolean {
+          return hash != bytes32(0);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function verify(bytes32 hash)");
+  });
+
   it("should compile string.concat", () => {
     const { errors, solidity } = compileTS(`
       class Concat {

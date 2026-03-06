@@ -7,7 +7,7 @@
 export type { SkittlesConfig } from "./types/index.ts";
 
 // Ethereum primitive types (for contract files)
-export type { address, bytes } from "./types/index.ts";
+export type { address, bytes, bytes32 } from "./types/index.ts";
 
 /**
  * Event type for declaring Solidity events in Skittles contracts.
@@ -82,9 +82,9 @@ export const tx = {} as {
 export declare const self: string;
 
 // Solidity built-in functions (stubs for TypeScript type checking)
-export declare function keccak256(...args: unknown[]): string;
-export declare function sha256(...args: unknown[]): string;
-export declare function ecrecover(hash: string, v: number, r: string, s: string): string;
+export declare function keccak256(...args: unknown[]): bytes32;
+export declare function sha256(...args: unknown[]): bytes32;
+export declare function ecrecover(hash: bytes32, v: number, r: bytes32, s: bytes32): address;
 export declare function addmod(x: number, y: number, k: number): number;
 export declare function mulmod(x: number, y: number, k: number): number;
 

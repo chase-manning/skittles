@@ -109,7 +109,13 @@ import { keccak256, sha256, ecrecover, abi, gasleft } from "skittles";
 | `hash(...)`      | Alias for `keccak256`                                         |
 
 ```typescript
-let digest: string = keccak256(msg.sender, amount);
+let digest: bytes32 = keccak256(msg.sender, amount);
+```
+
+Hash functions return `bytes32`. The type is also inferred automatically:
+
+```typescript
+const digest = keccak256(msg.sender, amount); // inferred as bytes32
 ```
 
 ### ABI Encoding
@@ -132,7 +138,7 @@ This compiles to Solidity's `abi.decode(data, (uint256, address))`.
 
 | Function                   | Description                                                      |
 | -------------------------- | ---------------------------------------------------------------- |
-| `ecrecover(hash, v, r, s)` | Recover the signer's address from a message hash and signature   |
+| `ecrecover(hash, v, r, s)` | Recover the signer's address from a message hash and signature. `hash`, `r`, and `s` are `bytes32`; returns `address`. |
 
 ### Math
 

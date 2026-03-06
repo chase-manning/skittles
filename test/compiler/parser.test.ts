@@ -557,6 +557,10 @@ describe("parseType", () => {
     expect(parseType(makeTypeNode("address")).kind).toBe("address");
   });
 
+  it("should parse bytes32 type reference", () => {
+    expect(parseType(makeTypeNode("bytes32")).kind).toBe("bytes32");
+  });
+
   it("should parse void", () => {
     expect(parseType(makeTypeNode("void")).kind).toBe("void");
   });
@@ -572,6 +576,13 @@ describe("parseType", () => {
     const t = parseType(makeTypeNode("Map<address, number>"));
     expect(t.kind).toBe("mapping");
     expect(t.keyType?.kind).toBe("address");
+    expect(t.valueType?.kind).toBe("uint256");
+  });
+
+  it("should parse Record with bytes32 key", () => {
+    const t = parseType(makeTypeNode("Record<bytes32, number>"));
+    expect(t.kind).toBe("mapping");
+    expect(t.keyType?.kind).toBe("bytes32");
     expect(t.valueType?.kind).toBe("uint256");
   });
 

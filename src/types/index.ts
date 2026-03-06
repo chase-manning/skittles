@@ -418,3 +418,4 @@ export interface AbiParameter {
 
 export type address = string;
 export type bytes = string;
+export type bytes32 = string;

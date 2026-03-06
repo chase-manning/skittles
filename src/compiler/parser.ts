@@ -1674,6 +1674,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
     if (name === "address") return { kind: "address" as SkittlesTypeKind };
     if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
+    if (name === "bytes32") return { kind: "bytes32" as SkittlesTypeKind };
 
     if (_knownStructs.has(name)) {
       return {
@@ -1697,7 +1698,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       };
     }
 
-    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, Record<K,V>, T[], type structs, interfaces, and enums.`);
+    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, T[], type structs, interfaces, and enums.`);
   }
 
   if (ts.isArrayTypeNode(node)) {
@@ -1733,7 +1734,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     case ts.SyntaxKind.VoidKeyword:
       return { kind: "void" as SkittlesTypeKind };
     default:
-      throw new Error(`Unsupported type node kind: ${ts.SyntaxKind[node.kind]}. Skittles supports number, string, boolean, address, bytes, Record<K,V>, and T[].`);
+      throw new Error(`Unsupported type node kind: ${ts.SyntaxKind[node.kind]}. Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, and T[].`);
   }
 }
 
@@ -3412,6 +3413,9 @@ export function inferType(
       return inferType(expr.operand, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
+        if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
+          return { kind: "bytes32" as SkittlesTypeKind };
+        }
         if (STRING_RETURNING_HELPERS.has(expr.callee.name)) {
           return { kind: "string" as SkittlesTypeKind };
         }
