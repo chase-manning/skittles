@@ -3029,6 +3029,9 @@ function walkStatements(
       case "object-literal":
         expr.properties.forEach((p) => walkExpr(p.value));
         break;
+      case "tuple-literal":
+        expr.elements.forEach(walkExpr);
+        break;
     }
   }
 
