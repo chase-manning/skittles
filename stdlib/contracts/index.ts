@@ -17,6 +17,8 @@
 
 // Token standards
 export { ERC20 } from "./token/ERC20.ts";
+export { ERC20Permit } from "./token/ERC20Permit.ts";
+export { ERC20Votes } from "./token/ERC20Votes.ts";
 export { ERC721 } from "./token/ERC721.ts";
 
 // Access control
