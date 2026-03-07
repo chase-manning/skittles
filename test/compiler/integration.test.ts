@@ -5280,6 +5280,84 @@ describe("integration: ETH transfers", () => {
 });
 
 // ============================================================
+// Address balance
+// ============================================================
+
+describe("integration: address.balance", () => {
+  it("should compile self.balance to address(this).balance", () => {
+    const { errors, solidity } = compileTS(`
+      class Vault {
+        public getContractBalance(): number {
+          return self.balance;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("address(this).balance");
+  });
+
+  it("should compile addr.balance for address parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class Vault {
+        public getBalance(addr: address): number {
+          return addr.balance;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("addr.balance");
+  });
+
+  it("should compile msg.sender.balance", () => {
+    const { errors, solidity } = compileTS(`
+      class Vault {
+        public getSenderBalance(): number {
+          return msg.sender.balance;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("msg.sender.balance");
+  });
+
+  it("should infer view for self.balance", () => {
+    const source = `
+      class Vault {
+        public getContractBalance(): number {
+          return self.balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should infer view for addr.balance on address parameter", () => {
+    const source = `
+      class Vault {
+        public getBalance(addr: address): number {
+          return addr.balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should infer view for msg.sender.balance", () => {
+    const source = `
+      class Vault {
+        public getSenderBalance(): number {
+          return msg.sender.balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+});
+
+// ============================================================
 // Same-file inheritance: shared definitions deduplication
 // ============================================================
 

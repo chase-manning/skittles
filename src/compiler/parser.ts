@@ -3215,6 +3215,38 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
           readsEnvironment = true;
         }
       }
+      // addr.balance reads the ETH balance of an address (blockchain state read)
+      if (
+        expr.kind === "property-access" &&
+        expr.property === "balance" &&
+        !(expr.object.kind === "identifier" && expr.object.name === "this")
+      ) {
+        // self.balance
+        if (expr.object.kind === "identifier" && expr.object.name === "self") {
+          readsState = true;
+        }
+        // addr.balance where addr is a known address variable
+        if (expr.object.kind === "identifier") {
+          const t = localVarTypes.get(expr.object.name) || varTypes?.get(expr.object.name);
+          if (t?.kind === ("address" as SkittlesTypeKind)) {
+            readsState = true;
+          }
+        }
+        // msg.sender.balance, block.coinbase.balance, tx.origin.balance
+        if (
+          expr.object.kind === "property-access" &&
+          expr.object.object.kind === "identifier"
+        ) {
+          const obj = expr.object;
+          if (
+            (obj.object.name === "msg" && obj.property === "sender") ||
+            (obj.object.name === "block" && obj.property === "coinbase") ||
+            (obj.object.name === "tx" && obj.property === "origin")
+          ) {
+            readsState = true;
+          }
+        }
+      }
       // `self` reads the contract's own address (address(this))
       if (expr.kind === "identifier" && expr.name === "self") {
         readsEnvironment = true;
@@ -3364,6 +3396,12 @@ export function inferType(
         return { kind: "address" as SkittlesTypeKind };
       return varTypes.get(expr.name);
     case "property-access":
+      // addr.balance → uint256 (ETH balance of an address)
+      if (expr.property === "balance") {
+        const objType = inferType(expr.object, varTypes);
+        if (objType?.kind === ("address" as SkittlesTypeKind))
+          return { kind: "uint256" as SkittlesTypeKind };
+      }
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
           return varTypes.get(expr.property);

@@ -68,6 +68,28 @@ import { self, address } from "skittles";
 let contractAddress: address = self;
 ```
 
+## Address Balance
+
+Use `.balance` on any address to read its ETH balance (in wei):
+
+```typescript
+import { self, address, msg } from "skittles";
+
+class Vault {
+  public getContractBalance(): number {
+    return self.balance;
+  }
+
+  public getBalance(addr: address): number {
+    return addr.balance;
+  }
+
+  public getSenderBalance(): number {
+    return msg.sender.balance;
+  }
+}
+```
+
 ## ETH Transfers
 
 Use `.transfer(amount)` on any address to send ETH from the contract:
