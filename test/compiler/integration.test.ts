@@ -5381,6 +5381,18 @@ describe("integration: address.balance", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts[0].functions[0].stateMutability).toBe("view");
   });
+
+  it("should infer view for block.coinbase.balance", () => {
+    const source = `
+      class Vault {
+        public getMinerBalance(): number {
+          return block.coinbase.balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
 });
 
 // ============================================================

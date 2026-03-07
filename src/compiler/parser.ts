@@ -3180,6 +3180,16 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
     }
   }
 
+  // Build a combined type map once for inferType lookups (e.g. .balance).
+  // Outer-scope types first, then local types which take precedence on name collisions.
+  const combinedVarTypes = new Map<string, SkittlesType>();
+  varTypes?.forEach((value, key) => {
+    combinedVarTypes.set(key, value);
+  });
+  localVarTypes.forEach((value, key) => {
+    combinedVarTypes.set(key, value);
+  });
+
   walkStatements(
     body,
     (expr) => {
@@ -3222,13 +3232,6 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         expr.property === "balance" &&
         !(expr.object.kind === "identifier" && expr.object.name === "this")
       ) {
-        const combinedVarTypes = new Map<string, SkittlesType>();
-        localVarTypes.forEach((value, key) => {
-          combinedVarTypes.set(key, value);
-        });
-        varTypes?.forEach((value, key) => {
-          combinedVarTypes.set(key, value);
-        });
         const objType = inferType(expr.object, combinedVarTypes);
         if (objType?.kind === ("address" as SkittlesTypeKind)) {
           readsState = true;
@@ -3303,6 +3306,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       }
       if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
         localVarTypes.set(stmt.name, stmt.type);
+        combinedVarTypes.set(stmt.name, stmt.type);
       }
     }
   );
