@@ -4039,6 +4039,38 @@ describe("integration: tuple destructuring", () => {
       `);
     }).toThrow("Unable to resolve tuple return type");
   });
+
+  it("should error when destructuring has more elements than tuple arity", () => {
+    expect(() => {
+      compileTS(`
+        class Test {
+          getTwo(): [number, number] {
+            return [1, 2];
+          }
+          public doSomething(): number {
+            const [a, b, c] = this.getTwo();
+            return a + b + c;
+          }
+        }
+      `);
+    }).toThrow("more elements than the function's tuple return type");
+  });
+
+  it("should error on unsupported binding elements in tuple destructuring", () => {
+    expect(() => {
+      compileTS(`
+        class Test {
+          getTwo(): [number, number] {
+            return [1, 2];
+          }
+          public doSomething(): number {
+            const [a = 1, b] = this.getTwo();
+            return a + b;
+          }
+        }
+      `);
+    }).toThrow("Unsupported tuple destructuring binding element");
+  });
 });
 
 // ============================================================

@@ -559,19 +559,41 @@ function parseArrayDestructuring(
     }
 
     if (tupleType?.kind === ("tuple" as SkittlesTypeKind) && tupleType.tupleTypes) {
+      const tupleArity = tupleType.tupleTypes.length;
       const names: (string | null)[] = [];
       const types: (SkittlesType | null)[] = [];
       for (let i = 0; i < pattern.elements.length; i++) {
         const elem = pattern.elements[i];
+        if (i >= tupleArity) {
+          throw new Error(
+            "Tuple destructuring pattern has more elements than the function's tuple return type."
+          );
+        }
         if (ts.isOmittedExpression(elem)) {
           // Skipped element: const [, b] = f()
           names.push(null);
-          types.push(i < tupleType.tupleTypes.length ? tupleType.tupleTypes[i] : null);
-        } else if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+          types.push(tupleType.tupleTypes[i]);
+        } else if (
+          ts.isBindingElement(elem) &&
+          ts.isIdentifier(elem.name) &&
+          !elem.initializer &&
+          !elem.dotDotDotToken &&
+          !elem.propertyName
+        ) {
           names.push(elem.name.text);
-          const t = i < tupleType.tupleTypes.length ? tupleType.tupleTypes[i] : { kind: "uint256" as SkittlesType["kind"] };
+          const t = tupleType.tupleTypes[i];
           types.push(t);
           varTypes.set(elem.name.text, t);
+        } else if (ts.isBindingElement(elem)) {
+          throw new Error(
+            "Unsupported tuple destructuring binding element in variable declaration. " +
+            "Nested patterns, default values in tuple destructuring (e.g. [a = 1]), and rest elements are not supported."
+          );
+        } else {
+          throw new Error(
+            "Unsupported element in tuple destructuring assignment. " +
+            "Only simple identifiers and omitted elements are supported in tuple destructuring patterns."
+          );
         }
       }
       const initExpr = parseExpression(initializer);
