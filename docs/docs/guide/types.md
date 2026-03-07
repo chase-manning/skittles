@@ -76,6 +76,14 @@ class StringExample {
   public tokenize(csv: string): string[] {
     return csv.split(",");
   }
+
+  public sanitize(input: string): string {
+    return input.replaceAll(" ", "_");
+  }
+
+  public replaceFirst(text: string, from: string, to: string): string {
+    return text.replace(from, to);
+  }
 }
 ```
 
@@ -97,6 +105,8 @@ public getUpperInitial(name: string): string {
 | `str.endsWith(suffix)` | Check if string ends with suffix | `boolean` |
 | `str.trim()` | Remove leading/trailing spaces | `string` |
 | `str.split(delimiter)` | Split string by delimiter | `string[]` |
+| `str.replace(search, replacement)` | Replace first occurrence | `string` |
+| `str.replaceAll(search, replacement)` | Replace all occurrences | `string` |
 
 :::note
 String methods compile to internal helper functions that operate on bytes and are **not** full JavaScript/TypeScript implementations:
@@ -106,6 +116,7 @@ String methods compile to internal helper functions that operate on bytes and ar
 - `substring(start)` without `end` is supported and defaults to the end of the string.
 - Only the simple overloads shown above are supported: `startsWith(prefix)` and `endsWith(suffix)` without a position argument.
 - `split(delimiter)` requires a non-empty delimiter. Using `split("")` (empty string) will revert.
+- `replace(search, replacement)` and `replaceAll(search, replacement)` require a non-empty search string. Using an empty search string will revert. If the search string is not found, the original string is returned unchanged.
 - `trim()` only removes ASCII space characters (code point 32) from the start and end of the string; it does not remove other whitespace characters.
 :::
 

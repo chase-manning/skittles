@@ -8,7 +8,7 @@ title: Standard Library
 Skittles ships with a built-in standard library of battle-tested contract implementations inspired by [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts). Import any contract and extend it — no extra packages or configuration required.
 
 ```typescript
-import { ERC20, Ownable } from "skittles/contracts";
+import { ERC20, Ownable, AccessControl } from "skittles/contracts";
 ```
 
 ## Available Contracts
@@ -25,6 +25,7 @@ import { ERC20, Ownable } from "skittles/contracts";
 | Contract | Description |
 |----------|-------------|
 | **Ownable** | Single-owner access control with ownership transfer and renounce |
+| **AccessControl** | Role-based access control with grant, revoke, and admin management |
 
 ### Security
 
@@ -185,6 +186,48 @@ export class Treasury extends Ownable {
 | `renounceOwnership()` | Renounces ownership (owner only) |
 | `_checkOwner()` | Reverts if caller is not the owner |
 | `_transferOwnership(newOwner)` | Internal ownership transfer |
+
+## AccessControl
+
+Role-based access control for contracts that need more than a single owner. Define roles as `bytes32` constants and use `_checkRole(role)` to restrict functions:
+
+```typescript
+import { address, bytes32, msg, keccak256 } from "skittles";
+import { AccessControl } from "skittles/contracts";
+
+export class Treasury extends AccessControl {
+  static readonly TREASURER_ROLE: bytes32 = keccak256("TREASURER_ROLE");
+
+  private balance: number = 0;
+
+  constructor() {
+    super();
+    this._grantRole(AccessControl.DEFAULT_ADMIN_ROLE, msg.sender);
+    this._grantRole(Treasury.TREASURER_ROLE, msg.sender);
+  }
+
+  public withdraw(amount: number): void {
+    this._checkRole(Treasury.TREASURER_ROLE);
+    this.balance -= amount;
+  }
+}
+```
+
+Every role has an admin role that controls who can grant and revoke it. By default the admin role for all roles is `DEFAULT_ADMIN_ROLE` (bytes32 zero).
+
+### Functions
+
+| Function | Description |
+|----------|-------------|
+| `hasRole(role, account)` | Returns whether an account has a role |
+| `getRoleAdmin(role)` | Returns the admin role for a given role |
+| `grantRole(role, account)` | Grants a role (caller must have the role's admin role) |
+| `revokeRole(role, account)` | Revokes a role (caller must have the role's admin role) |
+| `renounceRole(role, callerConfirmation)` | Renounces own role (pass your own address as confirmation) |
+| `_checkRole(role)` | Reverts if caller does not have the role |
+| `_grantRole(role, account)` | Internal role grant |
+| `_revokeRole(role, account)` | Internal role revoke |
+| `_setRoleAdmin(role, adminRole)` | Internal admin role change |
 
 ## Pausable
 

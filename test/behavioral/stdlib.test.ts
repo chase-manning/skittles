@@ -11,6 +11,7 @@ function readStdlib(name: string): string {
     ERC20: "token",
     ERC721: "token",
     Ownable: "access",
+    AccessControl: "access",
     Pausable: "security",
     ReentrancyGuard: "security",
   };
@@ -294,6 +295,127 @@ class OwnableToken extends Ownable {
   it("nobody can call restricted functions after renounce", async () => {
     const aliceContract = connectAs(contract, alice);
     await expect(aliceContract.setValue(1n)).rejects.toThrow();
+  });
+});
+
+// ============================================================
+// AccessControl stdlib tests
+// ============================================================
+
+describe("stdlib AccessControl", () => {
+  let env: TestEnv;
+  let contract: DeployedContract;
+  let deployer: ethers.Signer;
+  let alice: ethers.Signer;
+  let bob: ethers.Signer;
+  let deployerAddr: string;
+  let aliceAddr: string;
+  let bobAddr: string;
+
+  const AC_BASE = readStdlib("AccessControl");
+
+  // keccak256("MINTER_ROLE")
+  const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
+  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+  const AC_SOURCE = `
+${AC_BASE}
+
+class RoleToken extends AccessControl {
+  public value: number = 0;
+
+  constructor() {
+    super();
+    this._grantRole(AccessControl.DEFAULT_ADMIN_ROLE, msg.sender);
+    this._grantRole(keccak256("MINTER_ROLE"), msg.sender);
+  }
+
+  public setValue(newValue: number): void {
+    this._checkRole(keccak256("MINTER_ROLE"));
+    this.value = newValue;
+  }
+}
+`;
+
+  beforeAll(async () => {
+    env = await createTestEnv();
+    deployer = env.accounts[0];
+    alice = env.accounts[1];
+    bob = env.accounts[2];
+    deployerAddr = await deployer.getAddress();
+    aliceAddr = await alice.getAddress();
+    bobAddr = await bob.getAddress();
+    contract = await compileAndDeploy(env, AC_SOURCE, "RoleToken");
+  }, 30_000);
+
+  afterAll(async () => { await env?.server.close(); });
+
+  it("deployer has the default admin role", async () => {
+    expect(await contract.contract.hasRole(DEFAULT_ADMIN_ROLE, deployerAddr)).toBe(true);
+  });
+
+  it("deployer has the minter role", async () => {
+    expect(await contract.contract.hasRole(MINTER_ROLE, deployerAddr)).toBe(true);
+  });
+
+  it("non-granted account does not have a role", async () => {
+    expect(await contract.contract.hasRole(MINTER_ROLE, aliceAddr)).toBe(false);
+  });
+
+  it("allows role holder to call restricted functions", async () => {
+    await (await contract.contract.setValue(42n)).wait();
+    expect(await contract.contract.value()).toBe(42n);
+  });
+
+  it("reverts when non-role holder calls restricted function", async () => {
+    const aliceContract = connectAs(contract, alice);
+    await expect(aliceContract.setValue(99n)).rejects.toThrow();
+  });
+
+  it("admin can grant role to another account", async () => {
+    await (await contract.contract.grantRole(MINTER_ROLE, aliceAddr)).wait();
+    expect(await contract.contract.hasRole(MINTER_ROLE, aliceAddr)).toBe(true);
+  });
+
+  it("newly granted account can call restricted function", async () => {
+    const aliceContract = connectAs(contract, alice);
+    await (await aliceContract.setValue(77n)).wait();
+    expect(await contract.contract.value()).toBe(77n);
+  });
+
+  it("non-admin cannot grant roles", async () => {
+    const aliceContract = connectAs(contract, alice);
+    await expect(aliceContract.grantRole(MINTER_ROLE, bobAddr)).rejects.toThrow();
+  });
+
+  it("admin can revoke a role", async () => {
+    await (await contract.contract.revokeRole(MINTER_ROLE, aliceAddr)).wait();
+    expect(await contract.contract.hasRole(MINTER_ROLE, aliceAddr)).toBe(false);
+  });
+
+  it("revoked account can no longer call restricted function", async () => {
+    const aliceContract = connectAs(contract, alice);
+    await expect(aliceContract.setValue(1n)).rejects.toThrow();
+  });
+
+  it("non-admin cannot revoke roles", async () => {
+    const bobContract = connectAs(contract, bob);
+    await expect(bobContract.revokeRole(MINTER_ROLE, deployerAddr)).rejects.toThrow();
+  });
+
+  it("account can renounce its own role", async () => {
+    await (await contract.contract.grantRole(MINTER_ROLE, aliceAddr)).wait();
+    const aliceContract = connectAs(contract, alice);
+    await (await aliceContract.renounceRole(MINTER_ROLE, aliceAddr)).wait();
+    expect(await contract.contract.hasRole(MINTER_ROLE, aliceAddr)).toBe(false);
+  });
+
+  it("cannot renounce role for another account", async () => {
+    await expect(contract.contract.renounceRole(MINTER_ROLE, aliceAddr)).rejects.toThrow();
+  });
+
+  it("getRoleAdmin returns default admin role", async () => {
+    expect(await contract.contract.getRoleAdmin(MINTER_ROLE)).toBe(DEFAULT_ADMIN_ROLE);
   });
 });
 

@@ -90,6 +90,7 @@ function isStringExpr(expr: Expression): boolean {
 
 const STRING_RETURNING_HELPERS = new Set([
   "_charAt", "_substring", "_toLowerCase", "_toUpperCase", "_trim",
+  "_replace", "_replaceAll",
 ]);
 
 const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
@@ -101,6 +102,8 @@ const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs:
   endsWith: { helper: "_endsWith", minArgs: 1, maxArgs: 1 },
   trim: { helper: "_trim", minArgs: 0, maxArgs: 0 },
   split: { helper: "_split", minArgs: 1, maxArgs: 1 },
+  replace: { helper: "_replace", minArgs: 2, maxArgs: 2 },
+  replaceAll: { helper: "_replaceAll", minArgs: 2, maxArgs: 2 },
 };
 
 const KNOWN_ARRAY_METHODS = new Set([
@@ -119,6 +122,8 @@ function describeExpectedArgs(method: string, argCount?: number): string {
     endsWith: ["suffix"],
     trim: [],
     split: ["delimiter"],
+    replace: ["search", "replacement"],
+    replaceAll: ["search", "replacement"],
   };
   const args = allArgs[method] ?? [];
   if (argCount !== undefined) return args.slice(0, argCount).join(", ");

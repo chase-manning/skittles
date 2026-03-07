@@ -58,15 +58,39 @@ class Staking {
 | `tx.origin`   | `address` | The original sender of the transaction (the wallet that started it)  |
 | `tx.gasprice` | `uint256` | The gas price of the transaction                                     |
 
-## self
+## self (Contract Address)
 
-Use `self` to get the contract's own address.
+Use `self` to get the contract's own address. This is Skittles' equivalent of Solidity's `address(this)`.
 
 ```typescript
 import { self, address } from "skittles";
 
 let contractAddress: address = self;
 ```
+
+`self` is an `address` value, so you can use it anywhere you'd use an address — in comparisons, as a function argument, or to check the contract's ETH balance:
+
+```typescript
+import { self, msg, address } from "skittles";
+
+class Vault {
+  public getContractAddress(): address {
+    return self;
+  }
+
+  public isSelf(addr: address): boolean {
+    return addr == self;
+  }
+
+  public deposit(to: address, amount: number): void {
+    to.transfer(amount);
+  }
+}
+```
+
+:::tip
+If you're coming from Solidity, prefer `self` instead of `address(this)`. While `address(this)` is passed through to the underlying compiler, `address` is a type-only export in Skittles' TypeScript typings, so `address(this)` is not type-safe and will typically fail TypeScript checking and IntelliSense. `self` is a value-level `address` and gives you the clean, fully typed experience.
+:::
 
 ## ETH Transfers
 
