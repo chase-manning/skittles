@@ -21,6 +21,7 @@ export { ERC721 } from "./token/ERC721.ts";
 
 // Access control
 export { Ownable } from "./access/Ownable.ts";
+export { AccessControl } from "./access/AccessControl.ts";
 
 // Security
 export { Pausable } from "./security/Pausable.ts";
