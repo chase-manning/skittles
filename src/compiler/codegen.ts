@@ -598,12 +598,12 @@ function generateContractBody(
     const ancestor = contractByName.get(ancestorName);
     if (ancestor) {
       for (const f of ancestor.functions) {
-        _knownFunctionParams.set(f.name, f.parameters);
+        _knownFunctionParams.set(`${f.name}/${f.parameters.length}`, f.parameters);
       }
     }
   }
   for (const f of contract.functions) {
-    _knownFunctionParams.set(f.name, f.parameters);
+    _knownFunctionParams.set(`${f.name}/${f.parameters.length}`, f.parameters);
   }
 
   // Skip functions already emitted by an ancestor contract in the same file
@@ -755,6 +755,7 @@ function generateContractBody(
   if (needsHelper("_sqrt", _needsSqrtHelper)) {
     emitHelper("_sqrt", [
       "    function _sqrt(int256 _x) internal pure returns (int256) {",
+      '        require(_x >= 0, "sqrt of negative number");',
       "        uint256 x = uint256(_x);",
       "        if (x == 0) return 0;",
       "        uint256 z = (x >> 1) + 1;",
@@ -1493,8 +1494,8 @@ export function generateExpression(expr: Expression): string {
       ) {
         funcName = expr.callee.property;
       }
-      const knownParams = funcName ? _knownFunctionParams.get(funcName) : undefined;
-      if (knownParams && knownParams.length === expr.args.length) {
+      const knownParams = funcName ? _knownFunctionParams.get(`${funcName}/${expr.args.length}`) : undefined;
+      if (knownParams) {
         let needsCast = false;
         for (const p of knownParams) {
           if (p.type?.kind === SkittlesTypeKind.Uint256) { needsCast = true; break; }

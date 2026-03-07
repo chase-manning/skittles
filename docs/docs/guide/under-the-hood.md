@@ -129,6 +129,9 @@ export class Token {
   }
 
   transfer(to: address, amount: number): boolean {
+    if (amount < 0) {
+      throw new Error("Amount must be non-negative");
+    }
     if (this.balances[msg.sender] < amount) {
       throw new Error("Insufficient balance");
     }
@@ -159,6 +162,7 @@ contract Token {
     }
 
     function transfer(address to, int256 amount) public virtual returns (bool) {
+        require(amount >= 0, "Amount must be non-negative");
         require(balances[msg.sender] >= amount, "Insufficient balance");
         balances[msg.sender] -= amount;
         balances[to] += amount;

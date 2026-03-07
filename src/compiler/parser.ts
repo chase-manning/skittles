@@ -1823,7 +1823,9 @@ export function parseExpression(node: ts.Expression): Expression {
 
   if (ts.isElementAccessExpression(node)) {
     const obj = parseExpression(node.expression);
-    const objType = inferType(obj, _currentVarTypes);
+    const mergedTypes = new Map(_currentVarTypes);
+    for (const [k, v] of _currentParamTypes) mergedTypes.set(k, v);
+    const objType = inferType(obj, mergedTypes);
     return {
       kind: "element-access",
       object: obj,
@@ -3914,7 +3916,7 @@ function generateFindIndexHelper(
   const body: Statement[] = [
     mkForLoop("__sk_i", arrayExpr, [
       mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
-      mkIf(condExpr, [mkReturn({ kind: "identifier", name: "int256(__sk_i)" })]),
+      mkIf(condExpr, [mkReturn({ kind: "call", callee: mkId("int256"), args: [mkId("__sk_i")] })]),
     ]),
     mkReturn(mkNum("-1")),
   ];
@@ -3998,11 +4000,11 @@ function defaultValueForType(type: SkittlesType | undefined): Expression | null 
     case "uint256" as SkittlesTypeKind:
       return { kind: "number-literal", value: "0" };
     case "int256" as SkittlesTypeKind:
-      return { kind: "identifier", name: "int256(0)" };
+      return { kind: "call", callee: { kind: "identifier", name: "int256" }, args: [{ kind: "number-literal", value: "0" }] };
     case "bool" as SkittlesTypeKind:
       return { kind: "boolean-literal", value: false };
     case "address" as SkittlesTypeKind:
-      return { kind: "identifier", name: "address(0)" };
+      return { kind: "call", callee: { kind: "identifier", name: "address" }, args: [{ kind: "number-literal", value: "0" }] };
     default:
       return null;
   }
