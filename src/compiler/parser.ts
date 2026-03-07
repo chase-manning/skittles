@@ -3306,7 +3306,11 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       }
       if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
         localVarTypes.set(stmt.name, stmt.type);
-        combinedVarTypes.set(stmt.name, stmt.type);
+        // Only add to combinedVarTypes if this name is not already present.
+        // This avoids leaking inner shadowing declarations into outer scopes.
+        if (!combinedVarTypes.has(stmt.name)) {
+          combinedVarTypes.set(stmt.name, stmt.type);
+        }
       }
     }
   );
