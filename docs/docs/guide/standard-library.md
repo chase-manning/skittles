@@ -18,6 +18,8 @@ import { ERC20, Ownable } from "skittles/contracts";
 | Contract | Description |
 |----------|-------------|
 | **ERC20** | Full ERC-20 fungible token with mint, burn, approve, and transferFrom |
+| **ERC20Permit** | ERC-20 extension with EIP-2612 gasless approvals via signatures |
+| **ERC20Votes** | ERC-20 extension with token voting power delegation for governance |
 | **ERC721** | Full ERC-721 non-fungible token with mint, burn, approvals, and operator support |
 
 ### Access Control
@@ -101,6 +103,112 @@ export class MyToken extends ERC20 {
 - `ERC20InsufficientAllowance(spender, allowance, needed)`
 - `ERC20InvalidApprover(approver)`
 - `ERC20InvalidSpender(spender)`
+
+## ERC20Permit
+
+An ERC-20 extension that supports [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) permit (gasless approvals). Token holders can approve spenders via off-chain signatures instead of on-chain transactions:
+
+```typescript
+import { address, msg } from "skittles";
+import { ERC20Permit } from "skittles/contracts";
+
+export class MyToken extends ERC20Permit {
+  constructor() {
+    super("MyToken", "MTK");
+    this._mint(msg.sender, 1000000);
+  }
+}
+```
+
+Users can then call `permit()` with a signed message to approve token spending without the token holder paying gas.
+
+### Public Functions
+
+| Function | Description |
+|----------|-------------|
+| `name()` | Returns the token name |
+| `symbol()` | Returns the token symbol |
+| `decimals()` | Returns 18 |
+| `totalSupply()` | Returns the total supply |
+| `balanceOf(account)` | Returns the balance of an account |
+| `transfer(to, value)` | Transfers tokens to an address |
+| `allowance(owner, spender)` | Returns the remaining allowance |
+| `approve(spender, value)` | Approves a spender to transfer tokens |
+| `transferFrom(from, to, value)` | Transfers tokens using an allowance |
+| `nonces(owner)` | Returns the current nonce for an owner |
+| `permit(owner, spender, value, deadline, v, r, s)` | Approves via EIP-712 signature |
+| `DOMAIN_SEPARATOR()` | Returns the EIP-712 domain separator |
+
+### Internal Functions (for extensions)
+
+| Function | Description |
+|----------|-------------|
+| `_mint(to, value)` | Creates new tokens |
+| `_burn(from, value)` | Destroys tokens |
+| `_useNonce(owner)` | Consumes and returns the current nonce |
+
+### Events
+
+- `Transfer(from, to, value)` — emitted on transfer, mint, and burn
+- `Approval(owner, spender, value)` — emitted on approval
+
+### Custom Errors
+
+- `ERC2612ExpiredSignature(deadline)` — permit deadline has passed
+- `ERC2612InvalidSigner(signer, owner)` — recovered signer doesn't match owner
+- All ERC20 custom errors are also available
+
+## ERC20Votes
+
+An ERC-20 extension that supports token-based voting and delegation. Token holders can delegate their voting power to any address, and voting power is tracked automatically on transfers:
+
+```typescript
+import { address, msg } from "skittles";
+import { ERC20Votes } from "skittles/contracts";
+
+export class GovernanceToken extends ERC20Votes {
+  constructor() {
+    super("GovToken", "GOV");
+    this._mint(msg.sender, 1000000);
+  }
+}
+```
+
+Users must delegate (even to themselves) to activate voting power. Tokens held by accounts that have not delegated do not count as votes.
+
+### Public Functions
+
+| Function | Description |
+|----------|-------------|
+| `name()` | Returns the token name |
+| `symbol()` | Returns the token symbol |
+| `decimals()` | Returns 18 |
+| `totalSupply()` | Returns the total supply |
+| `balanceOf(account)` | Returns the balance of an account |
+| `transfer(to, value)` | Transfers tokens to an address |
+| `allowance(owner, spender)` | Returns the remaining allowance |
+| `approve(spender, value)` | Approves a spender to transfer tokens |
+| `transferFrom(from, to, value)` | Transfers tokens using an allowance |
+| `delegates(account)` | Returns the delegate for an account |
+| `getVotes(account)` | Returns the current voting power |
+| `delegate(delegatee)` | Delegates voting power to an address |
+
+### Internal Functions (for extensions)
+
+| Function | Description |
+|----------|-------------|
+| `_mint(to, value)` | Creates new tokens |
+| `_burn(from, value)` | Destroys tokens |
+| `_delegate(account, delegatee)` | Internal delegation |
+| `_moveDelegateVotes(from, to, amount)` | Moves voting power between delegates |
+| `_update(from, to, value)` | Core transfer hook (moves delegate votes on transfer) |
+
+### Events
+
+- `Transfer(from, to, value)` — emitted on transfer, mint, and burn
+- `Approval(owner, spender, value)` — emitted on approval
+- `DelegateChanged(delegator, fromDelegate, toDelegate)` — emitted when delegation changes
+- `DelegateVotesChanged(delegate, previousVotes, newVotes)` — emitted when voting power changes
 
 ## ERC721
 
