@@ -33,6 +33,8 @@ let _needsStartsWithHelper = false;
 let _needsEndsWithHelper = false;
 let _needsTrimHelper = false;
 let _needsSplitHelper = false;
+let _needsReplaceHelper = false;
+let _needsReplaceAllHelper = false;
 let _currentNeededArrayHelpers: string[] = [];
 let _allKnownEnumNames = new Set<string>();
 let _allKnownInterfaceNames = new Set<string>();
@@ -515,6 +517,8 @@ function generateContractBody(
   _needsEndsWithHelper = false;
   _needsTrimHelper = false;
   _needsSplitHelper = false;
+  _needsReplaceHelper = false;
+  _needsReplaceAllHelper = false;
   _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
@@ -895,6 +899,70 @@ function generateContractBody(
       "        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }",
       "        parts[partIndex] = string(lastPart);",
       "        return parts;",
+      "    }",
+    ]);
+  }
+
+  if (needsHelper("_replace", _needsReplaceHelper)) {
+    emitHelper("_replace", [
+      "    function _replace(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory searchBytes = bytes(search);",
+      "        bytes memory replBytes = bytes(replacement);",
+      "        require(searchBytes.length > 0);",
+      "        for (uint256 i = 0; i + searchBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < searchBytes.length; j++) {",
+      "                if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) {",
+      "                bytes memory result = new bytes(strBytes.length - searchBytes.length + replBytes.length);",
+      "                for (uint256 k = 0; k < i; k++) { result[k] = strBytes[k]; }",
+      "                for (uint256 k = 0; k < replBytes.length; k++) { result[i + k] = replBytes[k]; }",
+      "                for (uint256 k = i + searchBytes.length; k < strBytes.length; k++) { result[k - searchBytes.length + replBytes.length] = strBytes[k]; }",
+      "                return string(result);",
+      "            }",
+      "        }",
+      "        return str;",
+      "    }",
+    ]);
+  }
+
+  if (needsHelper("_replaceAll", _needsReplaceAllHelper)) {
+    emitHelper("_replaceAll", [
+      "    function _replaceAll(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory searchBytes = bytes(search);",
+      "        bytes memory replBytes = bytes(replacement);",
+      "        require(searchBytes.length > 0);",
+      "        uint256 count = 0;",
+      "        for (uint256 i = 0; i + searchBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < searchBytes.length; j++) {",
+      "                if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) { count++; i += searchBytes.length - 1; }",
+      "        }",
+      "        if (count == 0) return str;",
+      "        bytes memory result = new bytes(strBytes.length - (count * searchBytes.length) + (count * replBytes.length));",
+      "        uint256 idx = 0;",
+      "        for (uint256 i = 0; i < strBytes.length; ) {",
+      "            bool found = false;",
+      "            if (i + searchBytes.length <= strBytes.length) {",
+      "                found = true;",
+      "                for (uint256 j = 0; j < searchBytes.length; j++) {",
+      "                    if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
+      "                }",
+      "            }",
+      "            if (found) {",
+      "                for (uint256 k = 0; k < replBytes.length; k++) { result[idx++] = replBytes[k]; }",
+      "                i += searchBytes.length;",
+      "            } else {",
+      "                result[idx++] = strBytes[i];",
+      "                i++;",
+      "            }",
+      "        }",
+      "        return string(result);",
       "    }",
     ]);
   }
@@ -1815,6 +1883,14 @@ function tryGenerateBuiltinCall(expr: {
     case "_split": {
       _needsSplitHelper = true;
       return `_split(${args})`;
+    }
+    case "_replace": {
+      _needsReplaceHelper = true;
+      return `_replace(${args})`;
+    }
+    case "_replaceAll": {
+      _needsReplaceAllHelper = true;
+      return `_replaceAll(${args})`;
     }
     default:
       return null;
