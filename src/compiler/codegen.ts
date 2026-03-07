@@ -724,7 +724,7 @@ function generateContractBody(
 
   if (needsHelper("_min", _needsMinHelper)) {
     emitHelper("_min", [
-      "    function _min(uint256 a, uint256 b) internal pure returns (uint256) {",
+      "    function _min(int256 a, int256 b) internal pure returns (int256) {",
       "        return a < b ? a : b;",
       "    }",
     ]);
@@ -732,7 +732,7 @@ function generateContractBody(
 
   if (needsHelper("_max", _needsMaxHelper)) {
     emitHelper("_max", [
-      "    function _max(uint256 a, uint256 b) internal pure returns (uint256) {",
+      "    function _max(int256 a, int256 b) internal pure returns (int256) {",
       "        return a > b ? a : b;",
       "    }",
     ]);
@@ -740,7 +740,8 @@ function generateContractBody(
 
   if (needsHelper("_sqrt", _needsSqrtHelper)) {
     emitHelper("_sqrt", [
-      "    function _sqrt(uint256 x) internal pure returns (uint256) {",
+      "    function _sqrt(int256 _x) internal pure returns (int256) {",
+      "        uint256 x = uint256(_x);",
       "        if (x == 0) return 0;",
       "        uint256 z = (x >> 1) + 1;",
       "        uint256 y = x;",
@@ -748,14 +749,15 @@ function generateContractBody(
       "            y = z;",
       "            z = (x / z + z) / 2;",
       "        }",
-      "        return y;",
+      "        return int256(y);",
       "    }",
     ]);
   }
 
   if (needsHelper("_charAt", _needsCharAtHelper)) {
     emitHelper("_charAt", [
-      "    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {",
+      "    function _charAt(string memory str, int256 _index) internal pure returns (string memory) {",
+      "        uint256 index = uint256(_index);",
       "        bytes memory strBytes = bytes(str);",
       "        require(index < strBytes.length);",
       "        bytes memory result = new bytes(1);",
@@ -767,7 +769,9 @@ function generateContractBody(
 
   if (needsHelper("_substring", _needsSubstringHelper)) {
     emitHelper("_substring", [
-      "    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {",
+      "    function _substring(string memory str, int256 _start, int256 _end) internal pure returns (string memory) {",
+      "        uint256 start = uint256(_start);",
+      "        uint256 end = uint256(_end);",
       "        bytes memory strBytes = bytes(str);",
       "        require(start <= end && end <= strBytes.length);",
       "        bytes memory result = new bytes(end - start);",
@@ -925,22 +929,22 @@ function generateContractBody(
 
     if (method === "indexOf" && needsHelper(`_arrIndexOf_${suffix}`, true)) {
       emitHelper(`_arrIndexOf_${suffix}`, [
-        `    function _arrIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
+        `    function _arrIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (int256) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
-        `            if (${eqCheck}) return i;`,
+        `            if (${eqCheck}) return int256(i);`,
         `        }`,
-        `        return type(uint256).max;`,
+        `        return -1;`,
         `    }`,
       ]);
     }
 
     if (method === "lastIndexOf" && needsHelper(`_arrLastIndexOf_${suffix}`, true)) {
       emitHelper(`_arrLastIndexOf_${suffix}`, [
-        `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
+        `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (int256) {`,
         `        for (uint256 i = arr.length; i > 0; i--) {`,
-        `            if (${eqCheck.replace(/arr\[i\]/g, "arr[i - 1]")}) return i - 1;`,
+        `            if (${eqCheck.replace(/arr\[i\]/g, "arr[i - 1]")}) return int256(i - 1);`,
         `        }`,
-        `        return type(uint256).max;`,
+        `        return -1;`,
         `    }`,
       ]);
     }
@@ -975,7 +979,9 @@ function generateContractBody(
 
     if (method === "splice" && needsHelper(`_arrSplice_${suffix}`, true)) {
       emitHelper(`_arrSplice_${suffix}`, [
-        `    function _arrSplice_${suffix}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
+        `    function _arrSplice_${suffix}(${solType}[] storage arr, int256 _s, int256 _dc) internal {`,
+        `        uint256 start = uint256(_s);`,
+        `        uint256 deleteCount = uint256(_dc);`,
         `        require(start < arr.length, "start out of bounds");`,
         `        uint256 end = start + deleteCount;`,
         `        if (end > arr.length) end = arr.length;`,
@@ -992,7 +998,9 @@ function generateContractBody(
 
     if (method === "slice" && needsHelper(`_arrSlice_${suffix}`, true)) {
       emitHelper(`_arrSlice_${suffix}`, [
-        `    function _arrSlice_${suffix}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
+        `    function _arrSlice_${suffix}(${solType}[] storage arr, int256 _s, int256 _e) internal view returns (${solType}[] memory) {`,
+        `        uint256 start = uint256(_s);`,
+        `        uint256 end = uint256(_e);`,
         `        if (end > arr.length) end = arr.length;`,
         `        require(start <= end, "invalid slice range");`,
         `        ${solType}[] memory result = new ${solType}[](end - start);`,
@@ -1324,7 +1332,7 @@ export function generateType(type: SkittlesType): string {
     case SkittlesTypeKind.Void:
       return "";
     default:
-      return "uint256";
+      return "int256";
   }
 }
 
@@ -1380,13 +1388,13 @@ export function generateExpression(expr: Expression): string {
       ) {
         return expr.property;
       }
-      // Number.MAX_VALUE → type(uint256).max
+      // Number.MAX_VALUE → type(int256).max
       if (
         expr.object.kind === "identifier" &&
         expr.object.name === "Number" &&
         expr.property === "MAX_VALUE"
       ) {
-        return "type(uint256).max";
+        return "type(int256).max";
       }
       // Number.MAX_SAFE_INTEGER → 9007199254740991 (2^53 - 1)
       if (
@@ -1396,11 +1404,48 @@ export function generateExpression(expr: Expression): string {
       ) {
         return "9007199254740991";
       }
+      // EVM globals that are natively uint256 in Solidity → wrap in int256(...)
+      if (expr.object.kind === "identifier") {
+        if (
+          expr.object.name === "msg" &&
+          expr.property === "value"
+        ) {
+          return "int256(msg.value)";
+        }
+        if (
+          expr.object.name === "block" &&
+          expr.property !== "coinbase"
+        ) {
+          return `int256(block.${expr.property})`;
+        }
+        if (
+          expr.object.name === "tx" &&
+          expr.property === "gasprice"
+        ) {
+          return "int256(tx.gasprice)";
+        }
+      }
+      // .length on arrays/strings → int256(...) when marked by parser
+      if (expr.property === "length" && expr.wrapLengthInInt256) {
+        return `int256(${generateExpression(expr.object)}.length)`;
+      }
       return `${generateExpression(expr.object)}.${expr.property}`;
-    case "element-access":
-      return `${generateExpression(expr.object)}[${generateExpression(expr.index)}]`;
-    case "binary":
-      return `(${generateExpression(expr.left)} ${expr.operator} ${generateExpression(expr.right)})`;
+    case "element-access": {
+      const idx = generateExpression(expr.index);
+      const wrappedIdx = expr.isArrayAccess ? `uint256(${idx})` : idx;
+      return `${generateExpression(expr.object)}[${wrappedIdx}]`;
+    }
+    case "binary": {
+      const left = generateExpression(expr.left);
+      const right = generateExpression(expr.right);
+      if (expr.operator === "**") {
+        return `(int256(${left}) ${expr.operator} uint256(${right}))`;
+      }
+      if (expr.operator === "<<" || expr.operator === ">>") {
+        return `(${left} ${expr.operator} uint256(${right}))`;
+      }
+      return `(${left} ${expr.operator} ${right})`;
+    }
     case "unary":
       if (expr.prefix) {
         return `${expr.operator}${generateExpression(expr.operand)}`;
@@ -1421,12 +1466,20 @@ export function generateExpression(expr: Expression): string {
         !isThisOrContractCall(expr.callee.object)
       ) {
         const addr = generateExpression(expr.callee.object);
-        return `payable(${addr}).transfer(${generateExpression(expr.args[0])})`;
+        return `payable(${addr}).transfer(uint256(${generateExpression(expr.args[0])}))`;
       }
       return `${generateExpression(expr.callee)}(${expr.args.map(generateExpression).join(", ")})`;
     }
-    case "conditional":
-      return `(${generateExpression(expr.condition)} ? ${generateExpression(expr.whenTrue)} : ${generateExpression(expr.whenFalse)})`;
+    case "conditional": {
+      let whenTrueStr = generateExpression(expr.whenTrue);
+      let whenFalseStr = generateExpression(expr.whenFalse);
+      if (expr.whenTrue.kind === "number-literal" && expr.whenFalse.kind !== "number-literal") {
+        whenTrueStr = `int256(${whenTrueStr})`;
+      } else if (expr.whenFalse.kind === "number-literal" && expr.whenTrue.kind !== "number-literal") {
+        whenFalseStr = `int256(${whenFalseStr})`;
+      }
+      return `(${generateExpression(expr.condition)} ? ${whenTrueStr} : ${whenFalseStr})`;
+    }
     case "new":
       return `new ${expr.callee}(${expr.args.map(generateExpression).join(", ")})`;
     case "object-literal": {
@@ -1455,7 +1508,7 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return `${indent}return;`;
 
     case "variable-declaration": {
-      const type = stmt.type ? generateParamType(stmt.type) : "uint256";
+      const type = stmt.type ? generateParamType(stmt.type) : "int256";
       if (stmt.initializer) {
         let initExpr = generateExpression(stmt.initializer);
         // Wrap object literal in struct constructor when the type is a struct
@@ -1743,7 +1796,7 @@ function tryGenerateBuiltinCall(expr: {
     }
     case "ecrecover": {
       const [hashArg, vArg, rArg, sArg] = expr.args.map(generateExpression);
-      return `ecrecover(${hashArg}, uint8(${vArg}), ${rArg}, ${sArg})`;
+      return `ecrecover(${hashArg}, uint8(uint256(${vArg})), ${rArg}, ${sArg})`;
     }
     case "addmod":
       return `addmod(${args})`;
@@ -1777,7 +1830,7 @@ function tryGenerateBuiltinCall(expr: {
     case "Math.pow": {
       const base = generateExpression(expr.args[0]);
       const exp = generateExpression(expr.args[1]);
-      return `(${base} ** ${exp})`;
+      return `(int256(${base}) ** uint256(${exp}))`;
     }
     case "Math.sqrt": {
       _needsSqrtHelper = true;

@@ -10,13 +10,13 @@ describe("compileSolidity", () => {
 pragma solidity ^0.8.0;
 
 contract SimpleStorage {
-    uint256 private value;
+    int256 private value;
 
-    function get() public view returns (uint256) {
+    function get() public view returns (int256) {
         return value;
     }
 
-    function set(uint256 newValue) public {
+    function set(int256 newValue) public {
         value = newValue;
     }
 }
@@ -56,9 +56,9 @@ contract Broken {
 pragma solidity ^0.8.0;
 
 contract Optimized {
-    uint256 public value;
+    int256 public value;
 
-    function set(uint256 v) public {
+    function set(int256 v) public {
         value = v;
     }
 }

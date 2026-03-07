@@ -50,7 +50,7 @@ describe("integration: state variables", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain('string public name = "MyToken"');
-    expect(solidity).toContain("uint256 public totalSupply = 0");
+    expect(solidity).toContain("int256 public totalSupply = 0");
     expect(solidity).toContain("bool public active = true");
   });
 
@@ -61,7 +61,7 @@ describe("integration: state variables", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("mapping(address => uint256) internal balances");
+    expect(solidity).toContain("mapping(address => int256) internal balances");
   });
 
   it("should compile a contract with nested mapping", () => {
@@ -72,7 +72,7 @@ describe("integration: state variables", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain(
-      "mapping(address => mapping(address => uint256)) internal allowances"
+      "mapping(address => mapping(address => int256)) internal allowances"
     );
   });
 });
@@ -88,7 +88,7 @@ describe("integration: constructor", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("constructor(uint256 supply)");
+    expect(solidity).toContain("constructor(int256 supply)");
     expect(solidity).toContain("totalSupply = supply;");
   });
 });
@@ -104,7 +104,7 @@ describe("integration: functions", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain(
-      "function add(uint256 a, uint256 b) public pure virtual returns (uint256)"
+      "function add(int256 a, int256 b) public pure virtual returns (int256)"
     );
   });
 
@@ -118,7 +118,7 @@ describe("integration: functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function getSupply() public view virtual returns (uint256)");
+    expect(solidity).toContain("function getSupply() public view virtual returns (int256)");
   });
 
   it("should compile a state-mutating function", () => {
@@ -178,7 +178,7 @@ describe("integration: control flow", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("for (uint256 i = 0;");
+    expect(solidity).toContain("for (int256 i = 0;");
   });
 
   it("should compile if/else", () => {
@@ -213,7 +213,7 @@ describe("integration: control flow", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function classify(uint256 value) public pure virtual returns (uint256)");
+    expect(solidity).toContain("function classify(int256 value) public pure virtual returns (int256)");
     expect(solidity).toContain("(value % 2)");
     expect(solidity).toContain("} else {");
     expect(solidity).toContain("return 43;");
@@ -252,7 +252,7 @@ describe("integration: control flow", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("(a % b)");
-    expect(solidity).toContain("(a ** b)");
+    expect(solidity).toContain("(int256(a) ** uint256(b))");
   });
 
   it("should compile power operator with literal base (10 ** decimals)", () => {
@@ -264,7 +264,7 @@ describe("integration: control flow", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("(10 ** decimals)");
+    expect(solidity).toContain("(int256(10) ** uint256(decimals))");
   });
 
   it("should desugar **= compound assignment to x = x ** y", () => {
@@ -277,7 +277,7 @@ describe("integration: control flow", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("value = (value ** exp)");
+    expect(solidity).toContain("value = (int256(value) ** uint256(exp))");
   });
 });
 
@@ -319,12 +319,12 @@ describe("integration: EVM globals", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("lastCoinbase = block.coinbase;");
-    expect(solidity).toContain("lastPrevrandao = block.prevrandao;");
-    expect(solidity).toContain("lastGaslimit = block.gaslimit;");
-    expect(solidity).toContain("lastBasefee = block.basefee;");
-    expect(solidity).toContain("lastNumber = block.number;");
-    expect(solidity).toContain("lastTimestamp = block.timestamp;");
-    expect(solidity).toContain("lastChainid = block.chainid;");
+    expect(solidity).toContain("lastPrevrandao = int256(block.prevrandao);");
+    expect(solidity).toContain("lastGaslimit = int256(block.gaslimit);");
+    expect(solidity).toContain("lastBasefee = int256(block.basefee);");
+    expect(solidity).toContain("lastNumber = int256(block.number);");
+    expect(solidity).toContain("lastTimestamp = int256(block.timestamp);");
+    expect(solidity).toContain("lastChainid = int256(block.chainid);");
   });
 
   it("should compile all msg globals", () => {
@@ -341,7 +341,7 @@ describe("integration: EVM globals", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("lastSender = msg.sender;");
-    expect(solidity).toContain("lastValue = msg.value;");
+    expect(solidity).toContain("lastValue = int256(msg.value);");
   });
 
   it("should compile all tx globals", () => {
@@ -358,7 +358,7 @@ describe("integration: EVM globals", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("lastOrigin = tx.origin;");
-    expect(solidity).toContain("lastGasprice = tx.gasprice;");
+    expect(solidity).toContain("lastGasprice = int256(tx.gasprice);");
   });
 
   it("should compile msg.value, block.timestamp, tx.origin", () => {
@@ -376,8 +376,8 @@ describe("integration: EVM globals", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("lastDeposit = msg.value;");
-    expect(solidity).toContain("lastTime = block.timestamp;");
+    expect(solidity).toContain("lastDeposit = int256(msg.value);");
+    expect(solidity).toContain("lastTime = int256(block.timestamp);");
     expect(solidity).toContain("lastOrigin = tx.origin;");
   });
 });
@@ -400,7 +400,7 @@ describe("integration: events", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("event Transfer(address from, address to, uint256 amount);");
+    expect(solidity).toContain("event Transfer(address from, address to, int256 amount);");
     expect(solidity).toContain("emit Transfer(msg.sender, to, amount);");
   });
 
@@ -442,7 +442,7 @@ describe("integration: arrays", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("address[] public addresses;");
     expect(solidity).toContain("addresses.push(addr);");
-    expect(solidity).toContain("return addresses.length;");
+    expect(solidity).toContain("return int256(addresses.length);");
   });
 
   it("should detect array push as nonpayable", () => {
@@ -547,10 +547,10 @@ describe("integration: full token contract", () => {
     // Verify Solidity structure
     expect(solidity).toContain("contract Token {");
     expect(solidity).toContain('string public name = "MyToken"');
-    expect(solidity).toContain("mapping(address => uint256) internal balances");
-    expect(solidity).toContain("constructor(uint256 initialSupply)");
-    expect(solidity).toContain("function balanceOf(address account) public view virtual returns (uint256)");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("mapping(address => int256) internal balances");
+    expect(solidity).toContain("constructor(int256 initialSupply)");
+    expect(solidity).toContain("function balanceOf(address account) public view virtual returns (int256)");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public virtual returns (bool)");
     expect(solidity).toContain('require((balances[sender] >= amount), "Insufficient balance")');
     expect(solidity).toContain("balances[sender] -= amount");
     expect(solidity).toContain("balances[to] += amount");
@@ -594,7 +594,7 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
+    expect(solidity).toContain("function max(int256 a, int256 b) public pure virtual returns (int256)");
   });
 
   it("should compile void ternary expressions as if/else", () => {
@@ -631,7 +631,7 @@ describe("integration: additional features", () => {
     expect(solidity).toContain("9007199254740991");
   });
 
-  it("should compile Number.MAX_VALUE as type(uint256).max", () => {
+  it("should compile Number.MAX_VALUE as type(int256).max", () => {
     const { errors, solidity } = compileTS(`
       class MaxValue {
         public maxUint: number = 0;
@@ -641,7 +641,7 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("type(uint256).max");
+    expect(solidity).toContain("type(int256).max");
   });
 
   it("should compile private methods as internal", () => {
@@ -661,8 +661,8 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual {");
+    expect(solidity).toContain("function _transfer(address from, address to, int256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public virtual {");
     expect(solidity).toContain("_transfer(msg.sender, to, amount);");
   });
 
@@ -678,7 +678,7 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 public immutable maxSupply = 1000000;");
+    expect(solidity).toContain("int256 public immutable maxSupply = 1000000;");
     expect(solidity).toContain("address public immutable owner;");
   });
 
@@ -710,7 +710,7 @@ describe("integration: additional features", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("type(uint256).max");
+    expect(solidity).toContain("type(int256).max");
   });
 });
 
@@ -740,7 +740,7 @@ describe("integration: EVM globals mutability inference", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts[0].functions[0].stateMutability).toBe("view");
     const { solidity } = compileTS(source);
-    expect(solidity).toContain("function getTimestamp() public view virtual returns (uint256)");
+    expect(solidity).toContain("function getTimestamp() public view virtual returns (int256)");
   });
 
   it("should infer view for block.number access", () => {
@@ -845,8 +845,8 @@ describe("integration: cross-function mutability propagation", () => {
 
     const { errors, solidity } = compileTS(source);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual {");
+    expect(solidity).toContain("function _transfer(address from, address to, int256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public virtual {");
     expect(solidity).not.toContain("view");
   });
 
@@ -995,18 +995,18 @@ describe("integration: full ERC20 with events and allowances", () => {
     expect(bytecode.length).toBeGreaterThan(0);
 
     // Verify event declarations
-    expect(solidity).toContain("event Transfer(address from, address to, uint256 value);");
-    expect(solidity).toContain("event Approval(address owner, address spender, uint256 value);");
+    expect(solidity).toContain("event Transfer(address from, address to, int256 value);");
+    expect(solidity).toContain("event Approval(address owner, address spender, int256 value);");
 
     // Verify nested mapping
-    expect(solidity).toContain("mapping(address => mapping(address => uint256)) internal allowances;");
+    expect(solidity).toContain("mapping(address => mapping(address => int256)) internal allowances;");
 
     // Verify all ERC20 functions
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual returns (bool)");
-    expect(solidity).toContain("function approve(address spender, uint256 amount) public virtual returns (bool)");
-    expect(solidity).toContain("function transferFrom(address from, address to, uint256 amount) public virtual returns (bool)");
-    expect(solidity).toContain("function balanceOf(address account) public view virtual returns (uint256)");
-    expect(solidity).toContain("function allowance(address owner, address spender) public view virtual returns (uint256)");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function approve(address spender, int256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function transferFrom(address from, address to, int256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function balanceOf(address account) public view virtual returns (int256)");
+    expect(solidity).toContain("function allowance(address owner, address spender) public view virtual returns (int256)");
 
     // Verify emit statements
     expect(solidity).toContain("emit Transfer(sender, to, amount);");
@@ -1157,27 +1157,27 @@ describe("integration: ultimate combined test", () => {
     expect(solidity).toContain("address public immutable owner;");
     expect(solidity).toContain("contract AdvancedToken is Ownable {");
 
-    expect(solidity).toContain("event Transfer(address from, address to, uint256 value);");
-    expect(solidity).toContain("event Approval(address owner, address spender, uint256 value);");
+    expect(solidity).toContain("event Transfer(address from, address to, int256 value);");
+    expect(solidity).toContain("event Approval(address owner, address spender, int256 value);");
 
-    expect(solidity).toContain("uint256 public immutable decimals = 18;");
+    expect(solidity).toContain("int256 public immutable decimals = 18;");
     expect(solidity).toContain("address[] public holders;");
-    expect(solidity).toContain("mapping(address => mapping(address => uint256)) internal allowances;");
+    expect(solidity).toContain("mapping(address => mapping(address => int256)) internal allowances;");
 
     // Cross-function propagation: transfer must not be view
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual returns (bool)");
+    expect(solidity).toContain("function _transfer(address from, address to, int256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public virtual returns (bool)");
     expect(solidity).not.toMatch(/function transfer\(.*\) public view/);
 
     // Number.MAX_VALUE
-    expect(solidity).toContain("type(uint256).max");
+    expect(solidity).toContain("type(int256).max");
 
     // Ternary
-    expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
+    expect(solidity).toContain("function max(int256 a, int256 b) public pure virtual returns (int256)");
 
     // Array operations
     expect(solidity).toContain("holders.push(msg.sender);");
-    expect(solidity).toContain("return holders.length;");
+    expect(solidity).toContain("return int256(holders.length);");
 
     // Verify ABI completeness
     const abiNames = (result.abi as { name?: string; type?: string }[]);
@@ -1231,8 +1231,8 @@ describe("integration: bitwise operators", () => {
     expect(solidity).toContain("(a & b)");
     expect(solidity).toContain("(a | b)");
     expect(solidity).toContain("(a ^ b)");
-    expect(solidity).toContain("(a << b)");
-    expect(solidity).toContain("(a >> b)");
+    expect(solidity).toContain("(a << uint256(b))");
+    expect(solidity).toContain("(a >> uint256(b))");
     expect(solidity).toContain("~a");
   });
 
@@ -1337,7 +1337,7 @@ describe("integration: indexed event parameters", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("event Transfer(address indexed from, address indexed to, uint256 value);");
+    expect(solidity).toContain("event Transfer(address indexed from, address indexed to, int256 value);");
   });
 
   it("should compile events without indexed parameters unchanged", () => {
@@ -1351,7 +1351,7 @@ describe("integration: indexed event parameters", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("event Log(string message, uint256 value);");
+    expect(solidity).toContain("event Log(string message, int256 value);");
     expect(solidity).not.toContain("indexed");
   });
 });
@@ -1373,7 +1373,7 @@ describe("integration: constant state variables", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 public constant MAX_SUPPLY = 1000000;");
+    expect(solidity).toContain("int256 public constant MAX_SUPPLY = 1000000;");
     expect(solidity).toContain('string public constant TOKEN_NAME = "MyToken";');
   });
 
@@ -1426,7 +1426,7 @@ describe("integration: built-in functions", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("abi.decode(data, (uint256, address))");
+    expect(solidity).toContain("abi.decode(data, (int256, address))");
   });
 
   it("should compile abi.decode with a single type parameter", () => {
@@ -1438,7 +1438,7 @@ describe("integration: built-in functions", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("abi.decode(data, (uint256))");
+    expect(solidity).toContain("abi.decode(data, (int256))");
   });
 
   it("should compile abi.decode without type parameters", () => {
@@ -1587,7 +1587,7 @@ describe("integration: built-in functions", () => {
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("_min(a, b)");
-    expect(solidity).toContain("function _min(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("function _min(int256 a, int256 b) internal pure returns (int256)");
   });
 
   it("should compile Math.max using helper function", () => {
@@ -1600,7 +1600,7 @@ describe("integration: built-in functions", () => {
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("_max(a, b)");
-    expect(solidity).toContain("function _max(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("function _max(int256 a, int256 b) internal pure returns (int256)");
   });
 
   it("should compile nested Math.min and Math.max (clamp)", () => {
@@ -1624,7 +1624,7 @@ describe("integration: built-in functions", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("(base ** exp)");
+    expect(solidity).toContain("(int256(base) ** uint256(exp))");
   });
 
   it("should compile Math.sqrt and generate helper function", () => {
@@ -1637,7 +1637,7 @@ describe("integration: built-in functions", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("_sqrt(x)");
-    expect(solidity).toContain("function _sqrt(uint256 x) internal pure returns (uint256)");
+    expect(solidity).toContain("function _sqrt(int256 _x) internal pure returns (int256)");
   });
 
   it("should wrap ecrecover v argument in uint8() cast", () => {
@@ -1649,7 +1649,7 @@ describe("integration: built-in functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("ecrecover(h, uint8(v), r, s)");
+    expect(solidity).toContain("ecrecover(h, uint8(uint256(v)), r, s)");
   });
 });
 
@@ -1795,7 +1795,7 @@ describe("integration: string methods", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("_charAt(name, 0)");
-    expect(solidity).toContain("function _charAt(string memory str, uint256 index)");
+    expect(solidity).toContain("function _charAt(string memory str, int256 _index)");
   });
 
   it("should compile charAt on state variable", () => {
@@ -1822,7 +1822,7 @@ describe("integration: string methods", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("_substring(text, 0, 3)");
-    expect(solidity).toContain("function _substring(string memory str, uint256 start, uint256 end)");
+    expect(solidity).toContain("function _substring(string memory str, int256 _start, int256 _end)");
   });
 
   it("should compile toLowerCase on parameter", () => {
@@ -2010,7 +2010,7 @@ describe("integration: string methods", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("_substring(text, 3, bytes(text).length)");
+    expect(solidity).toContain("_substring(text, 3, int256(bytes(text).length))");
   });
 
   it("should compile charAt with no argument defaulting to index 0", () => {
@@ -2145,8 +2145,8 @@ describe("integration: structs", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("struct Point {");
-    expect(solidity).toContain("uint256 x;");
-    expect(solidity).toContain("uint256 y;");
+    expect(solidity).toContain("int256 x;");
+    expect(solidity).toContain("int256 y;");
     expect(solidity).toContain("Point public origin;");
     expect(solidity).toContain("returns (Point memory)");
   });
@@ -2212,7 +2212,7 @@ describe("integration: virtual and override", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
+    expect(solidity).toContain("function getValue() public pure virtual returns (int256)");
   });
 
   it("should mark overridden functions with override", () => {
@@ -2233,8 +2233,8 @@ describe("integration: virtual and override", () => {
     const solidity = generateSolidityFile(contracts);
     const result = compileSolidity("Child", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
-    expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
-    expect(solidity).toContain("function getValue() public pure override returns (uint256)");
+    expect(solidity).toContain("function getValue() public pure virtual returns (int256)");
+    expect(solidity).toContain("function getValue() public pure override returns (int256)");
   });
 });
 
@@ -2262,9 +2262,9 @@ describe("integration: abstract contracts", () => {
 
     const solidity = generateSolidityFile(contracts);
     expect(solidity).toContain("abstract contract Base {");
-    expect(solidity).toContain("function getValue() public pure virtual returns (uint256);");
+    expect(solidity).toContain("function getValue() public pure virtual returns (int256);");
     expect(solidity).toContain("contract Child is Base {");
-    expect(solidity).toContain("function getValue() public pure override returns (uint256)");
+    expect(solidity).toContain("function getValue() public pure override returns (int256)");
 
     const result = compileSolidity("Child", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
@@ -2294,7 +2294,7 @@ describe("integration: abstract contracts", () => {
 
     const solidity = generateSolidityFile(contracts);
     expect(solidity).toContain("abstract contract Base {");
-    expect(solidity).toContain("function getValue() public view virtual returns (uint256);");
+    expect(solidity).toContain("function getValue() public view virtual returns (int256);");
     expect(solidity).toContain("function increment() public virtual {");
 
     const result = compileSolidity("Child", solidity, defaultConfig);
@@ -2373,7 +2373,7 @@ describe("integration: receive and fallback", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("receive() external payable {");
-    expect(solidity).toContain("total += msg.value;");
+    expect(solidity).toContain("total += int256(msg.value);");
   });
 
   it("should compile fallback function", () => {
@@ -2443,7 +2443,7 @@ describe("integration: custom errors", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("error InsufficientBalance(uint256 available, uint256 required);");
+    expect(solidity).toContain("error InsufficientBalance(int256 available, int256 required);");
     expect(solidity).toContain("revert InsufficientBalance(balances[msg.sender], amount);");
     expect(solidity).not.toContain("require(");
   });
@@ -2483,7 +2483,7 @@ describe("integration: inline SkittlesError declarations", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("error InsufficientBalance(address sender, uint256 balance, uint256 required);");
+    expect(solidity).toContain("error InsufficientBalance(address sender, int256 balance, int256 required);");
     expect(solidity).toContain("revert InsufficientBalance(msg.sender, balances[msg.sender], amount);");
     expect(solidity).not.toContain("require(");
   });
@@ -2541,8 +2541,8 @@ describe("integration: inline SkittlesError declarations", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("error OldError(uint256 x);");
-    expect(solidity).toContain("error NewError(uint256 y);");
+    expect(solidity).toContain("error OldError(int256 x);");
+    expect(solidity).toContain("error NewError(int256 y);");
     expect(solidity).toContain("revert OldError(1);");
     expect(solidity).toContain("revert NewError(2);");
   });
@@ -2569,8 +2569,8 @@ describe("integration: arrow function class properties", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function _transfer(address from, address to, uint256 amount) internal virtual {");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public virtual {");
+    expect(solidity).toContain("function _transfer(address from, address to, int256 amount) internal virtual {");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public virtual {");
     expect(solidity).toContain("balances[from] -= amount;");
     expect(solidity).toContain("balances[to] += amount;");
   });
@@ -2584,7 +2584,7 @@ describe("integration: arrow function class properties", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function add(uint256 a, uint256 b) public pure virtual returns (uint256)");
+    expect(solidity).toContain("function add(int256 a, int256 b) public pure virtual returns (int256)");
   });
 
   it("should infer state mutability for arrow function properties", () => {
@@ -2687,8 +2687,8 @@ describe("integration: static class methods", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function add(uint256 a, uint256 b) internal pure virtual returns (uint256)");
-    expect(solidity).toContain("function mul(uint256 a, uint256 b) internal pure virtual returns (uint256)");
+    expect(solidity).toContain("function add(int256 a, int256 b) internal pure virtual returns (int256)");
+    expect(solidity).toContain("function mul(int256 a, int256 b) internal pure virtual returns (int256)");
   });
 });
 
@@ -2708,8 +2708,8 @@ describe("integration: const declarations", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 doubled = (x * 2);");
-    expect(solidity).toContain("uint256 tripled = (x * 3);");
+    expect(solidity).toContain("int256 doubled = (x * 2);");
+    expect(solidity).toContain("int256 tripled = (x * 3);");
     expect(solidity).toContain("return (doubled + tripled);");
   });
 
@@ -2780,7 +2780,7 @@ describe("integration: getter/setter accessors", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function balance() public view virtual returns (uint256)");
+    expect(solidity).toContain("function balance() public view virtual returns (int256)");
     expect(solidity).toContain("return _balance;");
   });
 
@@ -2795,7 +2795,7 @@ describe("integration: getter/setter accessors", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function balance(uint256 value) public virtual {");
+    expect(solidity).toContain("function balance(int256 value) public virtual {");
     expect(solidity).toContain("_balance = value;");
   });
 
@@ -2814,8 +2814,8 @@ describe("integration: getter/setter accessors", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function threshold() public view virtual returns (uint256)");
-    expect(solidity).toContain("function threshold(uint256 val) public virtual {");
+    expect(solidity).toContain("function threshold() public view virtual returns (int256)");
+    expect(solidity).toContain("function threshold(int256 val) public virtual {");
   });
 
   it("should rename setter parameter that shadows a sibling function name", () => {
@@ -2845,13 +2845,13 @@ describe("integration: getter/setter accessors", () => {
     // The parameter "value" in paused(bool value) must be renamed to avoid
     // shadowing the sibling function value(). Since _value is already a state
     // variable, the rename produces __value.
-    expect(solidity).toContain("uint256 internal _value");
+    expect(solidity).toContain("int256 internal _value");
     expect(solidity).not.toMatch(/function paused\(bool value\)/);
     expect(solidity).toMatch(/function paused\(bool __value\)/);
     expect(solidity).toContain("_paused = __value;");
     // The getter and setter for "value" itself should be unaffected.
-    expect(solidity).toContain("function value() public view virtual returns (uint256)");
-    expect(solidity).toContain("function value(uint256 val) public virtual {");
+    expect(solidity).toContain("function value() public view virtual returns (int256)");
+    expect(solidity).toContain("function value(int256 val) public virtual {");
   });
 
   it("should rename parameter that shadows a regular function name", () => {
@@ -3037,7 +3037,7 @@ describe("integration: Map method support", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("return (balances[addr] != 0);");
+    expect(solidity).toContain("return (balances[addr] != int256(0));");
   });
 
   it("should compile map.has(key) with boolean value to != false", () => {
@@ -3132,7 +3132,7 @@ describe("integration: Map method support", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("return items[0];");
+    expect(solidity).toContain("return items[uint256(0)];");
   });
 });
 
@@ -3153,7 +3153,7 @@ describe("integration: for...of loops", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("for (uint256 _i_item = 0; (_i_item < items.length); _i_item++)");
-    expect(solidity).toContain("uint256 item = items[_i_item];");
+    expect(solidity).toContain("int256 item = items[uint256(_i_item)];");
     expect(solidity).toContain("total += item;");
   });
 
@@ -3174,7 +3174,7 @@ describe("integration: for...of loops", () => {
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("_i_addr");
-    expect(solidity).toContain("addrs[_i_addr]");
+    expect(solidity).toContain("addrs[uint256(_i_addr)]");
   });
 });
 
@@ -3318,9 +3318,9 @@ describe("integration: multiple variable declarations", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 a = 1;");
-    expect(solidity).toContain("uint256 b = 2;");
-    expect(solidity).toContain("uint256 c = 3;");
+    expect(solidity).toContain("int256 a = 1;");
+    expect(solidity).toContain("int256 b = 2;");
+    expect(solidity).toContain("int256 c = 3;");
   });
 });
 
@@ -3354,8 +3354,8 @@ describe("integration: cross-file type resolution", () => {
 
     expect(result.errors).toHaveLength(0);
     expect(solidity).toContain("struct Position {");
-    expect(solidity).toContain("uint256 x;");
-    expect(solidity).toContain("uint256 y;");
+    expect(solidity).toContain("int256 x;");
+    expect(solidity).toContain("int256 y;");
     expect(solidity).toContain("function getOrigin() public pure virtual returns (Position memory)");
     expect(solidity).toContain("Position memory p = Position(0, 0);");
   });
@@ -3621,8 +3621,8 @@ describe("integration: standalone functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function add(uint256 a, uint256 b) internal pure returns (uint256)");
-    expect(solidity).toContain("function calculate(uint256 x, uint256 y) public pure virtual returns (uint256)");
+    expect(solidity).toContain("function add(int256 a, int256 b) internal pure returns (int256)");
+    expect(solidity).toContain("function calculate(int256 x, int256 y) public pure virtual returns (int256)");
     expect(solidity).toContain("return add(x, y);");
   });
 
@@ -3639,7 +3639,7 @@ describe("integration: standalone functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function multiply(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("function multiply(int256 a, int256 b) internal pure returns (int256)");
     expect(solidity).toContain("return multiply(x, y);");
   });
 
@@ -3654,7 +3654,7 @@ describe("integration: standalone functions", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function double(uint256 x) internal pure returns (uint256)");
+    expect(solidity).toContain("function double(int256 x) internal pure returns (int256)");
   });
 });
 
@@ -3712,7 +3712,7 @@ describe("integration: public mapping auto getter", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("mapping(address => uint256) public balances;");
+    expect(solidity).toContain("mapping(address => int256) public balances;");
 
     // Verify ABI includes auto generated getter for public mapping
     const balancesGetter = (abi as any[]).find((i: any) => i.name === "balances" && i.type === "function");
@@ -3720,7 +3720,7 @@ describe("integration: public mapping auto getter", () => {
     expect(balancesGetter.inputs).toHaveLength(1);
     expect(balancesGetter.inputs[0].type).toBe("address");
     expect(balancesGetter.outputs).toHaveLength(1);
-    expect(balancesGetter.outputs[0].type).toBe("uint256");
+    expect(balancesGetter.outputs[0].type).toBe("int256");
   });
 
   it("should generate nested public mapping with correct getter signature", () => {
@@ -3734,7 +3734,7 @@ describe("integration: public mapping auto getter", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("mapping(address => mapping(address => uint256)) public allowances;");
+    expect(solidity).toContain("mapping(address => mapping(address => int256)) public allowances;");
 
     // Nested mapping getter takes two address args
     const getter = (abi as any[]).find((i: any) => i.name === "allowances" && i.type === "function");
@@ -3742,7 +3742,7 @@ describe("integration: public mapping auto getter", () => {
     expect(getter.inputs).toHaveLength(2);
     expect(getter.inputs[0].type).toBe("address");
     expect(getter.inputs[1].type).toBe("address");
-    expect(getter.outputs[0].type).toBe("uint256");
+    expect(getter.outputs[0].type).toBe("int256");
   });
 });
 
@@ -3842,9 +3842,9 @@ describe("integration: array destructuring", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 a = 7;");
-    expect(solidity).toContain("uint256 b = 8;");
-    expect(solidity).toContain("uint256 c = 9;");
+    expect(solidity).toContain("int256 a = 7;");
+    expect(solidity).toContain("int256 b = 8;");
+    expect(solidity).toContain("int256 c = 9;");
     expect(solidity).toContain("return ((a + b) + c);");
   });
 
@@ -3858,8 +3858,8 @@ describe("integration: array destructuring", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 a = ((first > second) ? second : first);");
-    expect(solidity).toContain("uint256 b = ((first > second) ? first : second);");
+    expect(solidity).toContain("int256 a = ((first > second) ? second : first);");
+    expect(solidity).toContain("int256 b = ((first > second) ? first : second);");
   });
 });
 
@@ -3878,9 +3878,9 @@ describe("integration: object destructuring", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 a = 7;");
-    expect(solidity).toContain("uint256 b = 8;");
-    expect(solidity).toContain("uint256 c = 9;");
+    expect(solidity).toContain("int256 a = 7;");
+    expect(solidity).toContain("int256 b = 8;");
+    expect(solidity).toContain("int256 c = 9;");
     expect(solidity).toContain("return ((a + b) + c);");
   });
 
@@ -3906,8 +3906,8 @@ describe("integration: object destructuring", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("StakeInfo memory _stakeInfo = getStakeInfo(account);");
-    expect(solidity).toContain("uint256 amount = _stakeInfo.amount;");
-    expect(solidity).toContain("uint256 timestamp = _stakeInfo.timestamp;");
+    expect(solidity).toContain("int256 amount = _stakeInfo.amount;");
+    expect(solidity).toContain("int256 timestamp = _stakeInfo.timestamp;");
   });
 
   it("should compile object destructuring with renaming", () => {
@@ -3920,8 +3920,8 @@ describe("integration: object destructuring", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("uint256 x = 1;");
-    expect(solidity).toContain("uint256 y = 2;");
+    expect(solidity).toContain("int256 x = 1;");
+    expect(solidity).toContain("int256 y = 2;");
   });
 });
 
@@ -3958,8 +3958,8 @@ describe("integration: cross file function imports", () => {
     const solidity = generateSolidity(contracts[0]);
     const result = compileSolidity(contracts[0].name, solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
-    expect(solidity).toContain("function add(uint256 a, uint256 b) internal pure returns (uint256)");
-    expect(solidity).toContain("function multiply(uint256 a, uint256 b) internal pure returns (uint256)");
+    expect(solidity).toContain("function add(int256 a, int256 b) internal pure returns (int256)");
+    expect(solidity).toContain("function multiply(int256 a, int256 b) internal pure returns (int256)");
     expect(solidity).toContain("return add(x, y);");
     expect(solidity).toContain("return multiply(x, y);");
   });
@@ -4026,7 +4026,7 @@ describe("integration: implements keyword", () => {
     expect(contracts[0].inherits).toEqual(["IToken"]);
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface IToken {");
-    expect(solidity).toContain("function balance(address account) external view returns (uint256);");
+    expect(solidity).toContain("function balance(address account) external view returns (int256);");
     expect(solidity).toContain("contract Token is IToken {");
     expect(solidity).toContain("function balance(address account) public view override");
   });
@@ -4202,12 +4202,12 @@ describe("integration: contract interfaces", () => {
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface IToken {");
     expect(solidity).toContain("function name() external view returns (string memory);");
-    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+    expect(solidity).toContain("function balanceOf(address account) external view returns (int256);");
+    expect(solidity).toContain("function transfer(address to, int256 amount) external returns (bool);");
     expect(solidity).toContain("contract Token is IToken {");
     // Implementing functions should have override, not virtual
     expect(solidity).toContain("function name() public view override");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public override");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public override");
     expect(solidity).not.toContain("function name() public view virtual");
     const result = compileSolidity("Token", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
@@ -4265,18 +4265,18 @@ describe("integration: contract interfaces", () => {
     // Properties get view
     expect(solidity).toContain("function name() external view returns (string memory);");
     expect(solidity).toContain("function symbol() external view returns (string memory);");
-    expect(solidity).toContain("function totalSupply() external view returns (uint256);");
+    expect(solidity).toContain("function totalSupply() external view returns (int256);");
     // Method mutability derived from implementation
-    expect(solidity).toContain("function balanceOf(address account) external view returns (uint256);");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+    expect(solidity).toContain("function balanceOf(address account) external view returns (int256);");
+    expect(solidity).toContain("function transfer(address to, int256 amount) external returns (bool);");
     expect(solidity).toContain("contract Token is IToken {");
     // Public variables get override
     expect(solidity).toContain('string public override name = "MyToken"');
     expect(solidity).toContain('string public override symbol = "MTK"');
-    expect(solidity).toContain("uint256 public override totalSupply = 1000");
+    expect(solidity).toContain("int256 public override totalSupply = 1000");
     // Functions get override
     expect(solidity).toContain("function balanceOf(address account) public view override");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) public override");
+    expect(solidity).toContain("function transfer(address to, int256 amount) public override");
     const result = compileSolidity("Token", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
@@ -4322,8 +4322,8 @@ describe("integration: contract interfaces", () => {
     `;
     const contracts = parse(source, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("function set(uint256 key, uint256 value) external;");
-    expect(solidity).toContain("function set(uint256 key, uint256 value) public override");
+    expect(solidity).toContain("function set(int256 key, int256 value) external;");
+    expect(solidity).toContain("function set(int256 key, int256 value) public override");
     const result = compileSolidity("Store", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
@@ -4357,7 +4357,7 @@ describe("integration: contract interfaces", () => {
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("interface ICounter {");
     expect(solidity).toContain("function increment() external;");
-    expect(solidity).toContain("function getCount() external view returns (uint256);");
+    expect(solidity).toContain("function getCount() external view returns (int256);");
     expect(solidity).toContain("contract Counter is ICounter {");
     expect(solidity).toContain("function increment() public override");
     expect(solidity).toContain("function getCount() public view override");
@@ -4415,8 +4415,8 @@ describe("integration: type alias structs", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("struct Point {");
-    expect(solidity).toContain("uint256 x;");
-    expect(solidity).toContain("uint256 y;");
+    expect(solidity).toContain("int256 x;");
+    expect(solidity).toContain("int256 y;");
     expect(solidity).toContain("Point public origin;");
     expect(solidity).toContain("returns (Point memory)");
   });
@@ -4543,9 +4543,9 @@ describe("integration: contract interface solc compilation", () => {
     const contracts = parse(source, "test.ts");
     const solidity = generateSolidity(contracts[0]);
 
-    expect(solidity).toContain("uint256 public constant MAX_SUPPLY");
+    expect(solidity).toContain("int256 public constant MAX_SUPPLY");
     expect(solidity).not.toContain("constant override");
-    expect(solidity).toContain("uint256 public immutable minStake");
+    expect(solidity).toContain("int256 public immutable minStake");
     expect(solidity).not.toContain("immutable override");
     expect(solidity).toContain("address public override owner");
   });
@@ -4686,13 +4686,13 @@ describe("integration: cross-file contract interface usage", () => {
     const { tokenSolidity, dexSolidity } = compileCrossFile();
 
     // Token.sol should have balanceOf and allowance as view
-    expect(tokenSolidity).toContain("function balanceOf(address account) external view returns (uint256);");
-    expect(tokenSolidity).toContain("function allowance(address owner, address spender) external view returns (uint256);");
+    expect(tokenSolidity).toContain("function balanceOf(address account) external view returns (int256);");
+    expect(tokenSolidity).toContain("function allowance(address owner, address spender) external view returns (int256);");
 
     // If IToken appears in Dex.sol, it must also have view on balanceOf and allowance
     if (dexSolidity.includes("interface IToken")) {
-      expect(dexSolidity).toContain("function balanceOf(address account) external view returns (uint256);");
-      expect(dexSolidity).toContain("function allowance(address owner, address spender) external view returns (uint256);");
+      expect(dexSolidity).toContain("function balanceOf(address account) external view returns (int256);");
+      expect(dexSolidity).toContain("function allowance(address owner, address spender) external view returns (int256);");
     }
   });
 
@@ -4701,9 +4701,9 @@ describe("integration: cross-file contract interface usage", () => {
 
     // deposit() calls token.transferFrom() which modifies state,
     // so deposit should NOT be view
-    expect(dexSolidity).not.toContain("function deposit(uint256 amount) public view");
+    expect(dexSolidity).not.toContain("function deposit(int256 amount) public view");
     // It should be nonpayable (no mutability keyword)
-    expect(dexSolidity).toMatch(/function deposit\(uint256 amount\) public\b/);
+    expect(dexSolidity).toMatch(/function deposit\(int256 amount\) public\b/);
   });
 
   it("should generate valid Solidity that compiles when files reference each other", () => {
@@ -4752,7 +4752,7 @@ describe("integration: try/catch", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts).toHaveLength(1);
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(solidity).toContain("try token.balanceOf(account) returns (int256 balance) {");
     expect(solidity).toContain("return balance;");
     expect(solidity).toContain("} catch {");
     expect(solidity).toContain("return 0;");
@@ -4829,7 +4829,7 @@ describe("integration: try/catch", () => {
     `;
     const contracts = parse(source, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("try token.balanceOf(account) returns (uint256 bal) {");
+    expect(solidity).toContain("try token.balanceOf(account) returns (int256 bal) {");
     expect(solidity).toContain("lastBalance = bal;");
     expect(solidity).toContain("return true;");
     expect(solidity).toContain("} catch {");
@@ -5074,8 +5074,8 @@ describe("integration: external contract calls", () => {
     const solidity = generateSolidity(contracts[0]);
 
     // Unannotated interface methods remain without view/pure (conservative)
-    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
-    expect(solidity).toContain("function transfer(address to, uint256 amount) external returns (bool);");
+    expect(solidity).toContain("function balanceOf(address account) external returns (int256);");
+    expect(solidity).toContain("function transfer(address to, int256 amount) external returns (bool);");
 
     const result = compileSolidity("VaultWithExternal", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
@@ -5113,7 +5113,7 @@ describe("integration: external contract calls", () => {
 
     // transfer should not be marked as view since it's used in a state-modifying context
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).not.toContain("function transfer(address to, uint256 amount) external view");
+    expect(solidity).not.toContain("function transfer(address to, int256 amount) external view");
     // withdraw should not be marked as view
     expect(solidity).not.toMatch(/function withdraw\(.*\) public view/);
   });
@@ -5149,7 +5149,7 @@ describe("integration: external contract calls", () => {
 
     const solidity = generateSolidity(contracts[0]);
     // transfer should not be marked as view
-    expect(solidity).not.toContain("function transfer(address to, uint256 amount) external view");
+    expect(solidity).not.toContain("function transfer(address to, int256 amount) external view");
     // doTransfer should not be marked as view
     expect(solidity).not.toMatch(/function doTransfer\(.*\) public view/);
   });
@@ -5221,7 +5221,7 @@ describe("integration: external contract calls", () => {
     expect(checkBalanceFn!.stateMutability).toBe("nonpayable");
 
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
+    expect(solidity).toContain("function balanceOf(address account) external returns (int256);");
 
     const result = compileSolidity("Checker", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
@@ -5238,7 +5238,7 @@ describe("integration: ETH transfers", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("payable(to).transfer(amount)");
+    expect(solidity).toContain("payable(to).transfer(uint256(amount))");
   });
 
   it("should compile msg.sender.transfer(amount)", () => {
@@ -5250,7 +5250,7 @@ describe("integration: ETH transfers", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("payable(msg.sender).transfer(amount)");
+    expect(solidity).toContain("payable(msg.sender).transfer(uint256(amount))");
   });
 
   it("should infer nonpayable for functions with addr.transfer()", () => {
@@ -5416,8 +5416,8 @@ describe("integration: same-file inheritance deduplication", () => {
 
     expect(result.errors).toHaveLength(0);
     // getValue should appear in both parent (virtual) and child (override)
-    expect(solidity).toContain("function getValue() public pure virtual returns (uint256)");
-    expect(solidity).toContain("function getValue() public pure override returns (uint256)");
+    expect(solidity).toContain("function getValue() public pure virtual returns (int256)");
+    expect(solidity).toContain("function getValue() public pure override returns (int256)");
   });
 
   it("should emit shared definitions in both unrelated contracts in the same file", () => {
@@ -5593,8 +5593,8 @@ describe("integration: function overloading", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function transfer(address to, uint256 amount)");
-    expect(solidity).toContain("function transfer(address to, uint256 amount, string memory data)");
+    expect(solidity).toContain("function transfer(address to, int256 amount)");
+    expect(solidity).toContain("function transfer(address to, int256 amount, string memory data)");
   });
 
   it("should generate valid forwarding call for short overload", () => {
@@ -5622,8 +5622,8 @@ describe("integration: function overloading", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("function deposit(uint256 amount)");
-    expect(solidity).toContain("function deposit(uint256 amount, address receiver)");
+    expect(solidity).toContain("function deposit(int256 amount)");
+    expect(solidity).toContain("function deposit(int256 amount, address receiver)");
   });
 
   it("should compile overloaded methods alongside normal methods", () => {
@@ -5641,8 +5641,8 @@ describe("integration: function overloading", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("function balanceOf(address account)");
-    expect(solidity).toContain("function transfer(address to, uint256 amount)");
-    expect(solidity).toContain("function transfer(address to, uint256 amount, string memory data)");
+    expect(solidity).toContain("function transfer(address to, int256 amount)");
+    expect(solidity).toContain("function transfer(address to, int256 amount, string memory data)");
   });
 });
 
@@ -5656,8 +5656,8 @@ describe("integration: spread operator", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("_arrSpread_uint256");
-    expect(solidity).toContain("function _arrSpread_uint256(uint256[] memory a, uint256[] memory b)");
+    expect(solidity).toContain("_arrSpread_int256");
+    expect(solidity).toContain("function _arrSpread_int256(int256[] memory a, int256[] memory b)");
   });
 
   it("should compile [...a, ...b] with address arrays", () => {
@@ -5682,7 +5682,7 @@ describe("integration: spread operator", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("_arrSpread_uint256");
+    expect(solidity).toContain("_arrSpread_int256");
   });
 
   it("should compile spread of storage arrays with automatic slice conversion", () => {
@@ -5697,8 +5697,8 @@ describe("integration: spread operator", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("_arrSpread_uint256");
-    expect(solidity).toContain("_arrSlice_uint256");
+    expect(solidity).toContain("_arrSpread_int256");
+    expect(solidity).toContain("_arrSlice_int256");
   });
 
   it("should throw error for mixed spread and non-spread elements", () => {
@@ -5729,7 +5729,7 @@ describe("integration: nullish coalescing and optional chaining", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("(balances[account] == 0) ? 0 : balances[account]");
+    expect(solidity).toContain("(balances[account] == int256(0)) ? int256(0) : balances[account]");
   });
 
   it("should compile ?? with address type using address(0)", () => {

@@ -322,12 +322,14 @@ export interface PropertyAccessExpression {
   kind: "property-access";
   object: Expression;
   property: string;
+  wrapLengthInInt256?: boolean;
 }
 
 export interface ElementAccessExpression {
   kind: "element-access";
   object: Expression;
   index: Expression;
+  isArrayAccess?: boolean;
 }
 
 export interface BinaryExpression {
@@ -419,3 +421,4 @@ export interface AbiParameter {
 export type address = string;
 export type bytes = string;
 export type bytes32 = string;
+export type uint256 = number;

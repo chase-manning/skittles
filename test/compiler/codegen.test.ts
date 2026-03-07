@@ -64,7 +64,7 @@ describe("generateSolidity", () => {
         variables: [
           {
             name: "x",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             initialValue: { kind: "number-literal", value: "0" },
@@ -79,7 +79,7 @@ describe("generateSolidity", () => {
         ],
       })
     );
-    expect(sol).toContain('uint256 public x = 0;');
+    expect(sol).toContain('int256 public x = 0;');
     expect(sol).toContain('string public name = "Token";');
   });
 
@@ -154,7 +154,7 @@ describe("generateSolidity", () => {
             type: {
               kind: SkittlesTypeKind.Mapping,
               keyType: { kind: SkittlesTypeKind.Address },
-              valueType: { kind: SkittlesTypeKind.Uint256 },
+              valueType: { kind: SkittlesTypeKind.Int256 },
             },
             visibility: "private",
             immutable: false,
@@ -163,7 +163,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain(
-      "mapping(address => uint256) internal balances;"
+      "mapping(address => int256) internal balances;"
     );
   });
 
@@ -194,7 +194,7 @@ describe("generateSolidity", () => {
       emptyContract({
         ctor: {
           parameters: [
-            { name: "val", type: { kind: SkittlesTypeKind.Uint256 } },
+            { name: "val", type: { kind: SkittlesTypeKind.Int256 } },
           ],
           body: [
             {
@@ -214,7 +214,7 @@ describe("generateSolidity", () => {
         },
       })
     );
-    expect(sol).toContain("constructor(uint256 val) {");
+    expect(sol).toContain("constructor(int256 val) {");
     expect(sol).toContain("x = val;");
   });
 
@@ -225,7 +225,7 @@ describe("generateSolidity", () => {
           parameters: [
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
           ],
@@ -248,7 +248,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("constructor() {");
-    expect(sol).toContain("uint256 supply = 1000000;");
+    expect(sol).toContain("int256 supply = 1000000;");
     expect(sol).toContain("totalSupply = supply;");
   });
 
@@ -260,7 +260,7 @@ describe("generateSolidity", () => {
             { name: "name", type: { kind: SkittlesTypeKind.String } },
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
           ],
@@ -283,7 +283,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("constructor(string memory name) {");
-    expect(sol).toContain("uint256 supply = 1000000;");
+    expect(sol).toContain("int256 supply = 1000000;");
     expect(sol).toContain("tokenName = name;");
   });
 
@@ -293,7 +293,7 @@ describe("generateSolidity", () => {
         inherits: ["Base"],
         ctor: {
           parameters: [
-            { name: "initialSupply", type: { kind: SkittlesTypeKind.Uint256 } },
+            { name: "initialSupply", type: { kind: SkittlesTypeKind.Int256 } },
           ],
           body: [
             {
@@ -319,7 +319,7 @@ describe("generateSolidity", () => {
         },
       })
     );
-    expect(sol).toContain("constructor(uint256 initialSupply) {");
+    expect(sol).toContain("constructor(int256 initialSupply) {");
     expect(sol).not.toContain("super");
     expect(sol).toContain("_mint(msg.sender, initialSupply);");
   });
@@ -330,7 +330,7 @@ describe("generateSolidity", () => {
         inherits: ["ERC20"],
         ctor: {
           parameters: [
-            { name: "initialSupply", type: { kind: SkittlesTypeKind.Uint256 } },
+            { name: "initialSupply", type: { kind: SkittlesTypeKind.Int256 } },
           ],
           body: [
             {
@@ -359,7 +359,7 @@ describe("generateSolidity", () => {
         },
       })
     );
-    expect(sol).toContain('constructor(uint256 initialSupply) ERC20("MyToken", "MTK") {');
+    expect(sol).toContain('constructor(int256 initialSupply) ERC20("MyToken", "MTK") {');
     expect(sol).not.toContain("super");
     expect(sol).toContain("_mint(msg.sender, initialSupply);");
   });
@@ -396,7 +396,7 @@ describe("generateSolidity", () => {
             parameters: [
               {
                 name: "supply",
-                type: { kind: SkittlesTypeKind.Uint256 },
+                type: { kind: SkittlesTypeKind.Int256 },
                 defaultValue: { kind: "number-literal", value: "1000" },
               },
             ],
@@ -454,7 +454,7 @@ describe("generateSolidity", () => {
           {
             name: "getX",
             parameters: [],
-            returnType: { kind: SkittlesTypeKind.Uint256 },
+            returnType: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             stateMutability: "view",
             body: [
@@ -472,7 +472,7 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain(
-      "function getX() public view returns (uint256) {"
+      "function getX() public view returns (int256) {"
     );
     expect(sol).toContain("return x;");
   });
@@ -509,14 +509,14 @@ describe("generateSolidity", () => {
             parameters: [
               { name: "from", type: { kind: SkittlesTypeKind.Address } },
               { name: "to", type: { kind: SkittlesTypeKind.Address } },
-              { name: "amount", type: { kind: SkittlesTypeKind.Uint256 } },
+              { name: "amount", type: { kind: SkittlesTypeKind.Int256 } },
             ],
           },
         ],
       })
     );
     expect(sol).toContain(
-      "event Transfer(address from, address to, uint256 amount);"
+      "event Transfer(address from, address to, int256 amount);"
     );
   });
 
@@ -543,7 +543,7 @@ describe("generateSolidity", () => {
           {
             name: "getValue",
             parameters: [],
-            returnType: { kind: SkittlesTypeKind.Uint256 },
+            returnType: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             stateMutability: "nonpayable",
             isVirtual: true,
@@ -555,8 +555,8 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("abstract contract Base {");
-    expect(sol).toContain("function getValue() public virtual returns (uint256);");
-    expect(sol).not.toContain("function getValue() public virtual returns (uint256) {");
+    expect(sol).toContain("function getValue() public virtual returns (int256);");
+    expect(sol).not.toContain("function getValue() public virtual returns (int256) {");
   });
 
   it("should generate a function with tuple return type", () => {
@@ -565,7 +565,7 @@ describe("generateSolidity", () => {
         variables: [
           {
             name: "reserve0",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -573,7 +573,7 @@ describe("generateSolidity", () => {
           },
           {
             name: "reserve1",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -587,9 +587,9 @@ describe("generateSolidity", () => {
             returnType: {
               kind: SkittlesTypeKind.Tuple,
               tupleTypes: [
-                { kind: SkittlesTypeKind.Uint256 },
-                { kind: SkittlesTypeKind.Uint256 },
-                { kind: SkittlesTypeKind.Uint256 },
+                { kind: SkittlesTypeKind.Int256 },
+                { kind: SkittlesTypeKind.Int256 },
+                { kind: SkittlesTypeKind.Int256 },
               ],
             },
             visibility: "public",
@@ -626,9 +626,9 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain(
-      "function getReserves() public view virtual returns (uint256, uint256, uint256) {"
+      "function getReserves() public view virtual returns (int256, int256, int256) {"
     );
-    expect(sol).toContain("return (reserve0, reserve1, block.timestamp);");
+    expect(sol).toContain("return (reserve0, reserve1, int256(block.timestamp));");
   });
 
   it("should add hardhat console import when contract uses console.log", () => {
@@ -681,7 +681,7 @@ describe("generateSolidity", () => {
               {
                 name: "balanceOf",
                 parameters: [{ name: "account", type: { kind: SkittlesTypeKind.Address } }],
-                returnType: { kind: SkittlesTypeKind.Uint256 },
+                returnType: { kind: SkittlesTypeKind.Int256 },
                 stateMutability: "view",
               },
             ],
@@ -700,7 +700,7 @@ describe("generateSolidity", () => {
 
 describe("generateType", () => {
   it("should generate primitive types", () => {
-    expect(generateType({ kind: SkittlesTypeKind.Uint256 })).toBe("uint256");
+    expect(generateType({ kind: SkittlesTypeKind.Int256 })).toBe("int256");
     expect(generateType({ kind: SkittlesTypeKind.Address })).toBe("address");
     expect(generateType({ kind: SkittlesTypeKind.Bool })).toBe("bool");
     expect(generateType({ kind: SkittlesTypeKind.String })).toBe("string");
@@ -711,9 +711,9 @@ describe("generateType", () => {
     const t: SkittlesType = {
       kind: SkittlesTypeKind.Mapping,
       keyType: { kind: SkittlesTypeKind.Address },
-      valueType: { kind: SkittlesTypeKind.Uint256 },
+      valueType: { kind: SkittlesTypeKind.Int256 },
     };
-    expect(generateType(t)).toBe("mapping(address => uint256)");
+    expect(generateType(t)).toBe("mapping(address => int256)");
   });
 
   it("should generate nested mapping", () => {
@@ -723,32 +723,32 @@ describe("generateType", () => {
       valueType: {
         kind: SkittlesTypeKind.Mapping,
         keyType: { kind: SkittlesTypeKind.Address },
-        valueType: { kind: SkittlesTypeKind.Uint256 },
+        valueType: { kind: SkittlesTypeKind.Int256 },
       },
     };
     expect(generateType(t)).toBe(
-      "mapping(address => mapping(address => uint256))"
+      "mapping(address => mapping(address => int256))"
     );
   });
 
   it("should generate array type", () => {
     const t: SkittlesType = {
       kind: SkittlesTypeKind.Array,
-      valueType: { kind: SkittlesTypeKind.Uint256 },
+      valueType: { kind: SkittlesTypeKind.Int256 },
     };
-    expect(generateType(t)).toBe("uint256[]");
+    expect(generateType(t)).toBe("int256[]");
   });
 
   it("should generate tuple type", () => {
     const t: SkittlesType = {
       kind: SkittlesTypeKind.Tuple,
       tupleTypes: [
-        { kind: SkittlesTypeKind.Uint256 },
+        { kind: SkittlesTypeKind.Int256 },
         { kind: SkittlesTypeKind.Bool },
         { kind: SkittlesTypeKind.Address },
       ],
     };
-    expect(generateType(t)).toBe("(uint256, bool, address)");
+    expect(generateType(t)).toBe("(int256, bool, address)");
   });
 });
 
@@ -862,7 +862,7 @@ describe("generateExpression", () => {
       },
       args: [{ kind: "identifier", name: "amount" }],
     };
-    expect(generateExpression(expr)).toBe("payable(recipient).transfer(amount)");
+    expect(generateExpression(expr)).toBe("payable(recipient).transfer(uint256(amount))");
   });
 
   it("should generate msg.sender.transfer(amount) as payable(msg.sender).transfer(amount)", () => {
@@ -879,7 +879,7 @@ describe("generateExpression", () => {
       },
       args: [{ kind: "identifier", name: "amount" }],
     };
-    expect(generateExpression(expr)).toBe("payable(msg.sender).transfer(amount)");
+    expect(generateExpression(expr)).toBe("payable(msg.sender).transfer(uint256(amount))");
   });
 
   it("should not wrap this.transfer in payable", () => {
@@ -910,7 +910,7 @@ describe("generateExpression", () => {
       whenTrue: { kind: "number-literal", value: "5" },
       whenFalse: { kind: "identifier", name: "x" },
     };
-    expect(generateExpression(expr)).toBe("((x == 0) ? 5 : x)");
+    expect(generateExpression(expr)).toBe("((x == 0) ? int256(5) : x)");
   });
 });
 
@@ -931,10 +931,10 @@ describe("generateStatement", () => {
     const stmt: Statement = {
       kind: "variable-declaration",
       name: "x",
-      type: { kind: SkittlesTypeKind.Uint256 },
+      type: { kind: SkittlesTypeKind.Int256 },
       initializer: { kind: "number-literal", value: "5" },
     };
-    expect(generateStatement(stmt, "")).toBe("uint256 x = 5;");
+    expect(generateStatement(stmt, "")).toBe("int256 x = 5;");
   });
 
   it("should generate require from if + revert pattern", () => {
@@ -1030,7 +1030,7 @@ describe("generateStatement", () => {
         args: [{ kind: "identifier", name: "account" }],
       },
       returnVarName: "balance",
-      returnType: { kind: SkittlesTypeKind.Uint256 },
+      returnType: { kind: SkittlesTypeKind.Int256 },
       successBody: [
         {
           kind: "return",
@@ -1045,7 +1045,7 @@ describe("generateStatement", () => {
       ],
     };
     const result = generateStatement(stmt, "");
-    expect(result).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(result).toContain("try token.balanceOf(account) returns (int256 balance) {");
     expect(result).toContain("return balance;");
     expect(result).toContain("} catch {");
     expect(result).toContain("return 0;");
@@ -1117,7 +1117,7 @@ describe("resolveShadowedLocals", () => {
       {
         kind: "variable-declaration",
         name: "result",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
         initializer: { kind: "number-literal", value: "0" },
       },
       {
@@ -1142,7 +1142,7 @@ describe("resolveShadowedLocals", () => {
       {
         kind: "variable-declaration",
         name: "temp",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
         initializer: { kind: "number-literal", value: "5" },
       },
       {
@@ -1167,7 +1167,7 @@ describe("resolveShadowedLocals", () => {
           {
             kind: "variable-declaration",
             name: "count",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             initializer: { kind: "number-literal", value: "0" },
           },
           {
@@ -1201,7 +1201,7 @@ describe("resolveShadowedLocals", () => {
         initializer: {
           kind: "variable-declaration",
           name: "index",
-          type: { kind: SkittlesTypeKind.Uint256 },
+          type: { kind: SkittlesTypeKind.Int256 },
           initializer: { kind: "number-literal", value: "0" },
         },
         condition: {
@@ -1246,7 +1246,7 @@ describe("resolveShadowedLocals", () => {
       {
         kind: "variable-declaration",
         name: "x",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
       },
     ];
     // Both "x" and "_x" are state variables, so it should become "__x"
@@ -1262,7 +1262,7 @@ describe("resolveShadowedLocals", () => {
       {
         kind: "variable-declaration",
         name: "temp",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
       },
     ];
     const stateVars = new Set(["result"]);
@@ -1275,13 +1275,13 @@ describe("resolveShadowedLocals", () => {
       {
         kind: "variable-declaration",
         name: "_result",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
         initializer: { kind: "number-literal", value: "1" },
       },
       {
         kind: "variable-declaration",
         name: "result",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
         initializer: { kind: "number-literal", value: "2" },
       },
     ];
@@ -1302,7 +1302,7 @@ describe("resolveShadowedLocals", () => {
         variables: [
           {
             name: "result",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -1313,9 +1313,9 @@ describe("resolveShadowedLocals", () => {
           {
             name: "testTernary",
             parameters: [
-              { name: "x", type: { kind: SkittlesTypeKind.Uint256 } },
+              { name: "x", type: { kind: SkittlesTypeKind.Int256 } },
             ],
-            returnType: { kind: SkittlesTypeKind.Uint256 },
+            returnType: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             stateMutability: "pure",
             isVirtual: true,
@@ -1324,7 +1324,7 @@ describe("resolveShadowedLocals", () => {
               {
                 kind: "variable-declaration",
                 name: "result",
-                type: { kind: SkittlesTypeKind.Uint256 },
+                type: { kind: SkittlesTypeKind.Int256 },
                 initializer: {
                   kind: "conditional",
                   condition: {
@@ -1347,12 +1347,12 @@ describe("resolveShadowedLocals", () => {
       })
     );
     // State variable should keep its name
-    expect(sol).toContain("uint256 public result = 0;");
+    expect(sol).toContain("int256 public result = 0;");
     // Local variable should be renamed
-    expect(sol).toContain("uint256 _result =");
+    expect(sol).toContain("int256 _result =");
     expect(sol).toContain("return _result;");
     // Should NOT have shadowed local named "result" in the function body
-    expect(sol).not.toMatch(/function testTernary[\s\S]*uint256 result =/);
+    expect(sol).not.toMatch(/function testTernary[\s\S]*int256 result =/);
   });
 
   it("should avoid collision with function parameter names", () => {
@@ -1360,7 +1360,7 @@ describe("resolveShadowedLocals", () => {
       {
         kind: "variable-declaration",
         name: "result",
-        type: { kind: SkittlesTypeKind.Uint256 },
+        type: { kind: SkittlesTypeKind.Int256 },
         initializer: { kind: "number-literal", value: "0" },
       },
       {
@@ -1386,7 +1386,7 @@ describe("resolveShadowedLocals", () => {
       variables: [
         {
           name: "balance",
-          type: { kind: SkittlesTypeKind.Uint256 },
+          type: { kind: SkittlesTypeKind.Int256 },
           visibility: "public",
           immutable: false,
           constant: false,
@@ -1401,7 +1401,7 @@ describe("resolveShadowedLocals", () => {
         {
           name: "getBalance",
           parameters: [],
-          returnType: { kind: SkittlesTypeKind.Uint256 },
+          returnType: { kind: SkittlesTypeKind.Int256 },
           visibility: "public",
           stateMutability: "view",
           isVirtual: true,
@@ -1410,7 +1410,7 @@ describe("resolveShadowedLocals", () => {
             {
               kind: "variable-declaration",
               name: "balance",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               initializer: { kind: "number-literal", value: "42" },
             },
             {
@@ -1424,7 +1424,7 @@ describe("resolveShadowedLocals", () => {
     const sol = generateSolidityFile([parent, child]);
     // Local "balance" in child's function should be renamed to avoid
     // shadowing parent's state variable "balance"
-    expect(sol).toContain("uint256 _balance = 42;");
+    expect(sol).toContain("int256 _balance = 42;");
     expect(sol).toContain("return _balance;");
   });
 
@@ -1443,7 +1443,7 @@ describe("resolveShadowedLocals", () => {
           {
             kind: "variable-declaration",
             name: "count",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             initializer: { kind: "number-literal", value: "10" },
           },
           {
@@ -1488,7 +1488,7 @@ describe("resolveShadowedLocals", () => {
         variables: [
           {
             name: "supply",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -1499,7 +1499,7 @@ describe("resolveShadowedLocals", () => {
           parameters: [
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
           ],
@@ -1522,9 +1522,9 @@ describe("resolveShadowedLocals", () => {
       })
     );
     // State variable should keep its name
-    expect(sol).toContain("uint256 public supply = 0;");
+    expect(sol).toContain("int256 public supply = 0;");
     // Default param local should be renamed to avoid shadowing
-    expect(sol).toContain("uint256 _supply = 1000000;");
+    expect(sol).toContain("int256 _supply = 1000000;");
     // Body reference should also be renamed
     expect(sol).toContain("supply = _supply;");
   });
@@ -1535,7 +1535,7 @@ describe("resolveShadowedLocals", () => {
         variables: [
           {
             name: "supply",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -1546,12 +1546,12 @@ describe("resolveShadowedLocals", () => {
           parameters: [
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
             {
               name: "doubled",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: {
                 kind: "binary",
                 operator: "*",
@@ -1579,9 +1579,9 @@ describe("resolveShadowedLocals", () => {
       })
     );
     // Default param "supply" renamed to "_supply"
-    expect(sol).toContain("uint256 _supply = 1000000;");
+    expect(sol).toContain("int256 _supply = 1000000;");
     // Later default param "doubled" should reference renamed "_supply"
-    expect(sol).toContain("uint256 doubled = (_supply * 2);");
+    expect(sol).toContain("int256 doubled = (_supply * 2);");
   });
 
   it("should not rename body local that re-declares a renamed default parameter name", () => {
@@ -1590,7 +1590,7 @@ describe("resolveShadowedLocals", () => {
         variables: [
           {
             name: "supply",
-            type: { kind: SkittlesTypeKind.Uint256 },
+            type: { kind: SkittlesTypeKind.Int256 },
             visibility: "public",
             immutable: false,
             constant: false,
@@ -1601,7 +1601,7 @@ describe("resolveShadowedLocals", () => {
           parameters: [
             {
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               defaultValue: { kind: "number-literal", value: "1000000" },
             },
           ],
@@ -1609,7 +1609,7 @@ describe("resolveShadowedLocals", () => {
             {
               kind: "variable-declaration",
               name: "supply",
-              type: { kind: SkittlesTypeKind.Uint256 },
+              type: { kind: SkittlesTypeKind.Int256 },
               initializer: {
                 kind: "binary",
                 operator: "*",
@@ -1635,11 +1635,11 @@ describe("resolveShadowedLocals", () => {
       })
     );
     // Default param local should be renamed to avoid shadowing state var
-    expect(sol).toContain("uint256 _supply = 1000000;");
+    expect(sol).toContain("int256 _supply = 1000000;");
     // Body local should NOT be renamed to _supply (which would collide).
     // The body local's initializer should reference the renamed default param.
     // resolveShadowedLocals will then rename this body local to avoid shadowing the state var.
-    expect(sol).not.toMatch(/uint256 _supply = \(_supply/);
+    expect(sol).not.toMatch(/int256 _supply = \(_supply/);
     // After the body local declaration, references should use the body local name
     expect(sol).toContain("supply =");
   });

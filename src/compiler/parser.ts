@@ -27,6 +27,7 @@ let _knownEnums: Map<string, string[]> = new Map();
 let _knownCustomErrors: Set<string> = new Set();
 let _fileConstants: Map<string, Expression> = new Map();
 let _currentSourceFile: ts.SourceFile | null = null;
+let _contractVarTypes: Map<string, Map<string, SkittlesType>> = new Map();
 
 // String type tracking for string.length and string comparison transforms
 let _currentVarTypes: Map<string, SkittlesType> = new Map();
@@ -212,6 +213,7 @@ export function parse(
 
   _currentSourceFile = sourceFile;
   _arrayMethodCounter = 0;
+  _contractVarTypes = new Map();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -795,7 +797,7 @@ function parseTypeLiteralFields(node: ts.TypeLiteralNode): SkittlesParameter[] {
       const name = member.name.text;
       const type: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       fields.push({ name, type });
     }
   }
@@ -813,7 +815,7 @@ function parseInterfaceAsContractInterface(
       const propName = member.name.text;
       const returnType: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       functions.push({ name: propName, parameters: [], returnType, stateMutability: "view" });
     }
 
@@ -904,9 +906,16 @@ function parseClass(
   }
 
   const varTypes = new Map<string, SkittlesType>();
+  for (const parentName of inherits) {
+    const parentVars = _contractVarTypes.get(parentName);
+    if (parentVars) {
+      for (const [k, v] of parentVars) varTypes.set(k, v);
+    }
+  }
   for (const v of variables) {
     varTypes.set(v.name, v.type);
   }
+  _contractVarTypes.set(name, new Map(varTypes));
 
   const eventNames = new Set(events.map((e) => e.name));
   _currentEventNames = eventNames;
@@ -1295,7 +1304,7 @@ function tryParseEvent(
 
       const paramType: SkittlesType = typeNode
         ? parseType(typeNode)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       parameters.push({ name: paramName, type: paramType, indexed });
     }
   }
@@ -1339,7 +1348,7 @@ function tryParseError(
       const paramName = member.name.text;
       const paramType: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: "int256" as SkittlesTypeKind };
       parameters.push({ name: paramName, type: paramType });
     }
   }
@@ -1353,7 +1362,7 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
 
   const type: SkittlesType = node.type
     ? parseType(node.type)
-    : { kind: "uint256" as SkittlesTypeKind };
+    : { kind: "int256" as SkittlesTypeKind };
 
   const visibility = getVisibility(node.modifiers);
   const isStatic = hasModifier(node.modifiers, ts.SyntaxKind.StaticKeyword);
@@ -1631,7 +1640,7 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const name = ts.isIdentifier(node.name) ? node.name.text : "unknown";
   const type: SkittlesType = node.type
     ? parseType(node.type)
-    : { kind: "uint256" as SkittlesTypeKind };
+    : { kind: "int256" as SkittlesTypeKind };
   const param: SkittlesParameter = { name, type };
   if (node.initializer) {
     param.defaultValue = parseExpression(node.initializer);
@@ -1675,6 +1684,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     if (name === "address") return { kind: "address" as SkittlesTypeKind };
     if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
     if (name === "bytes32") return { kind: "bytes32" as SkittlesTypeKind };
+    if (name === "uint256") return { kind: "uint256" as SkittlesTypeKind };
 
     if (_knownStructs.has(name)) {
       return {
@@ -1726,7 +1736,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
   switch (node.kind) {
     case ts.SyntaxKind.NumberKeyword:
-      return { kind: "uint256" as SkittlesTypeKind };
+      return { kind: "int256" as SkittlesTypeKind };
     case ts.SyntaxKind.StringKeyword:
       return { kind: "string" as SkittlesTypeKind };
     case ts.SyntaxKind.BooleanKeyword:
@@ -1800,17 +1810,25 @@ export function parseExpression(node: ts.Expression): Expression {
           args: [object],
         },
         property: "length",
+        wrapLengthInInt256: true,
       };
+    }
+
+    if (property === "length") {
+      return { kind: "property-access", object, property, wrapLengthInInt256: true };
     }
 
     return { kind: "property-access", object, property };
   }
 
   if (ts.isElementAccessExpression(node)) {
+    const obj = parseExpression(node.expression);
+    const objType = inferType(obj, _currentVarTypes);
     return {
       kind: "element-access",
-      object: parseExpression(node.expression),
+      object: obj,
       index: parseExpression(node.argumentExpression),
+      isArrayAccess: objType?.kind === ("array" as SkittlesTypeKind),
     };
   }
 
@@ -2001,7 +2019,7 @@ export function parseExpression(node: ts.Expression): Expression {
             }
             return mkElem(receiverExpr, mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)));
           }
-          throw new Error("Array .at() only supports negative numeric literals (e.g., .at(-1)). Non-literal negative indices would produce invalid uint256 values in Solidity.");
+          throw new Error("Array .at() only supports negative numeric literals (e.g., .at(-1)). Non-literal negative indices are not supported.");
         }
         return mkElem(receiverExpr, parseExpression(indexArg));
       }
@@ -2011,12 +2029,12 @@ export function parseExpression(node: ts.Expression): Expression {
         if (node.arguments.length > 2) throw new Error("Array .slice() accepts at most 2 arguments: .slice(start?, end?).");
         for (const arg of node.arguments) {
           if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
-            throw new Error("Array .slice() does not support negative indices. Solidity uses uint256 for array indices.");
+            throw new Error("Array .slice() does not support negative indices.");
           }
         }
         _neededArrayHelpers.add(`slice_${typeSuffix}`);
         const startArg = node.arguments.length >= 1 ? parseExpression(node.arguments[0]) : mkNum("0");
-        const endArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : mkProp(receiverExpr, "length");
+        const endArg = node.arguments.length >= 2 ? parseExpression(node.arguments[1]) : { ...mkProp(receiverExpr, "length"), wrapLengthInInt256: true };
         return {
           kind: "call" as const,
           callee: { kind: "identifier" as const, name: `_arrSlice_${typeSuffix}` },
@@ -2129,7 +2147,7 @@ export function parseExpression(node: ts.Expression): Expression {
           // forEach: desugar to a for loop (via a helper that returns nothing)
           if (methodName === "forEach") {
             const helperName = `_forEach_${_arrayMethodCounter++}`;
-            const elemType = elementType ?? UINT256_TYPE;
+            const elemType = elementType ?? INT256_TYPE;
             const forBody: Statement[] = [mkVarDecl(callback.paramName, elemType, mkElem(receiverExpr, mkId("__sk_i")))];
             if (callback.bodyExpr) {
               forBody.push(mkExprStmt(callback.bodyExpr));
@@ -2181,7 +2199,7 @@ export function parseExpression(node: ts.Expression): Expression {
         if (node.arguments.length > 2) throw new Error("Array .splice() only supports deletion (up to 2 arguments). Insertion via splice(start, count, ...items) is not supported.");
         for (const arg of node.arguments) {
           if (ts.isPrefixUnaryExpression(arg) && arg.operator === ts.SyntaxKind.MinusToken) {
-            throw new Error("Array .splice() does not support negative indices. Solidity uses uint256 for array indices.");
+            throw new Error("Array .splice() does not support negative indices.");
           }
         }
         _neededArrayHelpers.add(`splice_${typeSuffix}`);
@@ -2236,6 +2254,7 @@ export function parseExpression(node: ts.Expression): Expression {
                 args: [receiver],
               },
               property: "length",
+              wrapLengthInInt256: true,
             });
           }
           return {
@@ -2363,7 +2382,7 @@ export function parseExpression(node: ts.Expression): Expression {
               args: [
                 parsed,
                 { kind: "number-literal" as const, value: "0" },
-                { kind: "property-access" as const, object: parsed, property: "length" },
+                { kind: "property-access" as const, object: parsed, property: "length", wrapLengthInInt256: true },
               ],
             };
           }
@@ -2615,9 +2634,15 @@ export function parseStatement(
       ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
       : "_item";
 
-    const itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
+    let itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
       ? parseType(node.initializer.declarations[0].type)
       : undefined;
+    if (!itemTypeNode) {
+      const arrType = inferType(arrExpr, _currentVarTypes);
+      if (arrType?.kind === ("array" as SkittlesTypeKind) && arrType.valueType) {
+        itemTypeNode = arrType.valueType;
+      }
+    }
 
     const indexName = `_i_${itemName}`;
     const innerBody = parseBlock(node.statement, varTypes, eventNames);
@@ -2631,6 +2656,7 @@ export function parseStatement(
         kind: "element-access",
         object: arrExpr,
         index: { kind: "identifier", name: indexName },
+        isArrayAccess: true,
       },
     };
 
@@ -3354,7 +3380,7 @@ export function inferType(
 ): SkittlesType | undefined {
   switch (expr.kind) {
     case "number-literal":
-      return { kind: "uint256" as SkittlesTypeKind };
+      return { kind: "int256" as SkittlesTypeKind };
     case "string-literal":
       return { kind: "string" as SkittlesTypeKind };
     case "boolean-literal":
@@ -3372,7 +3398,7 @@ export function inferType(
           if (expr.property === "sender")
             return { kind: "address" as SkittlesTypeKind };
           if (expr.property === "value")
-            return { kind: "uint256" as SkittlesTypeKind };
+            return { kind: "int256" as SkittlesTypeKind };
           if (expr.property === "data")
             return { kind: "bytes" as SkittlesTypeKind };
           if (expr.property === "sig")
@@ -3381,12 +3407,12 @@ export function inferType(
         if (expr.object.name === "block") {
           if (expr.property === "coinbase")
             return { kind: "address" as SkittlesTypeKind };
-          return { kind: "uint256" as SkittlesTypeKind };
+          return { kind: "int256" as SkittlesTypeKind };
         }
         if (expr.object.name === "tx") {
           if (expr.property === "origin")
             return { kind: "address" as SkittlesTypeKind };
-          return { kind: "uint256" as SkittlesTypeKind };
+          return { kind: "int256" as SkittlesTypeKind };
         }
       }
       return undefined;
@@ -3616,12 +3642,12 @@ function typeToSolidityName(type: SkittlesType): string {
     case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
     case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
     case "array" as SkittlesTypeKind: return `${typeToSolidityName(type.valueType!)}[]`;
-    default: return "uint256";
+    default: return "int256";
   }
 }
 
 function getArrayHelperSuffix(elementType: SkittlesType | undefined): string {
-  if (!elementType) return "uint256";
+  if (!elementType) return "int256";
   return identifierSafeType(elementType);
 }
 
@@ -3638,7 +3664,7 @@ function identifierSafeType(type: SkittlesType): string {
     case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
     case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
     case "array" as SkittlesTypeKind: return `arr_${identifierSafeType(type.valueType!)}`;
-    default: return "uint256";
+    default: return "int256";
   }
 }
 
@@ -3659,6 +3685,7 @@ function mkReturn(value?: Expression): Statement { return { kind: "return", valu
 function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): Statement {
   return { kind: "if", condition: cond, thenBody, elseBody };
 }
+const INT256_TYPE: SkittlesType = { kind: "int256" as SkittlesTypeKind };
 const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
 const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
 
@@ -3787,7 +3814,7 @@ function generateFilterHelper(
   condExpr: Expression
 ): SkittlesFunction {
   const helperName = `_filter_${_arrayMethodCounter++}`;
-  const elemType = elementType ?? UINT256_TYPE;
+  const elemType = elementType ?? INT256_TYPE;
   const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: elemType };
   const elemTypeName = typeToSolidityName(elemType);
   const body: Statement[] = [
@@ -3818,8 +3845,8 @@ function generateMapHelper(
   resultElementType: SkittlesType | undefined
 ): SkittlesFunction {
   const helperName = `_map_${_arrayMethodCounter++}`;
-  const elemType = elementType ?? UINT256_TYPE;
-  const resultElemType = resultElementType ?? UINT256_TYPE;
+  const elemType = elementType ?? INT256_TYPE;
+  const resultElemType = resultElementType ?? INT256_TYPE;
   const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: resultElemType };
   const resultTypeName = typeToSolidityName(resultElemType);
   const body: Statement[] = [
@@ -3841,7 +3868,7 @@ function generateSomeEveryHelper(
   condExpr: Expression
 ): SkittlesFunction {
   const helperName = `_${method}_${_arrayMethodCounter++}`;
-  const elemType = elementType ?? UINT256_TYPE;
+  const elemType = elementType ?? INT256_TYPE;
   const isSome = method === "some";
   const body: Statement[] = [
     mkForLoop("__sk_i", arrayExpr, [
@@ -3862,7 +3889,7 @@ function generateFindHelper(
   condExpr: Expression
 ): SkittlesFunction {
   const helperName = `_find_${_arrayMethodCounter++}`;
-  const elemType = elementType ?? UINT256_TYPE;
+  const elemType = elementType ?? INT256_TYPE;
   const body: Statement[] = [
     mkForLoop("__sk_i", arrayExpr, [
       mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
@@ -3880,15 +3907,15 @@ function generateFindIndexHelper(
   condExpr: Expression
 ): SkittlesFunction {
   const helperName = `_findIndex_${_arrayMethodCounter++}`;
-  const elemType = elementType ?? UINT256_TYPE;
+  const elemType = elementType ?? INT256_TYPE;
   const body: Statement[] = [
     mkForLoop("__sk_i", arrayExpr, [
       mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
       mkIf(condExpr, [mkReturn(mkId("__sk_i"))]),
     ]),
-    mkReturn(mkProp(mkId("type(uint256)"), "max")),
+    mkReturn(mkNum("-1")),
   ];
-  return { name: helperName, parameters: [], returnType: UINT256_TYPE, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+  return { name: helperName, parameters: [], returnType: INT256_TYPE, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 function generateReduceHelper(
@@ -3901,8 +3928,8 @@ function generateReduceHelper(
   accType: SkittlesType | undefined
 ): SkittlesFunction {
   const helperName = `_reduce_${_arrayMethodCounter++}`;
-  const elemType = elementType ?? UINT256_TYPE;
-  const returnType = accType ?? UINT256_TYPE;
+  const elemType = elementType ?? INT256_TYPE;
+  const returnType = accType ?? INT256_TYPE;
   const body: Statement[] = [
     mkVarDecl("__sk_acc", returnType, initialValue),
     mkForLoop("__sk_i", arrayExpr, [
@@ -3966,8 +3993,9 @@ function defaultValueForType(type: SkittlesType | undefined): Expression | null 
   if (!type) return null;
   switch (type.kind) {
     case "uint256" as SkittlesTypeKind:
-    case "int256" as SkittlesTypeKind:
       return { kind: "number-literal", value: "0" };
+    case "int256" as SkittlesTypeKind:
+      return { kind: "identifier", name: "int256(0)" };
     case "bool" as SkittlesTypeKind:
       return { kind: "boolean-literal", value: false };
     case "address" as SkittlesTypeKind:

@@ -51,7 +51,7 @@ Here's how TypeScript types map to Solidity types:
 
 | TypeScript | Solidity | Notes |
 | --- | --- | --- |
-| `number` | `uint256` | All numbers are unsigned 256-bit integers |
+| `number` | `int256` | All numbers are signed 256-bit integers |
 | `string` | `string` | UTF-8 strings |
 | `boolean` | `bool` | `true` / `false` |
 | `address` | `address` | Ethereum address |
@@ -97,7 +97,7 @@ Skittles applies several optimizations to generate idiomatic Solidity:
 - **Memory annotations**: `memory` keywords are added to string and bytes parameters automatically
 - **`for...of` desugaring**: `for...of` loops over arrays are converted to index-based `for` loops
 - **`switch/case` → `if/else`**: Switch statements are converted to if/else chains (Solidity has no native switch)
-- **`Number.MAX_VALUE` → `type(uint256).max`**: Maximum integer value
+- **`Number.MAX_VALUE` → `type(int256).max`**: Maximum integer value
 - **`Math.min(a, b)` / `Math.max(a, b)` → helper functions**: Auto-generates internal `_min` / `_max` helpers to ensure each argument is evaluated exactly once
 - **`Math.pow(a, b)` → `a ** b`**: Uses Solidity's exponentiation operator
 - **`Math.sqrt(x)` → Babylonian method**: Auto-generates an internal `_sqrt` helper function
@@ -146,19 +146,19 @@ export class Token {
 pragma solidity ^0.8.20;
 
 contract Token {
-    uint256 public totalSupply;
-    mapping(address => uint256) internal balances;
+    int256 public totalSupply;
+    mapping(address => int256) internal balances;
 
-    constructor(uint256 supply) {
+    constructor(int256 supply) {
         totalSupply = supply;
         balances[msg.sender] = supply;
     }
 
-    function balanceOf(address account) public view virtual returns (uint256) {
+    function balanceOf(address account) public view virtual returns (int256) {
         return balances[account];
     }
 
-    function transfer(address to, uint256 amount) public virtual returns (bool) {
+    function transfer(address to, int256 amount) public virtual returns (bool) {
         require(balances[msg.sender] >= amount, "Insufficient balance");
         balances[msg.sender] -= amount;
         balances[to] += amount;
@@ -169,7 +169,7 @@ contract Token {
 
 Notice the automatic transformations:
 
-- `number` → `uint256`, `Record<address, number>` → `mapping(address => uint256)`
+- `number` → `int256`, `Record<address, number>` → `mapping(address => int256)`
 - `private` → `internal`
 - `balanceOf` is marked `view` (only reads state)
 - `if/throw` is optimized to `require()`

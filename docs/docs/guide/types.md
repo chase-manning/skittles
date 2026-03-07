@@ -11,9 +11,13 @@ Skittles uses familiar TypeScript types for your smart contracts. Here's how to 
 
 | TypeScript | Description                                                                                              |
 | ---------- | -------------------------------------------------------------------------------------------------------- |
-| `number`   | Used for amounts, counters, timestamps — represents a whole number (unsigned, up to 256 bits)           |
+| `number`   | Used for amounts, counters, timestamps — represents a signed 256-bit integer (`int256`)                 |
 | `string`   | Used for names, symbols, text data — UTF-8 encoded strings                                               |
 | `boolean`  | Used for flags and conditions — `true` or `false`                                                        |
+
+:::note
+`uint256` (unsigned 256-bit integer) can still be used explicitly when needed by importing from `"skittles"`.
+:::
 
 ```typescript
 class Example {
@@ -237,7 +241,7 @@ this.owners.reverse();            // reverse array in place
 
 ```typescript
 this.owners.includes(addr);      // true if value exists
-this.owners.indexOf(addr);       // index of first occurrence (type(uint256).max if not found)
+this.owners.indexOf(addr);       // index of first occurrence (-1 if not found)
 this.owners.lastIndexOf(addr);   // index of last occurrence
 this.values.at(0);               // element at index (supports negative: at(-1) = last)
 ```
@@ -350,7 +354,7 @@ for (const owner of this.owners) {
 | `some(fn)` | `boolean` | No | True if any element matches |
 | `every(fn)` | `boolean` | No | True if all elements match |
 | `find(fn)` | `T` | No | First matching element (reverts if none) |
-| `findIndex(fn)` | `number` | No | Index of first match (`type(uint256).max` if none) |
+| `findIndex(fn)` | `number` | No | Index of first match (`-1` if none) |
 | `filter(fn)` | `T[]` | No | New array of matching elements |
 | `map(fn)` | `U[]` | No | New array with transformed elements |
 | `reduce(fn, init)` | `U` | No | Accumulate to single value |
@@ -362,7 +366,7 @@ for (const owner of this.owners) {
 
 :::note
 - `remove(value)` uses a **swap-and-pop** strategy for gas efficiency — the removed element is replaced with the last element, so array order is not preserved. If you need ordered removal, use `splice()` instead.
-- `indexOf`, `lastIndexOf`, and `findIndex` return `type(uint256).max` (a very large number) when no match is found, since Solidity uses unsigned integers.
+- `indexOf`, `lastIndexOf`, and `findIndex` return `-1` when no match is found.
 - `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
 - `at(index)` **reverts** on out-of-bounds access (unlike JavaScript which returns `undefined`). Negative literal indices (e.g., `at(-1)`) are supported and desugared at compile time, but negative non-literal indices are not supported.
 - `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.

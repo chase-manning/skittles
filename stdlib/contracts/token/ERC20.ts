@@ -1,4 +1,4 @@
-import { address, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
+import { address, uint256, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
 
 /**
  * Implementation of the ERC-20 token standard.
@@ -11,34 +11,34 @@ export class ERC20 {
   Transfer: SkittlesEvent<{
     from: Indexed<address>;
     to: Indexed<address>;
-    value: number;
+    value: uint256;
   }>;
   Approval: SkittlesEvent<{
     owner: Indexed<address>;
     spender: Indexed<address>;
-    value: number;
+    value: uint256;
   }>;
 
   ERC20InsufficientBalance: SkittlesError<{
     sender: address;
-    balance: number;
-    needed: number;
+    balance: uint256;
+    needed: uint256;
   }>;
   ERC20InvalidSender: SkittlesError<{ sender: address }>;
   ERC20InvalidReceiver: SkittlesError<{ receiver: address }>;
   ERC20InsufficientAllowance: SkittlesError<{
     spender: address;
-    allowance: number;
-    needed: number;
+    allowance: uint256;
+    needed: uint256;
   }>;
   ERC20InvalidApprover: SkittlesError<{ approver: address }>;
   ERC20InvalidSpender: SkittlesError<{ spender: address }>;
 
   private _name: string;
   private _symbol: string;
-  private _totalSupply: number = 0;
-  private _balances: Record<address, number> = {};
-  private _allowances: Record<address, Record<address, number>> = {};
+  private _totalSupply: uint256 = 0;
+  private _balances: Record<address, uint256> = {};
+  private _allowances: Record<address, Record<address, uint256>> = {};
 
   constructor(name_: string, symbol_: string) {
     this._name = name_;
@@ -53,28 +53,28 @@ export class ERC20 {
     return this._symbol;
   }
 
-  public decimals(): number {
+  public decimals(): uint256 {
     return 18;
   }
 
-  public totalSupply(): number {
+  public totalSupply(): uint256 {
     return this._totalSupply;
   }
 
-  public balanceOf(account: address): number {
+  public balanceOf(account: address): uint256 {
     return this._balances[account];
   }
 
-  public transfer(to: address, value: number): boolean {
+  public transfer(to: address, value: uint256): boolean {
     this._transfer(msg.sender, to, value);
     return true;
   }
 
-  public allowance(owner: address, spender: address): number {
+  public allowance(owner: address, spender: address): uint256 {
     return this._allowances[owner][spender];
   }
 
-  public approve(spender: address, value: number): boolean {
+  public approve(spender: address, value: uint256): boolean {
     this._approve(msg.sender, spender, value);
     return true;
   }
@@ -82,7 +82,7 @@ export class ERC20 {
   public transferFrom(
     from: address,
     to: address,
-    value: number
+    value: uint256
   ): boolean {
     this._spendAllowance(from, msg.sender, value);
     this._transfer(from, to, value);
@@ -92,7 +92,7 @@ export class ERC20 {
   protected _transfer(
     from: address,
     to: address,
-    value: number
+    value: uint256
   ): void {
     if (from == "0x0000000000000000000000000000000000000000") {
       throw this.ERC20InvalidSender(
@@ -110,7 +110,7 @@ export class ERC20 {
   protected _update(
     from: address,
     to: address,
-    value: number
+    value: uint256
   ): void {
     if (from == "0x0000000000000000000000000000000000000000") {
       this._totalSupply += value;
@@ -134,7 +134,7 @@ export class ERC20 {
     this.Transfer.emit(from, to, value);
   }
 
-  protected _mint(to: address, value: number): void {
+  protected _mint(to: address, value: uint256): void {
     if (to == "0x0000000000000000000000000000000000000000") {
       throw this.ERC20InvalidReceiver(
         "0x0000000000000000000000000000000000000000"
@@ -143,7 +143,7 @@ export class ERC20 {
     this._update("0x0000000000000000000000000000000000000000", to, value);
   }
 
-  protected _burn(from: address, value: number): void {
+  protected _burn(from: address, value: uint256): void {
     if (from == "0x0000000000000000000000000000000000000000") {
       throw this.ERC20InvalidSender(
         "0x0000000000000000000000000000000000000000"
@@ -159,7 +159,7 @@ export class ERC20 {
   protected _approve(
     owner: address,
     spender: address,
-    value: number
+    value: uint256
   ): void {
     if (owner == "0x0000000000000000000000000000000000000000") {
       throw this.ERC20InvalidApprover(
@@ -178,9 +178,9 @@ export class ERC20 {
   protected _spendAllowance(
     owner: address,
     spender: address,
-    value: number
+    value: uint256
   ): void {
-    let currentAllowance: number = this.allowance(owner, spender);
+    let currentAllowance: uint256 = this.allowance(owner, spender);
     if (currentAllowance != Number.MAX_VALUE) {
       if (currentAllowance < value) {
         throw this.ERC20InsufficientAllowance(
