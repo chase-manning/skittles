@@ -715,10 +715,17 @@ function parseStandaloneFunction(
   eventNames: Set<string>
 ): SkittlesFunction {
   const name = node.name ? node.name.text : "unknown";
+
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Function name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type ? parseType(node.type) : null;
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
   const stateMutability = inferStateMutability(body);
 
   return {
@@ -740,15 +747,22 @@ function parseStandaloneArrowFunction(
   eventNames: Set<string>
 ): SkittlesFunction {
   const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Function name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+
   const arrow = decl.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = arrow.type ? parseType(arrow.type) : null;
 
   let body: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      body = parseBlock(arrow.body, varTypes, eventNames);
+      body = parseBlock(arrow.body, localVarTypes, eventNames);
     } else {
       body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
@@ -1398,14 +1412,16 @@ function parseMethod(
   }
 
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
   const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, varTypes, parameters);
+  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1558,14 +1574,20 @@ function parseGetAccessor(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Accessor name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+
   const parameters: SkittlesParameter[] = [];
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1581,12 +1603,18 @@ function parseSetAccessor(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Accessor name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1608,7 +1636,9 @@ function parseArrowProperty(
 
   const arrow = node.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
 
   const returnType: SkittlesType | null = arrow.type
     ? parseType(arrow.type)
@@ -1619,15 +1649,14 @@ function parseArrowProperty(
   let body: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      body = parseBlock(arrow.body, varTypes, eventNames);
+      body = parseBlock(arrow.body, localVarTypes, eventNames);
     } else {
       // Expression body: `() => expr` treated as `() => { return expr; }`
       body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
   }
 
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
-  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
   return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
@@ -1639,8 +1668,11 @@ function parseConstructorDecl(
   eventNames: Set<string>
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
+  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  return { parameters, body, sourceLine: getSourceLine(node) };
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
