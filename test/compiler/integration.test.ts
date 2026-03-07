@@ -1914,6 +1914,7 @@ describe("integration: string methods", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("_replace(text, from, to)");
     expect(solidity).toContain("function _replace(string memory str, string memory search, string memory replacement)");
+    expect(solidity).toContain("require(searchBytes.length > 0)");
   });
 
   it("should compile replaceAll on parameter", () => {
@@ -1927,6 +1928,47 @@ describe("integration: string methods", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain('_replaceAll(input, " ", "_")');
     expect(solidity).toContain("function _replaceAll(string memory str, string memory search, string memory replacement)");
+    expect(solidity).toContain("require(searchBytes.length > 0)");
+  });
+
+  it("should validate replace arity with too few arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public replaceFirst(text: string): string {
+          return text.replace("a");
+        }
+      }
+    `, "test.ts")).toThrow(/replace.*requires at least 2 argument/);
+  });
+
+  it("should validate replace arity with too many arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public replaceFirst(text: string): string {
+          return text.replace("a", "b", "c");
+        }
+      }
+    `, "test.ts")).toThrow(/replace.*accepts at most 2 argument/);
+  });
+
+  it("should validate replaceAll arity with too few arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public sanitize(input: string): string {
+          return input.replaceAll(" ");
+        }
+      }
+    `, "test.ts")).toThrow(/replaceAll.*requires at least 2 argument/);
+  });
+
+  it("should validate replaceAll arity with too many arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public sanitize(input: string): string {
+          return input.replaceAll(" ", "_", "extra");
+        }
+      }
+    `, "test.ts")).toThrow(/replaceAll.*accepts at most 2 argument/);
   });
 
   it("should compile chained string methods", () => {
