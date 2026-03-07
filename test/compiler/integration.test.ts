@@ -597,6 +597,18 @@ describe("integration: additional features", () => {
     expect(solidity).toContain("function max(uint256 a, uint256 b) public pure virtual returns (uint256)");
   });
 
+  it("should compile ternary expressions in state variable initializers", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public decimals: number = 18;
+        public adjustedDecimals: number = this.decimals > 10 ? 18 : 8;
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 public decimals = 18;");
+    expect(solidity).toContain("uint256 public adjustedDecimals = ((decimals > 10) ? 18 : 8);");
+  });
+
   it("should compile void ternary expressions as if/else", () => {
     const { errors, solidity } = compileTS(`
       class VoidTernary {

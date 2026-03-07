@@ -95,15 +95,24 @@ Scaffold a new Skittles project in the current directory.
 npx skittles@latest init
 ```
 
+### `--no-install`
+
+Skip automatic dependency installation. By default, `init` detects your package manager (npm, yarn, or pnpm) and runs install automatically. Use `--no-install` to skip this step and install manually later.
+
+```bash
+npx skittles@latest init --no-install
+```
+
 This creates:
 
-| File                   | Description                                       |
-| ---------------------- | ------------------------------------------------- |
-| `contracts/Token.ts`   | Example ERC20 token contract with Transfer event  |
-| `test/Token.test.ts`  | Example test using Hardhat + Mocha + fixtures    |
-| `skittles.config.json` | Compiler configuration with defaults              |
-| `tsconfig.json`        | TypeScript configuration for contract development |
-| `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths      |
+| File                   | Description                                                    |
+| ---------------------- | -------------------------------------------------------------- |
+| `package.json`         | Created (or updated) with scripts and dependencies             |
+| `contracts/Token.ts`   | Example ERC20 token contract with Transfer event               |
+| `test/Token.test.ts`   | Example test using Hardhat + Mocha + fixtures                  |
+| `skittles.config.json` | Compiler configuration with defaults                           |
+| `tsconfig.json`        | TypeScript configuration for contract development              |
+| `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths                   |
 | `.gitignore` (updated) | Adds `artifacts/`, `cache/`, `dist/`, `node_modules/`          |
 
 If any file already exists, it is skipped with a warning.
@@ -143,3 +152,10 @@ The test file demonstrates event assertions (`.to.emit`), revert checking (`.rev
 npx skittles --version
 npx skittles compile --help
 ```
+
+## Exit Codes
+
+| Code | Meaning                                                          |
+| ---- | ---------------------------------------------------------------- |
+| `0`  | Success                                                          |
+| `1`  | Compilation error (syntax error, type error, or unexpected failure) |
