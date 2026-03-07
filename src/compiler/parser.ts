@@ -2408,8 +2408,25 @@ export function parseExpression(node: ts.Expression): Expression {
     if (node.head.text) {
       parts.push({ kind: "string-literal", value: node.head.text });
     }
+    // Combine state variable types and parameter types for type inference
+    const combinedTypes = new Map([..._currentVarTypes, ..._currentParamTypes]);
     for (const span of node.templateSpans) {
-      parts.push(parseExpression(span.expression));
+      const expr = parseExpression(span.expression);
+      // Wrap non-string expressions with _toString() for Solidity compatibility
+      if (!isStringExpr(expr)) {
+        const type = inferType(expr, combinedTypes);
+        if (type !== undefined && type.kind !== ("string" as SkittlesTypeKind)) {
+          parts.push({
+            kind: "call",
+            callee: { kind: "identifier", name: "_toString" },
+            args: [expr],
+          });
+        } else {
+          parts.push(expr);
+        }
+      } else {
+        parts.push(expr);
+      }
       if (span.literal.text) {
         parts.push({ kind: "string-literal", value: span.literal.text });
       }

@@ -33,6 +33,7 @@ let _needsStartsWithHelper = false;
 let _needsEndsWithHelper = false;
 let _needsTrimHelper = false;
 let _needsSplitHelper = false;
+let _needsToStringHelper = false;
 let _currentNeededArrayHelpers: string[] = [];
 let _allKnownEnumNames = new Set<string>();
 let _allKnownInterfaceNames = new Set<string>();
@@ -515,6 +516,7 @@ function generateContractBody(
   _needsEndsWithHelper = false;
   _needsTrimHelper = false;
   _needsSplitHelper = false;
+  _needsToStringHelper = false;
   _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
@@ -895,6 +897,24 @@ function generateContractBody(
       "        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }",
       "        parts[partIndex] = string(lastPart);",
       "        return parts;",
+      "    }",
+    ]);
+  }
+
+  if (needsHelper("_toString", _needsToStringHelper)) {
+    emitHelper("_toString", [
+      "    function _toString(uint256 value) internal pure returns (string memory) {",
+      "        if (value == 0) return \"0\";",
+      "        uint256 temp = value;",
+      "        uint256 digits;",
+      "        while (temp != 0) { digits++; temp /= 10; }",
+      "        bytes memory buffer = new bytes(digits);",
+      "        while (value != 0) {",
+      "            digits--;",
+      "            buffer[digits] = bytes1(uint8(48 + (value % 10)));",
+      "            value /= 10;",
+      "        }",
+      "        return string(buffer);",
       "    }",
     ]);
   }
@@ -1762,6 +1782,10 @@ function tryGenerateBuiltinCall(expr: {
       return `string.concat(${args})`;
     case "bytes.concat":
       return `bytes.concat(${args})`;
+    case "_toString": {
+      _needsToStringHelper = true;
+      return `_toString(${args})`;
+    }
     case "Math.min": {
       _needsMinHelper = true;
       const a = generateExpression(expr.args[0]);

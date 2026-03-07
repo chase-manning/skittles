@@ -3317,6 +3317,68 @@ describe("integration: template literals", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain('string public name = "hello"');
   });
+
+  it("should convert number to string in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public label(tokenId: number): string {
+          return \`Token #\${tokenId}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Token #", _toString(tokenId))');
+    expect(solidity).toContain("function _toString(uint256 value)");
+  });
+
+  it("should handle multiple interpolations with mixed types", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public info(name: string, balance: number): string {
+          return \`\${name} has \${balance} tokens\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat(name, " has ", _toString(balance), " tokens")');
+  });
+
+  it("should convert expressions in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public doubleBalance(balance: number): string {
+          return \`Balance: \${balance * 2}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Balance: ", _toString((balance * 2)))');
+  });
+
+  it("should convert this.property number to string in template literals", () => {
+    const contracts = parse(`
+      class Token {
+        private supply: number = 0;
+        public getSupply(): string {
+          return \`Supply: \${this.supply}\`;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('string.concat("Supply: ", _toString(supply))');
+  });
+
+  it("should handle number literal in template literals", () => {
+    const contracts = parse(`
+      class Token {
+        public version(): string {
+          return \`v\${1}\`;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('string.concat("v", _toString(1))');
+  });
 });
 
 describe("integration: multiple variable declarations", () => {
