@@ -2230,6 +2230,24 @@ describe("integration: enums", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("function isActive(Status s) internal pure returns (bool)");
   });
+
+  it("should reject 'asserts' type predicates with a clear error", () => {
+    expect(() =>
+      compileTS(`
+        function assertIsPositive(value: number): asserts value {
+          if (value <= 0) {
+            throw new Error("Not positive");
+          }
+        }
+
+        export class Validator {
+          public check(v: number): void {
+            assertIsPositive(v);
+          }
+        }
+      `)
+    ).toThrow("Skittles does not support 'asserts' type predicates");
+  });
 });
 
 // ============================================================

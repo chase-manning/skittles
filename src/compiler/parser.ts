@@ -1645,6 +1645,13 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
 
 export function parseType(node: ts.TypeNode): SkittlesType {
   if (ts.isTypePredicateNode(node)) {
+    if (node.assertsModifier) {
+      throw new Error(
+        "Skittles does not support 'asserts' type predicates (e.g. 'asserts x is T' or 'asserts condition'). " +
+          "These are not boolean-returning in TypeScript and cannot be compiled. " +
+          "Please remove the 'asserts' modifier or refactor this function."
+      );
+    }
     return { kind: "bool" as SkittlesTypeKind };
   }
 
