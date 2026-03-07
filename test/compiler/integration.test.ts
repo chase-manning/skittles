@@ -2278,6 +2278,46 @@ describe("integration: enums", () => {
     expect(solidity).toContain("Status public status;");
     expect(solidity).toContain("returns (Status)");
   });
+
+  it("should compile 'is' type guard functions as bool-returning helpers", () => {
+    const { errors, solidity } = compileTS(`
+      enum Status { Active, Paused, Stopped }
+
+      function isActive(s: Status): s is Status.Active {
+        return s == Status.Active;
+      }
+
+      export class Vault {
+        status: Status;
+
+        public doAction(): void {
+          if (isActive(this.status)) {
+            this.status = Status.Paused;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function isActive(Status s) internal pure returns (bool)");
+  });
+
+  it("should reject 'asserts' type predicates with a clear error", () => {
+    expect(() =>
+      compileTS(`
+        function assertIsPositive(value: number): asserts value {
+          if (value <= 0) {
+            throw new Error("Not positive");
+          }
+        }
+
+        export class Validator {
+          public check(v: number): void {
+            assertIsPositive(v);
+          }
+        }
+      `)
+    ).toThrow("Skittles does not support 'asserts' type predicates");
+  });
 });
 
 // ============================================================
@@ -5397,6 +5437,154 @@ describe("integration: external contract calls", () => {
     expect(solidity).toContain("function balanceOf(address account) external returns (uint256);");
 
     const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile interface property access as getter call on state variable", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+        totalSupply: number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+
+        constructor(tokenAddr: address) {
+          this.token = Contract<IToken>(tokenAddr);
+        }
+
+        public getTokenName(): string {
+          return this.token.name;
+        }
+
+        public getSupply(): number {
+          return this.token.totalSupply;
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // Property access should be compiled to function calls
+    expect(solidity).toContain("return token.name();");
+    expect(solidity).toContain("return token.totalSupply();");
+
+    // Interface should have view getters
+    expect(solidity).toContain("function name() external view returns (string memory);");
+    expect(solidity).toContain("function totalSupply() external view returns (uint256);");
+
+    // Functions should be inferred as view
+    const getTokenNameFn = contracts[0].functions.find(f => f.name === "getTokenName");
+    expect(getTokenNameFn).toBeDefined();
+    expect(getTokenNameFn!.stateMutability).toBe("view");
+
+    const getSupplyFn = contracts[0].functions.find(f => f.name === "getSupply");
+    expect(getSupplyFn).toBeDefined();
+    expect(getSupplyFn!.stateMutability).toBe("view");
+
+    const result = compileSolidity("Vault", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile interface property access as getter call on local variable", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Reader {
+        public readName(tokenAddr: address): string {
+          let token: IToken = Contract<IToken>(tokenAddr);
+          return token.name;
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Reader.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("return token.name();");
+
+    const readNameFn = contracts[0].functions.find(f => f.name === "readName");
+    expect(readNameFn).toBeDefined();
+    expect(readNameFn!.stateMutability).toBe("view");
+
+    const result = compileSolidity("Reader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should not transform property access when already used as method call", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Reader {
+        private token: IToken;
+
+        constructor(tokenAddr: address) {
+          this.token = Contract<IToken>(tokenAddr);
+        }
+
+        public getTokenName(): string {
+          return this.token.name();
+        }
+
+        public getBalance(account: address): number {
+          return this.token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Reader.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // Method call syntax should still work (no double parentheses)
+    expect(solidity).toContain("return token.name();");
+    expect(solidity).toContain("return token.balanceOf(account);");
+
+    const result = compileSolidity("Reader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile interface property access on function parameter", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Helper {
+        public getName(token: IToken): string {
+          return token.name;
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Helper.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("return token.name();");
+
+    const result = compileSolidity("Helper", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
 });

@@ -1211,6 +1211,7 @@ function parseClass(
     if (externalCalls.length === 0) continue;
 
     let allExternalAreViewLike = true;
+    let externalNeedsView = false;
     for (const { ifaceName, methodName } of externalCalls) {
       const iface = contractIfaceList.find(i => i.name === ifaceName);
       if (!iface) {
@@ -1225,14 +1226,18 @@ function parseClass(
         allExternalAreViewLike = false;
         break;
       }
+      if (ifaceMethod.stateMutability === "view") {
+        externalNeedsView = true;
+      }
     }
     if (!allExternalAreViewLike) continue;
 
     // All external calls are to explicitly view/pure methods, so the wrapper
-    // itself can safely be marked with the base mutability.
+    // itself can safely be marked with the base mutability (or at least view
+    // when any external call is view, e.g. for local interface variables).
     const baseMut = inferStateMutability(fn.body, varTypes, fn.parameters, true);
     if (baseMut === "view" || baseMut === "pure") {
-      fn.stateMutability = baseMut;
+      fn.stateMutability = (baseMut === "pure" && externalNeedsView) ? "view" : baseMut;
     }
   }
 
@@ -1420,7 +1425,8 @@ function parseMethod(
     : null;
   const visibility = getVisibility(node.modifiers);
   const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
-  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
   const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
@@ -1586,7 +1592,8 @@ function parseGetAccessor(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
@@ -1613,7 +1620,8 @@ function parseSetAccessor(
   setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
@@ -1646,16 +1654,17 @@ function parseArrowProperty(
 
   const visibility = getVisibility(node.modifiers);
 
-  let body: Statement[] = [];
+  let rawBody: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      body = parseBlock(arrow.body, localVarTypes, eventNames);
+      rawBody = parseBlock(arrow.body, localVarTypes, eventNames);
     } else {
       // Expression body: `() => expr` treated as `() => { return expr; }`
-      body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
+      rawBody = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
   }
 
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1672,7 +1681,8 @@ function parseConstructorDecl(
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
   const localVarTypes = new Map(varTypes);
   setupStringTracking(parameters, localVarTypes);
-  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
@@ -1696,6 +1706,17 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
 // ============================================================
 
 export function parseType(node: ts.TypeNode): SkittlesType {
+  if (ts.isTypePredicateNode(node)) {
+    if (node.assertsModifier) {
+      throw new Error(
+        "Skittles does not support 'asserts' type predicates (e.g. 'asserts x is T' or 'asserts condition'). " +
+          "These are not boolean-returning in TypeScript and cannot be compiled. " +
+          "Please remove the 'asserts' modifier or refactor this function."
+      );
+    }
+    return { kind: "bool" as SkittlesTypeKind };
+  }
+
   if (ts.isTypeReferenceNode(node)) {
     const name = ts.isIdentifier(node.typeName)
       ? node.typeName.text
@@ -3242,6 +3263,145 @@ function collectExternalInterfaceCalls(
 
 function inferAbstractStateMutability(): StateMutability {
   return "nonpayable";
+}
+
+// ============================================================
+// Rewrite interface property getters into call expressions
+// ============================================================
+
+/**
+ * Walk a function body and convert property accesses on contract-interface
+ * typed variables into zero-argument call expressions.
+ *
+ * Example:  `this.token.name`  →  `this.token.name()`
+ *
+ * This ensures codegen emits the required `()` in Solidity (interface
+ * property getters are functions) and that mutability inference recognises
+ * these as external contract calls.
+ */
+function rewriteInterfacePropertyGetters(
+  body: Statement[],
+  varTypes: Map<string, SkittlesType>,
+  params?: SkittlesParameter[]
+): Statement[] {
+  const localVarTypes = new Map<string, SkittlesType>();
+  if (params) {
+    for (const p of params) {
+      localVarTypes.set(p.name, p.type);
+    }
+  }
+
+  function isInterfacePropAccess(expr: Expression): boolean {
+    if (expr.kind !== "property-access") return false;
+
+    // Pattern A: this.<stateVar>.<property>
+    if (
+      expr.object.kind === "property-access" &&
+      expr.object.object.kind === "identifier" &&
+      expr.object.object.name === "this"
+    ) {
+      const propType = varTypes.get(expr.object.property);
+      if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
+        const iface = _knownContractInterfaceMap.get(propType.structName);
+        if (iface && iface.functions.some(f => f.name === expr.property)) return true;
+      }
+    }
+
+    // Pattern B: <localVar>.<property>
+    if (
+      expr.object.kind === "identifier" &&
+      expr.object.name !== "this"
+    ) {
+      const varType = localVarTypes.get(expr.object.name) ?? varTypes.get(expr.object.name);
+      if (varType && varType.kind === ("contract-interface" as SkittlesTypeKind) && varType.structName) {
+        const iface = _knownContractInterfaceMap.get(varType.structName);
+        if (iface && iface.functions.some(f => f.name === expr.property)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  function transformExpr(expr: Expression, isCallCallee: boolean): Expression {
+    switch (expr.kind) {
+      case "call": {
+        let callee = expr.callee;
+        if (callee.kind === "property-access") {
+          // Don't transform the callee itself (it's already in call position),
+          // but do transform its sub-expressions.
+          callee = { ...callee, object: transformExpr(callee.object, false) };
+        } else {
+          callee = transformExpr(callee, true);
+        }
+        return { ...expr, callee, args: expr.args.map(a => transformExpr(a, false)) };
+      }
+      case "property-access": {
+        const newExpr: Expression = { ...expr, object: transformExpr(expr.object, false) };
+        if (!isCallCallee && isInterfacePropAccess(newExpr)) {
+          return { kind: "call", callee: newExpr, args: [] } as Expression;
+        }
+        return newExpr;
+      }
+      case "binary":
+        return { ...expr, left: transformExpr(expr.left, false), right: transformExpr(expr.right, false) };
+      case "unary":
+        return { ...expr, operand: transformExpr(expr.operand, false) };
+      case "assignment":
+        return { ...expr, target: transformExpr(expr.target, false), value: transformExpr(expr.value, false) };
+      case "conditional":
+        return { ...expr, condition: transformExpr(expr.condition, false), whenTrue: transformExpr(expr.whenTrue, false), whenFalse: transformExpr(expr.whenFalse, false) };
+      case "element-access":
+        return { ...expr, object: transformExpr(expr.object, false), index: transformExpr(expr.index, false) };
+      case "new":
+        return { ...expr, args: expr.args.map(a => transformExpr(a, false)) };
+      case "object-literal":
+        return { ...expr, properties: expr.properties.map(p => ({ ...p, value: transformExpr(p.value, false) })) };
+      case "tuple-literal":
+        return { ...expr, elements: expr.elements.map(e => transformExpr(e, false)) };
+      default:
+        return expr;
+    }
+  }
+
+  function transformStmt(stmt: Statement): Statement {
+    switch (stmt.kind) {
+      case "return":
+        return { ...stmt, value: stmt.value ? transformExpr(stmt.value, false) : undefined };
+      case "variable-declaration": {
+        const transformed = { ...stmt, initializer: stmt.initializer ? transformExpr(stmt.initializer, false) : undefined };
+        if (stmt.type && stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
+          localVarTypes.set(stmt.name, stmt.type);
+        }
+        return transformed;
+      }
+      case "expression":
+        return { ...stmt, expression: transformExpr(stmt.expression, false) };
+      case "if":
+        return { ...stmt, condition: transformExpr(stmt.condition, false), thenBody: stmt.thenBody.map(transformStmt), elseBody: stmt.elseBody?.map(transformStmt) };
+      case "for":
+        return { ...stmt, initializer: stmt.initializer ? transformStmt(stmt.initializer) as any : undefined, condition: stmt.condition ? transformExpr(stmt.condition, false) : undefined, incrementor: stmt.incrementor ? transformExpr(stmt.incrementor, false) : undefined, body: stmt.body.map(transformStmt) };
+      case "while":
+        return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
+      case "do-while":
+        return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
+      case "revert":
+        return { ...stmt, message: stmt.message ? transformExpr(stmt.message, false) : undefined, customErrorArgs: stmt.customErrorArgs?.map(a => transformExpr(a, false)) };
+      case "emit":
+        return { ...stmt, args: stmt.args.map(a => transformExpr(a, false)) };
+      case "delete":
+        return { ...stmt, target: transformExpr(stmt.target, false) };
+      case "try-catch":
+        return { ...stmt, call: transformExpr(stmt.call, false), successBody: stmt.successBody.map(transformStmt), catchBody: stmt.catchBody.map(transformStmt) };
+      case "switch":
+        return { ...stmt, discriminant: transformExpr(stmt.discriminant, false), cases: stmt.cases.map(c => ({ ...c, body: c.body.map(transformStmt), value: c.value ? transformExpr(c.value, false) : undefined })) };
+      case "console-log":
+        return { ...stmt, args: stmt.args.map(a => transformExpr(a, false)) };
+      default:
+        return stmt;
+    }
+  }
+
+  return body.map(transformStmt);
 }
 
 export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>, params?: SkittlesParameter[], skipExternalCalls?: boolean): "pure" | "view" | "nonpayable" | "payable" {

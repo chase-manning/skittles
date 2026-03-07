@@ -1453,7 +1453,13 @@ export function generateExpression(expr: Expression): string {
       if (/^0x[0-9a-fA-F]{40}$/.test(expr.value)) {
         return `address(${expr.value})`;
       }
-      const escaped = expr.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      const escaped = expr.value
+        .replace(/\\/g, "\\\\")
+        .replace(/"/g, '\\"')
+        .replace(/[\x00-\x1f\x7f]/g, (ch) => {
+          const hex = ch.charCodeAt(0).toString(16).padStart(2, "0");
+          return `\\x${hex}`;
+        });
       return `"${escaped}"`;
     }
     case "boolean-literal":

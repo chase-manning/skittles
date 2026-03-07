@@ -208,3 +208,25 @@ const calculateFee = (amount: number, bps: number): number => {
 ```
 
 When shared across files, standalone functions are available to all contracts. See [Cross File Support](/guide/cross-file).
+
+## Type Guards
+
+TypeScript type guard functions using the `is` keyword are supported. The `is` annotation is stripped and the function compiles to a standard boolean-returning internal function:
+
+```typescript
+enum Status { Active, Paused, Stopped }
+
+function isActive(s: Status): s is Status.Active {
+  return s == Status.Active;
+}
+
+export class Vault {
+  status: Status;
+
+  public doAction(): void {
+    if (isActive(this.status)) {
+      // ...
+    }
+  }
+}
+```
