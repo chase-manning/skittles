@@ -587,7 +587,7 @@ function parseArrayDestructuring(
     // silently generating uninitialized locals with default Solidity values.
     throw new Error(
       "Unable to resolve tuple return type for call expression in destructuring assignment. " +
-      "Provide an explicit tuple type annotation for this declaration."
+      "Ensure the called function has an explicit tuple return type annotation."
     );
   } else {
     // Fallback: parse as expression and hope for the best

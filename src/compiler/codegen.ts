@@ -1500,7 +1500,8 @@ export function generateStatement(stmt: Statement, indent: string): string {
     case "tuple-destructuring": {
       const parts = stmt.names.map((name, i) => {
         if (name === null) return "";
-        const type = i < stmt.types.length && stmt.types[i] !== null ? generateParamType(stmt.types[i]!) : "uint256";
+        const elemType = i < stmt.types.length ? stmt.types[i] : null;
+        const type = elemType !== null ? generateParamType(elemType) : "uint256";
         return `${type} ${name}`;
       });
       const initExpr = generateExpression(stmt.initializer);
