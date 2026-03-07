@@ -3462,6 +3462,22 @@ describe("integration: template literals", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("__sk_toString(total)");
   });
+
+  it("should not wrap string-returning function calls in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Greeter {
+        public greet(name: string): string {
+          return \`Hello \${name}\`;
+        }
+        public welcome(name: string): string {
+          return \`Welcome: \${this.greet(name)}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Welcome: ", greet(name))');
+    expect(solidity).not.toContain("__sk_toString(greet(name))");
+  });
 });
 
 describe("integration: multiple variable declarations", () => {

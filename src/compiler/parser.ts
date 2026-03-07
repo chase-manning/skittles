@@ -1356,6 +1356,10 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Property name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
@@ -1388,6 +1392,10 @@ function parseMethod(
 ): SkittlesFunction {
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
+
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Method name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
 
   const parameters = node.parameters.map(parseParameter);
   setupStringTracking(parameters, varTypes);
@@ -1594,6 +1602,10 @@ function parseArrowProperty(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Property name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+
   const arrow = node.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
   setupStringTracking(parameters, varTypes);
@@ -1634,6 +1646,9 @@ function parseConstructorDecl(
 
 function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const name = ts.isIdentifier(node.name) ? node.name.text : "unknown";
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Parameter name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
@@ -2417,17 +2432,17 @@ export function parseExpression(node: ts.Expression): Expression {
     const combinedTypes = new Map([..._currentVarTypes, ..._currentParamTypes]);
     for (const span of node.templateSpans) {
       const expr = parseExpression(span.expression);
-      // Wrap non-string expressions with __sk_toString() for Solidity compatibility.
+      // Wrap numeric expressions with __sk_toString() for Solidity compatibility.
       // isStringExpr catches known string identifiers and string.concat calls;
       // inferType provides deeper type inference for other expressions.
+      // Only wrap when the type is explicitly numeric (uint256/int256). Unknown types
+      // (e.g. function calls returning string) are left unwrapped to avoid generating
+      // invalid __sk_toString(stringExpr) Solidity.
       const isString = isStringExpr(expr);
       const type = !isString ? inferType(expr, combinedTypes) : undefined;
-      // If the expression is not known to be a string, we conservatively wrap it:
-      // - when inferType says it's non-string, or
-      // - when inferType cannot determine a type (e.g., local variables not in combinedTypes).
-      const needsConversion =
-        !isString && (type === undefined || type.kind !== ("string" as SkittlesTypeKind));
-      if (needsConversion) {
+      const isNumeric = type !== undefined &&
+        (type.kind === ("uint256" as SkittlesTypeKind) || type.kind === ("int256" as SkittlesTypeKind));
+      if (isNumeric) {
         parts.push({
           kind: "call",
           callee: { kind: "identifier", name: "__sk_toString" },
@@ -2492,7 +2507,10 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-
+    // Track local variable type for template literal inference
+    if (type) {
+      varTypes.set(name, type);
+    }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
 
@@ -2889,6 +2907,10 @@ function parseStatements(
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
+        }
+        // Track local variable type for template literal inference
+        if (type) {
+          varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
