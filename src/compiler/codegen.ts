@@ -905,9 +905,9 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_toString", _needsToStringHelper)) {
-    emitHelper("_toString", [
-      "    function _toString(uint256 value) internal pure returns (string memory) {",
+  if (needsHelper("__sk_toString", _needsToStringHelper)) {
+    emitHelper("__sk_toString", [
+      "    function __sk_toString(uint256 value) internal pure returns (string memory) {",
       "        if (value == 0) return \"0\";",
       "        uint256 temp = value;",
       "        uint256 digits;",
@@ -1850,9 +1850,9 @@ function tryGenerateBuiltinCall(expr: {
       return `string.concat(${args})`;
     case "bytes.concat":
       return `bytes.concat(${args})`;
-    case "_toString": {
+    case "__sk_toString": {
       _needsToStringHelper = true;
-      return `_toString(${args})`;
+      return `__sk_toString(${args})`;
     }
     case "Math.min": {
       _needsMinHelper = true;

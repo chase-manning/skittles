@@ -146,7 +146,7 @@ class Token {
 }
 ```
 
-Numbers are automatically converted to their string representation. Under the hood, template literals compile to Solidity's `string.concat()` with a generated `_toString()` helper for non-string values.
+Numbers are automatically converted to their string representation. Under the hood, template literals compile to Solidity's `string.concat()` with a generated `__sk_toString(uint256)` helper for numeric values; using non-string, non-numeric values in template literals is not supported and will fail Solidity compilation.
 
 ## Ethereum Types
 

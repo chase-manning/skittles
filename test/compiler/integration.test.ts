@@ -3397,8 +3397,8 @@ describe("integration: template literals", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain('string.concat("Token #", _toString(tokenId))');
-    expect(solidity).toContain("function _toString(uint256 value)");
+    expect(solidity).toContain('string.concat("Token #", __sk_toString(tokenId))');
+    expect(solidity).toContain("function __sk_toString(uint256 value)");
   });
 
   it("should handle multiple interpolations with mixed types", () => {
@@ -3410,7 +3410,7 @@ describe("integration: template literals", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain('string.concat(name, " has ", _toString(balance), " tokens")');
+    expect(solidity).toContain('string.concat(name, " has ", __sk_toString(balance), " tokens")');
   });
 
   it("should convert expressions in template literals", () => {
@@ -3422,7 +3422,7 @@ describe("integration: template literals", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain('string.concat("Balance: ", _toString((balance * 2)))');
+    expect(solidity).toContain('string.concat("Balance: ", __sk_toString((balance * 2)))');
   });
 
   it("should convert this.property number to string in template literals", () => {
@@ -3435,7 +3435,7 @@ describe("integration: template literals", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain('string.concat("Supply: ", _toString(supply))');
+    expect(solidity).toContain('string.concat("Supply: ", __sk_toString(supply))');
   });
 
   it("should handle number literal in template literals", () => {
@@ -3447,7 +3447,20 @@ describe("integration: template literals", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain('string.concat("v", _toString(1))');
+    expect(solidity).toContain('string.concat("v", __sk_toString(1))');
+  });
+
+  it("should convert locally-declared number to string in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public doubleBalanceViaLocal(balance: number): string {
+          const total: number = balance * 2;
+          return \`\${total}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("__sk_toString(total)");
   });
 });
 

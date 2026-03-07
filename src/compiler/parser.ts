@@ -2417,15 +2417,20 @@ export function parseExpression(node: ts.Expression): Expression {
     const combinedTypes = new Map([..._currentVarTypes, ..._currentParamTypes]);
     for (const span of node.templateSpans) {
       const expr = parseExpression(span.expression);
-      // Wrap non-string expressions with _toString() for Solidity compatibility.
+      // Wrap non-string expressions with __sk_toString() for Solidity compatibility.
       // isStringExpr catches known string identifiers and string.concat calls;
       // inferType provides deeper type inference for other expressions.
-      const type = !isStringExpr(expr) ? inferType(expr, combinedTypes) : undefined;
-      const needsConversion = type !== undefined && type.kind !== ("string" as SkittlesTypeKind);
+      const isString = isStringExpr(expr);
+      const type = !isString ? inferType(expr, combinedTypes) : undefined;
+      // If the expression is not known to be a string, we conservatively wrap it:
+      // - when inferType says it's non-string, or
+      // - when inferType cannot determine a type (e.g., local variables not in combinedTypes).
+      const needsConversion =
+        !isString && (type === undefined || type.kind !== ("string" as SkittlesTypeKind));
       if (needsConversion) {
         parts.push({
           kind: "call",
-          callee: { kind: "identifier", name: "_toString" },
+          callee: { kind: "identifier", name: "__sk_toString" },
           args: [expr],
         });
       } else {
