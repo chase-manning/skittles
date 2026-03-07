@@ -139,7 +139,7 @@ function walkAllStatements(
         if (stmt.initializer) collectUsedIdentifiers(stmt.initializer, used);
         break;
       case "tuple-destructuring":
-        for (const n of stmt.names) declared.add(n);
+        for (const n of stmt.names) if (n !== null) declared.add(n);
         collectUsedIdentifiers(stmt.initializer, used);
         break;
       case "return":

@@ -4006,6 +4006,39 @@ describe("integration: tuple destructuring", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("(uint256 r0, uint256 r1, uint256 supply) = getState();");
   });
+
+  it("should compile tuple destructuring with skipped elements", () => {
+    const { errors, solidity } = compileTS(`
+      class Pair {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+
+        getReserves(): [number, number] {
+          return [this.reserve0, this.reserve1];
+        }
+
+        public getSecond(): number {
+          const [, r1] = this.getReserves();
+          return r1;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(, uint256 r1) = getReserves();");
+  });
+
+  it("should error when tuple type cannot be resolved for call destructuring", () => {
+    expect(() => {
+      compileTS(`
+        class Test {
+          public doSomething(): number {
+            const [a, b] = unknownFunc();
+            return a + b;
+          }
+        }
+      `);
+    }).toThrow("Unable to resolve tuple return type");
+  });
 });
 
 // ============================================================

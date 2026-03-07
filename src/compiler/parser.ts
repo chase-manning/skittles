@@ -559,14 +559,19 @@ function parseArrayDestructuring(
     }
 
     if (tupleType?.kind === ("tuple" as SkittlesTypeKind) && tupleType.tupleTypes) {
-      const names: string[] = [];
-      const types: SkittlesType[] = [];
+      const names: (string | null)[] = [];
+      const types: (SkittlesType | null)[] = [];
       for (let i = 0; i < pattern.elements.length; i++) {
         const elem = pattern.elements[i];
-        if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        if (ts.isOmittedExpression(elem)) {
+          // Skipped element: const [, b] = f()
+          names.push(null);
+          types.push(i < tupleType.tupleTypes.length ? tupleType.tupleTypes[i] : null);
+        } else if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
           names.push(elem.name.text);
-          types.push(i < tupleType.tupleTypes.length ? tupleType.tupleTypes[i] : { kind: "uint256" as SkittlesType["kind"] });
-          varTypes.set(elem.name.text, types[types.length - 1]);
+          const t = i < tupleType.tupleTypes.length ? tupleType.tupleTypes[i] : { kind: "uint256" as SkittlesType["kind"] };
+          types.push(t);
+          varTypes.set(elem.name.text, t);
         }
       }
       const initExpr = parseExpression(initializer);
@@ -578,18 +583,12 @@ function parseArrayDestructuring(
       }];
     }
 
-    // Fallback for call expressions without resolved tuple type
-    for (let i = 0; i < pattern.elements.length; i++) {
-      const elem = pattern.elements[i];
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        statements.push({
-          kind: "variable-declaration" as const,
-          name: elem.name.text,
-          type: undefined,
-          initializer: undefined,
-        });
-      }
-    }
+    // Unable to resolve tuple return type – emit a compile-time error rather than
+    // silently generating uninitialized locals with default Solidity values.
+    throw new Error(
+      "Unable to resolve tuple return type for call expression in destructuring assignment. " +
+      "Provide an explicit tuple type annotation for this declaration."
+    );
   } else {
     // Fallback: parse as expression and hope for the best
     for (let i = 0; i < pattern.elements.length; i++) {

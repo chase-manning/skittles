@@ -185,8 +185,8 @@ export interface VariableDeclarationStatement {
 
 export interface TupleDestructuringStatement {
   kind: "tuple-destructuring";
-  names: string[];
-  types: SkittlesType[];
+  names: (string | null)[];
+  types: (SkittlesType | null)[];
   initializer: Expression;
   sourceLine?: number;
 }

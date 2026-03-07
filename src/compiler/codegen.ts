@@ -56,7 +56,7 @@ function collectLocalVarNames(stmts: Statement[]): Set<string> {
         names.add(s.name);
         break;
       case "tuple-destructuring":
-        for (const n of s.names) names.add(n);
+        for (const n of s.names) if (n !== null) names.add(n);
         break;
       case "if":
         for (const n of collectLocalVarNames(s.thenBody)) names.add(n);
@@ -129,7 +129,7 @@ function renameInStatement(stmt: Statement, renames: Map<string, string>): State
       return { ...stmt, name: newName, initializer: stmt.initializer ? renameInExpression(stmt.initializer, renames) : undefined };
     }
     case "tuple-destructuring": {
-      const newNames = stmt.names.map((n) => renames.get(n) ?? n);
+      const newNames = stmt.names.map((n) => n === null ? null : (renames.get(n) ?? n));
       return { ...stmt, names: newNames, initializer: renameInExpression(stmt.initializer, renames) };
     }
     case "return":
@@ -224,17 +224,22 @@ function scopeAwareRenameStmt(
     }
     case "tuple-destructuring": {
       const renamedInit = renameInExpression(stmt.initializer, active);
-      const newNames = stmt.names.map((n) => {
-        const rename = allRenames.get(n);
-        return rename ?? n;
-      });
       const newActive = new Map(active);
-      for (let i = 0; i < stmt.names.length; i++) {
-        const rename = allRenames.get(stmt.names[i]);
+      const newNames = stmt.names.map((name) => {
+        if (name === null) return null;
+        const rename = allRenames.get(name);
         if (rename) {
-          newActive.set(stmt.names[i], rename);
+          // Apply configured rename and activate it for this scope
+          newActive.set(name, rename);
+          return rename;
         }
-      }
+        // Suppress pre-activated rename when a tuple element re-declares the same name
+        // without a new rename configured in this scope.
+        if (active.has(name) && !allRenames.has(name)) {
+          newActive.delete(name);
+        }
+        return name;
+      });
       return {
         stmt: { ...stmt, names: newNames, initializer: renamedInit },
         active: newActive,
@@ -1494,7 +1499,8 @@ export function generateStatement(stmt: Statement, indent: string): string {
 
     case "tuple-destructuring": {
       const parts = stmt.names.map((name, i) => {
-        const type = i < stmt.types.length ? generateParamType(stmt.types[i]) : "uint256";
+        if (name === null) return "";
+        const type = i < stmt.types.length && stmt.types[i] !== null ? generateParamType(stmt.types[i]!) : "uint256";
         return `${type} ${name}`;
       });
       const initExpr = generateExpression(stmt.initializer);
