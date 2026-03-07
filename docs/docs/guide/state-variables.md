@@ -41,6 +41,15 @@ class Token {
 }
 ```
 
+Expressions are also supported in initializers, including ternary (conditional) expressions:
+
+```typescript
+class Token {
+  public decimals: number = 18;
+  public adjustedDecimals: number = this.decimals > 10 ? 18 : 8;
+}
+```
+
 Mappings and arrays do not get initializers (they are initialized to empty by default):
 
 ```typescript
