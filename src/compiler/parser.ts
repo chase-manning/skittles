@@ -2560,8 +2560,10 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-    // Track local variable type for template literal inference
-    if (type) {
+    // Track local variable type for template literal inference.
+    // Do not overwrite existing entries (e.g., state-variable types) so that
+    // this.<stateVar> always resolves to the state-var type even when a local shadows it.
+    if (type && !varTypes.has(name)) {
       varTypes.set(name, type);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
@@ -2961,8 +2963,10 @@ function parseStatements(
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
         }
-        // Track local variable type for template literal inference
-        if (type) {
+        // Track local variable type for template literal inference.
+        // Do not overwrite existing entries (e.g., state-variable types) so that
+        // this.<stateVar> always resolves to the state-var type even when a local shadows it.
+        if (type && !varTypes.has(name)) {
           varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };

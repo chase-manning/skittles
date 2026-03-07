@@ -3518,6 +3518,20 @@ describe("integration: template literals", () => {
     expect(solidity).toContain('string.concat("Welcome: ", greet(name))');
     expect(solidity).not.toContain("__sk_toString(greet(name))");
   });
+
+  it("should wrap this.<stateVar> even when a local shadows the state variable name", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        count: number = 0;
+        public describe(): string {
+          const count: string = "shadow";
+          return \`Count: \${this.count}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("__sk_toString(count)");
+  });
 });
 
 describe("integration: multiple variable declarations", () => {
