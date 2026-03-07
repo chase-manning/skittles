@@ -1644,6 +1644,10 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
 // ============================================================
 
 export function parseType(node: ts.TypeNode): SkittlesType {
+  if (ts.isTypePredicateNode(node)) {
+    return { kind: "bool" as SkittlesTypeKind };
+  }
+
   if (ts.isTypeReferenceNode(node)) {
     const name = ts.isIdentifier(node.typeName)
       ? node.typeName.text
