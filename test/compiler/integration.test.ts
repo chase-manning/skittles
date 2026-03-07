@@ -1903,6 +1903,32 @@ describe("integration: string methods", () => {
     expect(solidity).toContain("function _split(string memory str, string memory delimiter)");
   });
 
+  it("should compile replace on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public replaceFirst(text: string, from: string, to: string): string {
+          return text.replace(from, to);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_replace(text, from, to)");
+    expect(solidity).toContain("function _replace(string memory str, string memory search, string memory replacement)");
+  });
+
+  it("should compile replaceAll on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public sanitize(input: string): string {
+          return input.replaceAll(" ", "_");
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('_replaceAll(input, " ", "_")');
+    expect(solidity).toContain("function _replaceAll(string memory str, string memory search, string memory replacement)");
+  });
+
   it("should compile chained string methods", () => {
     const { errors, solidity } = compileTS(`
       class StringMethods {
@@ -1944,6 +1970,8 @@ describe("integration: string methods", () => {
     expect(solidity).not.toContain("function _endsWith(");
     expect(solidity).not.toContain("function _trim(");
     expect(solidity).not.toContain("function _split(");
+    expect(solidity).not.toContain("function _replace(");
+    expect(solidity).not.toContain("function _replaceAll(");
   });
 
   it("should infer string type from charAt result", () => {
