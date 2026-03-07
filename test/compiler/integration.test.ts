@@ -4071,6 +4071,26 @@ describe("integration: tuple destructuring", () => {
       `);
     }).toThrow("Unsupported tuple destructuring binding element");
   });
+
+  it("should compile tuple destructuring with fewer bindings than elements", () => {
+    const { errors, solidity } = compileTS(`
+      class Pair {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+
+        getReserves(): [number, number] {
+          return [this.reserve0, this.reserve1];
+        }
+
+        public getFirst(): number {
+          const [r0] = this.getReserves();
+          return r0;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 r0, ) = getReserves()");
+  });
 });
 
 // ============================================================

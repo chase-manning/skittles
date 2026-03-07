@@ -596,6 +596,12 @@ function parseArrayDestructuring(
           );
         }
       }
+      // Pad with null entries for trailing tuple positions not covered by the
+      // binding pattern, so Solidity gets the correct tuple arity on the LHS.
+      for (let i = pattern.elements.length; i < tupleArity; i++) {
+        names.push(null);
+        types.push(tupleType.tupleTypes[i]);
+      }
       const initExpr = parseExpression(initializer);
       return [{
         kind: "tuple-destructuring" as const,
