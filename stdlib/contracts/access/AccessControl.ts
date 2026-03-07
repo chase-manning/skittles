@@ -1,4 +1,4 @@
-import { address, bytes32, msg, SkittlesEvent, SkittlesError, Indexed, keccak256 } from "skittles";
+import { address, bytes32, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
 
 /**
  * Contract module that allows children to implement role-based access
