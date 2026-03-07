@@ -763,6 +763,12 @@ describe("generateExpression", () => {
     expect(generateExpression({ kind: "boolean-literal", value: true })).toBe("true");
   });
 
+  it("should escape non-printable ASCII in string literals", () => {
+    const value = String.fromCharCode(0x19, 0x01);
+    const result = generateExpression({ kind: "string-literal", value });
+    expect(result).toBe('"\\x19\\x01"');
+  });
+
   it("should strip this. from property access", () => {
     const expr: Expression = {
       kind: "property-access",
