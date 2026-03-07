@@ -2412,18 +2412,17 @@ export function parseExpression(node: ts.Expression): Expression {
     const combinedTypes = new Map([..._currentVarTypes, ..._currentParamTypes]);
     for (const span of node.templateSpans) {
       const expr = parseExpression(span.expression);
-      // Wrap non-string expressions with _toString() for Solidity compatibility
-      if (!isStringExpr(expr)) {
-        const type = inferType(expr, combinedTypes);
-        if (type !== undefined && type.kind !== ("string" as SkittlesTypeKind)) {
-          parts.push({
-            kind: "call",
-            callee: { kind: "identifier", name: "_toString" },
-            args: [expr],
-          });
-        } else {
-          parts.push(expr);
-        }
+      // Wrap non-string expressions with _toString() for Solidity compatibility.
+      // isStringExpr catches known string identifiers and string.concat calls;
+      // inferType provides deeper type inference for other expressions.
+      const type = !isStringExpr(expr) ? inferType(expr, combinedTypes) : undefined;
+      const needsConversion = type !== undefined && type.kind !== ("string" as SkittlesTypeKind);
+      if (needsConversion) {
+        parts.push({
+          kind: "call",
+          callee: { kind: "identifier", name: "_toString" },
+          args: [expr],
+        });
       } else {
         parts.push(expr);
       }

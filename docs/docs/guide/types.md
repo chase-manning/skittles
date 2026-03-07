@@ -109,6 +109,34 @@ String methods compile to internal helper functions that operate on bytes and ar
 - `trim()` only removes ASCII space characters (code point 32) from the start and end of the string; it does not remove other whitespace characters.
 :::
 
+### Template Literals
+
+Template literals (backtick strings) work just like in TypeScript:
+
+```typescript
+class Token {
+  private supply: number = 0;
+
+  public greet(name: string): string {
+    return `Hello ${name}`;
+  }
+
+  public label(tokenId: number): string {
+    return `Token #${tokenId}`;
+  }
+
+  public info(name: string, balance: number): string {
+    return `${name} has ${balance} tokens`;
+  }
+
+  public supplyInfo(): string {
+    return `Supply: ${this.supply}`;
+  }
+}
+```
+
+Numbers are automatically converted to their string representation. Under the hood, template literals compile to Solidity's `string.concat()` with a generated `_toString()` helper for non-string values.
+
 ## Ethereum Types
 
 Import `address`, `bytes`, and `bytes32` from `"skittles"`:
