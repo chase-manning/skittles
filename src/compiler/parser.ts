@@ -1656,7 +1656,8 @@ function parseArrowProperty(
     }
   }
 
-  const stateMutability = inferStateMutability(body, localVarTypes, parameters);  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
+  const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
   return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
@@ -1672,7 +1673,6 @@ function parseConstructorDecl(
   const localVarTypes = new Map(varTypes);
   setupStringTracking(parameters, localVarTypes);
   const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
-  return { parameters, body, sourceLine: getSourceLine(node) };
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
