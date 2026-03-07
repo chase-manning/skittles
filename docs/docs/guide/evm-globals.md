@@ -68,7 +68,7 @@ import { self, address } from "skittles";
 let contractAddress: address = self;
 ```
 
-`self` is an `address` value, so you can use it anywhere you'd use an address, in comparisons, as a function argument, or to check the contract's ETH balance:
+`self` is an `address` value, so you can use it anywhere you'd use an address — in comparisons, as a function argument, or to send ETH:
 
 ```typescript
 import { self, msg, address } from "skittles";

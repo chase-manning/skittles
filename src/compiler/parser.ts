@@ -3222,31 +3222,16 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         expr.property === "balance" &&
         !(expr.object.kind === "identifier" && expr.object.name === "this")
       ) {
-        // self.balance
-        if (expr.object.kind === "identifier" && expr.object.name === "self") {
+        const combinedVarTypes = new Map<string, SkittlesType>();
+        localVarTypes.forEach((value, key) => {
+          combinedVarTypes.set(key, value);
+        });
+        varTypes?.forEach((value, key) => {
+          combinedVarTypes.set(key, value);
+        });
+        const objType = inferType(expr.object, combinedVarTypes);
+        if (objType?.kind === ("address" as SkittlesTypeKind)) {
           readsState = true;
-        }
-        // addr.balance where addr is a known address variable
-        if (expr.object.kind === "identifier") {
-          const t = localVarTypes.get(expr.object.name) || varTypes?.get(expr.object.name);
-          if (t?.kind === ("address" as SkittlesTypeKind)) {
-            readsState = true;
-          }
-        }
-        // msg.sender.balance, block.coinbase.balance, tx.origin.balance
-        if (
-          expr.object.kind === "property-access" &&
-          expr.object.object.kind === "identifier"
-        ) {
-          const innerName = expr.object.object.name;
-          const innerProp = expr.object.property;
-          if (
-            (innerName === "msg" && innerProp === "sender") ||
-            (innerName === "block" && innerProp === "coinbase") ||
-            (innerName === "tx" && innerProp === "origin")
-          ) {
-            readsState = true;
-          }
         }
       }
       // `self` reads the contract's own address (address(this))
@@ -3316,8 +3301,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (stmt.kind === "delete" && isStateAccess(stmt.target)) {
         writesState = true;
       }
-      if (stmt.kind === "variable-declaration" && stmt.type &&
-          stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
+      if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
         localVarTypes.set(stmt.name, stmt.type);
       }
     }

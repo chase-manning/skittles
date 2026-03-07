@@ -5355,6 +5355,32 @@ describe("integration: address.balance", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts[0].functions[0].stateMutability).toBe("view");
   });
+
+  it("should compile .balance on a locally declared address variable", () => {
+    const { errors, solidity } = compileTS(`
+      class Vault {
+        public getBalance(): number {
+          let addr: address = msg.sender;
+          return addr.balance;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("addr.balance");
+  });
+
+  it("should infer view for .balance on a locally declared address variable", () => {
+    const source = `
+      class Vault {
+        public getBalance(): number {
+          let addr: address = msg.sender;
+          return addr.balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
 });
 
 // ============================================================
