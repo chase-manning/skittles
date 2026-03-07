@@ -2278,6 +2278,46 @@ describe("integration: enums", () => {
     expect(solidity).toContain("Status public status;");
     expect(solidity).toContain("returns (Status)");
   });
+
+  it("should compile 'is' type guard functions as bool-returning helpers", () => {
+    const { errors, solidity } = compileTS(`
+      enum Status { Active, Paused, Stopped }
+
+      function isActive(s: Status): s is Status.Active {
+        return s == Status.Active;
+      }
+
+      export class Vault {
+        status: Status;
+
+        public doAction(): void {
+          if (isActive(this.status)) {
+            this.status = Status.Paused;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function isActive(Status s) internal pure returns (bool)");
+  });
+
+  it("should reject 'asserts' type predicates with a clear error", () => {
+    expect(() =>
+      compileTS(`
+        function assertIsPositive(value: number): asserts value {
+          if (value <= 0) {
+            throw new Error("Not positive");
+          }
+        }
+
+        export class Validator {
+          public check(v: number): void {
+            assertIsPositive(v);
+          }
+        }
+      `)
+    ).toThrow("Skittles does not support 'asserts' type predicates");
+  });
 });
 
 // ============================================================
