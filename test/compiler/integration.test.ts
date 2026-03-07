@@ -5715,6 +5715,38 @@ describe("integration: spread operator", () => {
 });
 
 // ============================================================
+// Array sort
+// ============================================================
+
+describe("integration: array sort", () => {
+  it("should throw on boolean comparator for .sort()", () => {
+    expect(() =>
+      parse(`
+        class SortTest {
+          values: number[] = [];
+          public sortValues(): void {
+            this.values.sort((a, b) => a > b);
+          }
+        }
+      `, "test.ts")
+    ).toThrow(/sort\(\) comparator must return a signed or unsigned integer/);
+  });
+
+  it("should compile .sort() with subtraction comparator", () => {
+    const { solidity } = compileTS(`
+      class SortTest {
+        values: number[] = [];
+        public sortAscending(): void {
+          this.values.sort((a, b) => a - b);
+        }
+      }
+    `);
+    expect(solidity).toContain("function _sort_");
+    expect(solidity).toContain("int256");
+  });
+});
+
+// ============================================================
 // Nullish coalescing (??) and optional chaining (?.)
 // ============================================================
 

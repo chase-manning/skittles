@@ -2142,6 +2142,23 @@ export function parseExpression(node: ts.Expression): Expression {
             if (sortElemKind && sortElemKind !== "uint256" && sortElemKind !== "int256") {
               throw new Error(`Array .sort() is only supported on number[] (uint256) and int256[] arrays. Got ${typeSuffix}[] instead.`);
             }
+            // Validate comparator return type: must be an integer, not a boolean.
+            // The generated helper compares the result to 0 (comparatorExpr > 0),
+            // so a boolean comparator like (a, b) => a > b would produce invalid Solidity.
+            const comparatorEnv = new Map(_currentVarTypes);
+            const comparatorParamTypeForInfer = sortParamType ?? elementType;
+            if (comparatorParamTypeForInfer) {
+              comparatorEnv.set(callback.paramName, comparatorParamTypeForInfer);
+              if (callback.secondParamName) comparatorEnv.set(callback.secondParamName, comparatorParamTypeForInfer);
+            }
+            const comparatorType = inferType(condExpr, comparatorEnv);
+            const comparatorKind = comparatorType?.kind as string | undefined;
+            if (comparatorKind === "bool") {
+              throw new Error("Array .sort() comparator must return a signed or unsigned integer (e.g. (a, b) => a - b), not a boolean expression like (a, b) => a > b.");
+            }
+            if (comparatorKind && comparatorKind !== "uint256" && comparatorKind !== "int256") {
+              throw new Error(`Array .sort() comparator must return an int256 or uint256. Got ${comparatorKind} instead.`);
+            }
             const helper = generateSortHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr);
             _generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
