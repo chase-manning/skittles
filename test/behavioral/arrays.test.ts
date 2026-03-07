@@ -603,6 +603,41 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.getItem(0)).toBe(42n);
   });
 
+  it("sort: comparison-based comparator works for any uint256 range", async () => {
+    const source = `
+      class SortTest {
+        private values: number[] = [];
+
+        public addValue(v: number): void {
+          this.values.push(v);
+        }
+
+        public sortDescending(): void {
+          this.values.sort((a, b) => b - a);
+        }
+
+        public getValue(index: number): number {
+          return this.values[index];
+        }
+
+        public getLength(): number {
+          return this.values.length;
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SortTest");
+    // Test with typical values (well within int256 range)
+    await (await contract.addValue(1000000)).wait();
+    await (await contract.addValue(1)).wait();
+    await (await contract.addValue(999999)).wait();
+    await (await contract.addValue(500000)).wait();
+    await (await contract.sortDescending()).wait();
+    expect(await contract.getValue(0)).toBe(1000000n);
+    expect(await contract.getValue(1)).toBe(999999n);
+    expect(await contract.getValue(2)).toBe(500000n);
+    expect(await contract.getValue(3)).toBe(1n);
+  });
+
   // ============================================================
   // splice
   // ============================================================

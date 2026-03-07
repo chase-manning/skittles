@@ -2046,7 +2046,7 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce, sort
       if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce", "sort"].includes(methodName) && node.arguments.length >= 1) {
-        const maxArity = (methodName === "reduce" || methodName === "sort") ? 2 : 1;
+        const maxArity = methodName === "reduce" ? 2 : 1;
         if (node.arguments.length > maxArity) {
           throw new Error(`Array .${methodName}() accepts at most ${maxArity} argument(s), but ${node.arguments.length} were provided.`);
         }
@@ -2133,6 +2133,10 @@ export function parseExpression(node: ts.Expression): Expression {
             if (!callback.secondParamName) throw new Error("Array .sort() callback must have two parameters: (a, b) => expression.");
             if (node.parent && !ts.isExpressionStatement(node.parent)) {
               throw new Error("Array .sort() modifies the array in place and does not return a value. Use it as a standalone statement.");
+            }
+            const sortElemKind = elementType?.kind as string | undefined;
+            if (sortElemKind && sortElemKind !== "uint256" && sortElemKind !== "int256") {
+              throw new Error(`Array .sort() is only supported on number[] (uint256) and int256[] arrays. Got ${typeSuffix}[] instead.`);
             }
             const helper = generateSortHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr);
             _generatedArrayFunctions.push(helper);
@@ -3938,20 +3942,23 @@ function generateSortHelper(
 ): SkittlesFunction {
   const helperName = `_sort_${_arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
-  // int256 cast helper: int256(expr)
-  const mkInt256Cast = (e: Expression): Expression => ({
-    kind: "call" as const,
-    callee: { kind: "identifier" as const, name: "int256" },
-    args: [e],
-  });
+  const isAlreadySigned = elemType.kind === ("int256" as SkittlesTypeKind);
+  const comparatorParamType = isAlreadySigned ? elemType : INT256_TYPE;
+  // int256 cast helper: int256(expr) — only needed for uint256 elements
+  const mkMaybeCast = (e: Expression): Expression =>
+    isAlreadySigned ? e : {
+      kind: "call" as const,
+      callee: { kind: "identifier" as const, name: "int256" },
+      args: [e],
+    };
   // Insertion sort with comparator:
   //   uint256 __sk_len = arr.length;
   //   for (uint256 __sk_i = 1; __sk_i < __sk_len; __sk_i++) {
   //     <elemType> __sk_key = arr[__sk_i];
   //     uint256 __sk_j = __sk_i;
   //     while (__sk_j > 0) {
-  //       int256 <paramA> = int256(arr[__sk_j - 1]);
-  //       int256 <paramB> = int256(__sk_key);
+  //       <paramType> <paramA> = <cast?>(arr[__sk_j - 1]);
+  //       <paramType> <paramB> = <cast?>(__sk_key);
   //       if (!(comparatorExpr > 0)) { break; }
   //       arr[__sk_j] = arr[__sk_j - 1];
   //       __sk_j--;
@@ -3959,9 +3966,12 @@ function generateSortHelper(
   //     arr[__sk_j] = __sk_key;
   //   }
   //
-  // Comparator params are cast to int256 so that subtraction patterns like
-  // (a, b) => a - b work safely with unsigned integer element types (uint256).
-  // Without the cast, a - b would revert on underflow when a < b.
+  // For uint256 arrays, comparator params are cast to int256 so that
+  // subtraction patterns like (a, b) => a - b work without reverting on
+  // underflow. This cast is order-preserving only for values < 2^255;
+  // for full-range uint256 values use a comparison-based comparator
+  // (e.g., (a, b) => a > b ? 1 : a < b ? -1 : 0).
+  // For int256 arrays, params are used directly with no cast.
   const body: Statement[] = [
     mkVarDecl("__sk_len", UINT256_TYPE, mkProp(arrayExpr, "length")),
     {
@@ -3976,8 +3986,8 @@ function generateSortHelper(
           kind: "while" as const,
           condition: mkBin(mkId("__sk_j"), ">", mkNum("0")),
           body: [
-            mkVarDecl(paramA, INT256_TYPE, mkInt256Cast(mkElem(arrayExpr, mkBin(mkId("__sk_j"), "-", mkNum("1"))))),
-            mkVarDecl(paramB, INT256_TYPE, mkInt256Cast(mkId("__sk_key"))),
+            mkVarDecl(paramA, comparatorParamType, mkMaybeCast(mkElem(arrayExpr, mkBin(mkId("__sk_j"), "-", mkNum("1"))))),
+            mkVarDecl(paramB, comparatorParamType, mkMaybeCast(mkId("__sk_key"))),
             mkIf(
               { kind: "unary", operator: "!", operand: mkBin(comparatorExpr, ">", mkNum("0")), prefix: true },
               [{ kind: "break" as const }]
