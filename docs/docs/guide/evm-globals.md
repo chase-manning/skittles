@@ -82,14 +82,14 @@ class Vault {
     return addr == self;
   }
 
-  public depositTokens(token: IERC20, amount: number): void {
-    token.transferFrom(msg.sender, self, amount);
+  public deposit(to: address, amount: number): void {
+    to.transfer(amount);
   }
 }
 ```
 
 :::tip
-If you're coming from Solidity, use `self` instead of `address(this)`. Both work in Skittles, but `self` is the idiomatic way.
+If you're coming from Solidity, prefer `self` instead of `address(this)`. While `address(this)` is passed through to the underlying compiler, `address` is a type-only export in Skittles' TypeScript typings, so `address(this)` is not type-safe and will typically fail TypeScript checking and IntelliSense. `self` is a value-level `address` and gives you the clean, fully typed experience.
 :::
 
 ## ETH Transfers
