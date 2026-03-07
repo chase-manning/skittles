@@ -5393,6 +5393,30 @@ describe("integration: address.balance", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts[0].functions[0].stateMutability).toBe("view");
   });
+
+  it("should compile tx.origin.balance", () => {
+    const { errors, solidity } = compileTS(`
+      class Vault {
+        public getOriginBalance(): number {
+          return tx.origin.balance;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("tx.origin.balance");
+  });
+
+  it("should infer view for tx.origin.balance", () => {
+    const source = `
+      class Vault {
+        public getOriginBalance(): number {
+          return tx.origin.balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
 });
 
 // ============================================================

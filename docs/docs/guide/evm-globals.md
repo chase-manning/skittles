@@ -113,6 +113,10 @@ class Vault {
   }
 }
 ```
+
+:::note
+The Skittles compiler fully supports `.balance` on any address-typed expression, but the TypeScript type stubs currently model `address` as `string`, so `.balance` may show a type error in your IDE. The compiled Solidity output is correct regardless.
+:::
 ## ETH Transfers
 
 Use `.transfer(amount)` on any address to send ETH from the contract:
