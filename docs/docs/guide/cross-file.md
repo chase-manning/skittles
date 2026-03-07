@@ -109,6 +109,8 @@ First, define a TypeScript interface for the external contract:
 import { address } from "skittles";
 
 export default interface IToken {
+  name: string;
+  totalSupply: number;
   balanceOf(account: address): number;
   transfer(to: address, amount: number): boolean;
 }
@@ -129,6 +131,10 @@ export class Vault {
     this.token = Contract<IToken>(tokenAddress);
   }
 
+  public getTokenName(): string {
+    return this.token.name;
+  }
+
   public getBalance(account: address): number {
     return this.token.balanceOf(account);
   }
@@ -139,10 +145,12 @@ export class Vault {
 }
 ```
 
-This compiles to standard Solidity interface calls:
+Interface properties (like `name` and `totalSupply`) compile to `view` getter calls. You can access them with natural property syntax — no parentheses needed:
 
 ```solidity
 interface IToken {
+    function name() external view returns (string memory);
+    function totalSupply() external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
 }
@@ -152,6 +160,10 @@ contract Vault {
 
     constructor(address tokenAddress) {
         token = IToken(tokenAddress);
+    }
+
+    function getTokenName() public view virtual returns (string memory) {
+        return token.name();
     }
 
     function getBalance(address account) public view virtual returns (uint256) {
