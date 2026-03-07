@@ -58,15 +58,39 @@ class Staking {
 | `tx.origin`   | `address` | The original sender of the transaction (the wallet that started it)  |
 | `tx.gasprice` | `uint256` | The gas price of the transaction                                     |
 
-## self
+## self (Contract Address)
 
-Use `self` to get the contract's own address.
+Use `self` to get the contract's own address. This is Skittles' equivalent of Solidity's `address(this)`.
 
 ```typescript
 import { self, address } from "skittles";
 
 let contractAddress: address = self;
 ```
+
+`self` is an `address` value, so you can use it anywhere you'd use an address — in comparisons, as a function argument, or to check the contract's ETH balance:
+
+```typescript
+import { self, msg, address } from "skittles";
+
+class Vault {
+  public getContractAddress(): address {
+    return self;
+  }
+
+  public isSelf(addr: address): boolean {
+    return addr == self;
+  }
+
+  public depositTokens(token: IERC20, amount: number): void {
+    token.transferFrom(msg.sender, self, amount);
+  }
+}
+```
+
+:::tip
+If you're coming from Solidity, use `self` instead of `address(this)`. Both work in Skittles, but `self` is the idiomatic way.
+:::
 
 ## ETH Transfers
 
