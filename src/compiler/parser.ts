@@ -1192,6 +1192,7 @@ function parseClass(
     if (externalCalls.length === 0) continue;
 
     let allExternalAreViewLike = true;
+    let externalNeedsView = false;
     for (const { ifaceName, methodName } of externalCalls) {
       const iface = contractIfaceList.find(i => i.name === ifaceName);
       if (!iface) {
@@ -1206,20 +1207,11 @@ function parseClass(
         allExternalAreViewLike = false;
         break;
       }
-    }
-    if (!allExternalAreViewLike) continue;
-
-    // Check if any external call requires view (as opposed to all being pure)
-    let externalNeedsView = false;
-    for (const { ifaceName, methodName } of externalCalls) {
-      const iface = contractIfaceList.find(i => i.name === ifaceName);
-      if (!iface) continue;
-      const ifaceMethod = iface.functions.find(f => f.name === methodName);
-      if (ifaceMethod?.stateMutability === "view") {
+      if (ifaceMethod.stateMutability === "view") {
         externalNeedsView = true;
-        break;
       }
     }
+    if (!allExternalAreViewLike) continue;
 
     // All external calls are to explicitly view/pure methods, so the wrapper
     // itself can safely be marked with the base mutability (or at least view
@@ -1641,7 +1633,7 @@ function parseConstructorDecl(
   const parameters = node.parameters.map(parseParameter);
   setupStringTracking(parameters, varTypes);
   const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, varTypes);
+  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
