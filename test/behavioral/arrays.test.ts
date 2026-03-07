@@ -603,7 +603,7 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.getItem(0)).toBe(42n);
   });
 
-  it("sort: comparison-based comparator works for any uint256 range", async () => {
+  it("sort: handles larger values within int256 range", async () => {
     const source = `
       class SortTest {
         private values: number[] = [];

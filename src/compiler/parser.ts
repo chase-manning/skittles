@@ -2050,10 +2050,14 @@ export function parseExpression(node: ts.Expression): Expression {
         if (node.arguments.length > maxArity) {
           throw new Error(`Array .${methodName}() accepts at most ${maxArity} argument(s), but ${node.arguments.length} were provided.`);
         }
+        const sortParamType =
+          methodName === "sort" && elementType?.kind === ("uint256" as SkittlesTypeKind)
+            ? INT256_TYPE
+            : elementType;
         const callbackParamTypes = methodName === "reduce"
           ? { first: undefined, second: elementType }
           : methodName === "sort"
-          ? { first: elementType, second: elementType }
+          ? { first: sortParamType, second: sortParamType }
           : { first: elementType };
         const callback = parseArrowCallback(node.arguments[0], callbackParamTypes);
         if (!callback) {
@@ -3968,9 +3972,10 @@ function generateSortHelper(
   //
   // For uint256 arrays, comparator params are cast to int256 so that
   // subtraction patterns like (a, b) => a - b work without reverting on
-  // underflow. This cast is order-preserving only for values < 2^255;
-  // for full-range uint256 values use a comparison-based comparator
-  // (e.g., (a, b) => a > b ? 1 : a < b ? -1 : 0).
+  // underflow. This cast is only safe and order-preserving for values
+  // <= type(int256).max (i.e., < 2^255); sorting arrays that may contain
+  // larger uint256 values can still revert at the cast step, regardless
+  // of whether the comparator uses subtraction or comparisons.
   // For int256 arrays, params are used directly with no cast.
   const body: Statement[] = [
     mkVarDecl("__sk_len", UINT256_TYPE, mkProp(arrayExpr, "length")),

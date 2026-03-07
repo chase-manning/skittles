@@ -231,7 +231,7 @@ this.owners.pop();                // remove last element
 this.owners.remove(addr);        // remove first occurrence (swap-and-pop)
 this.owners.splice(1, 2);        // remove 2 elements starting at index 1
 this.owners.reverse();            // reverse array in place
-this.scores.sort((a, b) => a - b); // sort ascending with comparator
+this.values.sort((a, b) => a - b); // sort ascending with comparator
 ```
 
 ### Searching
@@ -368,7 +368,7 @@ for (const owner of this.owners) {
 - `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
 - `at(index)` **reverts** on out-of-bounds access (unlike JavaScript which returns `undefined`). Negative literal indices (e.g., `at(-1)`) are supported and desugared at compile time, but negative non-literal indices are not supported.
 - `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
-- `sort(fn)` uses **insertion sort** (O(n²) gas cost), is only supported on `number[]` (uint256) and `int256[]` arrays, and must be used as a standalone statement. For `number[]` arrays, comparator parameters are cast to `int256` internally so subtraction patterns like `(a, b) => a - b` work without reverting on underflow. This cast is order-preserving only for values in the range `0` to `2^255 - 1`, which covers all practical use cases (token amounts, scores, etc.). Best suited for small arrays.
+- `sort(fn)` uses **insertion sort** (O(n²) gas cost), is only supported on `number[]` (uint256) and `int256[]` arrays, and must be used as a standalone statement. For `number[]` arrays, comparator parameters are cast to `int256` internally so subtraction patterns like `(a, b) => a - b` work without reverting on underflow. This cast is safe for values in the range `0` to `2^255 - 1`; sorting arrays containing values `>= 2^255` will revert at the cast step. Best suited for small arrays.
 - Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
 - All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
 :::
