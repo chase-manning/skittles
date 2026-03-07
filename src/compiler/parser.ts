@@ -3216,6 +3216,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         }
       }
       // addr.balance reads the ETH balance of an address (blockchain state read)
+      // Exclude this.balance which refers to a state variable named "balance"
       if (
         expr.kind === "property-access" &&
         expr.property === "balance" &&
