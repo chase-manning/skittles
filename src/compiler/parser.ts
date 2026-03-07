@@ -3673,6 +3673,7 @@ function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): 
   return { kind: "if", condition: cond, thenBody, elseBody };
 }
 const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
+const INT256_TYPE: SkittlesType = { kind: "int256" as SkittlesTypeKind };
 const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
 
 const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
@@ -3937,7 +3938,6 @@ function generateSortHelper(
 ): SkittlesFunction {
   const helperName = `_sort_${_arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
-  const INT256_TYPE: SkittlesType = { kind: "int256" as SkittlesTypeKind };
   // int256 cast helper: int256(expr)
   const mkInt256Cast = (e: Expression): Expression => ({
     kind: "call" as const,
@@ -3958,6 +3958,10 @@ function generateSortHelper(
   //     }
   //     arr[__sk_j] = __sk_key;
   //   }
+  //
+  // Comparator params are cast to int256 so that subtraction patterns like
+  // (a, b) => a - b work safely with unsigned integer element types (uint256).
+  // Without the cast, a - b would revert on underflow when a < b.
   const body: Statement[] = [
     mkVarDecl("__sk_len", UINT256_TYPE, mkProp(arrayExpr, "length")),
     {
