@@ -231,6 +231,7 @@ this.owners.pop();                // remove last element
 this.owners.remove(addr);        // remove first occurrence (swap-and-pop)
 this.owners.splice(1, 2);        // remove 2 elements starting at index 1
 this.owners.reverse();            // reverse array in place
+this.scores.sort((a, b) => a - b); // sort ascending with comparator
 ```
 
 ### Searching
@@ -343,6 +344,7 @@ for (const owner of this.owners) {
 | `remove(value)` | `boolean` | Yes | Remove first occurrence (swap-and-pop) |
 | `splice(start, count)` | — | Yes | Remove elements at index |
 | `reverse()` | — | Yes | Reverse in place |
+| `sort(fn)` | — | Yes | Sort in place with comparator |
 | `includes(value)` | `boolean` | No | Check if value exists |
 | `indexOf(value)` | `number` | No | First index of value |
 | `lastIndexOf(value)` | `number` | No | Last index of value |
@@ -366,6 +368,7 @@ for (const owner of this.owners) {
 - `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
 - `at(index)` **reverts** on out-of-bounds access (unlike JavaScript which returns `undefined`). Negative literal indices (e.g., `at(-1)`) are supported and desugared at compile time, but negative non-literal indices are not supported.
 - `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
+- `sort(fn)` uses **insertion sort** (O(n²) gas cost) and must be used as a standalone statement. The comparator parameters are cast to `int256` internally to safely handle subtraction patterns like `(a, b) => a - b`. Best suited for small arrays.
 - Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
 - All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
 :::
