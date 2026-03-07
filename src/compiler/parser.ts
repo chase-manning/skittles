@@ -2135,6 +2135,9 @@ export function parseExpression(node: ts.Expression): Expression {
           // sort: in-place insertion sort using comparator (statement-only like reverse)
           if (methodName === "sort" && condExpr) {
             if (!callback.secondParamName) throw new Error("Array .sort() callback must have two parameters: (a, b) => expression.");
+            if (callback.paramName === callback.secondParamName) {
+              throw new Error("Array .sort() callback parameters must have distinct names, e.g. (a, b) => expression. Using the same identifier for both parameters would generate invalid Solidity.");
+            }
             if (node.parent && !ts.isExpressionStatement(node.parent)) {
               throw new Error("Array .sort() modifies the array in place and does not return a value. Use it as a standalone statement.");
             }
