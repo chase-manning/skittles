@@ -57,6 +57,9 @@ function collectLocalVarNames(stmts: Statement[]): Set<string> {
       case "variable-declaration":
         names.add(s.name);
         break;
+      case "tuple-destructuring":
+        for (const n of s.names) if (n !== null) names.add(n);
+        break;
       case "if":
         for (const n of collectLocalVarNames(s.thenBody)) names.add(n);
         if (s.elseBody) for (const n of collectLocalVarNames(s.elseBody)) names.add(n);
@@ -126,6 +129,10 @@ function renameInStatement(stmt: Statement, renames: Map<string, string>): State
     case "variable-declaration": {
       const newName = renames.get(stmt.name) ?? stmt.name;
       return { ...stmt, name: newName, initializer: stmt.initializer ? renameInExpression(stmt.initializer, renames) : undefined };
+    }
+    case "tuple-destructuring": {
+      const newNames = stmt.names.map((n) => n === null ? null : (renames.get(n) ?? n));
+      return { ...stmt, names: newNames, initializer: renameInExpression(stmt.initializer, renames) };
     }
     case "return":
       return { ...stmt, value: stmt.value ? renameInExpression(stmt.value, renames) : undefined };
@@ -216,6 +223,29 @@ function scopeAwareRenameStmt(
         return { stmt: { ...stmt, initializer: init }, active: newActive };
       }
       return { stmt: { ...stmt, initializer: init }, active };
+    }
+    case "tuple-destructuring": {
+      const renamedInit = renameInExpression(stmt.initializer, active);
+      const newActive = new Map(active);
+      const newNames = stmt.names.map((name) => {
+        if (name === null) return null;
+        const rename = allRenames.get(name);
+        if (rename) {
+          // Apply configured rename and activate it for this scope
+          newActive.set(name, rename);
+          return rename;
+        }
+        // Suppress pre-activated rename when a tuple element re-declares the same name
+        // without a new rename configured in this scope.
+        if (active.has(name) && !allRenames.has(name)) {
+          newActive.delete(name);
+        }
+        return name;
+      });
+      return {
+        stmt: { ...stmt, names: newNames, initializer: renamedInit },
+        active: newActive,
+      };
     }
     case "if":
       return {
@@ -1539,6 +1569,17 @@ export function generateStatement(stmt: Statement, indent: string): string {
         return `${indent}${type} ${stmt.name} = ${initExpr};`;
       }
       return `${indent}${type} ${stmt.name};`;
+    }
+
+    case "tuple-destructuring": {
+      const parts = stmt.names.map((name, i) => {
+        if (name === null) return "";
+        const elemType = i < stmt.types.length ? stmt.types[i] : null;
+        const type = elemType !== null ? generateParamType(elemType) : "uint256";
+        return `${type} ${name}`;
+      });
+      const initExpr = generateExpression(stmt.initializer);
+      return `${indent}(${parts.join(", ")}) = ${initExpr};`;
     }
 
     case "expression": {

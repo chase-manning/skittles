@@ -126,6 +126,16 @@ Conditional destructuring is also supported:
 let [x, y] = condition ? [a, b] : [b, a];
 ```
 
+## Tuple Destructuring
+
+You can destructure tuple return values from function calls:
+
+```typescript
+const [r0, r1] = this.getReserves();
+```
+
+This compiles to Solidity's native tuple destructuring syntax: `(uint256 r0, uint256 r1) = getReserves();`
+
 ## Object Destructuring
 
 Object destructuring is supported for struct fields:

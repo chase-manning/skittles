@@ -668,6 +668,9 @@ function collectThisCallNames(stmts: Statement[]): string[] {
       case "variable-declaration":
         if (stmt.initializer) walkExpr(stmt.initializer);
         break;
+      case "tuple-destructuring":
+        walkExpr(stmt.initializer);
+        break;
       case "expression":
         walkExpr(stmt.expression);
         break;

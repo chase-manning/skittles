@@ -496,7 +496,8 @@ export function collectClassNames(source: string, filePath: string): string[] {
 function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,
-  varTypes: Map<string, SkittlesType>
+  varTypes: Map<string, SkittlesType>,
+  decl: ts.VariableDeclaration
 ): Statement[] {
   const statements: Statement[] = [];
 
@@ -535,6 +536,92 @@ function parseArrayDestructuring(
         statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
       }
     }
+  } else if (ts.isCallExpression(initializer)) {
+    // Tuple destructuring from function call: const [a, b] = this.getReserves()
+    let tupleType: SkittlesType | undefined;
+
+    // Check explicit type annotation first
+    if (decl.type) {
+      tupleType = parseType(decl.type);
+    }
+
+    // If no explicit type, try to resolve from a this.method() call
+    if (!tupleType) {
+      const callee = initializer.expression;
+      if (
+        ts.isPropertyAccessExpression(callee) &&
+        callee.expression.kind === ts.SyntaxKind.ThisKeyword
+      ) {
+        const methodName = callee.name.text;
+        const cls = findEnclosingClass(decl);
+        if (cls) {
+          const retTypeNode = findMethodReturnType(cls, methodName);
+          if (retTypeNode) {
+            tupleType = parseType(retTypeNode);
+          }
+        }
+      }
+    }
+
+    if (tupleType?.kind === ("tuple" as SkittlesTypeKind) && tupleType.tupleTypes) {
+      const tupleArity = tupleType.tupleTypes.length;
+      const names: (string | null)[] = [];
+      const types: (SkittlesType | null)[] = [];
+      for (let i = 0; i < pattern.elements.length; i++) {
+        const elem = pattern.elements[i];
+        if (i >= tupleArity) {
+          throw new Error(
+            "Tuple destructuring pattern has more elements than the function's tuple return type."
+          );
+        }
+        if (ts.isOmittedExpression(elem)) {
+          // Skipped element: const [, b] = f()
+          names.push(null);
+          types.push(tupleType.tupleTypes[i]);
+        } else if (
+          ts.isBindingElement(elem) &&
+          ts.isIdentifier(elem.name) &&
+          !elem.initializer &&
+          !elem.dotDotDotToken &&
+          !elem.propertyName
+        ) {
+          names.push(elem.name.text);
+          const t = tupleType.tupleTypes[i];
+          types.push(t);
+          varTypes.set(elem.name.text, t);
+        } else if (ts.isBindingElement(elem)) {
+          throw new Error(
+            "Unsupported tuple destructuring binding element in variable declaration. " +
+            "Nested patterns, default values in tuple destructuring (e.g. [a = 1]), and rest elements are not supported."
+          );
+        } else {
+          throw new Error(
+            "Unsupported element in tuple destructuring assignment. " +
+            "Only simple identifiers and omitted elements are supported in tuple destructuring patterns."
+          );
+        }
+      }
+      // Pad with null entries for trailing tuple positions not covered by the
+      // binding pattern, so Solidity gets the correct tuple arity on the LHS.
+      for (let i = pattern.elements.length; i < tupleArity; i++) {
+        names.push(null);
+        types.push(tupleType.tupleTypes[i]);
+      }
+      const initExpr = parseExpression(initializer);
+      return [{
+        kind: "tuple-destructuring" as const,
+        names,
+        types,
+        initializer: initExpr,
+      }];
+    }
+
+    // Unable to resolve tuple return type – emit a compile-time error rather than
+    // silently generating uninitialized locals with default Solidity values.
+    throw new Error(
+      "Unable to resolve tuple return type for call expression in destructuring assignment. " +
+      "Ensure the called function has an explicit tuple return type annotation."
+    );
   } else {
     // Fallback: parse as expression and hope for the best
     for (let i = 0; i < pattern.elements.length; i++) {
@@ -2897,7 +2984,7 @@ function parseStatements(
     // Array destructuring: const [a, b, c] = [7, 8, 9]
     const decl = node.declarationList.declarations[0];
     if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
-      return parseArrayDestructuring(decl.name, decl.initializer, varTypes);
+      return parseArrayDestructuring(decl.name, decl.initializer, varTypes, decl);
     }
 
     // Object destructuring: const { a, b } = { a: 1, b: 2 }
@@ -3070,6 +3157,9 @@ function walkStatements(
         break;
       case "variable-declaration":
         if (stmt.initializer) walkExpr(stmt.initializer);
+        break;
+      case "tuple-destructuring":
+        walkExpr(stmt.initializer);
         break;
       case "expression":
         walkExpr(stmt.expression);
@@ -3863,6 +3953,7 @@ function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string> {
       case "expression": walkExpr(s.expression); break;
       case "return": if (s.value) walkExpr(s.value); break;
       case "variable-declaration": if (s.initializer) walkExpr(s.initializer); break;
+      case "tuple-destructuring": walkExpr(s.initializer); break;
       case "if": walkExpr(s.condition); walkStmts(s.thenBody); if (s.elseBody) walkStmts(s.elseBody); break;
       case "for": {
         if (s.initializer) walkStmt(s.initializer);
