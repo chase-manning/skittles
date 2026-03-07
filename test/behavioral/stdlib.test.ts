@@ -668,7 +668,7 @@ class MyPermitToken extends ERC20Permit {
     };
 
     // Sign the typed data
-    const sig = await (deployer as ethers.Wallet).signTypedData(domain, types, message);
+    const sig = await deployer.signTypedData(domain, types, message);
     const { v, r, s } = ethers.Signature.from(sig);
 
     // Submit permit from alice (gasless approval for deployer)
@@ -712,7 +712,7 @@ class MyPermitToken extends ERC20Permit {
     };
 
     // Alice signs instead of deployer
-    const sig = await (alice as ethers.Wallet).signTypedData(domain, types, message);
+    const sig = await alice.signTypedData(domain, types, message);
     const { v, r, s } = ethers.Signature.from(sig);
 
     await expect(

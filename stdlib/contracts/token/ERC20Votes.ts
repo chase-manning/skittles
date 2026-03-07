@@ -1,4 +1,4 @@
-import { address, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
+import { address, msg, SkittlesEvent, Indexed } from "skittles";
 import { ERC20 } from "./ERC20.ts";
 
 /**
@@ -55,7 +55,7 @@ export class ERC20Votes extends ERC20 {
     to: address,
     amount: number
   ): void {
-    if (amount > 0) {
+    if (amount > 0 && from != to) {
       if (from != "0x0000000000000000000000000000000000000000") {
         let oldValue: number = this._votingPower[from];
         let newValue: number = oldValue - amount;

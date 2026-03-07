@@ -1,4 +1,4 @@
-import { address, bytes32, msg, block, SkittlesEvent, SkittlesError, Indexed, keccak256, ecrecover, abi, self } from "skittles";
+import { address, bytes32, block, SkittlesError, keccak256, ecrecover, abi, self } from "skittles";
 import { ERC20 } from "./ERC20.ts";
 
 /**
