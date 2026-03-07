@@ -422,3 +422,4 @@ export type address = string;
 export type bytes = string;
 export type bytes32 = string;
 export type uint256 = number;
+export const UINT256_MAX: uint256 = Number.MAX_VALUE;

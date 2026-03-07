@@ -1,4 +1,4 @@
-import { address, uint256, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
+import { address, uint256, UINT256_MAX, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
 
 /**
  * Implementation of the ERC-20 token standard.
@@ -181,7 +181,7 @@ export class ERC20 {
     value: uint256
   ): void {
     let currentAllowance: uint256 = this.allowance(owner, spender);
-    if (currentAllowance != Number.MAX_VALUE) {
+    if (currentAllowance != UINT256_MAX) {
       if (currentAllowance < value) {
         throw this.ERC20InsufficientAllowance(
           spender,

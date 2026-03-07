@@ -11,12 +11,12 @@ export class ERC721 {
   Transfer: SkittlesEvent<{
     from: Indexed<address>;
     to: Indexed<address>;
-    tokenId: Indexed<number>;
+    tokenId: Indexed<uint256>;
   }>;
   Approval: SkittlesEvent<{
     owner: Indexed<address>;
     approved: Indexed<address>;
-    tokenId: Indexed<number>;
+    tokenId: Indexed<uint256>;
   }>;
   ApprovalForAll: SkittlesEvent<{
     owner: Indexed<address>;

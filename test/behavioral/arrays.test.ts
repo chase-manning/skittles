@@ -105,10 +105,9 @@ describe("Array Methods (behavioral)", () => {
     await (await contract.addItem(200)).wait();
     await (await contract.addItem(300)).wait();
     expect(await contract.findItem(200)).toBe(1n);
-    // Not found returns type(uint256).max
+    // Not found returns -1
     const notFound = await contract.findItem(999);
-    const MAX_UINT256 = (1n << 256n) - 1n;
-    expect(notFound).toBe(MAX_UINT256);
+    expect(notFound).toBe(-1n);
   });
 
   // ============================================================
@@ -408,7 +407,7 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.findLargeIndex()).toBe(1n);
   });
 
-  it("findIndex: returns max uint256 when no element matches", async () => {
+  it("findIndex: returns -1 when no element matches", async () => {
     const source = `
       class FindIndexNotFoundTest {
         private values: number[] = [];
@@ -426,8 +425,7 @@ describe("Array Methods (behavioral)", () => {
     await (await contract.addValue(5)).wait();
     await (await contract.addValue(15)).wait();
     const result = await contract.findLargeIndex();
-    const MAX_UINT256 = (1n << 256n) - 1n;
-    expect(result).toBe(MAX_UINT256);
+    expect(result).toBe(-1n);
   });
 
   // ============================================================

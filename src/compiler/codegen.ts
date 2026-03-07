@@ -36,6 +36,7 @@ let _needsSplitHelper = false;
 let _currentNeededArrayHelpers: string[] = [];
 let _allKnownEnumNames = new Set<string>();
 let _allKnownInterfaceNames = new Set<string>();
+let _knownFunctionParams: Map<string, SkittlesParameter[]> = new Map();
 
 const SOLIDITY_VALUE_TYPES = new Set([
   "uint256", "int256", "address", "bool", "bytes32",
@@ -590,6 +591,19 @@ function generateContractBody(
         stateVarNames.add(v.name);
       }
     }
+  }
+
+  _knownFunctionParams = new Map();
+  for (const ancestorName of ancestors) {
+    const ancestor = contractByName.get(ancestorName);
+    if (ancestor) {
+      for (const f of ancestor.functions) {
+        _knownFunctionParams.set(f.name, f.parameters);
+      }
+    }
+  }
+  for (const f of contract.functions) {
+    _knownFunctionParams.set(f.name, f.parameters);
   }
 
   // Skip functions already emitted by an ancestor contract in the same file
@@ -1380,6 +1394,7 @@ export function generateExpression(expr: Expression): string {
       return expr.value ? "true" : "false";
     case "identifier":
       if (expr.name === "self") return "address(this)";
+      if (expr.name === "UINT256_MAX") return "type(uint256).max";
       return expr.name;
     case "property-access":
       if (
@@ -1467,6 +1482,34 @@ export function generateExpression(expr: Expression): string {
       ) {
         const addr = generateExpression(expr.callee.object);
         return `payable(${addr}).transfer(uint256(${generateExpression(expr.args[0])}))`;
+      }
+      let funcName: string | null = null;
+      if (expr.callee.kind === "identifier") {
+        funcName = expr.callee.name;
+      } else if (
+        expr.callee.kind === "property-access" &&
+        expr.callee.object.kind === "identifier" &&
+        (expr.callee.object.name === "this" || expr.callee.object.name === "super")
+      ) {
+        funcName = expr.callee.property;
+      }
+      const knownParams = funcName ? _knownFunctionParams.get(funcName) : undefined;
+      if (knownParams && knownParams.length === expr.args.length) {
+        let needsCast = false;
+        for (const p of knownParams) {
+          if (p.type?.kind === SkittlesTypeKind.Uint256) { needsCast = true; break; }
+        }
+        if (needsCast) {
+          const args = expr.args.map((arg, i) => {
+            const generated = generateExpression(arg);
+            const paramKind = knownParams[i].type?.kind;
+            if (paramKind === SkittlesTypeKind.Uint256 && !generated.startsWith("uint256(")) {
+              return `uint256(${generated})`;
+            }
+            return generated;
+          });
+          return `${generateExpression(expr.callee)}(${args.join(", ")})`;
+        }
       }
       return `${generateExpression(expr.callee)}(${expr.args.map(generateExpression).join(", ")})`;
     }

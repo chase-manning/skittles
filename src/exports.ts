@@ -9,6 +9,7 @@ export type { SkittlesConfig } from "./types/index.ts";
 // Ethereum primitive types (for contract files)
 import type { address, bytes, bytes32, uint256 } from "./types/index.ts";
 export type { address, bytes, bytes32, uint256 };
+export { UINT256_MAX } from "./types/index.ts";
 
 /**
  * Event type for declaring Solidity events in Skittles contracts.

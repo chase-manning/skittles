@@ -2015,13 +2015,13 @@ export function parseExpression(node: ts.Expression): Expression {
         if (ts.isPrefixUnaryExpression(indexArg) && indexArg.operator === ts.SyntaxKind.MinusToken) {
           if (ts.isNumericLiteral(indexArg.operand)) {
             if (Number(indexArg.operand.text) === 0) {
-              return mkElem(receiverExpr, mkNum("0"));
+              return { kind: "element-access" as const, object: receiverExpr, index: mkNum("0"), isArrayAccess: true };
             }
-            return mkElem(receiverExpr, mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)));
+            return { kind: "element-access" as const, object: receiverExpr, index: mkBin(mkProp(receiverExpr, "length"), "-", mkNum(indexArg.operand.text)), isArrayAccess: true };
           }
           throw new Error("Array .at() only supports negative numeric literals (e.g., .at(-1)). Non-literal negative indices are not supported.");
         }
-        return mkElem(receiverExpr, parseExpression(indexArg));
+        return { kind: "element-access" as const, object: receiverExpr, index: parseExpression(indexArg), isArrayAccess: true };
       }
 
       // slice(start?, end?) → _arrSlice_T(arr, start, end)
@@ -3911,7 +3911,7 @@ function generateFindIndexHelper(
   const body: Statement[] = [
     mkForLoop("__sk_i", arrayExpr, [
       mkVarDecl(paramName, elemType, mkElem(arrayExpr, mkId("__sk_i"))),
-      mkIf(condExpr, [mkReturn(mkId("__sk_i"))]),
+      mkIf(condExpr, [mkReturn({ kind: "identifier", name: "int256(__sk_i)" })]),
     ]),
     mkReturn(mkNum("-1")),
   ];
