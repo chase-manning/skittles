@@ -275,6 +275,7 @@ export interface SwitchStatement {
 export interface ConsoleLogStatement {
   kind: "console-log";
   args: Expression[];
+  argTypes?: (SkittlesType | undefined)[];
   sourceLine?: number;
 }
 

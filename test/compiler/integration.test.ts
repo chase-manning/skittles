@@ -4872,7 +4872,7 @@ describe("integration: console.log", () => {
     );
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain('import "hardhat/console.sol";');
-    expect(solidity).toContain('console.log("value:", x);');
+    expect(solidity).toContain('console.log("value:", uint256(x));');
   });
 
   it("should not include console import when no console.log is used", () => {

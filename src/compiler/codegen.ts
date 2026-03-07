@@ -1738,8 +1738,16 @@ export function generateStatement(stmt: Statement, indent: string): string {
       return lines.join("\n");
     }
 
-    case "console-log":
-      return `${indent}console.log(${stmt.args.map(generateExpression).join(", ")});`;
+    case "console-log": {
+      const logArgs = stmt.args.map((arg, i) => {
+        const generated = generateExpression(arg);
+        if (stmt.argTypes?.[i]?.kind === SkittlesTypeKind.Int256) {
+          return `uint256(${generated})`;
+        }
+        return generated;
+      });
+      return `${indent}console.log(${logArgs.join(", ")});`;
+    }
 
     default:
       return `${indent}// unsupported statement`;

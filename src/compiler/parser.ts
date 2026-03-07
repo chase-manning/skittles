@@ -2967,7 +2967,10 @@ function tryParseConsoleLog(
   if (!ts.isIdentifier(obj) || obj.text !== "console") return null;
 
   const args = node.arguments.map(parseExpression);
-  return { kind: "console-log", args };
+  const mergedTypes = new Map(_currentVarTypes);
+  for (const [k, v] of _currentParamTypes) mergedTypes.set(k, v);
+  const argTypes = args.map((a) => inferType(a, mergedTypes));
+  return { kind: "console-log", args, argTypes };
 }
 
 // ============================================================
