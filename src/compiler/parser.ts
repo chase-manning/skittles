@@ -491,7 +491,8 @@ export function collectClassNames(source: string, filePath: string): string[] {
 function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,
-  varTypes: Map<string, SkittlesType>
+  varTypes: Map<string, SkittlesType>,
+  decl: ts.VariableDeclaration
 ): Statement[] {
   const statements: Statement[] = [];
 
@@ -528,6 +529,65 @@ function parseArrayDestructuring(
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
         const type = inferType(trueVal, varTypes);
         statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      }
+    }
+  } else if (ts.isCallExpression(initializer)) {
+    // Tuple destructuring from function call: const [a, b] = this.getReserves()
+    let tupleType: SkittlesType | undefined;
+
+    // Check explicit type annotation first
+    if (decl.type) {
+      tupleType = parseType(decl.type);
+    }
+
+    // If no explicit type, try to resolve from a this.method() call
+    if (!tupleType) {
+      const callee = initializer.expression;
+      if (
+        ts.isPropertyAccessExpression(callee) &&
+        callee.expression.kind === ts.SyntaxKind.ThisKeyword
+      ) {
+        const methodName = callee.name.text;
+        const cls = findEnclosingClass(decl);
+        if (cls) {
+          const retTypeNode = findMethodReturnType(cls, methodName);
+          if (retTypeNode) {
+            tupleType = parseType(retTypeNode);
+          }
+        }
+      }
+    }
+
+    if (tupleType?.kind === ("tuple" as SkittlesTypeKind) && tupleType.tupleTypes) {
+      const names: string[] = [];
+      const types: SkittlesType[] = [];
+      for (let i = 0; i < pattern.elements.length; i++) {
+        const elem = pattern.elements[i];
+        if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+          names.push(elem.name.text);
+          types.push(i < tupleType.tupleTypes.length ? tupleType.tupleTypes[i] : { kind: "uint256" as SkittlesType["kind"] });
+          varTypes.set(elem.name.text, types[types.length - 1]);
+        }
+      }
+      const initExpr = parseExpression(initializer);
+      return [{
+        kind: "tuple-destructuring" as const,
+        names,
+        types,
+        initializer: initExpr,
+      }];
+    }
+
+    // Fallback for call expressions without resolved tuple type
+    for (let i = 0; i < pattern.elements.length; i++) {
+      const elem = pattern.elements[i];
+      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        statements.push({
+          kind: "variable-declaration" as const,
+          name: elem.name.text,
+          type: undefined,
+          initializer: undefined,
+        });
       }
     }
   } else {
@@ -2871,7 +2931,7 @@ function parseStatements(
     // Array destructuring: const [a, b, c] = [7, 8, 9]
     const decl = node.declarationList.declarations[0];
     if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
-      return parseArrayDestructuring(decl.name, decl.initializer, varTypes);
+      return parseArrayDestructuring(decl.name, decl.initializer, varTypes, decl);
     }
 
     // Object destructuring: const { a, b } = { a: 1, b: 2 }
@@ -3044,6 +3104,9 @@ function walkStatements(
         break;
       case "variable-declaration":
         if (stmt.initializer) walkExpr(stmt.initializer);
+        break;
+      case "tuple-destructuring":
+        walkExpr(stmt.initializer);
         break;
       case "expression":
         walkExpr(stmt.expression);
@@ -3698,6 +3761,7 @@ function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string> {
       case "expression": walkExpr(s.expression); break;
       case "return": if (s.value) walkExpr(s.value); break;
       case "variable-declaration": if (s.initializer) walkExpr(s.initializer); break;
+      case "tuple-destructuring": walkExpr(s.initializer); break;
       case "if": walkExpr(s.condition); walkStmts(s.thenBody); if (s.elseBody) walkStmts(s.elseBody); break;
       case "for": {
         if (s.initializer) walkStmt(s.initializer);

@@ -3938,6 +3938,77 @@ describe("integration: object destructuring", () => {
 });
 
 // ============================================================
+// Tuple destructuring from function return values
+// ============================================================
+
+describe("integration: tuple destructuring", () => {
+  it("should compile const [a, b] = this.getReserves() as tuple destructuring", () => {
+    const { errors, solidity } = compileTS(`
+      class Pair {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+
+        getReserves(): [number, number] {
+          return [this.reserve0, this.reserve1];
+        }
+
+        public getSum(): number {
+          const [r0, r1] = this.getReserves();
+          return r0 + r1;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 r0, uint256 r1) = getReserves();");
+    expect(solidity).toContain("return (r0 + r1);");
+  });
+
+  it("should compile tuple destructuring with mixed types", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        private value: number = 0;
+        private flag: boolean = false;
+
+        getInfo(): [number, boolean] {
+          return [this.value, this.flag];
+        }
+
+        public check(): number {
+          const [v, f] = this.getInfo();
+          if (f) {
+            return v;
+          }
+          return 0;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 v, bool f) = getInfo();");
+  });
+
+  it("should compile tuple destructuring with three return values", () => {
+    const { errors, solidity } = compileTS(`
+      class Pool {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+        private totalSupply: number = 0;
+
+        getState(): [number, number, number] {
+          return [this.reserve0, this.reserve1, this.totalSupply];
+        }
+
+        public computeShare(): number {
+          const [r0, r1, supply] = this.getState();
+          return r0 + r1 + supply;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 r0, uint256 r1, uint256 supply) = getState();");
+  });
+});
+
+// ============================================================
 // Cross file function imports
 // ============================================================
 
