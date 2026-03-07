@@ -61,12 +61,12 @@ export class AccessControl {
   }
 
   public grantRole(role: bytes32, account: address): void {
-    this._checkRole(this._roleAdmin[role]);
+    this._checkRole(this.getRoleAdmin(role));
     this._grantRole(role, account);
   }
 
   public revokeRole(role: bytes32, account: address): void {
-    this._checkRole(this._roleAdmin[role]);
+    this._checkRole(this.getRoleAdmin(role));
     this._revokeRole(role, account);
   }
 
