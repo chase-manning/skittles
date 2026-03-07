@@ -3238,11 +3238,12 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
           expr.object.kind === "property-access" &&
           expr.object.object.kind === "identifier"
         ) {
-          const obj = expr.object;
+          const innerName = expr.object.object.name;
+          const innerProp = expr.object.property;
           if (
-            (obj.object.name === "msg" && obj.property === "sender") ||
-            (obj.object.name === "block" && obj.property === "coinbase") ||
-            (obj.object.name === "tx" && obj.property === "origin")
+            (innerName === "msg" && innerProp === "sender") ||
+            (innerName === "block" && innerProp === "coinbase") ||
+            (innerName === "tx" && innerProp === "origin")
           ) {
             readsState = true;
           }
