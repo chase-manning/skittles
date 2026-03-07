@@ -15,6 +15,7 @@ import { ERC20 } from "./ERC20.ts";
 export class ERC20Permit extends ERC20 {
   ERC2612ExpiredSignature: SkittlesError<{ deadline: number }>;
   ERC2612InvalidSigner: SkittlesError<{ signer: address; owner: address }>;
+  ECDSAInvalidSignature: SkittlesError<{}>;
 
   private _nonces: Record<address, number> = {};
 
@@ -48,10 +49,11 @@ export class ERC20Permit extends ERC20 {
         deadline
       )
     );
-    let hash: bytes32 = keccak256(
-      abi.encodePacked("\x19\x01", this.DOMAIN_SEPARATOR(), structHash)
-    );
+    let hash: bytes32 = keccak256("\x19\x01", this.DOMAIN_SEPARATOR(), structHash);
     let signer: address = ecrecover(hash, v, r, s);
+    if (signer == "0x0000000000000000000000000000000000000000") {
+      throw this.ECDSAInvalidSignature();
+    }
     if (signer != owner) {
       throw this.ERC2612InvalidSigner(signer, owner);
     }

@@ -819,6 +819,23 @@ class MyVotesToken extends ERC20Votes {
     expect(await token.contract.getVotes(bobAddr)).toBe(0n);
     expect(await token.contract.getVotes(aliceAddr)).toBe(aliceVotesBefore + bobBalance);
   });
+
+  it("transfer between accounts sharing a delegate does not change votes", async () => {
+    // deployer and bob both delegate to alice (bob already delegates to alice from previous test)
+    // deployer also delegates to alice
+    await (await token.contract.delegate(aliceAddr)).wait();
+    expect(await token.contract.delegates(deployerAddr)).toBe(aliceAddr);
+    expect(await token.contract.delegates(bobAddr)).toBe(aliceAddr);
+
+    const aliceVotesBefore = await token.contract.getVotes(aliceAddr);
+    const transferAmount = 10_000n;
+
+    // Transfer from deployer to bob — both share alice as delegate
+    await (await token.contract.transfer(bobAddr, transferAmount)).wait();
+
+    // Alice's votes should remain unchanged since from-delegate == to-delegate
+    expect(await token.contract.getVotes(aliceAddr)).toBe(aliceVotesBefore);
+  });
 });
 
 // ============================================================

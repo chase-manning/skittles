@@ -156,11 +156,14 @@ Users can then call `permit()` with a signed message to approve token spending w
 
 - `ERC2612ExpiredSignature(deadline)` — permit deadline has passed
 - `ERC2612InvalidSigner(signer, owner)` — recovered signer doesn't match owner
+- `ECDSAInvalidSignature()` — signature recovery returned the zero address
 - All ERC20 custom errors are also available
 
 ## ERC20Votes
 
-An ERC-20 extension that supports token-based voting and delegation. Token holders can delegate their voting power to any address, and voting power is tracked automatically on transfers:
+An ERC-20 extension that supports token-based voting and delegation. Token holders can delegate their voting power to any address, and voting power is tracked automatically on transfers.
+
+> **Note:** This is a simplified, current-votes-only implementation. It does **not** implement EIP-5805-style checkpointing and does **not** support historical vote lookups such as `getPastVotes`. It is not a drop-in replacement for OpenZeppelin's ERC20Votes.
 
 ```typescript
 import { address, msg } from "skittles";

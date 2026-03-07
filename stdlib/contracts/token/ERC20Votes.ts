@@ -3,14 +3,19 @@ import { ERC20 } from "./ERC20.ts";
 
 /**
  * Extension of ERC-20 to support token-based voting and delegation.
- * Based on OpenZeppelin Contracts v5 (simplified).
+ * Based on OpenZeppelin Contracts v5 (simplified, current-votes-only).
  *
  * Token holders can delegate their voting power to any address.
  * Voting power is tracked and updated automatically on transfers.
  *
- * Note: Users must delegate (even to themselves) to activate voting
- * power. Tokens held by accounts that have not delegated do not
- * count as votes.
+ * Note: This implementation only tracks the current voting power of
+ * each address. It does NOT implement EIP-5805-style checkpointing
+ * and does NOT support historical vote lookups such as `getPastVotes`.
+ * It is therefore not a drop-in replacement for OpenZeppelin's
+ * ERC20Votes and only exposes a reduced surface area.
+ *
+ * Users must delegate (even to themselves) to activate voting power.
+ * Tokens held by accounts that have not delegated do not count as votes.
  */
 export class ERC20Votes extends ERC20 {
   DelegateChanged: SkittlesEvent<{
