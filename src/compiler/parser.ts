@@ -500,6 +500,12 @@ export function collectClassNames(source: string, filePath: string): string[] {
   return names;
 }
 
+function validateReservedVarName(name: string): void {
+  if (name.startsWith("__sk_")) {
+    throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+}
+
 function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,
@@ -507,19 +513,13 @@ function parseArrayDestructuring(
 ): Statement[] {
   const statements: Statement[] = [];
 
-  const validateBindingName = (name: string): void => {
-    if (name.startsWith("__sk_")) {
-      throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-    }
-  };
-
   if (ts.isArrayLiteralExpression(initializer)) {
     // Direct array literal: const [a, b, c] = [7, 8, 9]
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
-        validateBindingName(name);
+        validateReservedVarName(name);
         const init = i < initializer.elements.length
           ? parseExpression(initializer.elements[i])
           : undefined;
@@ -542,7 +542,7 @@ function parseArrayDestructuring(
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
-        validateBindingName(name);
+        validateReservedVarName(name);
         const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
         const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
@@ -555,7 +555,7 @@ function parseArrayDestructuring(
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        validateBindingName(elem.name.text);
+        validateReservedVarName(elem.name.text);
         statements.push({
           kind: "variable-declaration" as const,
           name: elem.name.text,
@@ -577,12 +577,6 @@ function parseObjectDestructuring(
 ): Statement[] {
   const statements: Statement[] = [];
 
-  const validateBindingName = (name: string): void => {
-    if (name.startsWith("__sk_")) {
-      throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-    }
-  };
-
   if (ts.isObjectLiteralExpression(initializer)) {
     // Direct object literal: const { a, b } = { a: 1, b: 2 }
     const propMap = new Map<string, ts.Expression>();
@@ -595,7 +589,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
-        validateBindingName(name);
+        validateReservedVarName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -664,7 +658,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
-        validateBindingName(name);
+        validateReservedVarName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -686,7 +680,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
-        validateBindingName(name);
+        validateReservedVarName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -2587,9 +2581,7 @@ export function parseStatement(
     const decl = node.declarationList.declarations[0];
     const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
 
-    if (name.startsWith("__sk_")) {
-      throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-    }
+    validateReservedVarName(name);
 
     const explicitType = decl.type ? parseType(decl.type) : undefined;
     const initializer = decl.initializer
@@ -2691,9 +2683,7 @@ export function parseStatement(
       if (ts.isVariableDeclarationList(node.initializer)) {
         const decl = node.initializer.declarations[0];
         const n = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
-        if (n.startsWith("__sk_")) {
-          throw new Error(`Variable name '${n}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-        }
+        validateReservedVarName(n);
         const t = decl.type ? parseType(decl.type) : undefined;
         const init = decl.initializer
           ? parseExpression(decl.initializer)
@@ -2760,9 +2750,7 @@ export function parseStatement(
       ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
       : "_item";
 
-    if (itemName.startsWith("__sk_")) {
-      throw new Error(`Variable name '${itemName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-    }
+    validateReservedVarName(itemName);
 
     const itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
       ? parseType(node.initializer.declarations[0].type)
@@ -2823,9 +2811,7 @@ export function parseStatement(
         ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
         : "_item";
 
-      if (itemName.startsWith("__sk_")) {
-        throw new Error(`Variable name '${itemName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-      }
+      validateReservedVarName(itemName);
 
       const indexName = `_i_${itemName}`;
       const innerBody = parseBlock(node.statement, varTypes, eventNames);
@@ -3009,9 +2995,7 @@ function parseStatements(
       return node.declarationList.declarations.map((decl) => {
         const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
 
-        if (name.startsWith("__sk_")) {
-          throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-        }
+        validateReservedVarName(name);
 
         const explicitType = decl.type ? parseType(decl.type) : undefined;
         const initializer = decl.initializer
