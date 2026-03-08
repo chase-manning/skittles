@@ -2602,8 +2602,9 @@ export function parseStatement(
     // lookups continue to see the original state-variable type, while
     // still allowing non-state locals to shadow outer declarations.
     if (type) {
-      const isStateVar = _stateVarTypes.has(name);
-      if (!isStateVar || !varTypes.has(name)) {
+      if (!_stateVarTypes.has(name)) {
+        varTypes.set(name, type);
+      } else if (!varTypes.has(name)) {
         varTypes.set(name, type);
       }
     }
@@ -3021,8 +3022,9 @@ function parseStatements(
         // lookups continue to see the original state-variable type, while
         // still allowing non-state locals to shadow outer declarations.
         if (type) {
-          const isStateVar = _stateVarTypes.has(name);
-          if (!isStateVar || !varTypes.has(name)) {
+          if (!_stateVarTypes.has(name)) {
+            varTypes.set(name, type);
+          } else if (!varTypes.has(name)) {
             varTypes.set(name, type);
           }
         }
