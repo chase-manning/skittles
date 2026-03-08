@@ -3619,12 +3619,21 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         if (stmt.type.kind === ("contract-interface" as SkittlesTypeKind)) {
           localVarTypes.set(stmt.name, stmt.type);
         }
-        // Always update combinedVarTypes so that inner shadowing declarations
-        // take effect for type-based mutability inference (e.g. .balance checks).
-        // This is conservative: an inner declaration may continue to influence
-        // lookups after its block, but that can only cause us to infer *more*
-        // restrictive mutability (e.g. view instead of pure).
-        combinedVarTypes.set(stmt.name, stmt.type);
+        // Update combinedVarTypes so that inner shadowing declarations
+        // take effect for type-based mutability inference (e.g. .balance checks),
+        // but do not let a non-address type override a previously address-typed name.
+        const existingType = combinedVarTypes.get(stmt.name);
+        if (existingType) {
+          const existingIsAddressLike =
+            existingType.kind === ("address" as SkittlesTypeKind);
+          const newIsAddressLike =
+            stmt.type.kind === ("address" as SkittlesTypeKind);
+          if (!(existingIsAddressLike && !newIsAddressLike)) {
+            combinedVarTypes.set(stmt.name, stmt.type);
+          }
+        } else {
+          combinedVarTypes.set(stmt.name, stmt.type);
+        }
       }
     }
   );

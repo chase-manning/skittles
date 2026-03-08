@@ -5848,9 +5848,9 @@ describe("integration: address.balance", () => {
     const source = `
       class Vault {
         public getShadowedBalance(): number {
-          const addr = tx.origin;
+          const addr: address = tx.origin;
           if (true) {
-            const addr = tx.origin;
+            const addr: address = tx.origin;
             return addr.balance;
           }
           return 0;
