@@ -488,6 +488,157 @@ describe("Array Methods (behavioral)", () => {
   });
 
   // ============================================================
+  // sort
+  // ============================================================
+
+  it("sort: sorts array descending with comparator", async () => {
+    const source = `
+      class SortTest {
+        private scores: number[] = [];
+
+        public addScore(v: number): void {
+          this.scores.push(v);
+        }
+
+        public sortDescending(): void {
+          this.scores.sort((a, b) => b - a);
+        }
+
+        public getScore(index: number): number {
+          return this.scores[index];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SortTest");
+    await (await contract.addScore(30)).wait();
+    await (await contract.addScore(10)).wait();
+    await (await contract.addScore(50)).wait();
+    await (await contract.addScore(20)).wait();
+    await (await contract.sortDescending()).wait();
+    expect(await contract.getScore(0)).toBe(50n);
+    expect(await contract.getScore(1)).toBe(30n);
+    expect(await contract.getScore(2)).toBe(20n);
+    expect(await contract.getScore(3)).toBe(10n);
+  });
+
+  it("sort: sorts array ascending with comparator", async () => {
+    const source = `
+      class SortTest {
+        private scores: number[] = [];
+
+        public addScore(v: number): void {
+          this.scores.push(v);
+        }
+
+        public sortAscending(): void {
+          this.scores.sort((a, b) => a - b);
+        }
+
+        public getScore(index: number): number {
+          return this.scores[index];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SortTest");
+    await (await contract.addScore(30)).wait();
+    await (await contract.addScore(10)).wait();
+    await (await contract.addScore(50)).wait();
+    await (await contract.addScore(20)).wait();
+    await (await contract.sortAscending()).wait();
+    expect(await contract.getScore(0)).toBe(10n);
+    expect(await contract.getScore(1)).toBe(20n);
+    expect(await contract.getScore(2)).toBe(30n);
+    expect(await contract.getScore(3)).toBe(50n);
+  });
+
+  it("sort: handles already sorted array", async () => {
+    const source = `
+      class SortTest {
+        private items: number[] = [];
+
+        public addItem(v: number): void {
+          this.items.push(v);
+        }
+
+        public sortAscending(): void {
+          this.items.sort((a, b) => a - b);
+        }
+
+        public getItem(index: number): number {
+          return this.items[index];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SortTest");
+    await (await contract.addItem(1)).wait();
+    await (await contract.addItem(2)).wait();
+    await (await contract.addItem(3)).wait();
+    await (await contract.sortAscending()).wait();
+    expect(await contract.getItem(0)).toBe(1n);
+    expect(await contract.getItem(1)).toBe(2n);
+    expect(await contract.getItem(2)).toBe(3n);
+  });
+
+  it("sort: handles single element array", async () => {
+    const source = `
+      class SortTest {
+        private items: number[] = [];
+
+        public addItem(v: number): void {
+          this.items.push(v);
+        }
+
+        public sortItems(): void {
+          this.items.sort((a, b) => a - b);
+        }
+
+        public getItem(index: number): number {
+          return this.items[index];
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SortTest");
+    await (await contract.addItem(42)).wait();
+    await (await contract.sortItems()).wait();
+    expect(await contract.getItem(0)).toBe(42n);
+  });
+
+  it("sort: handles larger values within int256 range", async () => {
+    const source = `
+      class SortTest {
+        private values: number[] = [];
+
+        public addValue(v: number): void {
+          this.values.push(v);
+        }
+
+        public sortDescending(): void {
+          this.values.sort((a, b) => b - a);
+        }
+
+        public getValue(index: number): number {
+          return this.values[index];
+        }
+
+        public getLength(): number {
+          return this.values.length;
+        }
+      }
+    `;
+    const { contract } = await compileAndDeploy(env, source, "SortTest");
+    // Test with typical values (well within int256 range)
+    await (await contract.addValue(1000000)).wait();
+    await (await contract.addValue(1)).wait();
+    await (await contract.addValue(999999)).wait();
+    await (await contract.addValue(500000)).wait();
+    await (await contract.sortDescending()).wait();
+    expect(await contract.getValue(0)).toBe(1000000n);
+    expect(await contract.getValue(1)).toBe(999999n);
+    expect(await contract.getValue(2)).toBe(500000n);
+    expect(await contract.getValue(3)).toBe(1n);
+  });
+
+  // ============================================================
   // splice
   // ============================================================
 

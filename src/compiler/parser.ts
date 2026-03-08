@@ -109,7 +109,7 @@ const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs:
 const KNOWN_ARRAY_METHODS = new Set([
   "includes", "indexOf", "lastIndexOf", "at",
   "slice", "concat", "filter", "map", "forEach", "some", "every",
-  "find", "findIndex", "reduce", "remove", "reverse", "splice",
+  "find", "findIndex", "reduce", "remove", "reverse", "splice", "sort",
 ]);
 
 function describeExpectedArgs(method: string, argCount?: number): string {
@@ -2157,14 +2157,25 @@ export function parseExpression(node: ts.Expression): Expression {
         };
       }
 
-      // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce
-      if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce"].includes(methodName) && node.arguments.length >= 1) {
+      // sort with no arguments: dedicated error
+      if (methodName === "sort" && node.arguments.length === 0) {
+        throw new Error("Array .sort() requires a comparator callback: .sort((a, b) => a - b).");
+      }
+
+      // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce, sort
+      if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce", "sort"].includes(methodName) && node.arguments.length >= 1) {
         const maxArity = methodName === "reduce" ? 2 : 1;
         if (node.arguments.length > maxArity) {
           throw new Error(`Array .${methodName}() accepts at most ${maxArity} argument(s), but ${node.arguments.length} were provided.`);
         }
+        const sortParamType =
+          methodName === "sort" && elementType?.kind === ("uint256" as SkittlesTypeKind)
+            ? INT256_TYPE
+            : elementType;
         const callbackParamTypes = methodName === "reduce"
           ? { first: undefined, second: elementType }
+          : methodName === "sort"
+          ? { first: sortParamType, second: sortParamType }
           : { first: elementType };
         const callback = parseArrowCallback(node.arguments[0], callbackParamTypes);
         if (!callback) {
@@ -2235,6 +2246,41 @@ export function parseExpression(node: ts.Expression): Expression {
             const initialValue = parseExpression(node.arguments[1]);
             const accType = inferType(initialValue, _currentVarTypes);
             const helper = generateReduceHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr!, initialValue, accType);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          // sort: in-place insertion sort using comparator (statement-only like reverse)
+          if (methodName === "sort" && condExpr) {
+            if (!callback.secondParamName) throw new Error("Array .sort() callback must have two parameters: (a, b) => expression.");
+            if (callback.paramName === callback.secondParamName) {
+              throw new Error("Array .sort() callback parameters must have distinct names, e.g. (a, b) => expression. Using the same identifier for both parameters would generate invalid Solidity.");
+            }
+            if (node.parent && !ts.isExpressionStatement(node.parent)) {
+              throw new Error("Array .sort() modifies the array in place and does not return a value. Use it as a standalone statement.");
+            }
+            const sortElemKind = elementType?.kind as string | undefined;
+            if (sortElemKind && sortElemKind !== "uint256" && sortElemKind !== "int256") {
+              throw new Error(`Array .sort() is only supported on number[] (uint256) and int256[] arrays. Got ${typeSuffix}[] instead.`);
+            }
+            // Validate comparator return type: must be an integer, not a boolean.
+            // The generated helper compares the result to 0 (comparatorExpr > 0),
+            // so a boolean comparator like (a, b) => a > b would produce invalid Solidity.
+            const comparatorEnv = new Map(_currentVarTypes);
+            const comparatorParamTypeForInfer = sortParamType ?? elementType;
+            if (comparatorParamTypeForInfer) {
+              comparatorEnv.set(callback.paramName, comparatorParamTypeForInfer);
+              if (callback.secondParamName) comparatorEnv.set(callback.secondParamName, comparatorParamTypeForInfer);
+            }
+            const comparatorType = inferType(condExpr, comparatorEnv);
+            const comparatorKind = comparatorType?.kind as string | undefined;
+            if (comparatorKind === "bool") {
+              throw new Error("Array .sort() comparator must return a signed or unsigned integer (e.g. (a, b) => a - b), not a boolean expression like (a, b) => a > b.");
+            }
+            if (comparatorKind && comparatorKind !== "uint256" && comparatorKind !== "int256") {
+              throw new Error(`Array .sort() comparator must return an int256 or uint256. Got ${comparatorKind} instead.`);
+            }
+            const helper = generateSortHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr);
             _generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -3666,6 +3712,8 @@ export function inferType(
       if (expr.operator === "!")
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
+    case "conditional":
+      return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
         if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
@@ -3915,6 +3963,7 @@ function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): 
   return { kind: "if", condition: cond, thenBody, elseBody };
 }
 const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
+const INT256_TYPE: SkittlesType = { kind: "int256" as SkittlesTypeKind };
 const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
 
 const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
@@ -4169,6 +4218,77 @@ function generateReduceHelper(
     mkReturn(mkId("__sk_acc")),
   ];
   return { name: helperName, parameters: [], returnType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateSortHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramA: string,
+  paramB: string,
+  comparatorExpr: Expression
+): SkittlesFunction {
+  const helperName = `_sort_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const isAlreadySigned = elemType.kind === ("int256" as SkittlesTypeKind);
+  const comparatorParamType = isAlreadySigned ? elemType : INT256_TYPE;
+  // int256 cast helper: int256(expr) — only needed for uint256 elements
+  const mkMaybeCast = (e: Expression): Expression =>
+    isAlreadySigned ? e : {
+      kind: "call" as const,
+      callee: { kind: "identifier" as const, name: "int256" },
+      args: [e],
+    };
+  // Insertion sort with comparator:
+  //   uint256 __sk_len = arr.length;
+  //   for (uint256 __sk_i = 1; __sk_i < __sk_len; __sk_i++) {
+  //     <elemType> __sk_key = arr[__sk_i];
+  //     uint256 __sk_j = __sk_i;
+  //     while (__sk_j > 0) {
+  //       <paramType> <paramA> = <cast?>(arr[__sk_j - 1]);
+  //       <paramType> <paramB> = <cast?>(__sk_key);
+  //       if (!(comparatorExpr > 0)) { break; }
+  //       arr[__sk_j] = arr[__sk_j - 1];
+  //       __sk_j--;
+  //     }
+  //     arr[__sk_j] = __sk_key;
+  //   }
+  //
+  // For uint256 arrays, comparator params are cast to int256 so that
+  // subtraction patterns like (a, b) => a - b work without reverting on
+  // underflow. This cast is only safe and order-preserving for values
+  // <= type(int256).max (i.e., < 2^255); sorting arrays that may contain
+  // larger uint256 values can still revert at the cast step, regardless
+  // of whether the comparator uses subtraction or comparisons.
+  // For int256 arrays, params are used directly with no cast.
+  const body: Statement[] = [
+    mkVarDecl("__sk_len", UINT256_TYPE, mkProp(arrayExpr, "length")),
+    {
+      kind: "for",
+      initializer: { kind: "variable-declaration", name: "__sk_i", type: UINT256_TYPE, initializer: mkNum("1") },
+      condition: mkBin(mkId("__sk_i"), "<", mkId("__sk_len")),
+      incrementor: mkIncr("__sk_i"),
+      body: [
+        mkVarDecl("__sk_key", elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+        mkVarDecl("__sk_j", UINT256_TYPE, mkId("__sk_i")),
+        {
+          kind: "while" as const,
+          condition: mkBin(mkId("__sk_j"), ">", mkNum("0")),
+          body: [
+            mkVarDecl(paramA, comparatorParamType, mkMaybeCast(mkElem(arrayExpr, mkBin(mkId("__sk_j"), "-", mkNum("1"))))),
+            mkVarDecl(paramB, comparatorParamType, mkMaybeCast(mkId("__sk_key"))),
+            mkIf(
+              { kind: "unary", operator: "!", operand: mkBin(comparatorExpr, ">", mkNum("0")), prefix: true },
+              [{ kind: "break" as const }]
+            ),
+            mkExprStmt(mkAssign(mkElem(arrayExpr, mkId("__sk_j")), mkElem(arrayExpr, mkBin(mkId("__sk_j"), "-", mkNum("1"))))),
+            mkExprStmt(mkDecr("__sk_j")),
+          ],
+        },
+        mkExprStmt(mkAssign(mkElem(arrayExpr, mkId("__sk_j")), mkId("__sk_key"))),
+      ],
+    },
+  ];
+  return { name: helperName, parameters: [], returnType: null, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 /**
