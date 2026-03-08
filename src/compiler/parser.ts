@@ -2596,12 +2596,16 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-    // Track local variable type for template literal inference without
-    // overwriting existing entries in varTypes (for example, state variables).
-    // This keeps state-variable type information immutable for downstream
-    // consumers that still rely on varTypes for `this.<stateVar>` lookups.
-    if (type && !varTypes.has(name)) {
-      varTypes.set(name, type);
+    // Track local variable type for template literal inference.
+    // Preserve existing entries for known state variables so that
+    // downstream consumers relying on varTypes for `this.<stateVar>`
+    // lookups continue to see the original state-variable type, while
+    // still allowing non-state locals to shadow outer declarations.
+    if (type) {
+      const isStateVar = _stateVarTypes.has(name);
+      if (!isStateVar || !varTypes.has(name)) {
+        varTypes.set(name, type);
+      }
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
@@ -2893,6 +2897,9 @@ export function parseStatement(
     if (ts.isVariableStatement(firstStmt)) {
       const decl = firstStmt.declarationList.declarations[0];
       returnVarName = ts.isIdentifier(decl.name) ? decl.name.text : undefined;
+      if (returnVarName) {
+        validateReservedVarName(returnVarName);
+      }
       returnType = decl.type ? parseType(decl.type) : undefined;
       if (decl.initializer) {
         call = parseExpression(decl.initializer);
@@ -3008,11 +3015,16 @@ function parseStatements(
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
         }
-        // Avoid overwriting existing entries in varTypes (for example, state
-        // variable types) when handling multi-declaration locals. Still record
-        // new identifiers so later expression parsing can infer their types.
-        if (type && !varTypes.has(name)) {
-          varTypes.set(name, type);
+        // Track local variable type for template literal inference.
+        // Preserve existing entries for known state variables so that
+        // downstream consumers relying on varTypes for `this.<stateVar>`
+        // lookups continue to see the original state-variable type, while
+        // still allowing non-state locals to shadow outer declarations.
+        if (type) {
+          const isStateVar = _stateVarTypes.has(name);
+          if (!isStateVar || !varTypes.has(name)) {
+            varTypes.set(name, type);
+          }
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
@@ -3655,7 +3667,9 @@ export function inferType(
     case "property-access":
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
-          return varTypes.get(expr.property);
+          // Always resolve this.<prop> against state-variable types so that
+          // local/param shadowing cannot affect state-variable type inference.
+          return _stateVarTypes.get(expr.property) ?? varTypes.get(expr.property);
         }
         if (expr.object.name === "msg") {
           if (expr.property === "sender")
