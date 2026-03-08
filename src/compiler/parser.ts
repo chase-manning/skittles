@@ -507,12 +507,19 @@ function parseArrayDestructuring(
 ): Statement[] {
   const statements: Statement[] = [];
 
+  const validateBindingName = (name: string): void => {
+    if (name.startsWith("__sk_")) {
+      throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+    }
+  };
+
   if (ts.isArrayLiteralExpression(initializer)) {
     // Direct array literal: const [a, b, c] = [7, 8, 9]
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateBindingName(name);
         const init = i < initializer.elements.length
           ? parseExpression(initializer.elements[i])
           : undefined;
@@ -535,6 +542,7 @@ function parseArrayDestructuring(
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateBindingName(name);
         const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
         const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
@@ -547,6 +555,7 @@ function parseArrayDestructuring(
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        validateBindingName(elem.name.text);
         statements.push({
           kind: "variable-declaration" as const,
           name: elem.name.text,
@@ -568,6 +577,12 @@ function parseObjectDestructuring(
 ): Statement[] {
   const statements: Statement[] = [];
 
+  const validateBindingName = (name: string): void => {
+    if (name.startsWith("__sk_")) {
+      throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+    }
+  };
+
   if (ts.isObjectLiteralExpression(initializer)) {
     // Direct object literal: const { a, b } = { a: 1, b: 2 }
     const propMap = new Map<string, ts.Expression>();
@@ -580,6 +595,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateBindingName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -648,6 +664,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateBindingName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -669,6 +686,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateBindingName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -2583,14 +2601,12 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-    // Track local variable type for template literal inference without
-    // overwriting existing entries (e.g. state variable types). Other parser
-    // passes (mutability inference, interface getter detection) rely on
-    // varTypes for `this.<stateVar>` resolution, so we must not clobber
-    // state-var entries. Template literals resolve `this.<prop>` from the
-    // dedicated _stateVarTypes map, and string locals are tracked in
-    // _currentStringNames, so shadowing is handled correctly.
-    if (type && !varTypes.has(name)) {
+    // Track local variable type for template literal inference and allow
+    // locals to shadow existing entries (for example, state variable types).
+    // State-variable lookups for `this.<stateVar>` are resolved via the
+    // dedicated _stateVarTypes map, so it is safe (and necessary) for
+    // varTypes to reflect lexical shadowing of identifiers.
+    if (type) {
       varTypes.set(name, type);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
@@ -2675,6 +2691,9 @@ export function parseStatement(
       if (ts.isVariableDeclarationList(node.initializer)) {
         const decl = node.initializer.declarations[0];
         const n = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+        if (n.startsWith("__sk_")) {
+          throw new Error(`Variable name '${n}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+        }
         const t = decl.type ? parseType(decl.type) : undefined;
         const init = decl.initializer
           ? parseExpression(decl.initializer)
@@ -2741,6 +2760,10 @@ export function parseStatement(
       ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
       : "_item";
 
+    if (itemName.startsWith("__sk_")) {
+      throw new Error(`Variable name '${itemName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+    }
+
     const itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
       ? parseType(node.initializer.declarations[0].type)
       : undefined;
@@ -2799,6 +2822,10 @@ export function parseStatement(
       const itemName = ts.isVariableDeclarationList(node.initializer)
         ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
         : "_item";
+
+      if (itemName.startsWith("__sk_")) {
+        throw new Error(`Variable name '${itemName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+      }
 
       const indexName = `_i_${itemName}`;
       const innerBody = parseBlock(node.statement, varTypes, eventNames);
@@ -2995,10 +3022,11 @@ function parseStatements(
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
         }
-        // Do not overwrite existing entries (e.g., state-variable types) so that
-        // other parser passes that consult varTypes for `this.<stateVar>` resolution
-        // continue to work correctly.
-        if (type && !varTypes.has(name)) {
+        // Always record the most specific, in-scope type for this identifier so
+        // that later expression parsing (for example, template literals) can
+        // correctly infer the local variable's type, even when it shadows a
+        // state variable.
+        if (type) {
           varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
