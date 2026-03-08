@@ -224,6 +224,10 @@ export function parse(
   _currentSourceFile = sourceFile;
   _arrayMethodCounter = 0;
   _stateVarTypes = new Map();
+  // Reset per-parse caches to avoid leaking state between parse() calls.
+  _currentVarTypes = new Map();
+  _currentStringNames = new Set();
+  _currentParamTypes = new Map();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -769,7 +773,7 @@ function parseStandaloneArrowFunction(
 ): SkittlesFunction {
   const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
 
-  validateReservedName("Function name", name);
+  validateReservedVarName(name);
 
   const arrow = decl.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
@@ -918,7 +922,11 @@ function parseClass(
   // Inline errors declared via SkittlesError<{...}> on the class
   const inlineErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
 
-  // First pass: collect state variables, events, and inline errors
+  // First pass: collect state variables, events, and inline errors.
+  // Split into two sub-passes: collect name/type first so _stateVarTypes
+  // is populated before parsing initializers (which may contain template
+  // literals that reference other state variables via `this.<prop>`).
+  const propertyMembers: ts.PropertyDeclaration[] = [];
   for (const member of node.members) {
     if (ts.isPropertyDeclaration(member)) {
       // Detect arrow function properties: `private _fn = (...) => { ... }`
@@ -936,17 +944,28 @@ function parseClass(
           _knownCustomErrors.add(error.name);
           continue;
         }
-        variables.push(parseProperty(member));
+        propertyMembers.push(member);
       }
     }
   }
 
+  // Sub-pass 1: collect name + type (without initializers) to build _stateVarTypes.
   const varTypes = new Map<string, SkittlesType>();
-  for (const v of variables) {
-    varTypes.set(v.name, v.type);
+  for (const member of propertyMembers) {
+    const name =
+      member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
+    const type: SkittlesType = member.type
+      ? parseType(member.type)
+      : { kind: "uint256" as SkittlesTypeKind };
+    varTypes.set(name, type);
   }
-  // Snapshot the state-variable-only map before any locals/params are added.
+  // Snapshot the state-variable-only map before any initializers/locals/params are parsed.
   _stateVarTypes = new Map(varTypes);
+
+  // Sub-pass 2: parse full property declarations (including initializers).
+  for (const member of propertyMembers) {
+    variables.push(parseProperty(member));
+  }
 
   const eventNames = new Set(events.map((e) => e.name));
   _currentEventNames = eventNames;
@@ -2595,6 +2614,8 @@ export function parseStatement(
 
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
+    } else {
+      _currentStringNames.delete(name);
     }
     // Always update varTypes so that identifier-based type inference
     // reflects the current in-scope binding, even when a local
@@ -3010,6 +3031,8 @@ function parseStatements(
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
+        } else {
+          _currentStringNames.delete(name);
         }
         // Locals (including those that shadow state variables) should
         // always update varTypes. Passes that need state-only resolution
