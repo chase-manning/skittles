@@ -2503,8 +2503,23 @@ export function parseExpression(node: ts.Expression): Expression {
       parts.push({ kind: "string-literal", value: node.head.text });
     }
     // Build a combined type map with local precedence for plain identifiers.
-    // Order: state vars first, then params, then locals (later entries win).
-    const combinedTypes = new Map([..._stateVarTypes, ..._currentParamTypes, ..._currentVarTypes]);
+    // Note: _currentVarTypes is initially seeded with state-var entries, so we
+    // filter out any entries that are just unchanged copies of _stateVarTypes
+    // to avoid overwriting shadowing params back to the state-var type.
+    const localsOnlyVarTypes = new Map<string, SkittlesType>();
+    for (const [name, type] of _currentVarTypes) {
+      const stateType = _stateVarTypes.get(name);
+      // Include if there is no corresponding state var, or if this entry
+      // represents a true local/shadowing type distinct from the seeded one.
+      if (!stateType || stateType !== type) {
+        localsOnlyVarTypes.set(name, type);
+      }
+    }
+    const combinedTypes = new Map<string, SkittlesType>([
+      ..._stateVarTypes,
+      ..._currentParamTypes,
+      ...localsOnlyVarTypes,
+    ]);
     for (const span of node.templateSpans) {
       const expr = parseExpression(span.expression);
       // Wrap uint256 expressions with __sk_toString() for Solidity compatibility.
@@ -2593,12 +2608,11 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-    // Track local variable type for template literal inference and allow
-    // locals to shadow existing entries (for example, state variable types).
-    // State-variable lookups for `this.<stateVar>` are resolved via the
-    // dedicated _stateVarTypes map, so it is safe (and necessary) for
-    // varTypes to reflect lexical shadowing of identifiers.
-    if (type) {
+    // Track local variable type for template literal inference without
+    // overwriting existing entries in varTypes (for example, state variables).
+    // This keeps state-variable type information immutable for downstream
+    // consumers that still rely on varTypes for `this.<stateVar>` lookups.
+    if (type && !varTypes.has(name)) {
       varTypes.set(name, type);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
@@ -3006,11 +3020,10 @@ function parseStatements(
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
         }
-        // Always record the most specific, in-scope type for this identifier so
-        // that later expression parsing (for example, template literals) can
-        // correctly infer the local variable's type, even when it shadows a
-        // state variable.
-        if (type) {
+        // Avoid overwriting existing entries in varTypes (for example, state
+        // variable types) when handling multi-declaration locals. Still record
+        // new identifiers so later expression parsing can infer their types.
+        if (type && !varTypes.has(name)) {
           varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
