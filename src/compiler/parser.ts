@@ -3232,8 +3232,16 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         expr.property === "balance" &&
         !(expr.object.kind === "identifier" && expr.object.name === "this")
       ) {
+        // Treat both typed addresses and explicit address(...) casts as address-like
         const objType = inferType(expr.object, combinedVarTypes);
-        if (objType?.kind === ("address" as SkittlesTypeKind)) {
+        const isAddressLike =
+          objType?.kind === ("address" as SkittlesTypeKind) ||
+          (
+            expr.object.kind === "call" &&
+            expr.object.callee.kind === "identifier" &&
+            expr.object.callee.name === "address"
+          );
+        if (isAddressLike) {
           readsState = true;
         }
       }
@@ -3305,12 +3313,17 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         writesState = true;
       }
       if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
-        localVarTypes.set(stmt.name, stmt.type);
-        // Only add to combinedVarTypes if this name is not already present.
-        // This avoids leaking inner shadowing declarations into outer scopes.
-        if (!combinedVarTypes.has(stmt.name)) {
-          combinedVarTypes.set(stmt.name, stmt.type);
+        // Only track contract-interface typed locals in localVarTypes
+        // (used for external call detection / .transfer() classification).
+        if (stmt.type.kind === ("contract-interface" as SkittlesTypeKind)) {
+          localVarTypes.set(stmt.name, stmt.type);
         }
+        // Always update combinedVarTypes so that inner shadowing declarations
+        // take effect for type-based mutability inference (e.g. .balance checks).
+        // This is conservative: an inner declaration may continue to influence
+        // lookups after its block, but that can only cause us to infer *more*
+        // restrictive mutability (e.g. view instead of pure).
+        combinedVarTypes.set(stmt.name, stmt.type);
       }
     }
   );
@@ -3445,6 +3458,10 @@ export function inferType(
       return inferType(expr.operand, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
+        // address(...) cast returns address type
+        if (expr.callee.name === "address") {
+          return { kind: "address" as SkittlesTypeKind };
+        }
         if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
           return { kind: "bytes32" as SkittlesTypeKind };
         }

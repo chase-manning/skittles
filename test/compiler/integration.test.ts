@@ -5417,6 +5417,35 @@ describe("integration: address.balance", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts[0].functions[0].stateMutability).toBe("view");
   });
+
+  it("should infer view for address(this).balance", () => {
+    const source = `
+      class Vault {
+        public getThisBalance(): number {
+          return address(this).balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
+
+  it("should infer view for shadowed local .balance usage", () => {
+    const source = `
+      class Vault {
+        public getShadowedBalance(): number {
+          const addr = tx.origin;
+          if (true) {
+            const addr = tx.origin;
+            return addr.balance;
+          }
+          return 0;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
 });
 
 // ============================================================
