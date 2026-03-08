@@ -68,7 +68,7 @@ import { self, address } from "skittles";
 let contractAddress: address = self;
 ```
 
-`self` is an `address` value, so you can use it anywhere you'd use an address — in comparisons, as a function argument, or to check the contract's ETH balance:
+`self` is an `address` value, so you can use it anywhere you'd use an address — in comparisons, as a function argument, or to send ETH:
 
 ```typescript
 import { self, msg, address } from "skittles";
@@ -92,6 +92,31 @@ class Vault {
 If you're coming from Solidity, prefer `self` instead of `address(this)`. While `address(this)` is passed through to the underlying compiler, `address` is a type-only export in Skittles' TypeScript typings, so `address(this)` is not type-safe and will typically fail TypeScript checking and IntelliSense. `self` is a value-level `address` and gives you the clean, fully typed experience.
 :::
 
+## Address Balance
+
+Use `.balance` on any address to read its ETH balance (in wei):
+
+```typescript
+import { self, address, msg } from "skittles";
+
+class Vault {
+  public getContractBalance(): number {
+    return self.balance;
+  }
+
+  public getBalance(addr: address): number {
+    return addr.balance;
+  }
+
+  public getSenderBalance(): number {
+    return msg.sender.balance;
+  }
+}
+```
+
+:::note
+The Skittles compiler fully supports `.balance` on any address-typed expression, but the TypeScript type stubs currently model `address` as `string`, so `.balance` may show a type error in your IDE. The compiled Solidity output is correct regardless.
+:::
 ## ETH Transfers
 
 Use `.transfer(amount)` on any address to send ETH from the contract:

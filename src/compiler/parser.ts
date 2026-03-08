@@ -3481,6 +3481,16 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
     }
   }
 
+  // Build a combined type map once for inferType lookups (e.g. .balance).
+  // Outer-scope types first, then local types which take precedence on name collisions.
+  const combinedVarTypes = new Map<string, SkittlesType>();
+  varTypes?.forEach((value, key) => {
+    combinedVarTypes.set(key, value);
+  });
+  localVarTypes.forEach((value, key) => {
+    combinedVarTypes.set(key, value);
+  });
+
   walkStatements(
     body,
     (expr) => {
@@ -3514,6 +3524,26 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
           )
         ) {
           readsEnvironment = true;
+        }
+      }
+      // addr.balance reads the ETH balance of an address (blockchain state read)
+      // Exclude this.balance which refers to a state variable named "balance"
+      if (
+        expr.kind === "property-access" &&
+        expr.property === "balance" &&
+        !(expr.object.kind === "identifier" && expr.object.name === "this")
+      ) {
+        // Treat both typed addresses and explicit address(...) casts as address-like
+        const objType = inferType(expr.object, combinedVarTypes);
+        const isAddressLike =
+          objType?.kind === ("address" as SkittlesTypeKind) ||
+          (
+            expr.object.kind === "call" &&
+            expr.object.callee.kind === "identifier" &&
+            expr.object.callee.name === "address"
+          );
+        if (isAddressLike) {
+          readsState = true;
         }
       }
       // `self` reads the contract's own address (address(this))
@@ -3583,9 +3613,27 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (stmt.kind === "delete" && isStateAccess(stmt.target)) {
         writesState = true;
       }
-      if (stmt.kind === "variable-declaration" && stmt.type &&
-          stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
-        localVarTypes.set(stmt.name, stmt.type);
+      if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
+        // Only track contract-interface typed locals in localVarTypes
+        // (used for external call detection / .transfer() classification).
+        if (stmt.type.kind === ("contract-interface" as SkittlesTypeKind)) {
+          localVarTypes.set(stmt.name, stmt.type);
+        }
+        // Update combinedVarTypes so that inner shadowing declarations
+        // take effect for type-based mutability inference (e.g. .balance checks),
+        // but do not let a non-address type override a previously address-typed name.
+        const existingType = combinedVarTypes.get(stmt.name);
+        if (existingType) {
+          const existingIsAddressLike =
+            existingType.kind === ("address" as SkittlesTypeKind);
+          const newIsAddressLike =
+            stmt.type.kind === ("address" as SkittlesTypeKind);
+          if (!existingIsAddressLike || newIsAddressLike) {
+            combinedVarTypes.set(stmt.name, stmt.type);
+          }
+        } else {
+          combinedVarTypes.set(stmt.name, stmt.type);
+        }
       }
     }
   );
@@ -3665,6 +3713,12 @@ export function inferType(
         return { kind: "address" as SkittlesTypeKind };
       return varTypes.get(expr.name);
     case "property-access":
+      // addr.balance → uint256 (ETH balance of an address)
+      if (expr.property === "balance") {
+        const objType = inferType(expr.object, varTypes);
+        if (objType?.kind === ("address" as SkittlesTypeKind))
+          return { kind: "uint256" as SkittlesTypeKind };
+      }
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
           return varTypes.get(expr.property);
@@ -3716,6 +3770,10 @@ export function inferType(
       return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
+        // address(...) cast returns address type
+        if (expr.callee.name === "address") {
+          return { kind: "address" as SkittlesTypeKind };
+        }
         if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
           return { kind: "bytes32" as SkittlesTypeKind };
         }
