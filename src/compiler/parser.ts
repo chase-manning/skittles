@@ -3628,7 +3628,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
             existingType.kind === ("address" as SkittlesTypeKind);
           const newIsAddressLike =
             stmt.type.kind === ("address" as SkittlesTypeKind);
-          if (!(existingIsAddressLike && !newIsAddressLike)) {
+          if (!existingIsAddressLike || newIsAddressLike) {
             combinedVarTypes.set(stmt.name, stmt.type);
           }
         } else {
