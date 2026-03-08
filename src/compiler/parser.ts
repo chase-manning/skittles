@@ -500,10 +500,14 @@ export function collectClassNames(source: string, filePath: string): string[] {
   return names;
 }
 
-function validateReservedVarName(name: string): void {
+function validateReservedName(kind: string, name: string): void {
   if (name.startsWith("__sk_")) {
-    throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+    throw new Error(`${kind} '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
   }
+}
+
+function validateReservedVarName(name: string): void {
+  validateReservedName("Variable name", name);
 }
 
 function parseArrayDestructuring(
@@ -735,9 +739,7 @@ function parseStandaloneFunction(
 ): SkittlesFunction {
   const name = node.name ? node.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Function name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Function name", name);
 
   const parameters = node.parameters.map(parseParameter);
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
@@ -767,9 +769,7 @@ function parseStandaloneArrowFunction(
 ): SkittlesFunction {
   const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Function name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Function name", name);
 
   const arrow = decl.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
@@ -1396,9 +1396,7 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Property name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Property name", name);
 
   const type: SkittlesType = node.type
     ? parseType(node.type)
@@ -1433,9 +1431,7 @@ function parseMethod(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Method name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Method name", name);
 
   const parameters = node.parameters.map(parseParameter);
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
@@ -1601,9 +1597,7 @@ function parseGetAccessor(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Accessor name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Accessor name", name);
 
   const parameters: SkittlesParameter[] = [];
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
@@ -1631,9 +1625,7 @@ function parseSetAccessor(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Accessor name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Accessor name", name);
 
   const parameters = node.parameters.map(parseParameter);
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
@@ -1659,9 +1651,7 @@ function parseArrowProperty(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Property name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Property name", name);
 
   const arrow = node.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
@@ -1709,9 +1699,7 @@ function parseConstructorDecl(
 
 function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const name = ts.isIdentifier(node.name) ? node.name.text : "unknown";
-  if (name.startsWith("__sk_")) {
-    throw new Error(`Parameter name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
-  }
+  validateReservedName("Parameter name", name);
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
@@ -3728,6 +3716,8 @@ export function inferType(
         }
       }
       return undefined;
+    case "conditional":
+      return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
     default:
       return undefined;
   }
@@ -4057,11 +4047,9 @@ function parseArrowCallback(
   const secondParamName = node.parameters.length >= 2 && ts.isIdentifier(node.parameters[1].name)
     ? node.parameters[1].name.text : undefined;
 
-  if (paramName.startsWith("__sk_")) {
-    throw new Error(`Callback parameter name '${paramName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
-  }
-  if (secondParamName?.startsWith("__sk_")) {
-    throw new Error(`Callback parameter name '${secondParamName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
+  validateReservedName("Callback parameter name", paramName);
+  if (secondParamName) {
+    validateReservedName("Callback parameter name", secondParamName);
   }
 
   if (ts.isBlock(node.body)) {

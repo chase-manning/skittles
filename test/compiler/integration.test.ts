@@ -3562,6 +3562,18 @@ describe("integration: template literals", () => {
     expect(solidity).not.toContain("__sk_toString");
     expect(solidity).toContain('string.concat("Value: ", count)');
   });
+
+  it("should convert ternary expression in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public label(flag: boolean): string {
+          return \`\${flag ? 1 : 2}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("__sk_toString(");
+  });
 });
 
 describe("integration: multiple variable declarations", () => {
