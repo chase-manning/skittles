@@ -2596,17 +2596,12 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-    // Track local variable type for template literal inference.
-    // Preserve existing entries for known state variables so that
-    // downstream consumers relying on varTypes for `this.<stateVar>`
-    // lookups continue to see the original state-variable type, while
-    // still allowing non-state locals to shadow outer declarations.
+    // Always update varTypes so that identifier-based type inference
+    // reflects the current in-scope binding, even when a local
+    // shadows a state variable. State-variable-specific consumers
+    // should rely on _stateVarTypes when needed.
     if (type) {
-      if (!_stateVarTypes.has(name)) {
-        varTypes.set(name, type);
-      } else if (!varTypes.has(name)) {
-        varTypes.set(name, type);
-      }
+      varTypes.set(name, type);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
@@ -3016,17 +3011,11 @@ function parseStatements(
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
         }
-        // Track local variable type for template literal inference.
-        // Preserve existing entries for known state variables so that
-        // downstream consumers relying on varTypes for `this.<stateVar>`
-        // lookups continue to see the original state-variable type, while
-        // still allowing non-state locals to shadow outer declarations.
+        // Locals (including those that shadow state variables) should
+        // always update varTypes. Passes that need state-only resolution
+        // should consult _stateVarTypes instead of relying on varTypes.
         if (type) {
-          if (!_stateVarTypes.has(name)) {
-            varTypes.set(name, type);
-          } else if (!varTypes.has(name)) {
-            varTypes.set(name, type);
-          }
+          varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
@@ -3363,7 +3352,7 @@ function rewriteInterfacePropertyGetters(
       expr.object.object.kind === "identifier" &&
       expr.object.object.name === "this"
     ) {
-      const propType = varTypes.get(expr.object.property);
+      const propType = _stateVarTypes.get(expr.object.property);
       if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
         const iface = _knownContractInterfaceMap.get(propType.structName);
         if (iface && iface.functions.some(f => f.name === expr.property)) return true;
@@ -3795,7 +3784,7 @@ function isExternalContractCall(expr: { callee: Expression }, varTypes: Map<stri
     expr.callee.object.object.name === "this"
   ) {
     const propName = expr.callee.object.property;
-    const propType = varTypes.get(propName);
+    const propType = _stateVarTypes.get(propName);
     if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) {
       return true;
     }
@@ -3838,7 +3827,7 @@ function getExternalCallMethodMutability(
     expr.callee.object.object.name === "this" &&
     varTypes
   ) {
-    const propType = varTypes.get(expr.callee.object.property);
+    const propType = _stateVarTypes.get(expr.callee.object.property);
     if (propType?.kind === ("contract-interface" as SkittlesTypeKind)) {
       ifaceName = propType.structName;
     }
@@ -4300,7 +4289,7 @@ function isContractInterfaceReceiver(
     receiver.object.kind === "identifier" &&
     receiver.object.name === "this"
   ) {
-    const propType = varTypes?.get(receiver.property);
+    const propType = _stateVarTypes.get(receiver.property) ?? varTypes?.get(receiver.property);
     if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
   }
   // token.transfer(...) where token is a contract-interface local/param
