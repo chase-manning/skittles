@@ -9,6 +9,8 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 function readStdlib(name: string): string {
   const subdirs: Record<string, string> = {
     ERC20: "token",
+    ERC20Permit: "token",
+    ERC20Votes: "token",
     ERC721: "token",
     Ownable: "access",
     AccessControl: "access",
@@ -688,6 +690,273 @@ class GuardedVault extends ReentrancyGuard {
 
   it("reports not entered after call completes", async () => {
     expect(await contract.contract.reentrancyStatus()).toBe(false);
+  });
+});
+
+// ============================================================
+// ERC20Permit stdlib tests
+// ============================================================
+
+describe("stdlib ERC20Permit", () => {
+  let env: TestEnv;
+  let token: DeployedContract;
+  let deployer: ethers.Signer;
+  let alice: ethers.Signer;
+  let deployerAddr: string;
+  let aliceAddr: string;
+
+  const INITIAL_SUPPLY = 1_000_000n;
+
+  const ERC20_BASE = readStdlib("ERC20");
+  const PERMIT_BASE = readStdlib("ERC20Permit");
+
+  const PERMIT_SOURCE = `
+${ERC20_BASE}
+
+${PERMIT_BASE}
+
+class MyPermitToken extends ERC20Permit {
+  constructor(initialSupply: number) {
+    super("PermitToken", "PT");
+    this._mint(msg.sender, initialSupply);
+  }
+}
+`;
+
+  beforeAll(async () => {
+    env = await createTestEnv();
+    deployer = env.accounts[0];
+    alice = env.accounts[1];
+    deployerAddr = await deployer.getAddress();
+    aliceAddr = await alice.getAddress();
+    token = await compileAndDeploy(env, PERMIT_SOURCE, "MyPermitToken", [INITIAL_SUPPLY]);
+  }, 60_000);
+
+  afterAll(async () => { await env?.server.close(); });
+
+  it("inherits ERC20 functionality", async () => {
+    expect(await token.contract.name()).toBe("PermitToken");
+    expect(await token.contract.symbol()).toBe("PT");
+    expect(await token.contract.totalSupply()).toBe(INITIAL_SUPPLY);
+  });
+
+  it("starts with nonce 0", async () => {
+    expect(await token.contract.nonces(deployerAddr)).toBe(0n);
+  });
+
+  it("returns a DOMAIN_SEPARATOR", async () => {
+    const ds = await token.contract.DOMAIN_SEPARATOR();
+    expect(ds).toBeTruthy();
+    expect(typeof ds).toBe("string");
+    expect(ds.length).toBe(66); // bytes32 hex string
+  });
+
+  it("reverts permit with expired deadline", async () => {
+    const r = ethers.zeroPadValue("0x01", 32);
+    const s = ethers.zeroPadValue("0x02", 32);
+    await expect(
+      token.contract.permit(deployerAddr, aliceAddr, 100n, 0n, 27n, r, s)
+    ).rejects.toThrow();
+  });
+
+  it("executes a valid permit", async () => {
+    const contractAddr = await token.contract.getAddress();
+    const nonce = await token.contract.nonces(deployerAddr);
+    const deadline = BigInt(Math.floor(Date.now() / 1000)) + 3600n;
+    const value = 500n;
+
+    // Build the EIP-712 domain and types
+    const domain = {
+      name: "PermitToken",
+      version: "1",
+      chainId: (await env.provider.getNetwork()).chainId,
+      verifyingContract: contractAddr,
+    };
+    const types = {
+      Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    };
+    const message = {
+      owner: deployerAddr,
+      spender: aliceAddr,
+      value,
+      nonce,
+      deadline,
+    };
+
+    // Sign the typed data
+    const sig = await deployer.signTypedData(domain, types, message);
+    const { v, r, s } = ethers.Signature.from(sig);
+
+    // Submit permit from alice (gasless approval for deployer)
+    const aliceToken = connectAs(token, alice);
+    await (await aliceToken.permit(deployerAddr, aliceAddr, value, deadline, BigInt(v), r, s)).wait();
+
+    // Verify allowance was set
+    expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(value);
+    // Verify nonce incremented
+    expect(await token.contract.nonces(deployerAddr)).toBe(nonce + 1n);
+  });
+
+  it("reverts permit with invalid signer", async () => {
+    const contractAddr = await token.contract.getAddress();
+    const nonce = await token.contract.nonces(deployerAddr);
+    const deadline = BigInt(Math.floor(Date.now() / 1000)) + 3600n;
+    const value = 100n;
+
+    // Sign with alice but claim it's from deployer
+    const domain = {
+      name: "PermitToken",
+      version: "1",
+      chainId: (await env.provider.getNetwork()).chainId,
+      verifyingContract: contractAddr,
+    };
+    const types = {
+      Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    };
+    const message = {
+      owner: deployerAddr,
+      spender: aliceAddr,
+      value,
+      nonce,
+      deadline,
+    };
+
+    // Alice signs instead of deployer
+    const sig = await alice.signTypedData(domain, types, message);
+    const { v, r, s } = ethers.Signature.from(sig);
+
+    await expect(
+      token.contract.permit(deployerAddr, aliceAddr, value, deadline, BigInt(v), r, s)
+    ).rejects.toThrow();
+  });
+});
+
+// ============================================================
+// ERC20Votes stdlib tests
+// ============================================================
+
+describe("stdlib ERC20Votes", () => {
+  let env: TestEnv;
+  let token: DeployedContract;
+  let deployer: ethers.Signer;
+  let alice: ethers.Signer;
+  let bob: ethers.Signer;
+  let deployerAddr: string;
+  let aliceAddr: string;
+  let bobAddr: string;
+
+  const INITIAL_SUPPLY = 1_000_000n;
+
+  const ERC20_BASE = readStdlib("ERC20");
+  const VOTES_BASE = readStdlib("ERC20Votes");
+
+  const VOTES_SOURCE = `
+${ERC20_BASE}
+
+${VOTES_BASE}
+
+class MyVotesToken extends ERC20Votes {
+  constructor(initialSupply: number) {
+    super("VotesToken", "VT");
+    this._mint(msg.sender, initialSupply);
+  }
+}
+`;
+
+  beforeAll(async () => {
+    env = await createTestEnv();
+    deployer = env.accounts[0];
+    alice = env.accounts[1];
+    bob = env.accounts[2];
+    deployerAddr = await deployer.getAddress();
+    aliceAddr = await alice.getAddress();
+    bobAddr = await bob.getAddress();
+    token = await compileAndDeploy(env, VOTES_SOURCE, "MyVotesToken", [INITIAL_SUPPLY]);
+  }, 60_000);
+
+  afterAll(async () => { await env?.server.close(); });
+
+  it("inherits ERC20 functionality", async () => {
+    expect(await token.contract.name()).toBe("VotesToken");
+    expect(await token.contract.symbol()).toBe("VT");
+    expect(await token.contract.totalSupply()).toBe(INITIAL_SUPPLY);
+    expect(await token.contract.balanceOf(deployerAddr)).toBe(INITIAL_SUPPLY);
+  });
+
+  it("starts with no delegates", async () => {
+    expect(await token.contract.delegates(deployerAddr)).toBe(ZERO_ADDRESS);
+  });
+
+  it("starts with zero votes", async () => {
+    expect(await token.contract.getVotes(deployerAddr)).toBe(0n);
+  });
+
+  it("self-delegation activates voting power", async () => {
+    await (await token.contract.delegate(deployerAddr)).wait();
+    expect(await token.contract.delegates(deployerAddr)).toBe(deployerAddr);
+    expect(await token.contract.getVotes(deployerAddr)).toBe(INITIAL_SUPPLY);
+  });
+
+  it("delegation to another transfers voting power", async () => {
+    await (await token.contract.delegate(aliceAddr)).wait();
+    expect(await token.contract.delegates(deployerAddr)).toBe(aliceAddr);
+    expect(await token.contract.getVotes(deployerAddr)).toBe(0n);
+    expect(await token.contract.getVotes(aliceAddr)).toBe(INITIAL_SUPPLY);
+  });
+
+  it("transfer moves delegate votes", async () => {
+    // deployer has delegated to alice, transfer some tokens to bob
+    // bob self-delegates first
+    const bobToken = connectAs(token, bob);
+    await (await bobToken.delegate(bobAddr)).wait();
+
+    const transferAmount = 100_000n;
+    await (await token.contract.transfer(bobAddr, transferAmount)).wait();
+
+    // alice's votes should decrease, bob's should increase
+    expect(await token.contract.getVotes(aliceAddr)).toBe(INITIAL_SUPPLY - transferAmount);
+    expect(await token.contract.getVotes(bobAddr)).toBe(transferAmount);
+  });
+
+  it("re-delegation moves votes correctly", async () => {
+    // bob re-delegates to alice
+    const bobToken = connectAs(token, bob);
+    const bobBalance = await token.contract.balanceOf(bobAddr);
+    const aliceVotesBefore = await token.contract.getVotes(aliceAddr);
+
+    await (await bobToken.delegate(aliceAddr)).wait();
+    expect(await token.contract.delegates(bobAddr)).toBe(aliceAddr);
+    expect(await token.contract.getVotes(bobAddr)).toBe(0n);
+    expect(await token.contract.getVotes(aliceAddr)).toBe(aliceVotesBefore + bobBalance);
+  });
+
+  it("transfer between accounts sharing a delegate does not change votes", async () => {
+    // deployer and bob both delegate to alice (bob already delegates to alice from previous test)
+    // deployer also delegates to alice
+    await (await token.contract.delegate(aliceAddr)).wait();
+    expect(await token.contract.delegates(deployerAddr)).toBe(aliceAddr);
+    expect(await token.contract.delegates(bobAddr)).toBe(aliceAddr);
+
+    const aliceVotesBefore = await token.contract.getVotes(aliceAddr);
+    const transferAmount = 10_000n;
+
+    // Transfer from deployer to bob — both share alice as delegate
+    await (await token.contract.transfer(bobAddr, transferAmount)).wait();
+
+    // Alice's votes should remain unchanged since from-delegate == to-delegate
+    expect(await token.contract.getVotes(aliceAddr)).toBe(aliceVotesBefore);
   });
 });
 

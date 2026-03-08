@@ -140,6 +140,26 @@ class Pair {
 
 The tuple return type `[number, number, number]` compiles to Solidity's multi-value return `returns (uint256, uint256, uint256)`, and the array literal `[a, b, c]` compiles to a Solidity tuple `(a, b, c)`.
 
+You can also destructure tuple return values directly:
+
+```typescript
+class Pair {
+  private reserve0: number = 0;
+  private reserve1: number = 0;
+
+  getReserves(): [number, number] {
+    return [this.reserve0, this.reserve1];
+  }
+
+  public getSum(): number {
+    const [r0, r1] = this.getReserves();
+    return r0 + r1;
+  }
+}
+```
+
+This compiles to Solidity's native tuple destructuring: `(uint256 r0, uint256 r1) = getReserves();`
+
 ## Getters and Setters
 
 TypeScript `get` and `set` accessors work as you'd expect:
@@ -208,3 +228,25 @@ const calculateFee = (amount: number, bps: number): number => {
 ```
 
 When shared across files, standalone functions are available to all contracts. See [Cross File Support](/guide/cross-file).
+
+## Type Guards
+
+TypeScript type guard functions using the `is` keyword are supported. The `is` annotation is stripped and the function compiles to a standard boolean-returning internal function:
+
+```typescript
+enum Status { Active, Paused, Stopped }
+
+function isActive(s: Status): s is Status.Active {
+  return s == Status.Active;
+}
+
+export class Vault {
+  status: Status;
+
+  public doAction(): void {
+    if (isActive(this.status)) {
+      // ...
+    }
+  }
+}
+```

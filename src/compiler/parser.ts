@@ -90,6 +90,7 @@ function isStringExpr(expr: Expression): boolean {
 
 const STRING_RETURNING_HELPERS = new Set([
   "_charAt", "_substring", "_toLowerCase", "_toUpperCase", "_trim",
+  "_replace", "_replaceAll",
 ]);
 
 const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
@@ -101,12 +102,14 @@ const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs:
   endsWith: { helper: "_endsWith", minArgs: 1, maxArgs: 1 },
   trim: { helper: "_trim", minArgs: 0, maxArgs: 0 },
   split: { helper: "_split", minArgs: 1, maxArgs: 1 },
+  replace: { helper: "_replace", minArgs: 2, maxArgs: 2 },
+  replaceAll: { helper: "_replaceAll", minArgs: 2, maxArgs: 2 },
 };
 
 const KNOWN_ARRAY_METHODS = new Set([
   "includes", "indexOf", "lastIndexOf", "at",
   "slice", "concat", "filter", "map", "forEach", "some", "every",
-  "find", "findIndex", "reduce", "remove", "reverse", "splice",
+  "find", "findIndex", "reduce", "remove", "reverse", "splice", "sort",
 ]);
 
 function describeExpectedArgs(method: string, argCount?: number): string {
@@ -119,6 +122,8 @@ function describeExpectedArgs(method: string, argCount?: number): string {
     endsWith: ["suffix"],
     trim: [],
     split: ["delimiter"],
+    replace: ["search", "replacement"],
+    replaceAll: ["search", "replacement"],
   };
   const args = allArgs[method] ?? [];
   if (argCount !== undefined) return args.slice(0, argCount).join(", ");
@@ -491,7 +496,8 @@ export function collectClassNames(source: string, filePath: string): string[] {
 function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,
-  varTypes: Map<string, SkittlesType>
+  varTypes: Map<string, SkittlesType>,
+  decl: ts.VariableDeclaration
 ): Statement[] {
   const statements: Statement[] = [];
 
@@ -530,6 +536,92 @@ function parseArrayDestructuring(
         statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
       }
     }
+  } else if (ts.isCallExpression(initializer)) {
+    // Tuple destructuring from function call: const [a, b] = this.getReserves()
+    let tupleType: SkittlesType | undefined;
+
+    // Check explicit type annotation first
+    if (decl.type) {
+      tupleType = parseType(decl.type);
+    }
+
+    // If no explicit type, try to resolve from a this.method() call
+    if (!tupleType) {
+      const callee = initializer.expression;
+      if (
+        ts.isPropertyAccessExpression(callee) &&
+        callee.expression.kind === ts.SyntaxKind.ThisKeyword
+      ) {
+        const methodName = callee.name.text;
+        const cls = findEnclosingClass(decl);
+        if (cls) {
+          const retTypeNode = findMethodReturnType(cls, methodName);
+          if (retTypeNode) {
+            tupleType = parseType(retTypeNode);
+          }
+        }
+      }
+    }
+
+    if (tupleType?.kind === ("tuple" as SkittlesTypeKind) && tupleType.tupleTypes) {
+      const tupleArity = tupleType.tupleTypes.length;
+      const names: (string | null)[] = [];
+      const types: (SkittlesType | null)[] = [];
+      for (let i = 0; i < pattern.elements.length; i++) {
+        const elem = pattern.elements[i];
+        if (i >= tupleArity) {
+          throw new Error(
+            "Tuple destructuring pattern has more elements than the function's tuple return type."
+          );
+        }
+        if (ts.isOmittedExpression(elem)) {
+          // Skipped element: const [, b] = f()
+          names.push(null);
+          types.push(tupleType.tupleTypes[i]);
+        } else if (
+          ts.isBindingElement(elem) &&
+          ts.isIdentifier(elem.name) &&
+          !elem.initializer &&
+          !elem.dotDotDotToken &&
+          !elem.propertyName
+        ) {
+          names.push(elem.name.text);
+          const t = tupleType.tupleTypes[i];
+          types.push(t);
+          varTypes.set(elem.name.text, t);
+        } else if (ts.isBindingElement(elem)) {
+          throw new Error(
+            "Unsupported tuple destructuring binding element in variable declaration. " +
+            "Nested patterns, default values in tuple destructuring (e.g. [a = 1]), and rest elements are not supported."
+          );
+        } else {
+          throw new Error(
+            "Unsupported element in tuple destructuring assignment. " +
+            "Only simple identifiers and omitted elements are supported in tuple destructuring patterns."
+          );
+        }
+      }
+      // Pad with null entries for trailing tuple positions not covered by the
+      // binding pattern, so Solidity gets the correct tuple arity on the LHS.
+      for (let i = pattern.elements.length; i < tupleArity; i++) {
+        names.push(null);
+        types.push(tupleType.tupleTypes[i]);
+      }
+      const initExpr = parseExpression(initializer);
+      return [{
+        kind: "tuple-destructuring" as const,
+        names,
+        types,
+        initializer: initExpr,
+      }];
+    }
+
+    // Unable to resolve tuple return type – emit a compile-time error rather than
+    // silently generating uninitialized locals with default Solidity values.
+    throw new Error(
+      "Unable to resolve tuple return type for call expression in destructuring assignment. " +
+      "Ensure the called function has an explicit tuple return type annotation."
+    );
   } else {
     // Fallback: parse as expression and hope for the best
     for (let i = 0; i < pattern.elements.length; i++) {
@@ -1192,6 +1284,7 @@ function parseClass(
     if (externalCalls.length === 0) continue;
 
     let allExternalAreViewLike = true;
+    let externalNeedsView = false;
     for (const { ifaceName, methodName } of externalCalls) {
       const iface = contractIfaceList.find(i => i.name === ifaceName);
       if (!iface) {
@@ -1206,14 +1299,18 @@ function parseClass(
         allExternalAreViewLike = false;
         break;
       }
+      if (ifaceMethod.stateMutability === "view") {
+        externalNeedsView = true;
+      }
     }
     if (!allExternalAreViewLike) continue;
 
     // All external calls are to explicitly view/pure methods, so the wrapper
-    // itself can safely be marked with the base mutability.
+    // itself can safely be marked with the base mutability (or at least view
+    // when any external call is view, e.g. for local interface variables).
     const baseMut = inferStateMutability(fn.body, varTypes, fn.parameters, true);
     if (baseMut === "view" || baseMut === "pure") {
-      fn.stateMutability = baseMut;
+      fn.stateMutability = (baseMut === "pure" && externalNeedsView) ? "view" : baseMut;
     }
   }
 
@@ -1391,7 +1488,8 @@ function parseMethod(
     : null;
   const visibility = getVisibility(node.modifiers);
   const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
   const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
@@ -1551,7 +1649,8 @@ function parseGetAccessor(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
   const stateMutability = inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
@@ -1572,7 +1671,8 @@ function parseSetAccessor(
   setupStringTracking(parameters, varTypes);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
   const stateMutability = inferStateMutability(body, varTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
@@ -1599,16 +1699,17 @@ function parseArrowProperty(
 
   const visibility = getVisibility(node.modifiers);
 
-  let body: Statement[] = [];
+  let rawBody: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      body = parseBlock(arrow.body, varTypes, eventNames);
+      rawBody = parseBlock(arrow.body, varTypes, eventNames);
     } else {
       // Expression body: `() => expr` treated as `() => { return expr; }`
-      body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
+      rawBody = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
   }
 
+  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
   const stateMutability = inferStateMutability(body, varTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1623,7 +1724,8 @@ function parseConstructorDecl(
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
   setupStringTracking(parameters, varTypes);
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
@@ -1644,6 +1746,17 @@ function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
 // ============================================================
 
 export function parseType(node: ts.TypeNode): SkittlesType {
+  if (ts.isTypePredicateNode(node)) {
+    if (node.assertsModifier) {
+      throw new Error(
+        "Skittles does not support 'asserts' type predicates (e.g. 'asserts x is T' or 'asserts condition'). " +
+          "These are not boolean-returning in TypeScript and cannot be compiled. " +
+          "Please remove the 'asserts' modifier or refactor this function."
+      );
+    }
+    return { kind: "bool" as SkittlesTypeKind };
+  }
+
   if (ts.isTypeReferenceNode(node)) {
     const name = ts.isIdentifier(node.typeName)
       ? node.typeName.text
@@ -2044,14 +2157,25 @@ export function parseExpression(node: ts.Expression): Expression {
         };
       }
 
-      // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce
-      if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce"].includes(methodName) && node.arguments.length >= 1) {
+      // sort with no arguments: dedicated error
+      if (methodName === "sort" && node.arguments.length === 0) {
+        throw new Error("Array .sort() requires a comparator callback: .sort((a, b) => a - b).");
+      }
+
+      // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce, sort
+      if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce", "sort"].includes(methodName) && node.arguments.length >= 1) {
         const maxArity = methodName === "reduce" ? 2 : 1;
         if (node.arguments.length > maxArity) {
           throw new Error(`Array .${methodName}() accepts at most ${maxArity} argument(s), but ${node.arguments.length} were provided.`);
         }
+        const sortParamType =
+          methodName === "sort" && elementType?.kind === ("uint256" as SkittlesTypeKind)
+            ? INT256_TYPE
+            : elementType;
         const callbackParamTypes = methodName === "reduce"
           ? { first: undefined, second: elementType }
+          : methodName === "sort"
+          ? { first: sortParamType, second: sortParamType }
           : { first: elementType };
         const callback = parseArrowCallback(node.arguments[0], callbackParamTypes);
         if (!callback) {
@@ -2122,6 +2246,41 @@ export function parseExpression(node: ts.Expression): Expression {
             const initialValue = parseExpression(node.arguments[1]);
             const accType = inferType(initialValue, _currentVarTypes);
             const helper = generateReduceHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr!, initialValue, accType);
+            _generatedArrayFunctions.push(helper);
+            return mkHelperCall(helper.name);
+          }
+
+          // sort: in-place insertion sort using comparator (statement-only like reverse)
+          if (methodName === "sort" && condExpr) {
+            if (!callback.secondParamName) throw new Error("Array .sort() callback must have two parameters: (a, b) => expression.");
+            if (callback.paramName === callback.secondParamName) {
+              throw new Error("Array .sort() callback parameters must have distinct names, e.g. (a, b) => expression. Using the same identifier for both parameters would generate invalid Solidity.");
+            }
+            if (node.parent && !ts.isExpressionStatement(node.parent)) {
+              throw new Error("Array .sort() modifies the array in place and does not return a value. Use it as a standalone statement.");
+            }
+            const sortElemKind = elementType?.kind as string | undefined;
+            if (sortElemKind && sortElemKind !== "uint256" && sortElemKind !== "int256") {
+              throw new Error(`Array .sort() is only supported on number[] (uint256) and int256[] arrays. Got ${typeSuffix}[] instead.`);
+            }
+            // Validate comparator return type: must be an integer, not a boolean.
+            // The generated helper compares the result to 0 (comparatorExpr > 0),
+            // so a boolean comparator like (a, b) => a > b would produce invalid Solidity.
+            const comparatorEnv = new Map(_currentVarTypes);
+            const comparatorParamTypeForInfer = sortParamType ?? elementType;
+            if (comparatorParamTypeForInfer) {
+              comparatorEnv.set(callback.paramName, comparatorParamTypeForInfer);
+              if (callback.secondParamName) comparatorEnv.set(callback.secondParamName, comparatorParamTypeForInfer);
+            }
+            const comparatorType = inferType(condExpr, comparatorEnv);
+            const comparatorKind = comparatorType?.kind as string | undefined;
+            if (comparatorKind === "bool") {
+              throw new Error("Array .sort() comparator must return a signed or unsigned integer (e.g. (a, b) => a - b), not a boolean expression like (a, b) => a > b.");
+            }
+            if (comparatorKind && comparatorKind !== "uint256" && comparatorKind !== "int256") {
+              throw new Error(`Array .sort() comparator must return an int256 or uint256. Got ${comparatorKind} instead.`);
+            }
+            const helper = generateSortHelper(receiverExpr, elementType, callback.paramName, callback.secondParamName, condExpr);
             _generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -2871,7 +3030,7 @@ function parseStatements(
     // Array destructuring: const [a, b, c] = [7, 8, 9]
     const decl = node.declarationList.declarations[0];
     if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
-      return parseArrayDestructuring(decl.name, decl.initializer, varTypes);
+      return parseArrayDestructuring(decl.name, decl.initializer, varTypes, decl);
     }
 
     // Object destructuring: const { a, b } = { a: 1, b: 2 }
@@ -3045,6 +3204,9 @@ function walkStatements(
       case "variable-declaration":
         if (stmt.initializer) walkExpr(stmt.initializer);
         break;
+      case "tuple-destructuring":
+        walkExpr(stmt.initializer);
+        break;
       case "expression":
         walkExpr(stmt.expression);
         break;
@@ -3162,6 +3324,145 @@ function collectExternalInterfaceCalls(
 
 function inferAbstractStateMutability(): StateMutability {
   return "nonpayable";
+}
+
+// ============================================================
+// Rewrite interface property getters into call expressions
+// ============================================================
+
+/**
+ * Walk a function body and convert property accesses on contract-interface
+ * typed variables into zero-argument call expressions.
+ *
+ * Example:  `this.token.name`  →  `this.token.name()`
+ *
+ * This ensures codegen emits the required `()` in Solidity (interface
+ * property getters are functions) and that mutability inference recognises
+ * these as external contract calls.
+ */
+function rewriteInterfacePropertyGetters(
+  body: Statement[],
+  varTypes: Map<string, SkittlesType>,
+  params?: SkittlesParameter[]
+): Statement[] {
+  const localVarTypes = new Map<string, SkittlesType>();
+  if (params) {
+    for (const p of params) {
+      localVarTypes.set(p.name, p.type);
+    }
+  }
+
+  function isInterfacePropAccess(expr: Expression): boolean {
+    if (expr.kind !== "property-access") return false;
+
+    // Pattern A: this.<stateVar>.<property>
+    if (
+      expr.object.kind === "property-access" &&
+      expr.object.object.kind === "identifier" &&
+      expr.object.object.name === "this"
+    ) {
+      const propType = varTypes.get(expr.object.property);
+      if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
+        const iface = _knownContractInterfaceMap.get(propType.structName);
+        if (iface && iface.functions.some(f => f.name === expr.property)) return true;
+      }
+    }
+
+    // Pattern B: <localVar>.<property>
+    if (
+      expr.object.kind === "identifier" &&
+      expr.object.name !== "this"
+    ) {
+      const varType = localVarTypes.get(expr.object.name) ?? varTypes.get(expr.object.name);
+      if (varType && varType.kind === ("contract-interface" as SkittlesTypeKind) && varType.structName) {
+        const iface = _knownContractInterfaceMap.get(varType.structName);
+        if (iface && iface.functions.some(f => f.name === expr.property)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  function transformExpr(expr: Expression, isCallCallee: boolean): Expression {
+    switch (expr.kind) {
+      case "call": {
+        let callee = expr.callee;
+        if (callee.kind === "property-access") {
+          // Don't transform the callee itself (it's already in call position),
+          // but do transform its sub-expressions.
+          callee = { ...callee, object: transformExpr(callee.object, false) };
+        } else {
+          callee = transformExpr(callee, true);
+        }
+        return { ...expr, callee, args: expr.args.map(a => transformExpr(a, false)) };
+      }
+      case "property-access": {
+        const newExpr: Expression = { ...expr, object: transformExpr(expr.object, false) };
+        if (!isCallCallee && isInterfacePropAccess(newExpr)) {
+          return { kind: "call", callee: newExpr, args: [] } as Expression;
+        }
+        return newExpr;
+      }
+      case "binary":
+        return { ...expr, left: transformExpr(expr.left, false), right: transformExpr(expr.right, false) };
+      case "unary":
+        return { ...expr, operand: transformExpr(expr.operand, false) };
+      case "assignment":
+        return { ...expr, target: transformExpr(expr.target, false), value: transformExpr(expr.value, false) };
+      case "conditional":
+        return { ...expr, condition: transformExpr(expr.condition, false), whenTrue: transformExpr(expr.whenTrue, false), whenFalse: transformExpr(expr.whenFalse, false) };
+      case "element-access":
+        return { ...expr, object: transformExpr(expr.object, false), index: transformExpr(expr.index, false) };
+      case "new":
+        return { ...expr, args: expr.args.map(a => transformExpr(a, false)) };
+      case "object-literal":
+        return { ...expr, properties: expr.properties.map(p => ({ ...p, value: transformExpr(p.value, false) })) };
+      case "tuple-literal":
+        return { ...expr, elements: expr.elements.map(e => transformExpr(e, false)) };
+      default:
+        return expr;
+    }
+  }
+
+  function transformStmt(stmt: Statement): Statement {
+    switch (stmt.kind) {
+      case "return":
+        return { ...stmt, value: stmt.value ? transformExpr(stmt.value, false) : undefined };
+      case "variable-declaration": {
+        const transformed = { ...stmt, initializer: stmt.initializer ? transformExpr(stmt.initializer, false) : undefined };
+        if (stmt.type && stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
+          localVarTypes.set(stmt.name, stmt.type);
+        }
+        return transformed;
+      }
+      case "expression":
+        return { ...stmt, expression: transformExpr(stmt.expression, false) };
+      case "if":
+        return { ...stmt, condition: transformExpr(stmt.condition, false), thenBody: stmt.thenBody.map(transformStmt), elseBody: stmt.elseBody?.map(transformStmt) };
+      case "for":
+        return { ...stmt, initializer: stmt.initializer ? transformStmt(stmt.initializer) as any : undefined, condition: stmt.condition ? transformExpr(stmt.condition, false) : undefined, incrementor: stmt.incrementor ? transformExpr(stmt.incrementor, false) : undefined, body: stmt.body.map(transformStmt) };
+      case "while":
+        return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
+      case "do-while":
+        return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
+      case "revert":
+        return { ...stmt, message: stmt.message ? transformExpr(stmt.message, false) : undefined, customErrorArgs: stmt.customErrorArgs?.map(a => transformExpr(a, false)) };
+      case "emit":
+        return { ...stmt, args: stmt.args.map(a => transformExpr(a, false)) };
+      case "delete":
+        return { ...stmt, target: transformExpr(stmt.target, false) };
+      case "try-catch":
+        return { ...stmt, call: transformExpr(stmt.call, false), successBody: stmt.successBody.map(transformStmt), catchBody: stmt.catchBody.map(transformStmt) };
+      case "switch":
+        return { ...stmt, discriminant: transformExpr(stmt.discriminant, false), cases: stmt.cases.map(c => ({ ...c, body: c.body.map(transformStmt), value: c.value ? transformExpr(c.value, false) : undefined })) };
+      case "console-log":
+        return { ...stmt, args: stmt.args.map(a => transformExpr(a, false)) };
+      default:
+        return stmt;
+    }
+  }
+
+  return body.map(transformStmt);
 }
 
 export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>, params?: SkittlesParameter[], skipExternalCalls?: boolean): "pure" | "view" | "nonpayable" | "payable" {
@@ -3457,7 +3758,7 @@ export function inferType(
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
     case "conditional":
-      return inferType(expr.whenTrue, varTypes) || inferType(expr.whenFalse, varTypes);
+      return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
         // address(...) cast returns address type
@@ -3711,6 +4012,7 @@ function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): 
   return { kind: "if", condition: cond, thenBody, elseBody };
 }
 const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
+const INT256_TYPE: SkittlesType = { kind: "int256" as SkittlesTypeKind };
 const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
 
 const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
@@ -3749,6 +4051,7 @@ function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string> {
       case "expression": walkExpr(s.expression); break;
       case "return": if (s.value) walkExpr(s.value); break;
       case "variable-declaration": if (s.initializer) walkExpr(s.initializer); break;
+      case "tuple-destructuring": walkExpr(s.initializer); break;
       case "if": walkExpr(s.condition); walkStmts(s.thenBody); if (s.elseBody) walkStmts(s.elseBody); break;
       case "for": {
         if (s.initializer) walkStmt(s.initializer);
@@ -3964,6 +4267,77 @@ function generateReduceHelper(
     mkReturn(mkId("__sk_acc")),
   ];
   return { name: helperName, parameters: [], returnType, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
+}
+
+function generateSortHelper(
+  arrayExpr: Expression,
+  elementType: SkittlesType | undefined,
+  paramA: string,
+  paramB: string,
+  comparatorExpr: Expression
+): SkittlesFunction {
+  const helperName = `_sort_${_arrayMethodCounter++}`;
+  const elemType = elementType ?? UINT256_TYPE;
+  const isAlreadySigned = elemType.kind === ("int256" as SkittlesTypeKind);
+  const comparatorParamType = isAlreadySigned ? elemType : INT256_TYPE;
+  // int256 cast helper: int256(expr) — only needed for uint256 elements
+  const mkMaybeCast = (e: Expression): Expression =>
+    isAlreadySigned ? e : {
+      kind: "call" as const,
+      callee: { kind: "identifier" as const, name: "int256" },
+      args: [e],
+    };
+  // Insertion sort with comparator:
+  //   uint256 __sk_len = arr.length;
+  //   for (uint256 __sk_i = 1; __sk_i < __sk_len; __sk_i++) {
+  //     <elemType> __sk_key = arr[__sk_i];
+  //     uint256 __sk_j = __sk_i;
+  //     while (__sk_j > 0) {
+  //       <paramType> <paramA> = <cast?>(arr[__sk_j - 1]);
+  //       <paramType> <paramB> = <cast?>(__sk_key);
+  //       if (!(comparatorExpr > 0)) { break; }
+  //       arr[__sk_j] = arr[__sk_j - 1];
+  //       __sk_j--;
+  //     }
+  //     arr[__sk_j] = __sk_key;
+  //   }
+  //
+  // For uint256 arrays, comparator params are cast to int256 so that
+  // subtraction patterns like (a, b) => a - b work without reverting on
+  // underflow. This cast is only safe and order-preserving for values
+  // <= type(int256).max (i.e., < 2^255); sorting arrays that may contain
+  // larger uint256 values can still revert at the cast step, regardless
+  // of whether the comparator uses subtraction or comparisons.
+  // For int256 arrays, params are used directly with no cast.
+  const body: Statement[] = [
+    mkVarDecl("__sk_len", UINT256_TYPE, mkProp(arrayExpr, "length")),
+    {
+      kind: "for",
+      initializer: { kind: "variable-declaration", name: "__sk_i", type: UINT256_TYPE, initializer: mkNum("1") },
+      condition: mkBin(mkId("__sk_i"), "<", mkId("__sk_len")),
+      incrementor: mkIncr("__sk_i"),
+      body: [
+        mkVarDecl("__sk_key", elemType, mkElem(arrayExpr, mkId("__sk_i"))),
+        mkVarDecl("__sk_j", UINT256_TYPE, mkId("__sk_i")),
+        {
+          kind: "while" as const,
+          condition: mkBin(mkId("__sk_j"), ">", mkNum("0")),
+          body: [
+            mkVarDecl(paramA, comparatorParamType, mkMaybeCast(mkElem(arrayExpr, mkBin(mkId("__sk_j"), "-", mkNum("1"))))),
+            mkVarDecl(paramB, comparatorParamType, mkMaybeCast(mkId("__sk_key"))),
+            mkIf(
+              { kind: "unary", operator: "!", operand: mkBin(comparatorExpr, ">", mkNum("0")), prefix: true },
+              [{ kind: "break" as const }]
+            ),
+            mkExprStmt(mkAssign(mkElem(arrayExpr, mkId("__sk_j")), mkElem(arrayExpr, mkBin(mkId("__sk_j"), "-", mkNum("1"))))),
+            mkExprStmt(mkDecr("__sk_j")),
+          ],
+        },
+        mkExprStmt(mkAssign(mkElem(arrayExpr, mkId("__sk_j")), mkId("__sk_key"))),
+      ],
+    },
+  ];
+  return { name: helperName, parameters: [], returnType: null, visibility: "private", stateMutability: inferStateMutability(body, _currentVarTypes), isVirtual: false, isOverride: false, body };
 }
 
 /**

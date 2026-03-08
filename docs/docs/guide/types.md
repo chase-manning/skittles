@@ -76,6 +76,14 @@ class StringExample {
   public tokenize(csv: string): string[] {
     return csv.split(",");
   }
+
+  public sanitize(input: string): string {
+    return input.replaceAll(" ", "_");
+  }
+
+  public replaceFirst(text: string, from: string, to: string): string {
+    return text.replace(from, to);
+  }
 }
 ```
 
@@ -97,6 +105,8 @@ public getUpperInitial(name: string): string {
 | `str.endsWith(suffix)` | Check if string ends with suffix | `boolean` |
 | `str.trim()` | Remove leading/trailing spaces | `string` |
 | `str.split(delimiter)` | Split string by delimiter | `string[]` |
+| `str.replace(search, replacement)` | Replace first occurrence | `string` |
+| `str.replaceAll(search, replacement)` | Replace all occurrences | `string` |
 
 :::note
 String methods compile to internal helper functions that operate on bytes and are **not** full JavaScript/TypeScript implementations:
@@ -106,6 +116,7 @@ String methods compile to internal helper functions that operate on bytes and ar
 - `substring(start)` without `end` is supported and defaults to the end of the string.
 - Only the simple overloads shown above are supported: `startsWith(prefix)` and `endsWith(suffix)` without a position argument.
 - `split(delimiter)` requires a non-empty delimiter. Using `split("")` (empty string) will revert.
+- `replace(search, replacement)` and `replaceAll(search, replacement)` require a non-empty search string. Using an empty search string will revert. If the search string is not found, the original string is returned unchanged.
 - `trim()` only removes ASCII space characters (code point 32) from the start and end of the string; it does not remove other whitespace characters.
 :::
 
@@ -231,6 +242,7 @@ this.owners.pop();                // remove last element
 this.owners.remove(addr);        // remove first occurrence (swap-and-pop)
 this.owners.splice(1, 2);        // remove 2 elements starting at index 1
 this.owners.reverse();            // reverse array in place
+this.values.sort((a, b) => a - b); // sort ascending with comparator
 ```
 
 ### Searching
@@ -343,6 +355,7 @@ for (const owner of this.owners) {
 | `remove(value)` | `boolean` | Yes | Remove first occurrence (swap-and-pop) |
 | `splice(start, count)` | — | Yes | Remove elements at index |
 | `reverse()` | — | Yes | Reverse in place |
+| `sort(fn)` | — | Yes | Sort in place with comparator |
 | `includes(value)` | `boolean` | No | Check if value exists |
 | `indexOf(value)` | `number` | No | First index of value |
 | `lastIndexOf(value)` | `number` | No | Last index of value |
@@ -366,6 +379,7 @@ for (const owner of this.owners) {
 - `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
 - `at(index)` **reverts** on out-of-bounds access (unlike JavaScript which returns `undefined`). Negative literal indices (e.g., `at(-1)`) are supported and desugared at compile time, but negative non-literal indices are not supported.
 - `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
+- `sort(fn)` uses **insertion sort** (O(n²) gas cost), is only supported on `number[]` (uint256) and `int256[]` arrays, and must be used as a standalone statement. For `number[]` arrays, comparator parameters are cast to `int256` internally so subtraction patterns like `(a, b) => a - b` work without reverting on underflow. This cast is safe for values in the range `0` to `2^255 - 1`; sorting arrays containing values `>= 2^255` will revert at the cast step. Best suited for small arrays.
 - Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
 - All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
 :::

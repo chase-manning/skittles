@@ -1915,6 +1915,74 @@ describe("integration: string methods", () => {
     expect(solidity).toContain("function _split(string memory str, string memory delimiter)");
   });
 
+  it("should compile replace on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public replaceFirst(text: string, from: string, to: string): string {
+          return text.replace(from, to);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("_replace(text, from, to)");
+    expect(solidity).toContain("function _replace(string memory str, string memory search, string memory replacement)");
+    expect(solidity).toContain("require(searchBytes.length > 0)");
+  });
+
+  it("should compile replaceAll on parameter", () => {
+    const { errors, solidity } = compileTS(`
+      class StringMethods {
+        public sanitize(input: string): string {
+          return input.replaceAll(" ", "_");
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('_replaceAll(input, " ", "_")');
+    expect(solidity).toContain("function _replaceAll(string memory str, string memory search, string memory replacement)");
+    expect(solidity).toContain("require(searchBytes.length > 0)");
+  });
+
+  it("should validate replace arity with too few arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public replaceFirst(text: string): string {
+          return text.replace("a");
+        }
+      }
+    `, "test.ts")).toThrow(/replace.*requires at least 2 argument/);
+  });
+
+  it("should validate replace arity with too many arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public replaceFirst(text: string): string {
+          return text.replace("a", "b", "c");
+        }
+      }
+    `, "test.ts")).toThrow(/replace.*accepts at most 2 argument/);
+  });
+
+  it("should validate replaceAll arity with too few arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public sanitize(input: string): string {
+          return input.replaceAll(" ");
+        }
+      }
+    `, "test.ts")).toThrow(/replaceAll.*requires at least 2 argument/);
+  });
+
+  it("should validate replaceAll arity with too many arguments", () => {
+    expect(() => parse(`
+      class StringMethods {
+        public sanitize(input: string): string {
+          return input.replaceAll(" ", "_", "extra");
+        }
+      }
+    `, "test.ts")).toThrow(/replaceAll.*accepts at most 2 argument/);
+  });
+
   it("should compile chained string methods", () => {
     const { errors, solidity } = compileTS(`
       class StringMethods {
@@ -1956,6 +2024,8 @@ describe("integration: string methods", () => {
     expect(solidity).not.toContain("function _endsWith(");
     expect(solidity).not.toContain("function _trim(");
     expect(solidity).not.toContain("function _split(");
+    expect(solidity).not.toContain("function _replace(");
+    expect(solidity).not.toContain("function _replaceAll(");
   });
 
   it("should infer string type from charAt result", () => {
@@ -2207,6 +2277,46 @@ describe("integration: enums", () => {
     expect(solidity).toContain("enum Status { Pending, Active, Closed }");
     expect(solidity).toContain("Status public status;");
     expect(solidity).toContain("returns (Status)");
+  });
+
+  it("should compile 'is' type guard functions as bool-returning helpers", () => {
+    const { errors, solidity } = compileTS(`
+      enum Status { Active, Paused, Stopped }
+
+      function isActive(s: Status): s is Status.Active {
+        return s == Status.Active;
+      }
+
+      export class Vault {
+        status: Status;
+
+        public doAction(): void {
+          if (isActive(this.status)) {
+            this.status = Status.Paused;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function isActive(Status s) internal pure returns (bool)");
+  });
+
+  it("should reject 'asserts' type predicates with a clear error", () => {
+    expect(() =>
+      compileTS(`
+        function assertIsPositive(value: number): asserts value {
+          if (value <= 0) {
+            throw new Error("Not positive");
+          }
+        }
+
+        export class Validator {
+          public check(v: number): void {
+            assertIsPositive(v);
+          }
+        }
+      `)
+    ).toThrow("Skittles does not support 'asserts' type predicates");
   });
 });
 
@@ -3938,6 +4048,162 @@ describe("integration: object destructuring", () => {
 });
 
 // ============================================================
+// Tuple destructuring from function return values
+// ============================================================
+
+describe("integration: tuple destructuring", () => {
+  it("should compile const [a, b] = this.getReserves() as tuple destructuring", () => {
+    const { errors, solidity } = compileTS(`
+      class Pair {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+
+        getReserves(): [number, number] {
+          return [this.reserve0, this.reserve1];
+        }
+
+        public getSum(): number {
+          const [r0, r1] = this.getReserves();
+          return r0 + r1;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 r0, uint256 r1) = getReserves();");
+    expect(solidity).toContain("return (r0 + r1);");
+  });
+
+  it("should compile tuple destructuring with mixed types", () => {
+    const { errors, solidity } = compileTS(`
+      class Test {
+        private value: number = 0;
+        private flag: boolean = false;
+
+        getInfo(): [number, boolean] {
+          return [this.value, this.flag];
+        }
+
+        public check(): number {
+          const [v, f] = this.getInfo();
+          if (f) {
+            return v;
+          }
+          return 0;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 v, bool f) = getInfo();");
+  });
+
+  it("should compile tuple destructuring with three return values", () => {
+    const { errors, solidity } = compileTS(`
+      class Pool {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+        private totalSupply: number = 0;
+
+        getState(): [number, number, number] {
+          return [this.reserve0, this.reserve1, this.totalSupply];
+        }
+
+        public computeShare(): number {
+          const [r0, r1, supply] = this.getState();
+          return r0 + r1 + supply;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 r0, uint256 r1, uint256 supply) = getState();");
+  });
+
+  it("should compile tuple destructuring with skipped elements", () => {
+    const { errors, solidity } = compileTS(`
+      class Pair {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+
+        getReserves(): [number, number] {
+          return [this.reserve0, this.reserve1];
+        }
+
+        public getSecond(): number {
+          const [, r1] = this.getReserves();
+          return r1;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(, uint256 r1) = getReserves();");
+  });
+
+  it("should error when tuple type cannot be resolved for call destructuring", () => {
+    expect(() => {
+      compileTS(`
+        class Test {
+          public doSomething(): number {
+            const [a, b] = unknownFunc();
+            return a + b;
+          }
+        }
+      `);
+    }).toThrow("Unable to resolve tuple return type");
+  });
+
+  it("should error when destructuring has more elements than tuple arity", () => {
+    expect(() => {
+      compileTS(`
+        class Test {
+          getTwo(): [number, number] {
+            return [1, 2];
+          }
+          public doSomething(): number {
+            const [a, b, c] = this.getTwo();
+            return a + b + c;
+          }
+        }
+      `);
+    }).toThrow("more elements than the function's tuple return type");
+  });
+
+  it("should error on unsupported binding elements in tuple destructuring", () => {
+    expect(() => {
+      compileTS(`
+        class Test {
+          getTwo(): [number, number] {
+            return [1, 2];
+          }
+          public doSomething(): number {
+            const [a = 1, b] = this.getTwo();
+            return a + b;
+          }
+        }
+      `);
+    }).toThrow("Unsupported tuple destructuring binding element");
+  });
+
+  it("should compile tuple destructuring with fewer bindings than elements", () => {
+    const { errors, solidity } = compileTS(`
+      class Pair {
+        private reserve0: number = 0;
+        private reserve1: number = 0;
+
+        getReserves(): [number, number] {
+          return [this.reserve0, this.reserve1];
+        }
+
+        public getFirst(): number {
+          const [r0] = this.getReserves();
+          return r0;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(uint256 r0, ) = getReserves()");
+  });
+});
+
+// ============================================================
 // Cross file function imports
 // ============================================================
 
@@ -5238,6 +5504,154 @@ describe("integration: external contract calls", () => {
     const result = compileSolidity("Checker", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should compile interface property access as getter call on state variable", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+        totalSupply: number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Vault {
+        private token: IToken;
+
+        constructor(tokenAddr: address) {
+          this.token = Contract<IToken>(tokenAddr);
+        }
+
+        public getTokenName(): string {
+          return this.token.name;
+        }
+
+        public getSupply(): number {
+          return this.token.totalSupply;
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Vault.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // Property access should be compiled to function calls
+    expect(solidity).toContain("return token.name();");
+    expect(solidity).toContain("return token.totalSupply();");
+
+    // Interface should have view getters
+    expect(solidity).toContain("function name() external view returns (string memory);");
+    expect(solidity).toContain("function totalSupply() external view returns (uint256);");
+
+    // Functions should be inferred as view
+    const getTokenNameFn = contracts[0].functions.find(f => f.name === "getTokenName");
+    expect(getTokenNameFn).toBeDefined();
+    expect(getTokenNameFn!.stateMutability).toBe("view");
+
+    const getSupplyFn = contracts[0].functions.find(f => f.name === "getSupply");
+    expect(getSupplyFn).toBeDefined();
+    expect(getSupplyFn!.stateMutability).toBe("view");
+
+    const result = compileSolidity("Vault", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile interface property access as getter call on local variable", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Reader {
+        public readName(tokenAddr: address): string {
+          let token: IToken = Contract<IToken>(tokenAddr);
+          return token.name;
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Reader.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("return token.name();");
+
+    const readNameFn = contracts[0].functions.find(f => f.name === "readName");
+    expect(readNameFn).toBeDefined();
+    expect(readNameFn!.stateMutability).toBe("view");
+
+    const result = compileSolidity("Reader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should not transform property access when already used as method call", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+        balanceOf(account: address): number;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Reader {
+        private token: IToken;
+
+        constructor(tokenAddr: address) {
+          this.token = Contract<IToken>(tokenAddr);
+        }
+
+        public getTokenName(): string {
+          return this.token.name();
+        }
+
+        public getBalance(account: address): number {
+          return this.token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Reader.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // Method call syntax should still work (no double parentheses)
+    expect(solidity).toContain("return token.name();");
+    expect(solidity).toContain("return token.balanceOf(account);");
+
+    const result = compileSolidity("Reader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should compile interface property access on function parameter", () => {
+    const interfaceSrc = `
+      interface IToken {
+        name: string;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(interfaceSrc, "IToken.ts");
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Helper {
+        public getName(token: IToken): string {
+          return token.name;
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Helper.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    expect(solidity).toContain("return token.name();");
+
+    const result = compileSolidity("Helper", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 describe("integration: ETH transfers", () => {
@@ -5904,6 +6318,64 @@ describe("integration: spread operator", () => {
         }
       `)
     ).toThrow("Array spread does not support mixing spread and non-spread elements");
+  });
+});
+
+// ============================================================
+// Array sort
+// ============================================================
+
+describe("integration: array sort", () => {
+  it("should throw on boolean comparator for .sort()", () => {
+    expect(() =>
+      parse(`
+        class SortTest {
+          values: number[] = [];
+          public sortValues(): void {
+            this.values.sort((a, b) => a > b);
+          }
+        }
+      `, "test.ts")
+    ).toThrow(/sort\(\) comparator must return a signed or unsigned integer/);
+  });
+
+  it("should compile .sort() with subtraction comparator", () => {
+    const { solidity } = compileTS(`
+      class SortTest {
+        values: number[] = [];
+        public sortAscending(): void {
+          this.values.sort((a, b) => a - b);
+        }
+      }
+    `);
+    expect(solidity).toContain("function _sort_");
+    expect(solidity).toContain("int256");
+  });
+
+  it("should accept ternary numeric comparator for .sort()", () => {
+    expect(() =>
+      parse(`
+        class SortTest {
+          values: number[] = [];
+          public sortValues(): void {
+            this.values.sort((a, b) => a > b ? 1 : 0);
+          }
+        }
+      `, "test.ts")
+    ).not.toThrow();
+  });
+
+  it("should throw on .sort() with no arguments", () => {
+    expect(() =>
+      parse(`
+        class SortTest {
+          values: number[] = [];
+          public sortValues(): void {
+            this.values.sort();
+          }
+        }
+      `, "test.ts")
+    ).toThrow(/sort\(\) requires a comparator callback/);
   });
 });
 

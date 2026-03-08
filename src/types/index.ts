@@ -154,6 +154,7 @@ export type StateMutability = "pure" | "view" | "nonpayable" | "payable";
 export type Statement =
   | ReturnStatement
   | VariableDeclarationStatement
+  | TupleDestructuringStatement
   | ExpressionStatement
   | IfStatement
   | ForStatement
@@ -179,6 +180,14 @@ export interface VariableDeclarationStatement {
   name: string;
   type?: SkittlesType;
   initializer?: Expression;
+  sourceLine?: number;
+}
+
+export interface TupleDestructuringStatement {
+  kind: "tuple-destructuring";
+  names: (string | null)[];
+  types: (SkittlesType | null)[];
+  initializer: Expression;
   sourceLine?: number;
 }
 
