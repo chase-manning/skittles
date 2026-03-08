@@ -2568,6 +2568,11 @@ export function parseStatement(
   if (ts.isVariableStatement(node)) {
     const decl = node.declarationList.declarations[0];
     const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+
+    if (name.startsWith("__sk_")) {
+      throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+    }
+
     const explicitType = decl.type ? parseType(decl.type) : undefined;
     const initializer = decl.initializer
       ? parseExpression(decl.initializer)
@@ -2578,11 +2583,14 @@ export function parseStatement(
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
     }
-    // Track local variable type for template literal inference.
-    // Always record the local's type so that shadowing locals are correctly typed
-    // for plain identifier lookups. State-var types for `this.<prop>` are resolved
-    // from the dedicated _stateVarTypes map, so overwriting here is safe.
-    if (type) {
+    // Track local variable type for template literal inference without
+    // overwriting existing entries (e.g. state variable types). Other parser
+    // passes (mutability inference, interface getter detection) rely on
+    // varTypes for `this.<stateVar>` resolution, so we must not clobber
+    // state-var entries. Template literals resolve `this.<prop>` from the
+    // dedicated _stateVarTypes map, and string locals are tracked in
+    // _currentStringNames, so shadowing is handled correctly.
+    if (type && !varTypes.has(name)) {
       varTypes.set(name, type);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
@@ -2973,6 +2981,11 @@ function parseStatements(
       const sl = getSourceLine(node);
       return node.declarationList.declarations.map((decl) => {
         const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+
+        if (name.startsWith("__sk_")) {
+          throw new Error(`Variable name '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+        }
+
         const explicitType = decl.type ? parseType(decl.type) : undefined;
         const initializer = decl.initializer
           ? parseExpression(decl.initializer)
@@ -2982,11 +2995,10 @@ function parseStatements(
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
         }
-        // Track local variable type for template literal inference.
-        // Always record the local's type so that shadowing locals are correctly typed
-        // for plain identifier lookups. State-var types for `this.<prop>` are resolved
-        // from the dedicated _stateVarTypes map, so overwriting here is safe.
-        if (type) {
+        // Do not overwrite existing entries (e.g., state-variable types) so that
+        // other parser passes that consult varTypes for `this.<stateVar>` resolution
+        // continue to work correctly.
+        if (type && !varTypes.has(name)) {
           varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
