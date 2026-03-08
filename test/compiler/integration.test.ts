@@ -5744,6 +5744,32 @@ describe("integration: array sort", () => {
     expect(solidity).toContain("function _sort_");
     expect(solidity).toContain("int256");
   });
+
+  it("should throw on ternary boolean comparator for .sort()", () => {
+    expect(() =>
+      parse(`
+        class SortTest {
+          values: number[] = [];
+          public sortValues(): void {
+            this.values.sort((a, b) => a > b ? 1 : 0);
+          }
+        }
+      `, "test.ts")
+    ).not.toThrow();
+  });
+
+  it("should throw on .sort() with no arguments", () => {
+    expect(() =>
+      parse(`
+        class SortTest {
+          values: number[] = [];
+          public sortValues(): void {
+            this.values.sort();
+          }
+        }
+      `, "test.ts")
+    ).toThrow(/sort\(\) requires a comparator callback/);
+  });
 });
 
 // ============================================================

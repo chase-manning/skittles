@@ -2044,6 +2044,11 @@ export function parseExpression(node: ts.Expression): Expression {
         };
       }
 
+      // sort with no arguments: dedicated error
+      if (methodName === "sort" && node.arguments.length === 0) {
+        throw new Error("Array .sort() requires a comparator callback: .sort((a, b) => a - b).");
+      }
+
       // Callback-based methods: filter, map, forEach, some, every, find, findIndex, reduce, sort
       if (["filter", "map", "forEach", "some", "every", "find", "findIndex", "reduce", "sort"].includes(methodName) && node.arguments.length >= 1) {
         const maxArity = methodName === "reduce" ? 2 : 1;
@@ -3452,6 +3457,8 @@ export function inferType(
       if (expr.operator === "!")
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
+    case "conditional":
+      return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
         if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
