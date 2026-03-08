@@ -33,6 +33,10 @@ let _currentVarTypes: Map<string, SkittlesType> = new Map();
 let _currentStringNames: Set<string> = new Set();
 let _currentEventNames: Set<string> = new Set();
 
+// Original state-variable-only type map (never mutated by locals/params).
+// Used for resolving `this.<prop>` in template literals to avoid shadowing issues.
+let _stateVarTypes: Map<string, SkittlesType> = new Map();
+
 // Array method support: generated helper functions and tracking
 let _generatedArrayFunctions: SkittlesFunction[] = [];
 let _arrayMethodCounter = 0;
@@ -66,7 +70,9 @@ function isStringExpr(expr: Expression): boolean {
     expr.object.kind === "identifier" &&
     expr.object.name === "this"
   ) {
-    const type = _currentVarTypes.get(expr.property);
+    // For this.<prop>, always use the original state-var type map so that
+    // local/param shadowing doesn't affect state-variable type resolution.
+    const type = _stateVarTypes.get(expr.property);
     return type?.kind === ("string" as SkittlesTypeKind);
   }
   if (
@@ -217,6 +223,7 @@ export function parse(
 
   _currentSourceFile = sourceFile;
   _arrayMethodCounter = 0;
+  _stateVarTypes = new Map();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -926,6 +933,8 @@ function parseClass(
   for (const v of variables) {
     varTypes.set(v.name, v.type);
   }
+  // Snapshot the state-variable-only map before any locals/params are added.
+  _stateVarTypes = new Map(varTypes);
 
   const eventNames = new Set(events.map((e) => e.name));
   _currentEventNames = eventNames;
@@ -2481,21 +2490,30 @@ export function parseExpression(node: ts.Expression): Expression {
     if (node.head.text) {
       parts.push({ kind: "string-literal", value: node.head.text });
     }
-    // Combine state variable types and parameter types for type inference
-    const combinedTypes = new Map([..._currentVarTypes, ..._currentParamTypes]);
+    // Build a combined type map with local precedence for plain identifiers.
+    // Order: state vars first, then params, then locals (later entries win).
+    const combinedTypes = new Map([..._stateVarTypes, ..._currentParamTypes, ..._currentVarTypes]);
     for (const span of node.templateSpans) {
       const expr = parseExpression(span.expression);
-      // Wrap numeric expressions with __sk_toString() for Solidity compatibility.
+      // Wrap uint256 expressions with __sk_toString() for Solidity compatibility.
       // isStringExpr catches known string identifiers and string.concat calls;
       // inferType provides deeper type inference for other expressions.
-      // Only wrap when the type is explicitly numeric (uint256/int256). Unknown types
-      // (e.g. function calls returning string) are left unwrapped to avoid generating
-      // invalid __sk_toString(stringExpr) Solidity.
+      // Only wrap when the type is explicitly uint256. For `this.<prop>`, resolve
+      // against state-var types so that local/param shadowing doesn't affect the result.
+      // Unknown types (e.g. function calls returning string) and int256 are left
+      // unwrapped since the __sk_toString helper only accepts uint256.
       const isString = isStringExpr(expr);
-      const type = !isString ? inferType(expr, combinedTypes) : undefined;
-      const isNumeric = type !== undefined &&
-        (type.kind === ("uint256" as SkittlesTypeKind) || type.kind === ("int256" as SkittlesTypeKind));
-      if (isNumeric) {
+      let type: SkittlesType | undefined;
+      if (!isString) {
+        if (expr.kind === "property-access" && expr.object.kind === "identifier" && expr.object.name === "this") {
+          // For this.<prop>, always resolve against original state-var types
+          type = _stateVarTypes.get(expr.property);
+        } else {
+          type = inferType(expr, combinedTypes);
+        }
+      }
+      const isUint256 = type !== undefined && type.kind === ("uint256" as SkittlesTypeKind);
+      if (isUint256) {
         parts.push({
           kind: "call",
           callee: { kind: "identifier", name: "__sk_toString" },
@@ -2561,9 +2579,10 @@ export function parseStatement(
       _currentStringNames.add(name);
     }
     // Track local variable type for template literal inference.
-    // Do not overwrite existing entries (e.g., state-variable types) so that
-    // this.<stateVar> always resolves to the state-var type even when a local shadows it.
-    if (type && !varTypes.has(name)) {
+    // Always record the local's type so that shadowing locals are correctly typed
+    // for plain identifier lookups. State-var types for `this.<prop>` are resolved
+    // from the dedicated _stateVarTypes map, so overwriting here is safe.
+    if (type) {
       varTypes.set(name, type);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
@@ -2964,9 +2983,10 @@ function parseStatements(
           _currentStringNames.add(name);
         }
         // Track local variable type for template literal inference.
-        // Do not overwrite existing entries (e.g., state-variable types) so that
-        // this.<stateVar> always resolves to the state-var type even when a local shadows it.
-        if (type && !varTypes.has(name)) {
+        // Always record the local's type so that shadowing locals are correctly typed
+        // for plain identifier lookups. State-var types for `this.<prop>` are resolved
+        // from the dedicated _stateVarTypes map, so overwriting here is safe.
+        if (type) {
           varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };

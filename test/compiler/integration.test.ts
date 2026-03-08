@@ -3532,6 +3532,36 @@ describe("integration: template literals", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain("__sk_toString(count)");
   });
+
+  it("should not wrap a local string variable that shadows a numeric state var", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        count: number = 0;
+        public describe(): string {
+          const count: string = "shadow";
+          return \`Value: \${count}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).not.toContain("__sk_toString");
+    // Codegen renames shadowing local to _count
+    expect(solidity).toContain('string.concat("Value: ", _count)');
+  });
+
+  it("should not wrap a parameter that shadows a numeric state var", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        count: number = 0;
+        public describe(count: string): string {
+          return \`Value: \${count}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).not.toContain("__sk_toString");
+    expect(solidity).toContain('string.concat("Value: ", count)');
+  });
 });
 
 describe("integration: multiple variable declarations", () => {
