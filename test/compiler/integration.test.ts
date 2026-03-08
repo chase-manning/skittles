@@ -5745,7 +5745,7 @@ describe("integration: array sort", () => {
     expect(solidity).toContain("int256");
   });
 
-  it("should throw on ternary boolean comparator for .sort()", () => {
+  it("should accept ternary numeric comparator for .sort()", () => {
     expect(() =>
       parse(`
         class SortTest {
