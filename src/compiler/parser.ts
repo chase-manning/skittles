@@ -4289,7 +4289,7 @@ function isContractInterfaceReceiver(
     receiver.object.kind === "identifier" &&
     receiver.object.name === "this"
   ) {
-    const propType = _stateVarTypes.get(receiver.property) ?? varTypes?.get(receiver.property);
+    const propType = _stateVarTypes.get(receiver.property);
     if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
   }
   // token.transfer(...) where token is a contract-interface local/param
