@@ -5446,6 +5446,18 @@ describe("integration: address.balance", () => {
     const contracts = parse(source, "test.ts");
     expect(contracts[0].functions[0].stateMutability).toBe("view");
   });
+
+  it("should infer view for conditional .balance usage", () => {
+    const source = `
+      class Vault {
+        public getConditionalBalance(useOrigin: boolean): number {
+          return (useOrigin ? tx.origin : msg.sender).balance;
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts[0].functions[0].stateMutability).toBe("view");
+  });
 });
 
 // ============================================================

@@ -3456,6 +3456,8 @@ export function inferType(
       if (expr.operator === "!")
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
+    case "conditional":
+      return inferType(expr.whenTrue, varTypes) || inferType(expr.whenFalse, varTypes);
     case "call":
       if (expr.callee.kind === "identifier") {
         // address(...) cast returns address type
