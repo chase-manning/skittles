@@ -962,6 +962,11 @@ function parseClass(
   // Snapshot the state-variable-only map before any initializers/locals/params are parsed.
   _stateVarTypes = new Map(varTypes);
 
+  // Reset string-tracking caches so that property initializers are parsed
+  // with a clean, contract-appropriate scope (no stale params/locals from
+  // previously parsed standalone functions).
+  setupStringTracking([], varTypes);
+
   // Sub-pass 2: parse full property declarations (including initializers).
   for (const member of propertyMembers) {
     variables.push(parseProperty(member));
@@ -3744,8 +3749,17 @@ export function inferType(
         }
       }
       return undefined;
-    case "conditional":
-      return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
+    case "conditional": {
+      const whenTrueType = inferType(expr.whenTrue, varTypes);
+      const whenFalseType = inferType(expr.whenFalse, varTypes);
+      if (!whenTrueType || !whenFalseType) {
+        return undefined;
+      }
+      if (whenTrueType.kind === whenFalseType.kind) {
+        return whenTrueType;
+      }
+      return undefined;
+    }
     default:
       return undefined;
   }
