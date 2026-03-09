@@ -3784,11 +3784,11 @@ export function inferType(
 function typesEqual(a: SkittlesType, b: SkittlesType): boolean {
   if (a.kind !== b.kind) return false;
   if (a.structName !== b.structName) return false;
-  if ((a.keyType == null) !== (b.keyType == null)) return false;
+  if ((a.keyType === undefined) !== (b.keyType === undefined)) return false;
   if (a.keyType && b.keyType && !typesEqual(a.keyType, b.keyType)) return false;
-  if ((a.valueType == null) !== (b.valueType == null)) return false;
+  if ((a.valueType === undefined) !== (b.valueType === undefined)) return false;
   if (a.valueType && b.valueType && !typesEqual(a.valueType, b.valueType)) return false;
-  if ((a.tupleTypes == null) !== (b.tupleTypes == null)) return false;
+  if ((a.tupleTypes === undefined) !== (b.tupleTypes === undefined)) return false;
   if (a.tupleTypes && b.tupleTypes) {
     if (a.tupleTypes.length !== b.tupleTypes.length) return false;
     for (let i = 0; i < a.tupleTypes.length; i++) {
