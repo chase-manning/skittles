@@ -157,6 +157,12 @@ export function collectTypes(source: string, filePath: string): {
     true
   );
 
+  // Reset per-run caches to avoid leaking state from prior parse() calls.
+  _stateVarTypes = new Map();
+  _currentVarTypes = new Map();
+  _currentStringNames = new Set();
+  _currentParamTypes = new Map();
+
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
   const contractInterfaces: Map<string, SkittlesContractInterface> = new Map();
@@ -440,6 +446,12 @@ export function collectFunctions(source: string, filePath: string): {
     ts.ScriptTarget.Latest,
     true
   );
+
+  // Reset per-run caches to avoid leaking state from prior parse() calls.
+  _stateVarTypes = new Map();
+  _currentVarTypes = new Map();
+  _currentStringNames = new Set();
+  _currentParamTypes = new Map();
 
   const functions: SkittlesFunction[] = [];
   const constants: Map<string, Expression> = new Map();
@@ -3755,7 +3767,7 @@ export function inferType(
       if (!whenTrueType || !whenFalseType) {
         return undefined;
       }
-      if (whenTrueType.kind === whenFalseType.kind) {
+      if (typesEqual(whenTrueType, whenFalseType)) {
         return whenTrueType;
       }
       return undefined;
@@ -3768,6 +3780,23 @@ export function inferType(
 // ============================================================
 // Helpers
 // ============================================================
+
+function typesEqual(a: SkittlesType, b: SkittlesType): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.structName !== b.structName) return false;
+  if ((a.keyType == null) !== (b.keyType == null)) return false;
+  if (a.keyType && b.keyType && !typesEqual(a.keyType, b.keyType)) return false;
+  if ((a.valueType == null) !== (b.valueType == null)) return false;
+  if (a.valueType && b.valueType && !typesEqual(a.valueType, b.valueType)) return false;
+  if ((a.tupleTypes == null) !== (b.tupleTypes == null)) return false;
+  if (a.tupleTypes && b.tupleTypes) {
+    if (a.tupleTypes.length !== b.tupleTypes.length) return false;
+    for (let i = 0; i < a.tupleTypes.length; i++) {
+      if (!typesEqual(a.tupleTypes[i], b.tupleTypes[i])) return false;
+    }
+  }
+  return true;
+}
 
 function collectContractInterfaceTypeRefs(type: SkittlesType, refs: Set<string>): void {
   if (type.kind === ("contract-interface" as SkittlesTypeKind) && type.structName) {
