@@ -763,7 +763,7 @@ function parseStandaloneFunction(
   setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type ? parseType(node.type) : null;
   const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   return {
     name,
@@ -803,7 +803,7 @@ function parseStandaloneArrowFunction(
     }
   }
 
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   return {
     name,
