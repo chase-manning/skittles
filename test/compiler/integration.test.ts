@@ -3427,6 +3427,153 @@ describe("integration: template literals", () => {
     expect(errors).toHaveLength(0);
     expect(solidity).toContain('string public name = "hello"');
   });
+
+  it("should convert number to string in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public label(tokenId: number): string {
+          return \`Token #\${tokenId}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Token #", __sk_toString(tokenId))');
+    expect(solidity).toContain("function __sk_toString(uint256 value)");
+  });
+
+  it("should handle multiple interpolations with mixed types", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public info(name: string, balance: number): string {
+          return \`\${name} has \${balance} tokens\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat(name, " has ", __sk_toString(balance), " tokens")');
+  });
+
+  it("should convert expressions in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public doubleBalance(balance: number): string {
+          return \`Balance: \${balance * 2}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Balance: ", __sk_toString((balance * 2)))');
+  });
+
+  it("should convert this.property number to string in template literals", () => {
+    const contracts = parse(`
+      class Token {
+        private supply: number = 0;
+        public getSupply(): string {
+          return \`Supply: \${this.supply}\`;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('string.concat("Supply: ", __sk_toString(supply))');
+  });
+
+  it("should handle number literal in template literals", () => {
+    const contracts = parse(`
+      class Token {
+        public version(): string {
+          return \`v\${1}\`;
+        }
+      }
+    `, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain('string.concat("v", __sk_toString(1))');
+  });
+
+  it("should convert locally-declared number to string in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public doubleBalanceViaLocal(balance: number): string {
+          const total: number = balance * 2;
+          return \`\${total}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("__sk_toString(total)");
+  });
+
+  it("should not wrap string-returning function calls in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Greeter {
+        public greet(name: string): string {
+          return \`Hello \${name}\`;
+        }
+        public welcome(name: string): string {
+          return \`Welcome: \${this.greet(name)}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain('string.concat("Welcome: ", greet(name))');
+    expect(solidity).not.toContain("__sk_toString(greet(name))");
+  });
+
+  it("should wrap this.<stateVar> even when a local shadows the state variable name", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        count: number = 0;
+        public describe(): string {
+          const count: string = "shadow";
+          return \`Count: \${this.count}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("__sk_toString(count)");
+  });
+
+  it("should not wrap a local string variable that shadows a numeric state var", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        count: number = 0;
+        public describe(): string {
+          const count: string = "shadow";
+          return \`Value: \${count}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).not.toContain("__sk_toString");
+    // Codegen renames shadowing local to _count
+    expect(solidity).toContain('string.concat("Value: ", _count)');
+  });
+
+  it("should not wrap a parameter that shadows a numeric state var", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        count: number = 0;
+        public describe(count: string): string {
+          return \`Value: \${count}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).not.toContain("__sk_toString");
+    expect(solidity).toContain('string.concat("Value: ", count)');
+  });
+
+  it("should convert ternary expression in template literals", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        public label(flag: boolean): string {
+          return \`\${flag ? 1 : 2}\`;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("__sk_toString(");
+  });
 });
 
 describe("integration: multiple variable declarations", () => {

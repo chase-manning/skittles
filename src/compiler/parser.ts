@@ -33,6 +33,10 @@ let _currentVarTypes: Map<string, SkittlesType> = new Map();
 let _currentStringNames: Set<string> = new Set();
 let _currentEventNames: Set<string> = new Set();
 
+// Original state-variable-only type map (never mutated by locals/params).
+// Used for resolving `this.<prop>` in template literals to avoid shadowing issues.
+let _stateVarTypes: Map<string, SkittlesType> = new Map();
+
 // Array method support: generated helper functions and tracking
 let _generatedArrayFunctions: SkittlesFunction[] = [];
 let _arrayMethodCounter = 0;
@@ -66,7 +70,9 @@ function isStringExpr(expr: Expression): boolean {
     expr.object.kind === "identifier" &&
     expr.object.name === "this"
   ) {
-    const type = _currentVarTypes.get(expr.property);
+    // For this.<prop>, always use the original state-var type map so that
+    // local/param shadowing doesn't affect state-variable type resolution.
+    const type = _stateVarTypes.get(expr.property);
     return type?.kind === ("string" as SkittlesTypeKind);
   }
   if (
@@ -151,6 +157,13 @@ export function collectTypes(source: string, filePath: string): {
     true
   );
 
+  // Reset per-run caches to avoid leaking state from prior parse() calls.
+  _stateVarTypes = new Map();
+  _currentVarTypes = new Map();
+  _currentStringNames = new Set();
+  _currentParamTypes = new Map();
+  _currentEventNames = new Set();
+
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
   const contractInterfaces: Map<string, SkittlesContractInterface> = new Map();
@@ -217,6 +230,12 @@ export function parse(
 
   _currentSourceFile = sourceFile;
   _arrayMethodCounter = 0;
+  _stateVarTypes = new Map();
+  // Reset per-parse caches to avoid leaking state between parse() calls.
+  _currentVarTypes = new Map();
+  _currentStringNames = new Set();
+  _currentParamTypes = new Map();
+  _currentEventNames = new Set();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -430,6 +449,13 @@ export function collectFunctions(source: string, filePath: string): {
     true
   );
 
+  // Reset per-run caches to avoid leaking state from prior parse() calls.
+  _stateVarTypes = new Map();
+  _currentVarTypes = new Map();
+  _currentStringNames = new Set();
+  _currentParamTypes = new Map();
+  _currentEventNames = new Set();
+
   const functions: SkittlesFunction[] = [];
   const constants: Map<string, Expression> = new Map();
   const emptyVarTypes = new Map<string, SkittlesType>();
@@ -493,6 +519,16 @@ export function collectClassNames(source: string, filePath: string): string[] {
   return names;
 }
 
+function validateReservedName(kind: string, name: string): void {
+  if (name.startsWith("__sk_")) {
+    throw new Error(`${kind} '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+  }
+}
+
+function validateReservedVarName(name: string): void {
+  validateReservedName("Variable name", name);
+}
+
 function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,
@@ -507,6 +543,7 @@ function parseArrayDestructuring(
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateReservedVarName(name);
         const init = i < initializer.elements.length
           ? parseExpression(initializer.elements[i])
           : undefined;
@@ -529,6 +566,7 @@ function parseArrayDestructuring(
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateReservedVarName(name);
         const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
         const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
@@ -627,6 +665,7 @@ function parseArrayDestructuring(
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
+        validateReservedVarName(elem.name.text);
         statements.push({
           kind: "variable-declaration" as const,
           name: elem.name.text,
@@ -660,6 +699,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateReservedVarName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -728,6 +768,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateReservedVarName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -749,6 +790,7 @@ function parseObjectDestructuring(
     for (const elem of pattern.elements) {
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
         const name = elem.name.text;
+        validateReservedVarName(name);
         const propName =
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
@@ -802,11 +844,16 @@ function parseStandaloneFunction(
   eventNames: Set<string>
 ): SkittlesFunction {
   const name = node.name ? node.name.text : "unknown";
+
+  validateReservedName("Function name", name);
+
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type ? parseType(node.type) : null;
-  const body = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const stateMutability = inferStateMutability(body);
+  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   return {
     name,
@@ -827,21 +874,26 @@ function parseStandaloneArrowFunction(
   eventNames: Set<string>
 ): SkittlesFunction {
   const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+
+  validateReservedVarName(name);
+
   const arrow = decl.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = arrow.type ? parseType(arrow.type) : null;
 
   let body: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      body = parseBlock(arrow.body, varTypes, eventNames);
+      body = parseBlock(arrow.body, localVarTypes, eventNames);
     } else {
       body = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
   }
 
-  const stateMutability = inferStateMutability(body);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   return {
     name,
@@ -972,7 +1024,11 @@ function parseClass(
   // Inline errors declared via SkittlesError<{...}> on the class
   const inlineErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
 
-  // First pass: collect state variables, events, and inline errors
+  // First pass: collect state variables, events, and inline errors.
+  // Split into two sub-passes: collect name/type first so _stateVarTypes
+  // is populated before parsing initializers (which may contain template
+  // literals that reference other state variables via `this.<prop>`).
+  const propertyMembers: ts.PropertyDeclaration[] = [];
   for (const member of node.members) {
     if (ts.isPropertyDeclaration(member)) {
       // Detect arrow function properties: `private _fn = (...) => { ... }`
@@ -990,14 +1046,32 @@ function parseClass(
           _knownCustomErrors.add(error.name);
           continue;
         }
-        variables.push(parseProperty(member));
+        propertyMembers.push(member);
       }
     }
   }
 
+  // Sub-pass 1: collect name + type (without initializers) to build _stateVarTypes.
   const varTypes = new Map<string, SkittlesType>();
-  for (const v of variables) {
-    varTypes.set(v.name, v.type);
+  for (const member of propertyMembers) {
+    const name =
+      member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
+    const type: SkittlesType = member.type
+      ? parseType(member.type)
+      : { kind: "uint256" as SkittlesTypeKind };
+    varTypes.set(name, type);
+  }
+  // Snapshot the state-variable-only map before any initializers/locals/params are parsed.
+  _stateVarTypes = new Map(varTypes);
+
+  // Reset string-tracking caches so that property initializers are parsed
+  // with a clean, contract-appropriate scope (no stale params/locals from
+  // previously parsed standalone functions).
+  setupStringTracking([], varTypes);
+
+  // Sub-pass 2: parse full property declarations (including initializers).
+  for (const member of propertyMembers) {
+    variables.push(parseProperty(member));
   }
 
   const eventNames = new Set(events.map((e) => e.name));
@@ -1448,6 +1522,8 @@ function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  validateReservedName("Property name", name);
+
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
@@ -1481,16 +1557,20 @@ function parseMethod(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  validateReservedName("Method name", name);
+
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
   const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
-  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
-  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, varTypes, parameters);
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1643,15 +1723,19 @@ function parseGetAccessor(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  validateReservedName("Accessor name", name);
+
   const parameters: SkittlesParameter[] = [];
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = node.type
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1667,13 +1751,17 @@ function parseSetAccessor(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  validateReservedName("Accessor name", name);
+
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
-  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
@@ -1689,9 +1777,13 @@ function parseArrowProperty(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
 
+  validateReservedName("Property name", name);
+
   const arrow = node.initializer as ts.ArrowFunction;
   const parameters = arrow.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
 
   const returnType: SkittlesType | null = arrow.type
     ? parseType(arrow.type)
@@ -1702,15 +1794,15 @@ function parseArrowProperty(
   let rawBody: Statement[] = [];
   if (arrow.body) {
     if (ts.isBlock(arrow.body)) {
-      rawBody = parseBlock(arrow.body, varTypes, eventNames);
+      rawBody = parseBlock(arrow.body, localVarTypes, eventNames);
     } else {
       // Expression body: `() => expr` treated as `() => { return expr; }`
       rawBody = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
     }
   }
 
-  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
-  const stateMutability = inferStateMutability(body, varTypes, parameters);
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const stateMutability = inferStateMutability(body, localVarTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
@@ -1723,14 +1815,17 @@ function parseConstructorDecl(
   eventNames: Set<string>
 ): SkittlesConstructor {
   const parameters = node.parameters.map(parseParameter);
-  setupStringTracking(parameters, varTypes);
-  const rawBody = node.body ? parseBlock(node.body, varTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, varTypes, parameters);
+  // Clone varTypes to create a per-function scope that won't leak locals to other methods
+  const localVarTypes = new Map(varTypes);
+  setupStringTracking(parameters, localVarTypes);
+  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
 function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
   const name = ts.isIdentifier(node.name) ? node.name.text : "unknown";
+  validateReservedName("Parameter name", name);
   const type: SkittlesType = node.type
     ? parseType(node.type)
     : { kind: "uint256" as SkittlesTypeKind };
@@ -2567,8 +2662,53 @@ export function parseExpression(node: ts.Expression): Expression {
     if (node.head.text) {
       parts.push({ kind: "string-literal", value: node.head.text });
     }
+    // Build a combined type map with local precedence for plain identifiers.
+    // Note: _currentVarTypes is initially seeded with state-var entries, so we
+    // filter out any entries that are just unchanged copies of _stateVarTypes
+    // to avoid overwriting shadowing params back to the state-var type.
+    const localsOnlyVarTypes = new Map<string, SkittlesType>();
+    for (const [name, type] of _currentVarTypes) {
+      const stateType = _stateVarTypes.get(name);
+      // Include if there is no corresponding state var, or if this entry
+      // represents a true local/shadowing type distinct from the seeded one.
+      if (!stateType || stateType !== type) {
+        localsOnlyVarTypes.set(name, type);
+      }
+    }
+    const combinedTypes = new Map<string, SkittlesType>([
+      ..._stateVarTypes,
+      ..._currentParamTypes,
+      ...localsOnlyVarTypes,
+    ]);
     for (const span of node.templateSpans) {
-      parts.push(parseExpression(span.expression));
+      const expr = parseExpression(span.expression);
+      // Wrap uint256 expressions with __sk_toString() for Solidity compatibility.
+      // isStringExpr catches known string identifiers and string.concat calls;
+      // inferType provides deeper type inference for other expressions.
+      // Only wrap when the type is explicitly uint256. For `this.<prop>`, resolve
+      // against state-var types so that local/param shadowing doesn't affect the result.
+      // Unknown types (e.g. function calls returning string) and int256 are left
+      // unwrapped since the __sk_toString helper only accepts uint256.
+      const isString = isStringExpr(expr);
+      let type: SkittlesType | undefined;
+      if (!isString) {
+        if (expr.kind === "property-access" && expr.object.kind === "identifier" && expr.object.name === "this") {
+          // For this.<prop>, always resolve against original state-var types
+          type = _stateVarTypes.get(expr.property);
+        } else {
+          type = inferType(expr, combinedTypes);
+        }
+      }
+      const isUint256 = type !== undefined && type.kind === ("uint256" as SkittlesTypeKind);
+      if (isUint256) {
+        parts.push({
+          kind: "call",
+          callee: { kind: "identifier", name: "__sk_toString" },
+          args: [expr],
+        });
+      } else {
+        parts.push(expr);
+      }
       if (span.literal.text) {
         parts.push({ kind: "string-literal", value: span.literal.text });
       }
@@ -2615,6 +2755,9 @@ export function parseStatement(
   if (ts.isVariableStatement(node)) {
     const decl = node.declarationList.declarations[0];
     const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+
+    validateReservedVarName(name);
+
     const explicitType = decl.type ? parseType(decl.type) : undefined;
     const initializer = decl.initializer
       ? parseExpression(decl.initializer)
@@ -2624,8 +2767,16 @@ export function parseStatement(
 
     if (type?.kind === ("string" as SkittlesTypeKind)) {
       _currentStringNames.add(name);
+    } else {
+      _currentStringNames.delete(name);
     }
-
+    // Always update varTypes so that identifier-based type inference
+    // reflects the current in-scope binding, even when a local
+    // shadows a state variable. State-variable-specific consumers
+    // should rely on _stateVarTypes when needed.
+    if (type) {
+      varTypes.set(name, type);
+    }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
 
@@ -2708,6 +2859,7 @@ export function parseStatement(
       if (ts.isVariableDeclarationList(node.initializer)) {
         const decl = node.initializer.declarations[0];
         const n = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+        validateReservedVarName(n);
         const t = decl.type ? parseType(decl.type) : undefined;
         const init = decl.initializer
           ? parseExpression(decl.initializer)
@@ -2774,6 +2926,8 @@ export function parseStatement(
       ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
       : "_item";
 
+    validateReservedVarName(itemName);
+
     const itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
       ? parseType(node.initializer.declarations[0].type)
       : undefined;
@@ -2832,6 +2986,8 @@ export function parseStatement(
       const itemName = ts.isVariableDeclarationList(node.initializer)
         ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
         : "_item";
+
+      validateReservedVarName(itemName);
 
       const indexName = `_i_${itemName}`;
       const innerBody = parseBlock(node.statement, varTypes, eventNames);
@@ -2911,6 +3067,9 @@ export function parseStatement(
     if (ts.isVariableStatement(firstStmt)) {
       const decl = firstStmt.declarationList.declarations[0];
       returnVarName = ts.isIdentifier(decl.name) ? decl.name.text : undefined;
+      if (returnVarName) {
+        validateReservedVarName(returnVarName);
+      }
       returnType = decl.type ? parseType(decl.type) : undefined;
       if (decl.initializer) {
         call = parseExpression(decl.initializer);
@@ -2994,7 +3153,15 @@ function parseBlock(
   eventNames: Set<string> = new Set()
 ): Statement[] {
   if (ts.isBlock(node)) {
-    return node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+    // Snapshot outer scope so block-scoped declarations don't leak.
+    const savedVarTypes = new Map(varTypes);
+    const savedStringNames = new Set(_currentStringNames);
+    const result = node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+    // Restore outer scope: undo any varTypes mutations made inside the block.
+    varTypes.clear();
+    for (const [k, v] of savedVarTypes) varTypes.set(k, v);
+    _currentStringNames = savedStringNames;
+    return result;
   }
   return parseStatements(node, varTypes, eventNames);
 }
@@ -3014,6 +3181,9 @@ function parseStatements(
       const sl = getSourceLine(node);
       return node.declarationList.declarations.map((decl) => {
         const name = ts.isIdentifier(decl.name) ? decl.name.text : "unknown";
+
+        validateReservedVarName(name);
+
         const explicitType = decl.type ? parseType(decl.type) : undefined;
         const initializer = decl.initializer
           ? parseExpression(decl.initializer)
@@ -3022,6 +3192,14 @@ function parseStatements(
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
         if (type?.kind === ("string" as SkittlesTypeKind)) {
           _currentStringNames.add(name);
+        } else {
+          _currentStringNames.delete(name);
+        }
+        // Locals (including those that shadow state variables) should
+        // always update varTypes. Passes that need state-only resolution
+        // should consult _stateVarTypes instead of relying on varTypes.
+        if (type) {
+          varTypes.set(name, type);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
@@ -3361,7 +3539,7 @@ function rewriteInterfacePropertyGetters(
       expr.object.object.kind === "identifier" &&
       expr.object.object.name === "this"
     ) {
-      const propType = varTypes.get(expr.object.property);
+      const propType = _stateVarTypes.get(expr.object.property);
       if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
         const iface = _knownContractInterfaceMap.get(propType.structName);
         if (iface && iface.functions.some(f => f.name === expr.property)) return true;
@@ -3721,7 +3899,9 @@ export function inferType(
       }
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
-          return varTypes.get(expr.property);
+          // Always resolve this.<prop> against state-variable types so that
+          // local/param shadowing cannot affect state-variable type inference.
+          return _stateVarTypes.get(expr.property) ?? varTypes.get(expr.property);
         }
         if (expr.object.name === "msg") {
           if (expr.property === "sender")
@@ -3788,6 +3968,17 @@ export function inferType(
         }
       }
       return undefined;
+    case "conditional": {
+      const whenTrueType = inferType(expr.whenTrue, varTypes);
+      const whenFalseType = inferType(expr.whenFalse, varTypes);
+      if (!whenTrueType || !whenFalseType) {
+        return undefined;
+      }
+      if (typesEqual(whenTrueType, whenFalseType)) {
+        return whenTrueType;
+      }
+      return undefined;
+    }
     default:
       return undefined;
   }
@@ -3796,6 +3987,23 @@ export function inferType(
 // ============================================================
 // Helpers
 // ============================================================
+
+function typesEqual(a: SkittlesType, b: SkittlesType): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.structName !== b.structName) return false;
+  if ((a.keyType === undefined) !== (b.keyType === undefined)) return false;
+  if (a.keyType && b.keyType && !typesEqual(a.keyType, b.keyType)) return false;
+  if ((a.valueType === undefined) !== (b.valueType === undefined)) return false;
+  if (a.valueType && b.valueType && !typesEqual(a.valueType, b.valueType)) return false;
+  if ((a.tupleTypes === undefined) !== (b.tupleTypes === undefined)) return false;
+  if (a.tupleTypes && b.tupleTypes) {
+    if (a.tupleTypes.length !== b.tupleTypes.length) return false;
+    for (let i = 0; i < a.tupleTypes.length; i++) {
+      if (!typesEqual(a.tupleTypes[i], b.tupleTypes[i])) return false;
+    }
+  }
+  return true;
+}
 
 function collectContractInterfaceTypeRefs(type: SkittlesType, refs: Set<string>): void {
   if (type.kind === ("contract-interface" as SkittlesTypeKind) && type.structName) {
@@ -3849,7 +4057,7 @@ function isExternalContractCall(expr: { callee: Expression }, varTypes: Map<stri
     expr.callee.object.object.name === "this"
   ) {
     const propName = expr.callee.object.property;
-    const propType = varTypes.get(propName);
+    const propType = _stateVarTypes.get(propName);
     if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) {
       return true;
     }
@@ -3892,7 +4100,7 @@ function getExternalCallMethodMutability(
     expr.callee.object.object.name === "this" &&
     varTypes
   ) {
-    const propType = varTypes.get(expr.callee.object.property);
+    const propType = _stateVarTypes.get(expr.callee.object.property);
     if (propType?.kind === ("contract-interface" as SkittlesTypeKind)) {
       ifaceName = propType.structName;
     }
@@ -4119,11 +4327,9 @@ function parseArrowCallback(
   const secondParamName = node.parameters.length >= 2 && ts.isIdentifier(node.parameters[1].name)
     ? node.parameters[1].name.text : undefined;
 
-  if (paramName.startsWith("__sk_")) {
-    throw new Error(`Callback parameter name '${paramName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
-  }
-  if (secondParamName?.startsWith("__sk_")) {
-    throw new Error(`Callback parameter name '${secondParamName}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated variables.`);
+  validateReservedName("Callback parameter name", paramName);
+  if (secondParamName) {
+    validateReservedName("Callback parameter name", secondParamName);
   }
 
   if (ts.isBlock(node.body)) {
@@ -4429,7 +4635,7 @@ function isContractInterfaceReceiver(
     receiver.object.kind === "identifier" &&
     receiver.object.name === "this"
   ) {
-    const propType = varTypes?.get(receiver.property);
+    const propType = _stateVarTypes.get(receiver.property);
     if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
   }
   // token.transfer(...) where token is a contract-interface local/param
