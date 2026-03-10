@@ -1116,4 +1116,72 @@ describe("parse: function overloading", () => {
       )
     ).toThrow("same number of parameters as the longest overload signature");
   });
+
+  it("should convert string truthiness check in if-condition to bytes length check", () => {
+    const contracts = parse(
+      `class Token {
+        public lastData: string = "";
+        process(data: string): boolean {
+          if (data) {
+            this.lastData = data;
+          }
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      // Should be: bytes(data).length > 0
+      expect(ifStmt.condition.kind).toBe("binary");
+      if (ifStmt.condition.kind === "binary") {
+        expect(ifStmt.condition.operator).toBe(">");
+        expect(ifStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+        const left = ifStmt.condition.left;
+        expect(left.kind).toBe("property-access");
+        if (left.kind === "property-access") {
+          expect(left.property).toBe("length");
+          expect(left.object.kind).toBe("call");
+          if (left.object.kind === "call") {
+            expect(left.object.callee).toEqual({ kind: "identifier", name: "bytes" });
+            expect(left.object.args).toHaveLength(1);
+            expect(left.object.args[0]).toEqual({ kind: "identifier", name: "data" });
+          }
+        }
+      }
+    }
+  });
+
+  it("should convert negated string truthiness check to bytes length == 0", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string): boolean {
+          if (!data) {
+            return false;
+          }
+          return true;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      // Should be: bytes(data).length == 0
+      expect(ifStmt.condition.kind).toBe("binary");
+      if (ifStmt.condition.kind === "binary") {
+        expect(ifStmt.condition.operator).toBe("==");
+        expect(ifStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+        const left = ifStmt.condition.left;
+        expect(left.kind).toBe("property-access");
+        if (left.kind === "property-access") {
+          expect(left.property).toBe("length");
+          expect(left.object.kind).toBe("call");
+        }
+      }
+    }
+  });
 });

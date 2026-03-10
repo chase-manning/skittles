@@ -99,6 +99,44 @@ const STRING_RETURNING_HELPERS = new Set([
   "_replace", "_replaceAll",
 ]);
 
+// Convert a string truthiness check to bytes(expr).length > 0
+// Also handles negated string: !str → bytes(str).length == 0
+function wrapStringTruthiness(expr: Expression): Expression {
+  if (isStringExpr(expr)) {
+    return {
+      kind: "binary",
+      operator: ">",
+      left: {
+        kind: "property-access",
+        object: {
+          kind: "call",
+          callee: { kind: "identifier", name: "bytes" } as Expression,
+          args: [expr],
+        },
+        property: "length",
+      },
+      right: { kind: "number-literal", value: "0" },
+    };
+  }
+  if (expr.kind === "unary" && expr.operator === "!" && expr.prefix && isStringExpr(expr.operand)) {
+    return {
+      kind: "binary",
+      operator: "==",
+      left: {
+        kind: "property-access",
+        object: {
+          kind: "call",
+          callee: { kind: "identifier", name: "bytes" } as Expression,
+          args: [expr.operand],
+        },
+        property: "length",
+      },
+      right: { kind: "number-literal", value: "0" },
+    };
+  }
+  return expr;
+}
+
 const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
   charAt: { helper: "_charAt", minArgs: 0, maxArgs: 1 },
   substring: { helper: "_substring", minArgs: 1, maxArgs: 2 },
@@ -2841,7 +2879,7 @@ export function parseStatement(
   }
 
   if (ts.isIfStatement(node)) {
-    const condition = parseExpression(node.expression);
+    const condition = wrapStringTruthiness(parseExpression(node.expression));
     const thenBody = parseBlock(node.thenStatement, varTypes, eventNames);
     const elseBody = node.elseStatement
       ? parseBlock(node.elseStatement, varTypes, eventNames)
@@ -2895,7 +2933,7 @@ export function parseStatement(
   if (ts.isWhileStatement(node)) {
     return {
       kind: "while",
-      condition: parseExpression(node.expression),
+      condition: wrapStringTruthiness(parseExpression(node.expression)),
       body: parseBlock(node.statement, varTypes, eventNames),
       sourceLine: getSourceLine(node),
     };
@@ -2904,7 +2942,7 @@ export function parseStatement(
   if (ts.isDoStatement(node)) {
     return {
       kind: "do-while",
-      condition: parseExpression(node.expression),
+      condition: wrapStringTruthiness(parseExpression(node.expression)),
       body: parseBlock(node.statement, varTypes, eventNames),
       sourceLine: getSourceLine(node),
     };
