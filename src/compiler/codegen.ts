@@ -1344,15 +1344,25 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       return rest;
     });
 
-    // Build forwarding call arguments
-    const args: Expression[] = [];
-    for (let i = 0; i < f.parameters.length; i++) {
-      if (i < paramCount) {
-        args.push({ kind: "identifier", name: f.parameters[i].name });
-      } else {
-        args.push(f.parameters[i].defaultValue!);
-      }
+    // Build forwarding body. Omitted default parameters are declared as
+    // local variables so that later defaults can reference earlier ones
+    // (e.g. f(a = 1, b = a) → the overload for f() declares `a`, then `b = a`).
+    const body: Statement[] = [];
+    for (let i = paramCount; i < f.parameters.length; i++) {
+      body.push({
+        kind: "variable-declaration",
+        name: f.parameters[i].name,
+        type: f.parameters[i].type,
+        initializer: f.parameters[i].defaultValue!,
+      });
     }
+
+    // Build forwarding call using both the overload's own parameters
+    // and the locally-declared default variables.
+    const args: Expression[] = f.parameters.map((p) => ({
+      kind: "identifier" as const,
+      name: p.name,
+    }));
 
     const callExpr: Expression = {
       kind: "call",
@@ -1360,11 +1370,10 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       args,
     };
 
-    let body: Statement[];
     if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
-      body = [{ kind: "return", value: callExpr }];
+      body.push({ kind: "return", value: callExpr });
     } else {
-      body = [{ kind: "expression", expression: callExpr }];
+      body.push({ kind: "expression", expression: callExpr });
     }
 
     const overload: SkittlesFunction = {
@@ -1377,6 +1386,11 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       // "view" when the main function is pure and defaults are present.
       stateMutability:
         f.stateMutability === "pure" ? "view" : f.stateMutability,
+      // Generated overloads are new signatures that may not exist in the
+      // parent contract. Always mark them virtual (not override) to avoid
+      // Solidity errors when the parent lacks the shorter-arity signature.
+      isOverride: false,
+      isVirtual: true,
     };
 
     result.push(overload);

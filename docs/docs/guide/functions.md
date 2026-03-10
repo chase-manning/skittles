@@ -145,6 +145,10 @@ This generates three Solidity functions:
 - `configure(uint256 a, uint256 b)` — forwards to `configure(a, b, 10)`
 - `configure(uint256 a)` — forwards to `configure(a, 5, 10)`
 
+:::caution
+Default-valued parameters must be contiguous and trailing. Patterns that put a non-default parameter after a default (for example, `f(a: number = 1, b: number)`) are rejected by the compiler, even though they are valid TypeScript. Always list all required (non-default) parameters first, followed by all parameters with defaults.
+:::
+
 :::info
 Constructor parameters also support default values, but use a different strategy: default parameters become local variable declarations inside the constructor body instead of generating overloads.
 :::

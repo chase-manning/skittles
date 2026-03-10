@@ -317,9 +317,10 @@ describe("generateSolidity", () => {
     );
     // Main function with all params
     expect(sol).toContain("function defaultParam(uint256 x) public pure virtual returns (uint256)");
-    // Overload without default params that forwards
+    // Overload without default params that forwards via local variable declarations
     expect(sol).toContain("function defaultParam() public view virtual returns (uint256)");
-    expect(sol).toContain("return defaultParam(10);");
+    expect(sol).toContain("uint256 x = 10;");
+    expect(sol).toContain("return defaultParam(x);");
   });
 
   it("should generate multiple overloads for function with mixed default and required parameters", () => {
@@ -370,10 +371,11 @@ describe("generateSolidity", () => {
     expect(sol).toContain("function mixedParams(uint256 a, uint256 b, uint256 c) public pure virtual returns (uint256)");
     // Overload with just required param + first default
     expect(sol).toContain("function mixedParams(uint256 a, uint256 b) public view virtual returns (uint256)");
-    expect(sol).toContain("return mixedParams(a, b, 10);");
+    expect(sol).toContain("uint256 c = 10;");
+    expect(sol).toContain("return mixedParams(a, b, c);");
     // Overload with just required param
     expect(sol).toContain("function mixedParams(uint256 a) public view virtual returns (uint256)");
-    expect(sol).toContain("return mixedParams(a, 5, 10);");
+    expect(sol).toContain("uint256 b = 5;");
   });
 
   it("should throw when function has non-trailing default parameters", () => {
@@ -407,6 +409,47 @@ describe("generateSolidity", () => {
         })
       )
     ).toThrow("default-valued parameters must be contiguous and trailing");
+  });
+
+  it("should generate virtual (not override) overloads for override function with defaults", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "overriddenFn",
+            parameters: [
+              { name: "a", type: { kind: SkittlesTypeKind.Uint256 } },
+              {
+                name: "b",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "42" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: false,
+            isOverride: true,
+            body: [
+              {
+                kind: "return",
+                value: {
+                  kind: "binary",
+                  left: { kind: "identifier", name: "a" },
+                  operator: "+",
+                  right: { kind: "identifier", name: "b" },
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function keeps override
+    expect(sol).toContain("function overriddenFn(uint256 a, uint256 b) public pure override returns (uint256)");
+    // Overload must be virtual, NOT override (parent may not have this signature)
+    expect(sol).toContain("function overriddenFn(uint256 a) public view virtual returns (uint256)");
+    expect(sol).not.toMatch(/function overriddenFn\(uint256 a\).*override/);
   });
 
   it("should omit super() call with no arguments in constructor", () => {
