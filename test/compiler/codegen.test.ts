@@ -287,6 +287,95 @@ describe("generateSolidity", () => {
     expect(sol).toContain("tokenName = name;");
   });
 
+  it("should generate overload for function with default parameter", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "defaultParam",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "x" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function with all params
+    expect(sol).toContain("function defaultParam(uint256 x) public pure virtual returns (uint256)");
+    // Overload without default params that forwards
+    expect(sol).toContain("function defaultParam() public pure virtual returns (uint256)");
+    expect(sol).toContain("return defaultParam(10);");
+  });
+
+  it("should generate multiple overloads for function with mixed default and required parameters", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "mixedParams",
+            parameters: [
+              { name: "a", type: { kind: SkittlesTypeKind.Uint256 } },
+              {
+                name: "b",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "5" },
+              },
+              {
+                name: "c",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: {
+                  kind: "binary",
+                  left: {
+                    kind: "binary",
+                    left: { kind: "identifier", name: "a" },
+                    operator: "+",
+                    right: { kind: "identifier", name: "b" },
+                  },
+                  operator: "+",
+                  right: { kind: "identifier", name: "c" },
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function with all params
+    expect(sol).toContain("function mixedParams(uint256 a, uint256 b, uint256 c) public pure virtual returns (uint256)");
+    // Overload with just required param + first default
+    expect(sol).toContain("function mixedParams(uint256 a, uint256 b) public pure virtual returns (uint256)");
+    expect(sol).toContain("return mixedParams(a, b, 10);");
+    // Overload with just required param
+    expect(sol).toContain("function mixedParams(uint256 a) public pure virtual returns (uint256)");
+    expect(sol).toContain("return mixedParams(a, 5, 10);");
+  });
+
   it("should omit super() call with no arguments in constructor", () => {
     const sol = generateSolidity(
       emptyContract({

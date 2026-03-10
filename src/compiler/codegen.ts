@@ -709,8 +709,16 @@ function generateContractBody(
     }
   }
 
-  for (let i = 0; i < functionsToEmit.length; i++) {
-    let f = functionsToEmit[i];
+  // Expand functions with default parameter values into overloads.
+  // Each function with trailing defaults becomes the main implementation
+  // plus forwarding overloads for each valid shorter parameter list.
+  const expandedFunctions: SkittlesFunction[] = [];
+  for (const f of functionsToEmit) {
+    expandedFunctions.push(...expandDefaultParamOverloads(f));
+  }
+
+  for (let i = 0; i < expandedFunctions.length; i++) {
+    let f = expandedFunctions[i];
 
     // Rename parameters that shadow sibling function names.
     const paramRenames = new Map<string, string>();
@@ -736,7 +744,7 @@ function generateContractBody(
     const funcParamNames = new Set(f.parameters.map((p) => p.name));
     const resolved = { ...f, body: resolveShadowedLocals(f.body, stateVarNames, funcParamNames) };
     parts.push(generateFunction(resolved));
-    if (i < functionsToEmit.length - 1 || readonlyArrayVars.length > 0) {
+    if (i < expandedFunctions.length - 1 || readonlyArrayVars.length > 0) {
       parts.push("");
     }
   }
@@ -1285,6 +1293,80 @@ function generateReadonlyArrayGetter(v: SkittlesVariable): string {
   lines.push(`        return ${name};`);
   lines.push("    }");
   return lines.join("\n");
+}
+
+/**
+ * Expand a function that has default parameter values into multiple
+ * Solidity overloads. The original function keeps all parameters (with
+ * defaults stripped) and retains the implementation body. For each
+ * trailing group of default parameters, an overload is generated that
+ * forwards to the full-parameter version with the default values filled in.
+ *
+ * Example: f(a, b = 5, c = 10) becomes:
+ *   - f(a, b, c) { ... }        // main implementation
+ *   - f(a, b) { return f(a, b, 10); }
+ *   - f(a) { return f(a, 5, 10); }
+ */
+function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
+  const defaultParams = f.parameters.filter((p) => p.defaultValue);
+  if (defaultParams.length === 0) return [f];
+
+  // Find the index of the first default parameter
+  const firstDefaultIdx = f.parameters.findIndex((p) => p.defaultValue);
+
+  // Main function: strip defaultValue from all parameters
+  const mainFn: SkittlesFunction = {
+    ...f,
+    parameters: f.parameters.map((p) => {
+      const { defaultValue, ...rest } = p;
+      return rest;
+    }),
+  };
+
+  const result: SkittlesFunction[] = [mainFn];
+
+  // Generate overloads for each valid parameter count
+  // from (all params - 1 default) down to (only required params)
+  for (let paramCount = f.parameters.length - 1; paramCount >= firstDefaultIdx; paramCount--) {
+    const shortParams = f.parameters.slice(0, paramCount).map((p) => {
+      const { defaultValue, ...rest } = p;
+      return rest;
+    });
+
+    // Build forwarding call arguments
+    const args: Expression[] = [];
+    for (let i = 0; i < f.parameters.length; i++) {
+      if (i < paramCount) {
+        args.push({ kind: "identifier", name: f.parameters[i].name });
+      } else {
+        args.push(f.parameters[i].defaultValue!);
+      }
+    }
+
+    const callExpr: Expression = {
+      kind: "call",
+      callee: { kind: "identifier", name: f.name },
+      args,
+    };
+
+    let body: Statement[];
+    if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
+      body = [{ kind: "return", value: callExpr }];
+    } else {
+      body = [{ kind: "expression", expression: callExpr }];
+    }
+
+    const overload: SkittlesFunction = {
+      ...f,
+      parameters: shortParams,
+      body,
+      stateMutability: f.stateMutability,
+    };
+
+    result.push(overload);
+  }
+
+  return result;
 }
 
 function generateFunction(f: SkittlesFunction): string {
