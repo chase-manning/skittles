@@ -930,6 +930,62 @@ describe("inferStateMutability", () => {
       ])
     ).toBe("view");
   });
+
+  it("should return view for msg.sender in custom error args", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "revert",
+          customError: "InsufficientBalance",
+          customErrorArgs: [
+            {
+              kind: "property-access",
+              object: { kind: "identifier", name: "msg" },
+              property: "sender",
+            },
+            { kind: "number-literal", value: "0" },
+            { kind: "number-literal", value: "100" },
+          ],
+        },
+      ])
+    ).toBe("view");
+  });
+
+  it("should return payable for msg.value in custom error args", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "revert",
+          customError: "BadValue",
+          customErrorArgs: [
+            {
+              kind: "property-access",
+              object: { kind: "identifier", name: "msg" },
+              property: "value",
+            },
+          ],
+        },
+      ])
+    ).toBe("payable");
+  });
+
+  it("should return view for state read in custom error args", () => {
+    expect(
+      inferStateMutability([
+        {
+          kind: "revert",
+          customError: "InsufficientBalance",
+          customErrorArgs: [
+            {
+              kind: "property-access",
+              object: { kind: "identifier", name: "this" },
+              property: "balance",
+            },
+          ],
+        },
+      ])
+    ).toBe("view");
+  });
 });
 
 // ============================================================
