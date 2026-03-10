@@ -2668,6 +2668,21 @@ describe("integration: inline SkittlesError declarations", () => {
     expect(solidity).toContain("revert OldError(1);");
     expect(solidity).toContain("revert NewError(2);");
   });
+
+  it("should infer view mutability when custom error args reference msg.sender", () => {
+    const { errors, solidity } = compileTS(`
+      class Token {
+        InsufficientBalance: SkittlesError<{ sender: address; balance: number; required: number }>;
+
+        public testCustomError(): void {
+          throw this.InsufficientBalance(msg.sender, 0, 100);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("function testCustomError() public view virtual");
+    expect(solidity).not.toContain("pure");
+  });
 });
 
 // ============================================================

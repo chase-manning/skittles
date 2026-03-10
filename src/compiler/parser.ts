@@ -3405,6 +3405,7 @@ function walkStatements(
         break;
       case "revert":
         if (stmt.message) walkExpr(stmt.message);
+        if (stmt.customErrorArgs) stmt.customErrorArgs.forEach(walkExpr);
         break;
       case "do-while":
         walkExpr(stmt.condition);
