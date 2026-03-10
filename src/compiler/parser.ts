@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { ADDRESS_LITERAL_RE } from "../types/index.ts";
 import type {
   SkittlesContract,
   SkittlesVariable,
@@ -63,7 +64,11 @@ function setupStringTracking(parameters: SkittlesParameter[], varTypes: Map<stri
 }
 
 function isStringExpr(expr: Expression): boolean {
-  if (expr.kind === "string-literal") return true;
+  if (expr.kind === "string-literal") {
+    // Address literals (0x + 40 hex chars) are not strings — they compile to address(...)
+    if (ADDRESS_LITERAL_RE.test(expr.value)) return false;
+    return true;
+  }
   if (expr.kind === "identifier" && _currentStringNames.has(expr.name)) return true;
   if (
     expr.kind === "property-access" &&
@@ -3884,6 +3889,8 @@ export function inferType(
     case "number-literal":
       return { kind: "uint256" as SkittlesTypeKind };
     case "string-literal":
+      if (ADDRESS_LITERAL_RE.test(expr.value))
+        return { kind: "address" as SkittlesTypeKind };
       return { kind: "string" as SkittlesTypeKind };
     case "boolean-literal":
       return { kind: "bool" as SkittlesTypeKind };
