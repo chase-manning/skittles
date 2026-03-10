@@ -1314,6 +1314,17 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
   // Find the index of the first default parameter
   const firstDefaultIdx = f.parameters.findIndex((p) => p.defaultValue);
 
+  // Validate that all parameters from the first default onward also have
+  // defaults (i.e. defaults must be contiguous and trailing).
+  for (let i = firstDefaultIdx; i < f.parameters.length; i++) {
+    if (!f.parameters[i].defaultValue) {
+      throw new Error(
+        `Function "${f.name}" has a non-default parameter after a default parameter; ` +
+          "default-valued parameters must be contiguous and trailing."
+      );
+    }
+  }
+
   // Main function: strip defaultValue from all parameters
   const mainFn: SkittlesFunction = {
     ...f,
@@ -1360,6 +1371,12 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       ...f,
       parameters: shortParams,
       body,
+      // Default value expressions are evaluated in the overload body.
+      // If any default reads state or environment (e.g. block.timestamp),
+      // a "pure" overload would fail to compile. Conservatively widen to
+      // "view" when the main function is pure and defaults are present.
+      stateMutability:
+        f.stateMutability === "pure" ? "view" : f.stateMutability,
     };
 
     result.push(overload);

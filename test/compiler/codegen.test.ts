@@ -318,7 +318,7 @@ describe("generateSolidity", () => {
     // Main function with all params
     expect(sol).toContain("function defaultParam(uint256 x) public pure virtual returns (uint256)");
     // Overload without default params that forwards
-    expect(sol).toContain("function defaultParam() public pure virtual returns (uint256)");
+    expect(sol).toContain("function defaultParam() public view virtual returns (uint256)");
     expect(sol).toContain("return defaultParam(10);");
   });
 
@@ -369,11 +369,44 @@ describe("generateSolidity", () => {
     // Main function with all params
     expect(sol).toContain("function mixedParams(uint256 a, uint256 b, uint256 c) public pure virtual returns (uint256)");
     // Overload with just required param + first default
-    expect(sol).toContain("function mixedParams(uint256 a, uint256 b) public pure virtual returns (uint256)");
+    expect(sol).toContain("function mixedParams(uint256 a, uint256 b) public view virtual returns (uint256)");
     expect(sol).toContain("return mixedParams(a, b, 10);");
     // Overload with just required param
-    expect(sol).toContain("function mixedParams(uint256 a) public pure virtual returns (uint256)");
+    expect(sol).toContain("function mixedParams(uint256 a) public view virtual returns (uint256)");
     expect(sol).toContain("return mixedParams(a, 5, 10);");
+  });
+
+  it("should throw when function has non-trailing default parameters", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          functions: [
+            {
+              name: "badDefaults",
+              parameters: [
+                {
+                  name: "a",
+                  type: { kind: SkittlesTypeKind.Uint256 },
+                  defaultValue: { kind: "number-literal", value: "10" },
+                },
+                { name: "b", type: { kind: SkittlesTypeKind.Uint256 } },
+              ],
+              returnType: { kind: SkittlesTypeKind.Uint256 },
+              visibility: "public",
+              stateMutability: "pure",
+              isVirtual: true,
+              isOverride: false,
+              body: [
+                {
+                  kind: "return",
+                  value: { kind: "identifier", name: "b" },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    ).toThrow("default-valued parameters must be contiguous and trailing");
   });
 
   it("should omit super() call with no arguments in constructor", () => {
