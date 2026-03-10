@@ -1829,6 +1829,21 @@ describe("integration: string operations", () => {
     expect(solidity).toContain("keccak256(abi.encodePacked(text))");
     expect(solidity).toContain('keccak256(abi.encodePacked("hello"))');
   });
+
+  it("should not transform address comparison when zero address is stored in a variable", () => {
+    const { errors, solidity } = compileTS(`
+      class AddrCmpVar {
+        public isZero(addr: address): boolean {
+          const ZERO = "0x0000000000000000000000000000000000000000";
+          return addr == ZERO;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("address ZERO = address(0x0000000000000000000000000000000000000000)");
+    expect(solidity).toContain("(addr == ZERO)");
+    expect(solidity).not.toContain("keccak256");
+  });
 });
 
 // ============================================================
