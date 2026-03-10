@@ -140,13 +140,24 @@ function wrapStringTruthiness(expr: Expression): Expression {
     };
   }
 
-  // Handle conditional (ternary) expressions where branches are strings
-  // in boolean context: (flag ? a : b) where a/b are strings.
+  // Handle conditional (ternary) expressions where condition or branches
+  // are strings in boolean context: (flag ? a : b) where flag/a/b may
+  // involve string truthiness.
   if (expr.kind === "conditional") {
+    const wrappedCondition = wrapStringTruthiness(expr.condition);
     const wrappedTrue = wrapStringTruthiness(expr.whenTrue);
     const wrappedFalse = wrapStringTruthiness(expr.whenFalse);
-    if (wrappedTrue !== expr.whenTrue || wrappedFalse !== expr.whenFalse) {
-      return { ...expr, whenTrue: wrappedTrue, whenFalse: wrappedFalse };
+    if (
+      wrappedCondition !== expr.condition ||
+      wrappedTrue !== expr.whenTrue ||
+      wrappedFalse !== expr.whenFalse
+    ) {
+      return {
+        ...expr,
+        condition: wrappedCondition,
+        whenTrue: wrappedTrue,
+        whenFalse: wrappedFalse,
+      };
     }
   }
 

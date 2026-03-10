@@ -1387,4 +1387,43 @@ describe("parse: string truthiness", () => {
       }
     }
   });
+
+  it("should convert string ternary condition in boolean context", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string): boolean {
+          if (data ? true : false) {
+            return true;
+          }
+          return false;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      // Should be: (bytes(data).length > 0) ? true : false
+      expect(ifStmt.condition.kind).toBe("conditional");
+      if (ifStmt.condition.kind === "conditional") {
+        // The condition itself should be wrapped
+        expect(ifStmt.condition.condition.kind).toBe("binary");
+        if (ifStmt.condition.condition.kind === "binary") {
+          expect(ifStmt.condition.condition.operator).toBe(">");
+          expect(ifStmt.condition.condition.right).toEqual({ kind: "number-literal", value: "0" });
+          const left = ifStmt.condition.condition.left;
+          expect(left.kind).toBe("property-access");
+          if (left.kind === "property-access") {
+            expect(left.property).toBe("length");
+            expect(left.object.kind).toBe("call");
+            if (left.object.kind === "call") {
+              expect(left.object.callee).toEqual({ kind: "identifier", name: "bytes" });
+              expect(left.object.args[0]).toEqual({ kind: "identifier", name: "data" });
+            }
+          }
+        }
+      }
+    }
+  });
 });
