@@ -162,6 +162,7 @@ export function collectTypes(source: string, filePath: string): {
   _currentVarTypes = new Map();
   _currentStringNames = new Set();
   _currentParamTypes = new Map();
+  _currentEventNames = new Set();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -234,6 +235,7 @@ export function parse(
   _currentVarTypes = new Map();
   _currentStringNames = new Set();
   _currentParamTypes = new Map();
+  _currentEventNames = new Set();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -452,6 +454,7 @@ export function collectFunctions(source: string, filePath: string): {
   _currentVarTypes = new Map();
   _currentStringNames = new Set();
   _currentParamTypes = new Map();
+  _currentEventNames = new Set();
 
   const functions: SkittlesFunction[] = [];
   const constants: Map<string, Expression> = new Map();
@@ -3017,7 +3020,15 @@ function parseBlock(
   eventNames: Set<string> = new Set()
 ): Statement[] {
   if (ts.isBlock(node)) {
-    return node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+    // Snapshot outer scope so block-scoped declarations don't leak.
+    const savedVarTypes = new Map(varTypes);
+    const savedStringNames = new Set(_currentStringNames);
+    const result = node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+    // Restore outer scope: undo any varTypes mutations made inside the block.
+    varTypes.clear();
+    for (const [k, v] of savedVarTypes) varTypes.set(k, v);
+    _currentStringNames = savedStringNames;
+    return result;
   }
   return parseStatements(node, varTypes, eventNames);
 }
