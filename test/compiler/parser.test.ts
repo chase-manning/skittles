@@ -1180,6 +1180,11 @@ describe("parse: function overloading", () => {
         if (left.kind === "property-access") {
           expect(left.property).toBe("length");
           expect(left.object.kind).toBe("call");
+          if (left.object.kind === "call") {
+            expect(left.object.callee).toEqual({ kind: "identifier", name: "bytes" });
+            expect(left.object.args).toHaveLength(1);
+            expect(left.object.args[0]).toEqual({ kind: "identifier", name: "data" });
+          }
         }
       }
     }
