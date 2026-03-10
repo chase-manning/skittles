@@ -1790,6 +1790,45 @@ describe("integration: string operations", () => {
     expect(solidity).toContain("(a == b)");
     expect(solidity).not.toContain("keccak256");
   });
+
+  it("should not transform address comparison with zero address literal", () => {
+    const { errors, solidity } = compileTS(`
+      class AddrCmp {
+        public isZero(addr: address): boolean {
+          return addr == "0x0000000000000000000000000000000000000000";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(addr == address(0x0000000000000000000000000000000000000000))");
+    expect(solidity).not.toContain("keccak256");
+  });
+
+  it("should not transform address != comparison with zero address literal", () => {
+    const { errors, solidity } = compileTS(`
+      class AddrCmp {
+        public isNonZero(addr: address): boolean {
+          return addr != "0x0000000000000000000000000000000000000000";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("(addr != address(0x0000000000000000000000000000000000000000))");
+    expect(solidity).not.toContain("keccak256");
+  });
+
+  it("should still transform string comparison with keccak256", () => {
+    const { errors, solidity } = compileTS(`
+      class StrCmp {
+        public isHello(text: string): boolean {
+          return text == "hello";
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("keccak256(abi.encodePacked(text))");
+    expect(solidity).toContain('keccak256(abi.encodePacked("hello"))');
+  });
 });
 
 // ============================================================

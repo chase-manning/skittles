@@ -63,7 +63,11 @@ function setupStringTracking(parameters: SkittlesParameter[], varTypes: Map<stri
 }
 
 function isStringExpr(expr: Expression): boolean {
-  if (expr.kind === "string-literal") return true;
+  if (expr.kind === "string-literal") {
+    // Address literals (0x + 40 hex chars) are not strings — they compile to address(...)
+    if (/^0x[0-9a-fA-F]{40}$/.test(expr.value)) return false;
+    return true;
+  }
   if (expr.kind === "identifier" && _currentStringNames.has(expr.name)) return true;
   if (
     expr.kind === "property-access" &&
