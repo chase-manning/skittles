@@ -1360,7 +1360,6 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       ...f,
       parameters: shortParams,
       body,
-      stateMutability: f.stateMutability,
     };
 
     result.push(overload);
