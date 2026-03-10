@@ -2476,6 +2476,42 @@ describe("integration: super keyword", () => {
     const solidity = generateSolidityFile(contracts);
     expect(solidity).toContain("super.getValue()");
   });
+
+  it("should infer correct mutability for super.method() that modifies state", () => {
+    const source = `
+      abstract class BaseContract {
+        public value: number = 0;
+
+        abstract getValue(): number;
+
+        public increment(): void {
+          this.value = this.value + 1;
+        }
+      }
+
+      class ChildContract extends BaseContract {
+        getValue(): number {
+          return this.value;
+        }
+
+        override increment(): void {
+          this.value = this.value + 2;
+        }
+
+        public callSuper(): void {
+          super.increment();
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidityFile(contracts);
+    expect(solidity).toContain("super.increment()");
+    expect(solidity).not.toMatch(/function callSuper\(\) public pure/);
+
+    const result = compileSolidity("ChildContract", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+    expect(result.bytecode.length).toBeGreaterThan(0);
+  });
 });
 
 // ============================================================
