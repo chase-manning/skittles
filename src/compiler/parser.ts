@@ -140,6 +140,16 @@ function wrapStringTruthiness(expr: Expression): Expression {
     };
   }
 
+  // Handle conditional (ternary) expressions where branches are strings
+  // in boolean context: (flag ? a : b) where a/b are strings.
+  if (expr.kind === "conditional") {
+    const wrappedTrue = wrapStringTruthiness(expr.whenTrue);
+    const wrappedFalse = wrapStringTruthiness(expr.whenFalse);
+    if (wrappedTrue !== expr.whenTrue || wrappedFalse !== expr.whenFalse) {
+      return { ...expr, whenTrue: wrappedTrue, whenFalse: wrappedFalse };
+    }
+  }
+
   // Base case: a bare string expression in boolean context.
   if (isStringExpr(expr)) {
     return makeStringLengthComparison(expr, ">");
@@ -2931,7 +2941,7 @@ export function parseStatement(
       kind: "for",
       initializer,
       condition: node.condition
-        ? parseExpression(node.condition)
+        ? wrapStringTruthiness(parseExpression(node.condition))
         : undefined,
       incrementor: node.incrementor
         ? parseExpression(node.incrementor)

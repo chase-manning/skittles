@@ -1116,7 +1116,9 @@ describe("parse: function overloading", () => {
       )
     ).toThrow("same number of parameters as the longest overload signature");
   });
+});
 
+describe("parse: string truthiness", () => {
   it("should convert string truthiness check in if-condition to bytes length check", () => {
     const contracts = parse(
       `class Token {
@@ -1326,6 +1328,61 @@ describe("parse: function overloading", () => {
         expect(cond.operand.kind).toBe("binary");
         if (cond.operand.kind === "binary") {
           expect(cond.operand.operator).toBe("==");
+        }
+      }
+    }
+  });
+
+  it("should convert string truthiness in for-loop condition to bytes length check", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string): void {
+          for (let i: number = 0; data; i++) {
+            break;
+          }
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const forStmt = fn.body![0];
+    expect(forStmt.kind).toBe("for");
+    if (forStmt.kind === "for") {
+      expect(forStmt.condition!.kind).toBe("binary");
+      if (forStmt.condition!.kind === "binary") {
+        expect(forStmt.condition!.operator).toBe(">");
+        expect(forStmt.condition!.right).toEqual({ kind: "number-literal", value: "0" });
+      }
+    }
+  });
+
+  it("should convert ternary with string branches in boolean context", () => {
+    const contracts = parse(
+      `class Token {
+        process(a: string, b: string, flag: boolean): boolean {
+          if (flag ? a : b) {
+            return true;
+          }
+          return false;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      // Should be: flag ? bytes(a).length > 0 : bytes(b).length > 0
+      expect(ifStmt.condition.kind).toBe("conditional");
+      if (ifStmt.condition.kind === "conditional") {
+        expect(ifStmt.condition.condition).toEqual({ kind: "identifier", name: "flag" });
+        expect(ifStmt.condition.whenTrue.kind).toBe("binary");
+        expect(ifStmt.condition.whenFalse.kind).toBe("binary");
+        if (ifStmt.condition.whenTrue.kind === "binary") {
+          expect(ifStmt.condition.whenTrue.operator).toBe(">");
+        }
+        if (ifStmt.condition.whenFalse.kind === "binary") {
+          expect(ifStmt.condition.whenFalse.operator).toBe(">");
         }
       }
     }
