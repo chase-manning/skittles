@@ -1189,4 +1189,145 @@ describe("parse: function overloading", () => {
       }
     }
   });
+
+  it("should convert string truthiness in while-condition to bytes length check", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string): void {
+          while (data) {
+            break;
+          }
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const whileStmt = fn.body![0];
+    expect(whileStmt.kind).toBe("while");
+    if (whileStmt.kind === "while") {
+      expect(whileStmt.condition.kind).toBe("binary");
+      if (whileStmt.condition.kind === "binary") {
+        expect(whileStmt.condition.operator).toBe(">");
+        expect(whileStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+      }
+    }
+  });
+
+  it("should convert string truthiness in do-while condition to bytes length check", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string): void {
+          do {
+            break;
+          } while (data);
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const doWhileStmt = fn.body![0];
+    expect(doWhileStmt.kind).toBe("do-while");
+    if (doWhileStmt.kind === "do-while") {
+      expect(doWhileStmt.condition.kind).toBe("binary");
+      if (doWhileStmt.condition.kind === "binary") {
+        expect(doWhileStmt.condition.operator).toBe(">");
+        expect(doWhileStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+      }
+    }
+  });
+
+  it("should recursively convert string truthiness in && expressions", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string, flag: boolean): boolean {
+          if (data && flag) {
+            return true;
+          }
+          return false;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      // Should be: (bytes(data).length > 0) && flag
+      expect(ifStmt.condition.kind).toBe("binary");
+      if (ifStmt.condition.kind === "binary") {
+        expect(ifStmt.condition.operator).toBe("&&");
+        // Left side should be wrapped: bytes(data).length > 0
+        expect(ifStmt.condition.left.kind).toBe("binary");
+        if (ifStmt.condition.left.kind === "binary") {
+          expect(ifStmt.condition.left.operator).toBe(">");
+        }
+        // Right side should remain unchanged: flag
+        expect(ifStmt.condition.right).toEqual({ kind: "identifier", name: "flag" });
+      }
+    }
+  });
+
+  it("should recursively convert string truthiness in || expressions", () => {
+    const contracts = parse(
+      `class Token {
+        process(a: string, b: string): boolean {
+          if (a || b) {
+            return true;
+          }
+          return false;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      expect(ifStmt.condition.kind).toBe("binary");
+      if (ifStmt.condition.kind === "binary") {
+        expect(ifStmt.condition.operator).toBe("||");
+        // Both sides should be wrapped
+        expect(ifStmt.condition.left.kind).toBe("binary");
+        expect(ifStmt.condition.right.kind).toBe("binary");
+        if (ifStmt.condition.left.kind === "binary") {
+          expect(ifStmt.condition.left.operator).toBe(">");
+        }
+        if (ifStmt.condition.right.kind === "binary") {
+          expect(ifStmt.condition.right.operator).toBe(">");
+        }
+      }
+    }
+  });
+
+  it("should handle double negation !!str as bytes length check", () => {
+    const contracts = parse(
+      `class Token {
+        process(data: string): boolean {
+          if (!!data) {
+            return true;
+          }
+          return false;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    const ifStmt = fn.body![0];
+    expect(ifStmt.kind).toBe("if");
+    if (ifStmt.kind === "if") {
+      // !!data → !( bytes(data).length == 0 ) after recursion through the outer !
+      // The outer ! recurses into operand (which is !data → bytes(data).length == 0)
+      // Then wraps: !(bytes(data).length == 0)
+      const cond = ifStmt.condition;
+      expect(cond.kind).toBe("unary");
+      if (cond.kind === "unary") {
+        expect(cond.operator).toBe("!");
+        // The inner part should be bytes(data).length == 0
+        expect(cond.operand.kind).toBe("binary");
+        if (cond.operand.kind === "binary") {
+          expect(cond.operand.operator).toBe("==");
+        }
+      }
+    }
+  });
 });

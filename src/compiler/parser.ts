@@ -99,41 +99,52 @@ const STRING_RETURNING_HELPERS = new Set([
   "_replace", "_replaceAll",
 ]);
 
-// Convert a string truthiness check to bytes(expr).length > 0
-// Also handles negated string: !str → bytes(str).length == 0
+// Internal helper to build a bytes(expr).length <op> 0 comparison
+function makeStringLengthComparison(inner: Expression, operator: string): Expression {
+  return {
+    kind: "binary",
+    operator,
+    left: {
+      kind: "property-access",
+      object: {
+        kind: "call",
+        callee: { kind: "identifier", name: "bytes" } as Expression,
+        args: [inner],
+      },
+      property: "length",
+    },
+    right: { kind: "number-literal", value: "0" },
+  };
+}
+
 function wrapStringTruthiness(expr: Expression): Expression {
+  // Recursively rewrite logical AND / OR so that any string operands
+  // used in a boolean context are converted to length checks.
+  if (expr.kind === "binary" && (expr.operator === "&&" || expr.operator === "||")) {
+    return {
+      ...expr,
+      left: wrapStringTruthiness(expr.left),
+      right: wrapStringTruthiness(expr.right),
+    };
+  }
+
+  // Handle logical NOT. If it's directly applied to a string, translate
+  // !str → bytes(str).length == 0. Otherwise, recurse into the operand.
+  if (expr.kind === "unary" && expr.operator === "!" && expr.prefix) {
+    if (isStringExpr(expr.operand)) {
+      return makeStringLengthComparison(expr.operand, "==");
+    }
+    return {
+      ...expr,
+      operand: wrapStringTruthiness(expr.operand),
+    };
+  }
+
+  // Base case: a bare string expression in boolean context.
   if (isStringExpr(expr)) {
-    return {
-      kind: "binary",
-      operator: ">",
-      left: {
-        kind: "property-access",
-        object: {
-          kind: "call",
-          callee: { kind: "identifier", name: "bytes" } as Expression,
-          args: [expr],
-        },
-        property: "length",
-      },
-      right: { kind: "number-literal", value: "0" },
-    };
+    return makeStringLengthComparison(expr, ">");
   }
-  if (expr.kind === "unary" && expr.operator === "!" && expr.prefix && isStringExpr(expr.operand)) {
-    return {
-      kind: "binary",
-      operator: "==",
-      left: {
-        kind: "property-access",
-        object: {
-          kind: "call",
-          callee: { kind: "identifier", name: "bytes" } as Expression,
-          args: [expr.operand],
-        },
-        property: "length",
-      },
-      right: { kind: "number-literal", value: "0" },
-    };
-  }
+
   return expr;
 }
 
