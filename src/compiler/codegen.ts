@@ -1296,6 +1296,48 @@ function generateReadonlyArrayGetter(v: SkittlesVariable): string {
 }
 
 /**
+ * Check whether an expression tree may perform state-modifying operations.
+ * Used to decide whether a default-parameter forwarding overload needs to
+ * widen its mutability beyond `view`.  Function calls, assignments, and
+ * `new` expressions are conservatively treated as potentially state-modifying
+ * because we cannot determine callee mutability at codegen time.
+ */
+function expressionMayModifyState(expr: Expression): boolean {
+  switch (expr.kind) {
+    case "call":
+    case "new":
+    case "assignment":
+      return true;
+    case "binary":
+      return expressionMayModifyState(expr.left) || expressionMayModifyState(expr.right);
+    case "unary":
+      return expressionMayModifyState(expr.operand);
+    case "conditional":
+      return (
+        expressionMayModifyState(expr.condition) ||
+        expressionMayModifyState(expr.whenTrue) ||
+        expressionMayModifyState(expr.whenFalse)
+      );
+    case "property-access":
+      return expressionMayModifyState(expr.object);
+    case "element-access":
+      return expressionMayModifyState(expr.object) || expressionMayModifyState(expr.index);
+    case "tuple-literal":
+      return expr.elements.some(expressionMayModifyState);
+    case "object-literal":
+      return expr.properties.some((p) => expressionMayModifyState(p.value));
+    // Literals and identifiers are always safe (pure reads at most).
+    case "number-literal":
+    case "string-literal":
+    case "boolean-literal":
+    case "identifier":
+      return false;
+    default:
+      return false;
+  }
+}
+
+/**
  * Expand a function that has default parameter values into multiple
  * Solidity overloads. The original function keeps all parameters (with
  * defaults stripped) and retains the implementation body. For each
@@ -1388,16 +1430,34 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       body.push({ kind: "expression", expression: callExpr });
     }
 
+    // Determine the minimum mutability for the overload wrapper.
+    // Default value expressions are evaluated in the overload body:
+    // - If any default may modify state (contains calls, assignments, or
+    //   `new`), widen to nonpayable since we can't verify callee mutability.
+    // - Otherwise, widen pure → view conservatively (defaults may read
+    //   state/environment, e.g. block.timestamp, this.x).
+    // - view and nonpayable stay as-is when defaults are simple expressions.
+    const omittedDefaults = f.parameters.slice(paramCount).map((p) => p.defaultValue!);
+    const defaultsMayModify = omittedDefaults.some(expressionMayModifyState);
+
+    let overloadMutability = f.stateMutability;
+    if (defaultsMayModify) {
+      // Conservatively widen to nonpayable when defaults contain
+      // potentially state-modifying operations (calls, assignments, new).
+      if (overloadMutability === "pure" || overloadMutability === "view") {
+        overloadMutability = "nonpayable";
+      }
+    } else if (overloadMutability === "pure") {
+      // Simple defaults (literals, identifiers) may still read state,
+      // so widen pure → view as a safe minimum.
+      overloadMutability = "view";
+    }
+
     const overload: SkittlesFunction = {
       ...f,
       parameters: shortParams,
       body,
-      // Default value expressions are evaluated in the overload body.
-      // If any default reads state or environment (e.g. block.timestamp),
-      // a "pure" overload would fail to compile. Conservatively widen to
-      // "view" when the main function is pure and defaults are present.
-      stateMutability:
-        f.stateMutability === "pure" ? "view" : f.stateMutability,
+      stateMutability: overloadMutability,
       // Inherit override/virtual from the original function so that
       // overloads correctly participate in inheritance when both base
       // and derived contracts define defaults on the same method.

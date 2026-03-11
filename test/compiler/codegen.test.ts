@@ -318,6 +318,7 @@ describe("generateSolidity", () => {
     // Main function with all params
     expect(sol).toContain("function defaultParam(uint256 x) public pure virtual returns (uint256)");
     // Overload without default params that forwards via local variable declarations
+    // (widened to view since defaults may reference state/environment)
     expect(sol).toContain("function defaultParam() public view virtual returns (uint256)");
     expect(sol).toContain("uint256 x = 10;");
     expect(sol).toContain("return defaultParam(x);");
@@ -572,6 +573,47 @@ describe("generateSolidity", () => {
     expect(sol).toContain("function compute() public view virtual returns (uint256)");
     expect(sol).toContain("uint256 value = 10;");
     expect(sol).toContain("return compute(value);");
+  });
+
+  it("should widen overload to nonpayable when default expression contains a function call", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "compute",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: {
+                  kind: "call",
+                  callee: { kind: "identifier", name: "getDefault" },
+                  args: [],
+                },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "x" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function stays pure
+    expect(sol).toContain("function compute(uint256 x) public pure virtual returns (uint256)");
+    // Overload widens to nonpayable (no mutability keyword) because the
+    // default expression is a function call whose mutability is unknown.
+    expect(sol).toContain("function compute() public virtual returns (uint256)");
+    expect(sol).not.toContain("function compute() public view virtual");
+    expect(sol).not.toContain("function compute() public pure virtual");
   });
 
   it("should omit super() call with no arguments in constructor", () => {
