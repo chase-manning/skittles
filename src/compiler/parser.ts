@@ -108,7 +108,7 @@ function makeStringLengthComparison(inner: Expression, operator: string): Expres
       kind: "property-access",
       object: {
         kind: "call",
-        callee: { kind: "identifier", name: "bytes" } as Expression,
+        callee: { kind: "identifier", name: "bytes" },
         args: [inner],
       },
       property: "length",
