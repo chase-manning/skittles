@@ -2512,6 +2512,45 @@ describe("integration: super keyword", () => {
     expect(result.errors).toHaveLength(0);
     expect(result.bytecode.length).toBeGreaterThan(0);
   });
+
+  it("should infer correct mutability for cross-file super.method() calls", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "skittles-super-cross-file-"));
+    try {
+      fs.mkdirSync(path.join(tmpDir, "contracts"), { recursive: true });
+
+      fs.writeFileSync(path.join(tmpDir, "contracts", "Base.ts"), `
+        export class Base {
+          public value: number = 0;
+
+          public increment(): void {
+            this.value = this.value + 1;
+          }
+        }
+      `);
+
+      fs.writeFileSync(path.join(tmpDir, "contracts", "Child.ts"), `
+        export class Child extends Base {
+          public override increment(): void {
+            this.value = this.value + 2;
+          }
+
+          public callSuper(): void {
+            super.increment();
+          }
+        }
+      `);
+
+      const result = await compile(tmpDir, defaultConfig);
+      expect(result.success).toBe(true);
+
+      const childArtifact = result.artifacts.find((a) => a.contractName === "Child");
+      expect(childArtifact).toBeDefined();
+      expect(childArtifact!.solidity).toContain("super.increment()");
+      expect(childArtifact!.solidity).not.toMatch(/function callSuper\(\) public pure/);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 // ============================================================

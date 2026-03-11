@@ -618,7 +618,7 @@ function collectThisCallNames(stmts: Statement[]): string[] {
         if (
           expr.callee.kind === "property-access" &&
           expr.callee.object.kind === "identifier" &&
-          expr.callee.object.name === "this"
+          (expr.callee.object.name === "this" || expr.callee.object.name === "super")
         ) {
           names.push(expr.callee.property);
         }
