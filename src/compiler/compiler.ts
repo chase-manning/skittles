@@ -388,14 +388,26 @@ export async function compile(
       const allMutabilities = new Map([...parentMutabilities, ...ownMutabilities]);
 
       let changed = true;
+      const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
       while (changed) {
         changed = false;
         for (const fn of contract.functions) {
-          const callNames = collectThisCallNames(fn.body);
-          for (const name of callNames) {
+          const { thisCalls, superCalls } = collectThisCallNames(fn.body);
+          for (const name of thisCalls) {
             const calleeMut = allMutabilities.get(name);
             if (!calleeMut) continue;
-            const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+            if (rank[calleeMut] > rank[fn.stateMutability]) {
+              fn.stateMutability = calleeMut as StateMutability;
+              allMutabilities.set(fn.name, fn.stateMutability);
+              changed = true;
+            }
+          }
+          // super.foo() explicitly invokes the parent implementation, so
+          // resolve against parentMutabilities (not allMutabilities which
+          // includes child overrides that may have different mutability).
+          for (const name of superCalls) {
+            const calleeMut = parentMutabilities.get(name);
+            if (!calleeMut) continue;
             if (rank[calleeMut] > rank[fn.stateMutability]) {
               fn.stateMutability = calleeMut as StateMutability;
               allMutabilities.set(fn.name, fn.stateMutability);
@@ -605,22 +617,28 @@ export async function compile(
 }
 
 /**
- * Collect all `this.foo()` call names from a statement tree by walking
- * every expression recursively. Unlike the flat statement walker, this
- * detects calls inside return statements, assignments, conditionals, etc.
+ * Collect all `this.foo()` and `super.foo()` call names from a statement tree
+ * by walking every expression recursively. Unlike the flat statement walker,
+ * this detects calls inside return statements, assignments, conditionals, etc.
+ * Returns them separately so callers can resolve `super` calls against
+ * parent mutabilities (not child overrides).
  */
-function collectThisCallNames(stmts: Statement[]): string[] {
-  const names: string[] = [];
+function collectThisCallNames(stmts: Statement[]): { thisCalls: string[]; superCalls: string[] } {
+  const thisCalls: string[] = [];
+  const superCalls: string[] = [];
 
   function walkExpr(expr: Expression): void {
     switch (expr.kind) {
       case "call":
         if (
           expr.callee.kind === "property-access" &&
-          expr.callee.object.kind === "identifier" &&
-          (expr.callee.object.name === "this" || expr.callee.object.name === "super")
+          expr.callee.object.kind === "identifier"
         ) {
-          names.push(expr.callee.property);
+          if (expr.callee.object.name === "this") {
+            thisCalls.push(expr.callee.property);
+          } else if (expr.callee.object.name === "super") {
+            superCalls.push(expr.callee.property);
+          }
         }
         walkExpr(expr.callee);
         expr.args.forEach(walkExpr);
@@ -721,7 +739,7 @@ function collectThisCallNames(stmts: Statement[]): string[] {
   }
 
   stmts.forEach(walkStmt);
-  return names;
+  return { thisCalls, superCalls };
 }
 
 /**
