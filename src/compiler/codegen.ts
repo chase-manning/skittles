@@ -1337,7 +1337,8 @@ function expressionMayModifyState(expr: Expression): boolean {
     case "identifier":
       return false;
     default:
-      return false;
+      // Be conservative: treat unknown expression kinds as potentially state-modifying.
+      return true;
   }
 }
 
@@ -2290,7 +2291,54 @@ export function buildSourceMap(
     }
   }
 
+  // Replicate the same ancestor-origin suppression used during codegen so we
+  // only try to map functions that were actually emitted in the Solidity output.
+  const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
+  const smAncestorsMap = new Map<string, Set<string>>();
+  for (const c of contracts) {
+    const ancestors = new Set<string>();
+    const queue = [...c.inherits.filter((n) => contractByName.has(n))];
+    let qi = 0;
+    while (qi < queue.length) {
+      const name = queue[qi++]!;
+      if (ancestors.has(name)) continue;
+      ancestors.add(name);
+      const parent = contractByName.get(name);
+      if (parent) {
+        for (const gp of parent.inherits) {
+          if (contractByName.has(gp)) queue.push(gp);
+        }
+      }
+    }
+    smAncestorsMap.set(c.name, ancestors);
+  }
+  const smFunctionOrigins = new Map<string, Set<string>>();
+
   for (const contract of contracts) {
+    const smAncestors = smAncestorsMap.get(contract.name) ?? new Set<string>();
+    const smHasAncestorOrigin = (origins: Set<string> | undefined): boolean =>
+      origins !== undefined && Array.from(origins).some((o) => smAncestors.has(o));
+    const smGetFunctionKey = (f: SkittlesFunction): string => {
+      const paramTypes = f.parameters
+        .map((p) => (p.type ? generateType(p.type) : "unknown"))
+        .join(",");
+      return `${f.name}(${paramTypes})`;
+    };
+
+    const functionsToMap = contract.functions.filter((f) => {
+      const key = smGetFunctionKey(f);
+      return !smHasAncestorOrigin(smFunctionOrigins.get(key)) || f.isOverride;
+    });
+    for (const f of functionsToMap) {
+      const key = smGetFunctionKey(f);
+      let origins = smFunctionOrigins.get(key);
+      if (!origins) {
+        origins = new Set<string>();
+        smFunctionOrigins.set(key, origins);
+      }
+      origins.add(contract.name);
+    }
+
     // Find the contract declaration line
     const contractIdx = findLine((l) => {
       const trimmed = l.trimStart();
@@ -2338,7 +2386,7 @@ export function buildSourceMap(
     // scanner advances past overload wrapper bodies that appear in the
     // generated Solidity (the same expansion is applied during codegen).
     const expandedFns: SkittlesFunction[] = [];
-    for (const f of contract.functions) {
+    for (const f of functionsToMap) {
       expandedFns.push(...expandDefaultParamOverloads(f));
     }
     for (const f of expandedFns) {
