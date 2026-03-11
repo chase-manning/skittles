@@ -3450,7 +3450,7 @@ function collectThisCalls(stmts: Statement[]): string[] {
       expr.kind === "call" &&
       expr.callee.kind === "property-access" &&
       expr.callee.object.kind === "identifier" &&
-      expr.callee.object.name === "this"
+      (expr.callee.object.name === "this" || expr.callee.object.name === "super")
     ) {
       names.push(expr.callee.property);
     }

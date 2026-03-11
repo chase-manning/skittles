@@ -141,6 +141,60 @@ describe("parse", () => {
     expect(contracts[0].functions[0].stateMutability).toBe("view");
   });
 
+  it("should propagate nonpayable mutability through super.method() calls", () => {
+    const contracts = parse(
+      `abstract class BaseContract {
+        public value: number = 0;
+
+        abstract getValue(): number;
+
+        public increment(): void {
+          this.value = this.value + 1;
+        }
+      }
+
+      class ChildContract extends BaseContract {
+        getValue(): number {
+          return this.value;
+        }
+
+        override increment(): void {
+          this.value = this.value + 2;
+        }
+
+        public callSuper(): void {
+          super.increment();
+        }
+      }`,
+      "test.ts"
+    );
+    const child = contracts.find((c) => c.name === "ChildContract")!;
+    const callSuper = child.functions.find((f) => f.name === "callSuper")!;
+    expect(callSuper.stateMutability).toBe("nonpayable");
+  });
+
+  it("should propagate view mutability through super.method() calls", () => {
+    const contracts = parse(
+      `class Base {
+        public x: number = 0;
+
+        public getX(): number {
+          return this.x;
+        }
+      }
+
+      class Child extends Base {
+        public callSuperView(): number {
+          return super.getX();
+        }
+      }`,
+      "test.ts"
+    );
+    const child = contracts.find((c) => c.name === "Child")!;
+    const callSuperView = child.functions.find((f) => f.name === "callSuperView")!;
+    expect(callSuperView.stateMutability).toBe("view");
+  });
+
   it("should not mark non-abstract classes as abstract", () => {
     const contracts = parse(
       "class Token { public x: number = 0; }",
