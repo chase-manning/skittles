@@ -657,6 +657,42 @@ describe("generateSolidity", () => {
     expect(sol).not.toContain("function compute() public pure virtual");
   });
 
+  it("should throw when override function has state-modifying default expressions", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          functions: [
+            {
+              name: "compute",
+              parameters: [
+                {
+                  name: "x",
+                  type: { kind: SkittlesTypeKind.Uint256 },
+                  defaultValue: {
+                    kind: "call",
+                    callee: { kind: "identifier", name: "getDefault" },
+                    arguments: [],
+                  },
+                },
+              ],
+              returnType: { kind: SkittlesTypeKind.Uint256 },
+              visibility: "public",
+              stateMutability: "pure",
+              isVirtual: false,
+              isOverride: true,
+              body: [
+                {
+                  kind: "return",
+                  value: { kind: "identifier", name: "x" },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    ).toThrow("Cannot use state-modifying default parameter expression on overriding");
+  });
+
   it("should omit super() call with no arguments in constructor", () => {
     const sol = generateSolidity(
       emptyContract({

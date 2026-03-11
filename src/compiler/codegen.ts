@@ -1447,9 +1447,20 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
 
     let overloadMutability = f.stateMutability;
     if (defaultsMayModify) {
-      // Conservatively widen to nonpayable when defaults contain
-      // potentially state-modifying operations (calls, assignments, new).
       if (overloadMutability === "pure" || overloadMutability === "view") {
+        if (f.isOverride) {
+          // For override wrappers, we cannot safely widen mutability without
+          // risking a mismatch with the base signature (e.g. base view,
+          // derived nonpayable). Fail fast with a clear error.
+          throw new Error(
+            `Cannot use state-modifying default parameter expression on overriding ` +
+              `${overloadMutability} function "${f.name}". Either remove the state-modifying ` +
+              `default, change the base function's mutability, or avoid using overrides with ` +
+              `such defaults.`,
+          );
+        }
+        // Conservatively widen to nonpayable when defaults contain
+        // potentially state-modifying operations (calls, assignments, new).
         overloadMutability = "nonpayable";
       }
     } else if (overloadMutability === "pure") {
