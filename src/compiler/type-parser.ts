@@ -228,17 +228,6 @@ export function inferType(
         }
       }
       return undefined;
-    case "conditional": {
-      const whenTrueType = inferType(expr.whenTrue, varTypes);
-      const whenFalseType = inferType(expr.whenFalse, varTypes);
-      if (!whenTrueType || !whenFalseType) {
-        return undefined;
-      }
-      if (typesEqual(whenTrueType, whenFalseType)) {
-        return whenTrueType;
-      }
-      return undefined;
-    }
     default:
       return undefined;
   }
