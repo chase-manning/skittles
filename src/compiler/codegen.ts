@@ -2330,8 +2330,14 @@ export function buildSourceMap(
       }
     }
 
-    // Map functions
+    // Map functions — expand default-param overloads so the source map
+    // scanner advances past overload wrapper bodies that appear in the
+    // generated Solidity (the same expansion is applied during codegen).
+    const expandedFns: SkittlesFunction[] = [];
     for (const f of contract.functions) {
+      expandedFns.push(...expandDefaultParamOverloads(f));
+    }
+    for (const f of expandedFns) {
       const funcIdx = findLine((l) => {
         const trimmed = l.trim();
         if (f.name === "receive") return trimmed.startsWith("receive()");

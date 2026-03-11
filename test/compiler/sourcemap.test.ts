@@ -260,4 +260,28 @@ class B {
       expect(tsLine).toBeGreaterThanOrEqual(1);
     }
   });
+
+  it("should map both main function and default-param overload to TypeScript line", () => {
+    const source = `class Token {
+  defaultFn(x: number = 10): number {
+    return x;
+  }
+}`;
+    const contracts = parse(source, "test.ts");
+    const solidity = generateSolidity(contracts[0]);
+    const sourceMap = buildSourceMap(solidity, contracts, "test.ts");
+
+    // Both the main function and the overload should appear in generated Solidity
+    const solLines = solidity.split("\n");
+    const funcLines = solLines.reduce<number[]>((acc, l, i) => {
+      if (l.trim().startsWith("function defaultFn(")) acc.push(i + 1);
+      return acc;
+    }, []);
+    // Expect 2 function signatures: one with param, one without (overload)
+    expect(funcLines.length).toBe(2);
+    // Both should map back to the original TypeScript source line
+    for (const line of funcLines) {
+      expect(sourceMap.mappings[line]).toBe(2);
+    }
+  });
 });
