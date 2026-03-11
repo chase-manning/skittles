@@ -616,6 +616,47 @@ describe("generateSolidity", () => {
     expect(sol).not.toContain("function compute() public pure virtual");
   });
 
+  it("should widen overload to nonpayable when default expression contains ++/--", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "compute",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: {
+                  kind: "unary",
+                  operator: "++",
+                  operand: { kind: "identifier", name: "counter" },
+                  prefix: false,
+                },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "x" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function stays pure
+    expect(sol).toContain("function compute(uint256 x) public pure virtual returns (uint256)");
+    // Overload widens to nonpayable because ++ is state-modifying
+    expect(sol).toContain("function compute() public virtual returns (uint256)");
+    expect(sol).not.toContain("function compute() public view virtual");
+    expect(sol).not.toContain("function compute() public pure virtual");
+  });
+
   it("should omit super() call with no arguments in constructor", () => {
     const sol = generateSolidity(
       emptyContract({

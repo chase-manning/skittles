@@ -1311,6 +1311,10 @@ function expressionMayModifyState(expr: Expression): boolean {
     case "binary":
       return expressionMayModifyState(expr.left) || expressionMayModifyState(expr.right);
     case "unary":
+      // ++ / -- are always state-modifying (they mutate the operand).
+      if (expr.operator === "++" || expr.operator === "--") {
+        return true;
+      }
       return expressionMayModifyState(expr.operand);
     case "conditional":
       return (
