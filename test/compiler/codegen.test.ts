@@ -411,7 +411,7 @@ describe("generateSolidity", () => {
     ).toThrow("default-valued parameters must be contiguous and trailing");
   });
 
-  it("should generate virtual (not override) overloads for override function with defaults", () => {
+  it("should inherit override/virtual on overloads for override function with defaults", () => {
     const sol = generateSolidity(
       emptyContract({
         functions: [
@@ -447,9 +447,74 @@ describe("generateSolidity", () => {
     );
     // Main function keeps override
     expect(sol).toContain("function overriddenFn(uint256 a, uint256 b) public pure override returns (uint256)");
-    // Overload must be virtual, NOT override (parent may not have this signature)
-    expect(sol).toContain("function overriddenFn(uint256 a) public view virtual returns (uint256)");
-    expect(sol).not.toMatch(/function overriddenFn\(uint256 a\).*override/);
+    // Overload inherits override from the original so it correctly participates
+    // in inheritance when the parent also generates the shorter-arity overload.
+    expect(sol).toContain("function overriddenFn(uint256 a) public view override returns (uint256)");
+  });
+
+  it("should throw when a parameter name shadows the function name with defaults", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          functions: [
+            {
+              name: "foo",
+              parameters: [
+                {
+                  name: "foo",
+                  type: { kind: SkittlesTypeKind.Uint256 },
+                  defaultValue: { kind: "number-literal", value: "1" },
+                },
+              ],
+              returnType: { kind: SkittlesTypeKind.Uint256 },
+              visibility: "public",
+              stateMutability: "pure",
+              isVirtual: true,
+              isOverride: false,
+              body: [
+                {
+                  kind: "return",
+                  value: { kind: "identifier", name: "foo" },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    ).toThrow("shadows the function name");
+  });
+
+  it("should generate concrete overloads for abstract function with defaults", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        isAbstract: true,
+        functions: [
+          {
+            name: "abstractFn",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            isAbstract: true,
+            body: [],
+          },
+        ],
+      })
+    );
+    // Main function stays abstract (no body)
+    expect(sol).toContain("function abstractFn(uint256 x) public pure virtual returns (uint256);");
+    // Overload must be concrete (has body with forwarding call)
+    expect(sol).toContain("function abstractFn() public view virtual returns (uint256)");
+    expect(sol).toContain("uint256 x = 10;");
+    expect(sol).toContain("return abstractFn(x);");
   });
 
   it("should omit super() call with no arguments in constructor", () => {

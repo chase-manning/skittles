@@ -1336,6 +1336,18 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
 
   const result: SkittlesFunction[] = [mainFn];
 
+  // Validate that no parameter (or default-generated local) shadows the
+  // function name, which would cause the forwarding call to resolve to
+  // the variable instead of the function (Solidity compile-time error).
+  for (const p of f.parameters) {
+    if (p.name === f.name) {
+      throw new Error(
+        `Function "${f.name}" has a parameter named "${p.name}" that shadows the function name; ` +
+          "rename the parameter to avoid breaking the generated forwarding overload."
+      );
+    }
+  }
+
   // Generate overloads for each valid parameter count
   // from (all params - 1 default) down to (only required params)
   for (let paramCount = f.parameters.length - 1; paramCount >= firstDefaultIdx; paramCount--) {
@@ -1386,11 +1398,15 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
       // "view" when the main function is pure and defaults are present.
       stateMutability:
         f.stateMutability === "pure" ? "view" : f.stateMutability,
-      // Generated overloads are new signatures that may not exist in the
-      // parent contract. Always mark them virtual (not override) to avoid
-      // Solidity errors when the parent lacks the shorter-arity signature.
-      isOverride: false,
-      isVirtual: true,
+      // Inherit override/virtual from the original function so that
+      // overloads correctly participate in inheritance when both base
+      // and derived contracts define defaults on the same method.
+      isOverride: f.isOverride,
+      isVirtual: f.isVirtual,
+      // Overload wrappers must be concrete even when the main function
+      // is abstract — abstract contracts can still have concrete
+      // forwarding functions that call an abstract virtual function.
+      isAbstract: false,
     };
 
     result.push(overload);
