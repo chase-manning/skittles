@@ -104,6 +104,76 @@ const STRING_RETURNING_HELPERS = new Set([
   "_replace", "_replaceAll",
 ]);
 
+// Internal helper to build a bytes(expr).length <op> 0 comparison
+function makeStringLengthComparison(inner: Expression, operator: string): Expression {
+  return {
+    kind: "binary",
+    operator,
+    left: {
+      kind: "property-access",
+      object: {
+        kind: "call",
+        callee: { kind: "identifier", name: "bytes" },
+        args: [inner],
+      },
+      property: "length",
+    },
+    right: { kind: "number-literal", value: "0" },
+  };
+}
+
+function wrapStringTruthiness(expr: Expression): Expression {
+  // Recursively rewrite logical AND / OR so that any string operands
+  // used in a boolean context are converted to length checks.
+  if (expr.kind === "binary" && (expr.operator === "&&" || expr.operator === "||")) {
+    return {
+      ...expr,
+      left: wrapStringTruthiness(expr.left),
+      right: wrapStringTruthiness(expr.right),
+    };
+  }
+
+  // Handle logical NOT. If it's directly applied to a string, translate
+  // !str → bytes(str).length == 0. Otherwise, recurse into the operand.
+  if (expr.kind === "unary" && expr.operator === "!" && expr.prefix) {
+    if (isStringExpr(expr.operand)) {
+      return makeStringLengthComparison(expr.operand, "==");
+    }
+    return {
+      ...expr,
+      operand: wrapStringTruthiness(expr.operand),
+    };
+  }
+
+  // Handle conditional (ternary) expressions where condition or branches
+  // are strings in boolean context: (flag ? a : b) where flag/a/b may
+  // involve string truthiness.
+  if (expr.kind === "conditional") {
+    const wrappedCondition = wrapStringTruthiness(expr.condition);
+    const wrappedTrue = wrapStringTruthiness(expr.whenTrue);
+    const wrappedFalse = wrapStringTruthiness(expr.whenFalse);
+    if (
+      wrappedCondition !== expr.condition ||
+      wrappedTrue !== expr.whenTrue ||
+      wrappedFalse !== expr.whenFalse
+    ) {
+      return {
+        ...expr,
+        condition: wrappedCondition,
+        whenTrue: wrappedTrue,
+        whenFalse: wrappedFalse,
+      };
+    }
+  }
+
+  // Base case: a bare string expression in boolean context.
+  if (isStringExpr(expr)) {
+    return makeStringLengthComparison(expr, ">");
+  }
+
+  return expr;
+}
+
 const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
   charAt: { helper: "_charAt", minArgs: 0, maxArgs: 1 },
   substring: { helper: "_substring", minArgs: 1, maxArgs: 2 },
@@ -2846,7 +2916,7 @@ export function parseStatement(
   }
 
   if (ts.isIfStatement(node)) {
-    const condition = parseExpression(node.expression);
+    const condition = wrapStringTruthiness(parseExpression(node.expression));
     const thenBody = parseBlock(node.thenStatement, varTypes, eventNames);
     const elseBody = node.elseStatement
       ? parseBlock(node.elseStatement, varTypes, eventNames)
@@ -2887,7 +2957,7 @@ export function parseStatement(
       kind: "for",
       initializer,
       condition: node.condition
-        ? parseExpression(node.condition)
+        ? wrapStringTruthiness(parseExpression(node.condition))
         : undefined,
       incrementor: node.incrementor
         ? parseExpression(node.incrementor)
@@ -2900,7 +2970,7 @@ export function parseStatement(
   if (ts.isWhileStatement(node)) {
     return {
       kind: "while",
-      condition: parseExpression(node.expression),
+      condition: wrapStringTruthiness(parseExpression(node.expression)),
       body: parseBlock(node.statement, varTypes, eventNames),
       sourceLine: getSourceLine(node),
     };
@@ -2909,7 +2979,7 @@ export function parseStatement(
   if (ts.isDoStatement(node)) {
     return {
       kind: "do-while",
-      condition: parseExpression(node.expression),
+      condition: wrapStringTruthiness(parseExpression(node.expression)),
       body: parseBlock(node.statement, varTypes, eventNames),
       sourceLine: getSourceLine(node),
     };

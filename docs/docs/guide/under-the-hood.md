@@ -91,6 +91,7 @@ This inference propagates through call chains — if function A calls function B
 Skittles applies several optimizations to generate idiomatic Solidity:
 
 - **`if/throw` → `require()`**: When an `if` block contains only `throw new Error("message")` with no `else`, it's converted to `require()` with the condition negated
+- **String truthiness → length check**: `if (str)` compiles to `if (bytes(str).length > 0)` and `if (!str)` compiles to `if (bytes(str).length == 0)` since Solidity doesn't support implicit string-to-bool conversion
 - **`private` → `internal`**: TypeScript `private` maps to Solidity `internal` rather than `private` for better gas efficiency
 - **`virtual` by default**: All functions are marked `virtual` so child contracts can override them
 - **Address wrapping**: 42-character hex string literals are automatically wrapped in `address(...)`
