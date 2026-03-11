@@ -511,8 +511,9 @@ describe("generateSolidity", () => {
     );
     // Main function stays abstract (no body)
     expect(sol).toContain("function abstractFn(uint256 x) public pure virtual returns (uint256);");
-    // Overload must be concrete (has body with forwarding call)
+    // Overload must be concrete (has body with forwarding call), not abstract
     expect(sol).toContain("function abstractFn() public view virtual returns (uint256)");
+    expect(sol).not.toContain("function abstractFn() public view virtual returns (uint256);");
     expect(sol).toContain("uint256 x = 10;");
     expect(sol).toContain("return abstractFn(x);");
   });
