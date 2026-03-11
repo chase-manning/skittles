@@ -671,7 +671,7 @@ describe("generateSolidity", () => {
                   defaultValue: {
                     kind: "call",
                     callee: { kind: "identifier", name: "getDefault" },
-                    arguments: [],
+                    args: [],
                   },
                 },
               ],
