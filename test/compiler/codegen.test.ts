@@ -287,6 +287,412 @@ describe("generateSolidity", () => {
     expect(sol).toContain("tokenName = name;");
   });
 
+  it("should generate overload for function with default parameter", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "defaultParam",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "x" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function with all params
+    expect(sol).toContain("function defaultParam(uint256 x) public pure virtual returns (uint256)");
+    // Overload without default params that forwards via local variable declarations
+    // (widened to view since defaults may reference state/environment)
+    expect(sol).toContain("function defaultParam() public view virtual returns (uint256)");
+    expect(sol).toContain("uint256 x = 10;");
+    expect(sol).toContain("return defaultParam(x);");
+  });
+
+  it("should generate multiple overloads for function with mixed default and required parameters", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "mixedParams",
+            parameters: [
+              { name: "a", type: { kind: SkittlesTypeKind.Uint256 } },
+              {
+                name: "b",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "5" },
+              },
+              {
+                name: "c",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: {
+                  kind: "binary",
+                  left: {
+                    kind: "binary",
+                    left: { kind: "identifier", name: "a" },
+                    operator: "+",
+                    right: { kind: "identifier", name: "b" },
+                  },
+                  operator: "+",
+                  right: { kind: "identifier", name: "c" },
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function with all params
+    expect(sol).toContain("function mixedParams(uint256 a, uint256 b, uint256 c) public pure virtual returns (uint256)");
+    // Overload with just required param + first default
+    expect(sol).toContain("function mixedParams(uint256 a, uint256 b) public view virtual returns (uint256)");
+    expect(sol).toContain("uint256 c = 10;");
+    expect(sol).toContain("return mixedParams(a, b, c);");
+    // Overload with just required param
+    expect(sol).toContain("function mixedParams(uint256 a) public view virtual returns (uint256)");
+    expect(sol).toContain("uint256 b = 5;");
+  });
+
+  it("should throw when function has non-trailing default parameters", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          functions: [
+            {
+              name: "badDefaults",
+              parameters: [
+                {
+                  name: "a",
+                  type: { kind: SkittlesTypeKind.Uint256 },
+                  defaultValue: { kind: "number-literal", value: "10" },
+                },
+                { name: "b", type: { kind: SkittlesTypeKind.Uint256 } },
+              ],
+              returnType: { kind: SkittlesTypeKind.Uint256 },
+              visibility: "public",
+              stateMutability: "pure",
+              isVirtual: true,
+              isOverride: false,
+              body: [
+                {
+                  kind: "return",
+                  value: { kind: "identifier", name: "b" },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    ).toThrow("default-valued parameters must be contiguous and trailing");
+  });
+
+  it("should inherit override/virtual on overloads for override function with defaults", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "overriddenFn",
+            parameters: [
+              { name: "a", type: { kind: SkittlesTypeKind.Uint256 } },
+              {
+                name: "b",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "42" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: false,
+            isOverride: true,
+            body: [
+              {
+                kind: "return",
+                value: {
+                  kind: "binary",
+                  left: { kind: "identifier", name: "a" },
+                  operator: "+",
+                  right: { kind: "identifier", name: "b" },
+                },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function keeps override
+    expect(sol).toContain("function overriddenFn(uint256 a, uint256 b) public pure override returns (uint256)");
+    // Overload inherits override from the original so it correctly participates
+    // in inheritance when the parent also generates the shorter-arity overload.
+    expect(sol).toContain("function overriddenFn(uint256 a) public view override returns (uint256)");
+  });
+
+  it("should throw when a parameter name shadows the function name with defaults", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          functions: [
+            {
+              name: "foo",
+              parameters: [
+                {
+                  name: "foo",
+                  type: { kind: SkittlesTypeKind.Uint256 },
+                  defaultValue: { kind: "number-literal", value: "1" },
+                },
+              ],
+              returnType: { kind: SkittlesTypeKind.Uint256 },
+              visibility: "public",
+              stateMutability: "pure",
+              isVirtual: true,
+              isOverride: false,
+              body: [
+                {
+                  kind: "return",
+                  value: { kind: "identifier", name: "foo" },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    ).toThrow("shadows the function name");
+  });
+
+  it("should generate concrete overloads for abstract function with defaults", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        isAbstract: true,
+        functions: [
+          {
+            name: "abstractFn",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            isAbstract: true,
+            body: [],
+          },
+        ],
+      })
+    );
+    // Main function stays abstract (no body)
+    expect(sol).toContain("function abstractFn(uint256 x) public pure virtual returns (uint256);");
+    // Overload must be concrete (has body with forwarding call), not abstract
+    expect(sol).toContain("function abstractFn() public view virtual returns (uint256)");
+    expect(sol).not.toContain("function abstractFn() public view virtual returns (uint256);");
+    expect(sol).toContain("uint256 x = 10;");
+    expect(sol).toContain("return abstractFn(x);");
+  });
+
+  it("should handle overload local variable that shadows a sibling function name", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "value",
+            parameters: [],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "number-literal", value: "42" },
+              },
+            ],
+          },
+          {
+            name: "compute",
+            parameters: [
+              {
+                name: "value",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: { kind: "number-literal", value: "10" },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "value" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // The sibling function value() exists
+    expect(sol).toContain("function value() public pure virtual returns (uint256)");
+    // Main function: parameter "value" is renamed to avoid shadowing
+    // the sibling function name (paramRenames mechanism)
+    expect(sol).toContain("function compute(uint256 _value) public pure virtual returns (uint256)");
+    // Overload: the generated local variable from the omitted default
+    // keeps the original name since the forwarding call uses compute(),
+    // not value(), so shadowing the sibling doesn't break anything
+    expect(sol).toContain("function compute() public view virtual returns (uint256)");
+    expect(sol).toContain("uint256 value = 10;");
+    expect(sol).toContain("return compute(value);");
+  });
+
+  it("should widen overload to nonpayable when default expression contains a function call", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "compute",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: {
+                  kind: "call",
+                  callee: { kind: "identifier", name: "getDefault" },
+                  args: [],
+                },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "x" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function stays pure
+    expect(sol).toContain("function compute(uint256 x) public pure virtual returns (uint256)");
+    // Overload widens to nonpayable (no mutability keyword) because the
+    // default expression is a function call whose mutability is unknown.
+    expect(sol).toContain("function compute() public virtual returns (uint256)");
+    expect(sol).not.toContain("function compute() public view virtual");
+    expect(sol).not.toContain("function compute() public pure virtual");
+  });
+
+  it("should widen overload to nonpayable when default expression contains ++/--", () => {
+    const sol = generateSolidity(
+      emptyContract({
+        functions: [
+          {
+            name: "compute",
+            parameters: [
+              {
+                name: "x",
+                type: { kind: SkittlesTypeKind.Uint256 },
+                defaultValue: {
+                  kind: "unary",
+                  operator: "++",
+                  operand: { kind: "identifier", name: "counter" },
+                  prefix: false,
+                },
+              },
+            ],
+            returnType: { kind: SkittlesTypeKind.Uint256 },
+            visibility: "public",
+            stateMutability: "pure",
+            isVirtual: true,
+            isOverride: false,
+            body: [
+              {
+                kind: "return",
+                value: { kind: "identifier", name: "x" },
+              },
+            ],
+          },
+        ],
+      })
+    );
+    // Main function stays pure
+    expect(sol).toContain("function compute(uint256 x) public pure virtual returns (uint256)");
+    // Overload widens to nonpayable because ++ is state-modifying
+    expect(sol).toContain("function compute() public virtual returns (uint256)");
+    expect(sol).not.toContain("function compute() public view virtual");
+    expect(sol).not.toContain("function compute() public pure virtual");
+  });
+
+  it("should throw when override function has state-modifying default expressions", () => {
+    expect(() =>
+      generateSolidity(
+        emptyContract({
+          functions: [
+            {
+              name: "compute",
+              parameters: [
+                {
+                  name: "x",
+                  type: { kind: SkittlesTypeKind.Uint256 },
+                  defaultValue: {
+                    kind: "call",
+                    callee: { kind: "identifier", name: "getDefault" },
+                    args: [],
+                  },
+                },
+              ],
+              returnType: { kind: SkittlesTypeKind.Uint256 },
+              visibility: "public",
+              stateMutability: "pure",
+              isVirtual: false,
+              isOverride: true,
+              body: [
+                {
+                  kind: "return",
+                  value: { kind: "identifier", name: "x" },
+                },
+              ],
+            },
+          ],
+        })
+      )
+    ).toThrow("Cannot use state-modifying default parameter expression on overriding");
+  });
+
   it("should omit super() call with no arguments in constructor", () => {
     const sol = generateSolidity(
       emptyContract({

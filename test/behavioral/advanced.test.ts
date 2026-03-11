@@ -389,6 +389,22 @@ class MixedToken {
 }
 `;
 
+const FUNCTION_DEFAULT_PARAM_SOURCE = `
+class DefaultFunc {
+  public defaultParam(x: number = 10): number {
+    return x;
+  }
+}
+`;
+
+const FUNCTION_MIXED_DEFAULT_PARAM_SOURCE = `
+class MixedDefaultFunc {
+  public mixedParams(a: number, b: number = 5, c: number = 10): number {
+    return a + b + c;
+  }
+}
+`;
+
 const EXPONENTIATION_SOURCE = `
 class MathPow {
   private value: number = 2;
@@ -436,6 +452,42 @@ describe("behavioral: constructor with mixed default and required parameters", (
 
   it("should use default supply value", async () => {
     expect(await contract.contract.getSupply()).toBe(500n);
+  });
+});
+
+describe("behavioral: function with default parameter", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, FUNCTION_DEFAULT_PARAM_SOURCE, "DefaultFunc");
+  });
+
+  it("should use default value when called without argument", async () => {
+    expect(await contract.contract["defaultParam()"]()).toBe(10n);
+  });
+
+  it("should use provided value when called with argument", async () => {
+    expect(await contract.contract["defaultParam(uint256)"](42)).toBe(42n);
+  });
+});
+
+describe("behavioral: function with mixed default and required parameters", () => {
+  let contract: DeployedContract;
+
+  beforeAll(async () => {
+    contract = await compileAndDeploy(env, FUNCTION_MIXED_DEFAULT_PARAM_SOURCE, "MixedDefaultFunc");
+  });
+
+  it("should use all defaults when called with only required param", async () => {
+    expect(await contract.contract["mixedParams(uint256)"](100)).toBe(115n);
+  });
+
+  it("should use last default when called with required + first optional", async () => {
+    expect(await contract.contract["mixedParams(uint256,uint256)"](100, 20)).toBe(130n);
+  });
+
+  it("should use all provided values when called with all params", async () => {
+    expect(await contract.contract["mixedParams(uint256,uint256,uint256)"](100, 20, 30)).toBe(150n);
   });
 });
 

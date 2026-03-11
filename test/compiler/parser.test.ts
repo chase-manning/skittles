@@ -373,6 +373,52 @@ describe("parse", () => {
     });
   });
 
+  it("should parse method with default parameter value", () => {
+    const contracts = parse(
+      `class T {
+        public defaultParam(x: number = 10): number {
+          return x;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    expect(fn.name).toBe("defaultParam");
+    expect(fn.parameters).toHaveLength(1);
+    expect(fn.parameters[0].name).toBe("x");
+    expect(fn.parameters[0].type.kind).toBe("uint256");
+    expect(fn.parameters[0].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "10",
+    });
+  });
+
+  it("should parse method with mixed default and required parameters", () => {
+    const contracts = parse(
+      `class T {
+        public mixedParams(a: number, b: number = 5, c: number = 10): number {
+          return a + b + c;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    expect(fn.name).toBe("mixedParams");
+    expect(fn.parameters).toHaveLength(3);
+    expect(fn.parameters[0].name).toBe("a");
+    expect(fn.parameters[0].defaultValue).toBeUndefined();
+    expect(fn.parameters[1].name).toBe("b");
+    expect(fn.parameters[1].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "5",
+    });
+    expect(fn.parameters[2].name).toBe("c");
+    expect(fn.parameters[2].defaultValue).toEqual({
+      kind: "number-literal",
+      value: "10",
+    });
+  });
+
   it("should parse a simple function", () => {
     const contracts = parse(
       `class T {

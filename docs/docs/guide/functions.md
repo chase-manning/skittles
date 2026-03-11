@@ -111,6 +111,48 @@ The overload signatures (without bodies) define the public API, while the implem
 - The overload with the most parameters gets the implementation body
 - Shorter overloads automatically forward to the longest overload with default values
 
+## Default Parameter Values
+
+Function parameters can have default values, just like in TypeScript. Skittles generates overloaded Solidity functions so callers can omit trailing arguments:
+
+```typescript
+class Auction {
+  public bid(amount: number, maxGas: number = 100000): boolean {
+    // implementation
+    return true;
+  }
+}
+```
+
+This generates two Solidity functions:
+
+- `bid(uint256 amount, uint256 maxGas)` — the full implementation
+- `bid(uint256 amount)` — a forwarding overload that calls `bid(amount, 100000)`
+
+Multiple default parameters work as expected. Each trailing default creates an additional overload:
+
+```typescript
+class Auction {
+  public configure(a: number, b: number = 5, c: number = 10): number {
+    return a + b + c;
+  }
+}
+```
+
+This generates three Solidity functions:
+
+- `configure(uint256 a, uint256 b, uint256 c)` — full implementation
+- `configure(uint256 a, uint256 b)` — forwards to `configure(a, b, 10)`
+- `configure(uint256 a)` — forwards to `configure(a, 5, 10)`
+
+:::caution
+Default-valued parameters must be contiguous and trailing. Patterns that put a non-default parameter after a default (for example, `f(a: number = 1, b: number)`) are rejected by the compiler, even though they are valid TypeScript. Always list all required (non-default) parameters first, followed by all parameters with defaults.
+:::
+
+:::info
+Constructor parameters also support default values, but use a different strategy: default parameters become local variable declarations inside the constructor body instead of generating overloads.
+:::
+
 ## Arrow Functions
 
 Arrow function properties work just like regular methods:

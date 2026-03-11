@@ -710,8 +710,16 @@ function generateContractBody(
     }
   }
 
-  for (let i = 0; i < functionsToEmit.length; i++) {
-    let f = functionsToEmit[i];
+  // Expand functions with default parameter values into overloads.
+  // Each function with trailing defaults becomes the main implementation
+  // plus forwarding overloads for each valid shorter parameter list.
+  const expandedFunctions: SkittlesFunction[] = [];
+  for (const f of functionsToEmit) {
+    expandedFunctions.push(...expandDefaultParamOverloads(f));
+  }
+
+  for (let i = 0; i < expandedFunctions.length; i++) {
+    let f = expandedFunctions[i];
 
     // Rename parameters that shadow sibling function names.
     const paramRenames = new Map<string, string>();
@@ -737,7 +745,7 @@ function generateContractBody(
     const funcParamNames = new Set(f.parameters.map((p) => p.name));
     const resolved = { ...f, body: resolveShadowedLocals(f.body, stateVarNames, funcParamNames) };
     parts.push(generateFunction(resolved));
-    if (i < functionsToEmit.length - 1 || readonlyArrayVars.length > 0) {
+    if (i < expandedFunctions.length - 1 || readonlyArrayVars.length > 0) {
       parts.push("");
     }
   }
@@ -1286,6 +1294,202 @@ function generateReadonlyArrayGetter(v: SkittlesVariable): string {
   lines.push(`        return ${name};`);
   lines.push("    }");
   return lines.join("\n");
+}
+
+/**
+ * Check whether an expression tree may perform state-modifying operations.
+ * Used to decide whether a default-parameter forwarding overload needs to
+ * widen its mutability beyond `view`.  Function calls, assignments, and
+ * `new` expressions are conservatively treated as potentially state-modifying
+ * because we cannot determine callee mutability at codegen time.
+ */
+function expressionMayModifyState(expr: Expression): boolean {
+  switch (expr.kind) {
+    case "call":
+    case "new":
+    case "assignment":
+      return true;
+    case "binary":
+      return expressionMayModifyState(expr.left) || expressionMayModifyState(expr.right);
+    case "unary":
+      // ++ / -- are always state-modifying (they mutate the operand).
+      if (expr.operator === "++" || expr.operator === "--") {
+        return true;
+      }
+      return expressionMayModifyState(expr.operand);
+    case "conditional":
+      return (
+        expressionMayModifyState(expr.condition) ||
+        expressionMayModifyState(expr.whenTrue) ||
+        expressionMayModifyState(expr.whenFalse)
+      );
+    case "property-access":
+      return expressionMayModifyState(expr.object);
+    case "element-access":
+      return expressionMayModifyState(expr.object) || expressionMayModifyState(expr.index);
+    case "tuple-literal":
+      return expr.elements.some(expressionMayModifyState);
+    case "object-literal":
+      return expr.properties.some((p) => expressionMayModifyState(p.value));
+    // Literals and identifiers are always safe (pure reads at most).
+    case "number-literal":
+    case "string-literal":
+    case "boolean-literal":
+    case "identifier":
+      return false;
+    default:
+      // Be conservative: treat unknown expression kinds as potentially state-modifying.
+      return true;
+  }
+}
+
+/**
+ * Expand a function that has default parameter values into multiple
+ * Solidity overloads. The original function keeps all parameters (with
+ * defaults stripped) and retains the implementation body. For each
+ * trailing group of default parameters, an overload is generated that
+ * forwards to the full-parameter version with the default values filled in.
+ *
+ * Example: f(a, b = 5, c = 10) becomes:
+ *   - f(a, b, c) { ... }        // main implementation
+ *   - f(a, b) { return f(a, b, 10); }
+ *   - f(a) { return f(a, 5, 10); }
+ */
+function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
+  const defaultParams = f.parameters.filter((p) => p.defaultValue);
+  if (defaultParams.length === 0) return [f];
+
+  // Find the index of the first default parameter
+  const firstDefaultIdx = f.parameters.findIndex((p) => p.defaultValue);
+
+  // Validate that all parameters from the first default onward also have
+  // defaults (i.e. defaults must be contiguous and trailing).
+  for (let i = firstDefaultIdx; i < f.parameters.length; i++) {
+    if (!f.parameters[i].defaultValue) {
+      throw new Error(
+        `Function "${f.name}" has a non-default parameter after a default parameter; ` +
+          "default-valued parameters must be contiguous and trailing."
+      );
+    }
+  }
+
+  // Main function: strip defaultValue from all parameters
+  const mainFn: SkittlesFunction = {
+    ...f,
+    parameters: f.parameters.map((p) => {
+      const { defaultValue, ...rest } = p;
+      return rest;
+    }),
+  };
+
+  const result: SkittlesFunction[] = [mainFn];
+
+  // Validate that no parameter (or default-generated local) shadows the
+  // function name, which would cause the forwarding call to resolve to
+  // the variable instead of the function (Solidity compile-time error).
+  for (const p of f.parameters) {
+    if (p.name === f.name) {
+      throw new Error(
+        `Function "${f.name}" has a parameter named "${p.name}" that shadows the function name; ` +
+          "rename the parameter to avoid breaking the generated forwarding overload."
+      );
+    }
+  }
+
+  // Generate overloads for each valid parameter count
+  // from (all params - 1 default) down to (only required params)
+  for (let paramCount = f.parameters.length - 1; paramCount >= firstDefaultIdx; paramCount--) {
+    const shortParams = f.parameters.slice(0, paramCount).map((p) => {
+      const { defaultValue, ...rest } = p;
+      return rest;
+    });
+
+    // Build forwarding body. Omitted default parameters are declared as
+    // local variables so that later defaults can reference earlier ones
+    // (e.g. f(a = 1, b = a) → the overload for f() declares `a`, then `b = a`).
+    const body: Statement[] = [];
+    for (let i = paramCount; i < f.parameters.length; i++) {
+      body.push({
+        kind: "variable-declaration",
+        name: f.parameters[i].name,
+        type: f.parameters[i].type,
+        initializer: f.parameters[i].defaultValue!,
+      });
+    }
+
+    // Build forwarding call using both the overload's own parameters
+    // and the locally-declared default variables.
+    const args: Expression[] = f.parameters.map((p) => ({
+      kind: "identifier" as const,
+      name: p.name,
+    }));
+
+    const callExpr: Expression = {
+      kind: "call",
+      callee: { kind: "identifier", name: f.name },
+      args,
+    };
+
+    if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
+      body.push({ kind: "return", value: callExpr });
+    } else {
+      body.push({ kind: "expression", expression: callExpr });
+    }
+
+    // Determine the minimum mutability for the overload wrapper.
+    // Default value expressions are evaluated in the overload body:
+    // - If any default may modify state (contains calls, assignments, or
+    //   `new`), widen to nonpayable since we can't verify callee mutability.
+    // - Otherwise, widen pure → view conservatively (defaults may read
+    //   state/environment, e.g. block.timestamp, this.x).
+    // - view and nonpayable stay as-is when defaults are simple expressions.
+    const omittedDefaults = f.parameters.slice(paramCount).map((p) => p.defaultValue!);
+    const defaultsMayModify = omittedDefaults.some(expressionMayModifyState);
+
+    let overloadMutability = f.stateMutability;
+    if (defaultsMayModify) {
+      if (overloadMutability === "pure" || overloadMutability === "view") {
+        if (f.isOverride) {
+          // For override wrappers, we cannot safely widen mutability without
+          // risking a mismatch with the base signature (e.g. base view,
+          // derived nonpayable). Fail fast with a clear error.
+          throw new Error(
+            `Cannot use state-modifying default parameter expression on overriding ` +
+              `${overloadMutability} function "${f.name}". Either remove the state-modifying ` +
+              `default, change the base function's mutability, or avoid using overrides with ` +
+              `such defaults.`,
+          );
+        }
+        // Conservatively widen to nonpayable when defaults contain
+        // potentially state-modifying operations (calls, assignments, new).
+        overloadMutability = "nonpayable";
+      }
+    } else if (overloadMutability === "pure") {
+      // Simple defaults (literals, identifiers) may still read state,
+      // so widen pure → view as a safe minimum.
+      overloadMutability = "view";
+    }
+
+    const overload: SkittlesFunction = {
+      ...f,
+      parameters: shortParams,
+      body,
+      stateMutability: overloadMutability,
+      // Inherit override/virtual from the original function so that
+      // overloads correctly participate in inheritance when both base
+      // and derived contracts define defaults on the same method.
+      isOverride: f.isOverride,
+      isVirtual: f.isVirtual,
+      // Overload wrappers must be concrete even when the main function
+      // is abstract — abstract contracts can still have concrete
+      // forwarding functions that call an abstract virtual function.
+      isAbstract: false,
+    };
+
+    result.push(overload);
+  }
+
+  return result;
 }
 
 function generateFunction(f: SkittlesFunction): string {
@@ -2099,7 +2303,54 @@ export function buildSourceMap(
     }
   }
 
+  // Replicate the same ancestor-origin suppression used during codegen so we
+  // only try to map functions that were actually emitted in the Solidity output.
+  const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
+  const smAncestorsMap = new Map<string, Set<string>>();
+  for (const c of contracts) {
+    const ancestors = new Set<string>();
+    const queue = [...c.inherits.filter((n) => contractByName.has(n))];
+    let qi = 0;
+    while (qi < queue.length) {
+      const name = queue[qi++]!;
+      if (ancestors.has(name)) continue;
+      ancestors.add(name);
+      const parent = contractByName.get(name);
+      if (parent) {
+        for (const gp of parent.inherits) {
+          if (contractByName.has(gp)) queue.push(gp);
+        }
+      }
+    }
+    smAncestorsMap.set(c.name, ancestors);
+  }
+  const smFunctionOrigins = new Map<string, Set<string>>();
+
   for (const contract of contracts) {
+    const smAncestors = smAncestorsMap.get(contract.name) ?? new Set<string>();
+    const smHasAncestorOrigin = (origins: Set<string> | undefined): boolean =>
+      origins !== undefined && Array.from(origins).some((o) => smAncestors.has(o));
+    const smGetFunctionKey = (f: SkittlesFunction): string => {
+      const paramTypes = f.parameters
+        .map((p) => (p.type ? generateType(p.type) : "unknown"))
+        .join(",");
+      return `${f.name}(${paramTypes})`;
+    };
+
+    const functionsToMap = contract.functions.filter((f) => {
+      const key = smGetFunctionKey(f);
+      return !smHasAncestorOrigin(smFunctionOrigins.get(key)) || f.isOverride;
+    });
+    for (const f of functionsToMap) {
+      const key = smGetFunctionKey(f);
+      let origins = smFunctionOrigins.get(key);
+      if (!origins) {
+        origins = new Set<string>();
+        smFunctionOrigins.set(key, origins);
+      }
+      origins.add(contract.name);
+    }
+
     // Find the contract declaration line
     const contractIdx = findLine((l) => {
       const trimmed = l.trimStart();
@@ -2143,8 +2394,14 @@ export function buildSourceMap(
       }
     }
 
-    // Map functions
-    for (const f of contract.functions) {
+    // Map functions — expand default-param overloads so the source map
+    // scanner advances past overload wrapper bodies that appear in the
+    // generated Solidity (the same expansion is applied during codegen).
+    const expandedFns: SkittlesFunction[] = [];
+    for (const f of functionsToMap) {
+      expandedFns.push(...expandDefaultParamOverloads(f));
+    }
+    for (const f of expandedFns) {
       const funcIdx = findLine((l) => {
         const trimmed = l.trim();
         if (f.name === "receive") return trimmed.startsWith("receive()");
