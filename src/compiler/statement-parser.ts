@@ -19,7 +19,7 @@ import {
   findEnclosingClass,
   findMethodReturnType,
 } from "./parser-utils.ts";
-import { parseType, inferType } from "./type-parser.ts";
+import { parseType, inferType, typesEqual } from "./type-parser.ts";
 import { parseExpression } from "./expression-parser.ts";
 import { isMappingLikeReceiver } from "./expression-parser.ts";
 
@@ -74,7 +74,7 @@ export function parseArrayDestructuring(
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
         const trueType = inferType(trueVal, varTypes);
         const falseType = inferType(falseVal, varTypes);
-        const type = (trueType && falseType && trueType.kind === falseType.kind) ? trueType : (trueType ?? falseType);
+        const type = (trueType && falseType && typesEqual(trueType, falseType)) ? trueType : (trueType ?? falseType);
         if (type) {
           varTypes.set(name, type);
           if (type.kind === ("string" as SkittlesTypeKind)) {
