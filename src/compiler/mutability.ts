@@ -361,7 +361,6 @@ export function rewriteInterfacePropertyGetters(
         };
       }
       case "while":
-        return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
       case "do-while":
         return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
       case "revert":

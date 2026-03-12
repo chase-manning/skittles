@@ -75,8 +75,6 @@ function walkNestedBlocks(
       visitor(stmt.body);
       break;
     case "while":
-      visitor(stmt.body);
-      break;
     case "do-while":
       visitor(stmt.body);
       break;
@@ -168,9 +166,6 @@ function walkAllStatements(
         walkAllStatements(stmt.body, declared, used);
         break;
       case "while":
-        collectUsedIdentifiers(stmt.condition, used);
-        walkAllStatements(stmt.body, declared, used);
-        break;
       case "do-while":
         collectUsedIdentifiers(stmt.condition, used);
         walkAllStatements(stmt.body, declared, used);
