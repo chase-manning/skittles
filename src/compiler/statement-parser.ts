@@ -143,6 +143,8 @@ export function parseArrayDestructuring(
           varTypes.set(bindingName, t);
           if (t && t.kind === ("string" as SkittlesTypeKind)) {
             ctx.currentStringNames.add(bindingName);
+          } else {
+            ctx.currentStringNames.delete(bindingName);
           }
         } else if (ts.isBindingElement(elem)) {
           throw new Error(
@@ -299,13 +301,18 @@ export function parseObjectDestructuring(
             ? elem.propertyName.text
             : name;
         const fieldType = fieldMap.get(propName);
-        if (fieldType) {
-          varTypes.set(name, fieldType);
-          if (fieldType.kind === ("string" as SkittlesTypeKind)) {
-            ctx.currentStringNames.add(name);
-          } else {
-            ctx.currentStringNames.delete(name);
-          }
+        if (!fieldType) {
+          const validFields = [...fieldMap.keys()].join(", ");
+          throw new Error(
+            `Property '${propName}' does not exist on struct '${structType.structName}'. ` +
+            `Valid fields: ${validFields || "(none)"}`
+          );
+        }
+        varTypes.set(name, fieldType);
+        if (fieldType.kind === ("string" as SkittlesTypeKind)) {
+          ctx.currentStringNames.add(name);
+        } else {
+          ctx.currentStringNames.delete(name);
         }
         statements.push({
           kind: "variable-declaration" as const,
@@ -500,7 +507,25 @@ export function parseStatement(
       }
     }
 
-    return {
+    // Temporarily switch parser context to the loop-scoped var types so
+    // that condition, incrementor, and body expressions see the loop variable.
+    const previousVarTypes = ctx.currentVarTypes;
+    const previousStringNames = ctx.currentStringNames;
+    const loopStringNames = new Set(previousStringNames);
+    // Track loop initializer variable for string transforms if needed
+    if (node.initializer && ts.isVariableDeclarationList(node.initializer)) {
+      const decl = node.initializer.declarations[0];
+      if (ts.isIdentifier(decl.name)) {
+        const resolvedType = loopVarTypes.get(decl.name.text);
+        if (resolvedType?.kind === ("string" as SkittlesTypeKind)) {
+          loopStringNames.add(decl.name.text);
+        }
+      }
+    }
+    ctx.currentVarTypes = loopVarTypes;
+    ctx.currentStringNames = loopStringNames;
+
+    const result: Statement = {
       kind: "for",
       initializer,
       condition: node.condition
@@ -512,6 +537,12 @@ export function parseStatement(
       body: parseBlock(node.statement, loopVarTypes, eventNames),
       sourceLine: getSourceLine(node),
     };
+
+    // Restore outer parser context
+    ctx.currentVarTypes = previousVarTypes;
+    ctx.currentStringNames = previousStringNames;
+
+    return result;
   }
 
   if (ts.isWhileStatement(node)) {
