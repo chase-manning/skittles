@@ -159,8 +159,9 @@ export async function compile(
       if (classNames.length > 0) {
         preScanContractFiles.push(baseName);
       }
-    } catch {
-      // Errors will be caught in the main compilation loop below
+    } catch (err) {
+      // Pre-scan failed; will be re-reported during full compilation
+      logWarning(`Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -216,8 +217,9 @@ export async function compile(
       if (classNames.length > 0) {
         preScanContractFiles.push(baseName);
       }
-    } catch {
-      // Errors handled in the main compilation loop
+    } catch (err) {
+      // Pre-scan failed; will be re-reported during full compilation
+      logWarning(`Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
