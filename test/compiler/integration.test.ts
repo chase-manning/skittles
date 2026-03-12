@@ -3418,8 +3418,8 @@ describe("integration: for...of loops", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("for (uint256 _i_item = 0; (_i_item < items.length); _i_item++)");
-    expect(solidity).toContain("uint256 item = items[_i_item];");
+    expect(solidity).toContain("for (uint256 __sk_i_item = 0; (__sk_i_item < items.length); __sk_i_item++)");
+    expect(solidity).toContain("uint256 item = items[__sk_i_item];");
     expect(solidity).toContain("total += item;");
   });
 
@@ -3439,8 +3439,8 @@ describe("integration: for...of loops", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("_i_addr");
-    expect(solidity).toContain("addrs[_i_addr]");
+    expect(solidity).toContain("__sk_i_addr");
+    expect(solidity).toContain("addrs[__sk_i_addr]");
   });
 });
 
@@ -3464,8 +3464,8 @@ describe("integration: for...in enum loops", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("for (uint256 _i_status = 0; (_i_status < 3); _i_status++)");
-    expect(solidity).toContain("Status status = Status(_i_status);");
+    expect(solidity).toContain("for (uint256 __sk_i_status = 0; (__sk_i_status < 3); __sk_i_status++)");
+    expect(solidity).toContain("Status status = Status(__sk_i_status);");
   });
 
   it("should compile for...in with enum body using the variable", () => {
@@ -3485,8 +3485,8 @@ describe("integration: for...in enum loops", () => {
       }
     `, "test.ts");
     const solidity = generateSolidity(contracts[0]);
-    expect(solidity).toContain("_i_c");
-    expect(solidity).toContain("Color c = Color(_i_c);");
+    expect(solidity).toContain("__sk_i_c");
+    expect(solidity).toContain("Color c = Color(__sk_i_c);");
     expect(solidity).toContain("count += 1;");
   });
 });
@@ -4318,9 +4318,9 @@ describe("integration: object destructuring", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("StakeInfo memory __sk_stakeInfo = getStakeInfo(account);");
-    expect(solidity).toContain("uint256 amount = __sk_stakeInfo.amount;");
-    expect(solidity).toContain("uint256 timestamp = __sk_stakeInfo.timestamp;");
+    expect(solidity).toContain("StakeInfo memory __sk_stakeInfo_0 = getStakeInfo(account);");
+    expect(solidity).toContain("uint256 amount = __sk_stakeInfo_0.amount;");
+    expect(solidity).toContain("uint256 timestamp = __sk_stakeInfo_0.timestamp;");
   });
 
   it("should compile object destructuring with renaming", () => {

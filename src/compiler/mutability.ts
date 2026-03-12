@@ -342,8 +342,24 @@ export function rewriteInterfacePropertyGetters(
         return { ...stmt, expression: transformExpr(stmt.expression, false) };
       case "if":
         return { ...stmt, condition: transformExpr(stmt.condition, false), thenBody: stmt.thenBody.map(transformStmt), elseBody: stmt.elseBody?.map(transformStmt) };
-      case "for":
-        return { ...stmt, initializer: stmt.initializer ? transformStmt(stmt.initializer) as any : undefined, condition: stmt.condition ? transformExpr(stmt.condition, false) : undefined, incrementor: stmt.incrementor ? transformExpr(stmt.incrementor, false) : undefined, body: stmt.body.map(transformStmt) };
+      case "for": {
+        let initializer = stmt.initializer;
+        if (initializer) {
+          switch (initializer.kind) {
+            case "variable-declaration":
+            case "expression":
+              initializer = transformStmt(initializer) as typeof initializer;
+              break;
+          }
+        }
+        return {
+          ...stmt,
+          initializer,
+          condition: stmt.condition ? transformExpr(stmt.condition, false) : undefined,
+          incrementor: stmt.incrementor ? transformExpr(stmt.incrementor, false) : undefined,
+          body: stmt.body.map(transformStmt),
+        };
+      }
       case "while":
         return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
       case "do-while":

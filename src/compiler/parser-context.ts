@@ -33,6 +33,9 @@ export interface ParserContext {
 
   // Function parameter type tracking (for spread operator type resolution)
   currentParamTypes: Map<string, SkittlesType>;
+
+  // Counter for generating unique struct destructuring temp variable names
+  destructureCounter: number;
 }
 
 export function createParserContext(): ParserContext {
@@ -52,6 +55,7 @@ export function createParserContext(): ParserContext {
     arrayMethodCounter: 0,
     neededArrayHelpers: new Set(),
     currentParamTypes: new Map(),
+    destructureCounter: 0,
   };
 }
 

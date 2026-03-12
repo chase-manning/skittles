@@ -74,7 +74,7 @@ export function parseArrayDestructuring(
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
         const trueType = inferType(trueVal, varTypes);
         const falseType = inferType(falseVal, varTypes);
-        const type = (trueType && falseType && typesEqual(trueType, falseType)) ? trueType : (trueType ?? falseType);
+        const type = (trueType && falseType && typesEqual(trueType, falseType)) ? trueType : undefined;
         if (type) {
           varTypes.set(name, type);
           if (type.kind === ("string" as SkittlesTypeKind)) {
@@ -135,10 +135,15 @@ export function parseArrayDestructuring(
           !elem.dotDotDotToken &&
           !elem.propertyName
         ) {
-          names.push(elem.name.text);
+          const bindingName = elem.name.text;
+          validateReservedVarName(bindingName);
+          names.push(bindingName);
           const t = tupleType.tupleTypes[i];
           types.push(t);
-          varTypes.set(elem.name.text, t);
+          varTypes.set(bindingName, t);
+          if (t && t.kind === ("string" as SkittlesTypeKind)) {
+            ctx.currentStringNames.add(bindingName);
+          }
         } else if (ts.isBindingElement(elem)) {
           throw new Error(
             "Unsupported tuple destructuring binding element in variable declaration. " +
@@ -269,8 +274,8 @@ export function parseObjectDestructuring(
   const initExpr = parseExpression(initializer);
 
   if (structType?.kind === ("struct" as SkittlesTypeKind) && structType.structName) {
-    // Temp variable + field accesses (use __sk_ prefix to avoid collisions with user names)
-    const tempName = `__sk_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}`;
+    // Temp variable + field accesses (use __sk_ prefix + counter to avoid collisions)
+    const tempName = `__sk_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}_${ctx.destructureCounter++}`;
     statements.push({
       kind: "variable-declaration" as const,
       name: tempName,
@@ -545,13 +550,26 @@ export function parseStatement(
       ? parseType(node.initializer.declarations[0].type)
       : undefined;
 
-    const indexName = `_i_${itemName}`;
+    const indexName = `__sk_i_${itemName}`;
     const loopVarTypes = new Map(varTypes);
     if (itemTypeNode) {
       loopVarTypes.set(itemName, itemTypeNode);
     }
     loopVarTypes.set(indexName, { kind: "uint256" as SkittlesTypeKind });
+
+    // Temporarily switch parser context to loop-scoped var types
+    const previousVarTypes = ctx.currentVarTypes;
+    const previousStringNames = ctx.currentStringNames;
+    ctx.currentVarTypes = loopVarTypes;
+    const loopStringNames = new Set(ctx.currentStringNames);
+    if (itemTypeNode && itemTypeNode.kind === ("string" as SkittlesTypeKind)) {
+      loopStringNames.add(itemName);
+    }
+    ctx.currentStringNames = loopStringNames;
     const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
+    // Restore outer parser context
+    ctx.currentVarTypes = previousVarTypes;
+    ctx.currentStringNames = previousStringNames;
 
     // Prepend: T item = arr[_i];
     const itemDecl: Statement = {
@@ -607,11 +625,20 @@ export function parseStatement(
 
       validateReservedVarName(itemName);
 
-      const indexName = `_i_${itemName}`;
+      const indexName = `__sk_i_${itemName}`;
       const loopVarTypes = new Map(varTypes);
       loopVarTypes.set(itemName, { kind: "enum" as SkittlesTypeKind, structName: enumName });
       loopVarTypes.set(indexName, { kind: "uint256" as SkittlesTypeKind });
+
+      // Temporarily switch parser context to loop-scoped var types
+      const previousVarTypes = ctx.currentVarTypes;
+      const previousStringNames = ctx.currentStringNames;
+      ctx.currentVarTypes = loopVarTypes;
+      ctx.currentStringNames = new Set(ctx.currentStringNames);
       const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
+      // Restore outer parser context
+      ctx.currentVarTypes = previousVarTypes;
+      ctx.currentStringNames = previousStringNames;
 
       // Prepend: EnumType item = EnumType(_i);
       const itemDecl: Statement = {
