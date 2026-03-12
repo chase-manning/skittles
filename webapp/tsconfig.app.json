@@ -15,6 +15,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "paths": {
+      "skittles": ["../src/exports.ts"]
+    },
 
     /* Linting */
     "strict": true,
