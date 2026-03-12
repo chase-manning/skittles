@@ -884,20 +884,71 @@ function parseArrowCallback(
   }
 
   if (ts.isBlock(node.body)) {
-    const stmts = node.body.statements;
-    if (stmts.length === 1 && ts.isReturnStatement(stmts[0]) && stmts[0].expression) {
-      return { paramName, secondParamName, bodyExpr: parseExpression(stmts[0].expression) };
+    // Create callback-local type and string-tracking scopes, seeded with the outer scopes.
+    const outerVarTypes = ctx.currentVarTypes;
+    const outerStringNames = ctx.currentStringNames;
+    const callbackVarTypes = new Map(outerVarTypes);
+    const callbackStringNames = new Set(outerStringNames);
+
+    // Seed callback-local scopes with parameter types and string names.
+    if (paramTypes?.first) {
+      callbackVarTypes.set(paramName, paramTypes.first);
+      if (paramTypes.first.kind === ("string" as SkittlesTypeKind)) {
+        callbackStringNames.add(paramName);
+      }
     }
-    const varTypes = new Map(ctx.currentVarTypes);
-    if (paramTypes?.first) varTypes.set(paramName, paramTypes.first);
-    if (paramTypes?.second && secondParamName) varTypes.set(secondParamName, paramTypes.second);
-    const parsedStmts: Statement[] = [];
-    for (const s of stmts) {
-      parsedStmts.push(...parseStatements(s, varTypes, ctx.currentEventNames));
+    if (paramTypes?.second && secondParamName) {
+      callbackVarTypes.set(secondParamName, paramTypes.second);
+      if (paramTypes.second.kind === ("string" as SkittlesTypeKind)) {
+        callbackStringNames.add(secondParamName);
+      }
     }
-    return { paramName, secondParamName, bodyStmts: parsedStmts };
+
+    // Temporarily switch to the callback-local scopes while parsing the body.
+    ctx.currentVarTypes = callbackVarTypes;
+    ctx.currentStringNames = callbackStringNames;
+
+    try {
+      const stmts = node.body.statements;
+      if (stmts.length === 1 && ts.isReturnStatement(stmts[0]) && stmts[0].expression) {
+        return { paramName, secondParamName, bodyExpr: parseExpression(stmts[0].expression) };
+      }
+      const parsedStmts: Statement[] = [];
+      for (const s of stmts) {
+        parsedStmts.push(...parseStatements(s, callbackVarTypes, ctx.currentEventNames));
+      }
+      return { paramName, secondParamName, bodyStmts: parsedStmts };
+    } finally {
+      // Restore outer parser context
+      ctx.currentVarTypes = outerVarTypes;
+      ctx.currentStringNames = outerStringNames;
+    }
   }
-  return { paramName, secondParamName, bodyExpr: parseExpression(node.body as ts.Expression) };
+  // Expression body — still need param types in scope for parseExpression
+  const outerVarTypes = ctx.currentVarTypes;
+  const outerStringNames = ctx.currentStringNames;
+  const callbackVarTypes = new Map(outerVarTypes);
+  const callbackStringNames = new Set(outerStringNames);
+  if (paramTypes?.first) {
+    callbackVarTypes.set(paramName, paramTypes.first);
+    if (paramTypes.first.kind === ("string" as SkittlesTypeKind)) {
+      callbackStringNames.add(paramName);
+    }
+  }
+  if (paramTypes?.second && secondParamName) {
+    callbackVarTypes.set(secondParamName, paramTypes.second);
+    if (paramTypes.second.kind === ("string" as SkittlesTypeKind)) {
+      callbackStringNames.add(secondParamName);
+    }
+  }
+  ctx.currentVarTypes = callbackVarTypes;
+  ctx.currentStringNames = callbackStringNames;
+  try {
+    return { paramName, secondParamName, bodyExpr: parseExpression(node.body as ts.Expression) };
+  } finally {
+    ctx.currentVarTypes = outerVarTypes;
+    ctx.currentStringNames = outerStringNames;
+  }
 }
 
 function generateFilterHelper(

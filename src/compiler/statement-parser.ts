@@ -386,6 +386,10 @@ export function parseStatement(
     // should rely on ctx.stateVarTypes when needed.
     if (type) {
       varTypes.set(name, type);
+    } else {
+      // If we cannot infer a type (no explicit type and no initializer),
+      // remove any previous entry to avoid stale type information.
+      varTypes.delete(name);
     }
     return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
   }
@@ -546,9 +550,18 @@ export function parseStatement(
 
     validateReservedVarName(itemName);
 
-    const itemTypeNode = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
+    const explicitType = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
       ? parseType(node.initializer.declarations[0].type)
       : undefined;
+
+    // When no explicit type annotation, infer element type from the iterated expression
+    const itemTypeNode = explicitType ?? (() => {
+      const arrType = inferType(arrExpr, varTypes);
+      if (arrType?.kind === ("array" as SkittlesTypeKind) && arrType.valueType) {
+        return arrType.valueType;
+      }
+      return undefined;
+    })();
 
     const indexName = `__sk_i_${itemName}`;
     const loopVarTypes = new Map(varTypes);
@@ -673,6 +686,7 @@ export function parseStatement(
           prefix: false,
         },
         body: [itemDecl, ...innerBody],
+        sourceLine: getSourceLine(node),
       };
     }
   }
@@ -848,6 +862,9 @@ export function parseStatements(
         // should consult ctx.stateVarTypes instead of relying on varTypes.
         if (type) {
           varTypes.set(name, type);
+        } else {
+          // Clear any previous mapping to avoid stale types when no type can be inferred.
+          varTypes.delete(name);
         }
         return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
       });
