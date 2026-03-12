@@ -14,7 +14,7 @@ function useNpmVersion() {
       .then((data) => {
         if (data.version) setVersion(data.version);
       })
-      .catch(() => { });
+      .catch((err) => console.warn("Failed to fetch npm version:", err));
   }, []);
   return version;
 }
