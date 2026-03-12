@@ -258,7 +258,8 @@ export async function compile(
     const hashes: string[] = [];
 
     while (queue.length > 0) {
-      const current = queue.pop()!;
+      const current = queue.pop();
+      if (!current) break;
       const parents = fileExtendsParents.get(current);
       if (!parents) continue;
       for (const parentName of parents) {

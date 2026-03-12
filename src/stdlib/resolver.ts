@@ -59,7 +59,8 @@ export function resolveStdlibFiles(referencedClasses: Set<string>): string[] {
   const queue = [...referencedClasses];
 
   while (queue.length > 0) {
-    const name = queue.pop()!;
+    const name = queue.pop();
+    if (!name) break;
     const entry = registry.find((e) => e.className === name);
     if (!entry || needed.has(entry.filePath)) continue;
     needed.add(entry.filePath);
