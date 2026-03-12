@@ -1,11 +1,11 @@
 import ts from "typescript";
-import type {
-  SkittlesType,
+import {
   SkittlesTypeKind,
-  SkittlesFunction,
-  SkittlesParameter,
-  Statement,
-  Expression,
+  type SkittlesType,
+  type SkittlesFunction,
+  type SkittlesParameter,
+  type Statement,
+  type Expression,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import {
@@ -266,7 +266,7 @@ export function parseExpression(node: ts.Expression): Expression {
       const receiverExpr = parseExpression(node.expression.expression);
       const typeSuffix = getArrayHelperSuffix(elementType);
 
-      const NON_COMPARABLE_KINDS = new Set(["struct", "array", "tuple", "mapping"] as SkittlesTypeKind[]);
+      const NON_COMPARABLE_KINDS = new Set([SkittlesTypeKind.Struct, SkittlesTypeKind.Array, SkittlesTypeKind.Tuple, SkittlesTypeKind.Mapping]);
       const isNonComparable = elementType != null && NON_COMPARABLE_KINDS.has(elementType.kind);
 
       // includes(value) → _arrIncludes_T(arr, value)
@@ -340,7 +340,7 @@ export function parseExpression(node: ts.Expression): Expression {
         const otherArg = node.arguments[0];
         if (ts.isPropertyAccessExpression(otherArg) && otherArg.expression.kind === ts.SyntaxKind.ThisKeyword) {
           const otherType = ctx.currentVarTypes.get(otherArg.name.text);
-          if (otherType?.kind === ("array" as SkittlesTypeKind)) {
+          if (otherType?.kind === (SkittlesTypeKind.Array)) {
             throw new Error(
               "Array .concat() cannot accept a storage array directly (e.g., this.a.concat(this.b)). " +
               "Use .slice() to copy to memory first: this.a.concat(this.b.slice(0, this.b.length))."
@@ -367,7 +367,7 @@ export function parseExpression(node: ts.Expression): Expression {
           throw new Error(`Array .${methodName}() accepts at most ${maxArity} argument(s), but ${node.arguments.length} were provided.`);
         }
         const sortParamType =
-          methodName === "sort" && elementType?.kind === ("uint256" as SkittlesTypeKind)
+          methodName === "sort" && elementType?.kind === (SkittlesTypeKind.Uint256)
             ? INT256_TYPE
             : elementType;
         const callbackParamTypes = methodName === "reduce"
@@ -710,7 +710,7 @@ export function parseExpression(node: ts.Expression): Expression {
         if (ts.isPropertyAccessExpression(e) && e.expression.kind === ts.SyntaxKind.ThisKeyword) {
           const name = e.name.text;
           const type = ctx.currentVarTypes.get(name);
-          if (type?.kind === ("array" as SkittlesTypeKind)) {
+          if (type?.kind === (SkittlesTypeKind.Array)) {
             // Storage array: wrap in slice to copy to memory
             ctx.neededArrayHelpers.add(`slice_${typeSuffix}`);
             const parsed = parseExpression(e);
@@ -802,7 +802,7 @@ export function parseExpression(node: ts.Expression): Expression {
           type = inferType(expr, combinedTypes);
         }
       }
-      const isUint256 = type !== undefined && type.kind === ("uint256" as SkittlesTypeKind);
+      const isUint256 = type !== undefined && type.kind === (SkittlesTypeKind.Uint256);
       if (isUint256) {
         parts.push({
           kind: "call",
@@ -840,7 +840,7 @@ function isArrayLikeReceiver(node: ts.Expression): boolean {
   if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
     const name = node.name.text;
     const type = ctx.currentVarTypes.get(name);
-    return type?.kind === ("array" as SkittlesTypeKind);
+    return type?.kind === (SkittlesTypeKind.Array);
   }
   return false;
 }
@@ -849,7 +849,7 @@ function resolveArrayElementType(node: ts.Expression): SkittlesType | undefined 
   if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
     const name = node.name.text;
     const type = ctx.currentVarTypes.get(name);
-    if (type?.kind === ("array" as SkittlesTypeKind)) {
+    if (type?.kind === (SkittlesTypeKind.Array)) {
       return type.valueType;
     }
   }
@@ -861,12 +861,12 @@ function resolveSpreadElementType(node: ts.Expression): SkittlesType | undefined
   if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
     const name = node.name.text;
     const type = ctx.currentVarTypes.get(name);
-    if (type?.kind === ("array" as SkittlesTypeKind)) return type.valueType;
+    if (type?.kind === (SkittlesTypeKind.Array)) return type.valueType;
   }
   // function parameter case
   if (ts.isIdentifier(node)) {
     const type = ctx.currentParamTypes.get(node.text);
-    if (type?.kind === ("array" as SkittlesTypeKind)) return type.valueType;
+    if (type?.kind === (SkittlesTypeKind.Array)) return type.valueType;
   }
   return undefined;
 }
@@ -898,13 +898,13 @@ function parseArrowCallback(
   }
   if (paramTypes?.first) {
     callbackVarTypes.set(paramName, paramTypes.first);
-    if (paramTypes.first.kind === ("string" as SkittlesTypeKind)) {
+    if (paramTypes.first.kind === (SkittlesTypeKind.String)) {
       callbackStringNames.add(paramName);
     }
   }
   if (paramTypes?.second && secondParamName) {
     callbackVarTypes.set(secondParamName, paramTypes.second);
-    if (paramTypes.second.kind === ("string" as SkittlesTypeKind)) {
+    if (paramTypes.second.kind === (SkittlesTypeKind.String)) {
       callbackStringNames.add(secondParamName);
     }
   }
@@ -938,7 +938,7 @@ function generateFilterHelper(
 ): SkittlesFunction {
   const helperName = `_filter_${ctx.arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
-  const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: elemType };
+  const arrType: SkittlesType = { kind: SkittlesTypeKind.Array, valueType: elemType };
   const elemTypeName = typeToSolidityName(elemType);
   const body: Statement[] = [
     mkVarDecl("__sk_count", UINT256_TYPE, mkNum("0")),
@@ -970,7 +970,7 @@ function generateMapHelper(
   const helperName = `_map_${ctx.arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
   const resultElemType = resultElementType ?? UINT256_TYPE;
-  const arrType: SkittlesType = { kind: "array" as SkittlesTypeKind, valueType: resultElemType };
+  const arrType: SkittlesType = { kind: SkittlesTypeKind.Array, valueType: resultElemType };
   const resultTypeName = typeToSolidityName(resultElemType);
   const body: Statement[] = [
     mkVarDecl("__sk_result", arrType, { kind: "new", callee: `${resultTypeName}[]`, args: [mkProp(arrayExpr, "length")] }),
@@ -1074,7 +1074,7 @@ function generateSortHelper(
 ): SkittlesFunction {
   const helperName = `_sort_${ctx.arrayMethodCounter++}`;
   const elemType = elementType ?? UINT256_TYPE;
-  const isAlreadySigned = elemType.kind === ("int256" as SkittlesTypeKind);
+  const isAlreadySigned = elemType.kind === (SkittlesTypeKind.Int256);
   const comparatorParamType = isAlreadySigned ? elemType : INT256_TYPE;
   // int256 cast helper: int256(expr) — only needed for uint256 elements
   const mkMaybeCast = (e: Expression): Expression =>
@@ -1140,7 +1140,7 @@ export function isMappingLikeReceiver(node: ts.Expression): boolean {
   if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
     const name = node.name.text;
     const type = ctx.currentVarTypes.get(name);
-    return type?.kind === ("mapping" as SkittlesTypeKind);
+    return type?.kind === (SkittlesTypeKind.Mapping);
   }
   if (ts.isElementAccessExpression(node)) {
     return isMappingLikeReceiver(node.expression);
@@ -1158,14 +1158,14 @@ function resolveMappingValueType(node: ts.Expression): SkittlesType | undefined 
   if (ts.isPropertyAccessExpression(node) && node.expression.kind === ts.SyntaxKind.ThisKeyword) {
     const name = node.name.text;
     const type = ctx.currentVarTypes.get(name);
-    if (type?.kind === ("mapping" as SkittlesTypeKind)) {
+    if (type?.kind === (SkittlesTypeKind.Mapping)) {
       return type.valueType;
     }
     return undefined;
   }
   if (ts.isElementAccessExpression(node)) {
     const parentValueType = resolveMappingValueType(node.expression);
-    if (parentValueType?.kind === ("mapping" as SkittlesTypeKind)) {
+    if (parentValueType?.kind === (SkittlesTypeKind.Mapping)) {
       return parentValueType.valueType;
     }
     return undefined;

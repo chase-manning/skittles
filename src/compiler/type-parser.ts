@@ -1,10 +1,10 @@
 import ts from "typescript";
-import { ADDRESS_LITERAL_RE } from "../types/index.ts";
-import type {
-  SkittlesParameter,
-  SkittlesType,
+import {
+  ADDRESS_LITERAL_RE,
   SkittlesTypeKind,
-  Expression,
+  type SkittlesParameter,
+  type SkittlesType,
+  type Expression,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import { STRING_RETURNING_HELPERS } from "./parser-utils.ts";
@@ -20,7 +20,7 @@ export function parseTypeLiteralFields(node: ts.TypeLiteralNode): SkittlesParame
       const name = member.name.text;
       const type: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: SkittlesTypeKind.Uint256 };
       fields.push({ name, type });
     }
   }
@@ -36,7 +36,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
           "Please remove the 'asserts' modifier or refactor this function."
       );
     }
-    return { kind: "bool" as SkittlesTypeKind };
+    return { kind: SkittlesTypeKind.Bool };
   }
 
   if (ts.isTypeReferenceNode(node)) {
@@ -50,7 +50,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       node.typeArguments.length === 2
     ) {
       return {
-        kind: "mapping" as SkittlesTypeKind,
+        kind: SkittlesTypeKind.Mapping,
         keyType: parseType(node.typeArguments[0]),
         valueType: parseType(node.typeArguments[1]),
       };
@@ -62,18 +62,18 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       node.typeArguments.length === 1
     ) {
       return {
-        kind: "array" as SkittlesTypeKind,
+        kind: SkittlesTypeKind.Array,
         valueType: parseType(node.typeArguments[0]),
       };
     }
 
-    if (name === "address") return { kind: "address" as SkittlesTypeKind };
-    if (name === "bytes") return { kind: "bytes" as SkittlesTypeKind };
-    if (name === "bytes32") return { kind: "bytes32" as SkittlesTypeKind };
+    if (name === "address") return { kind: SkittlesTypeKind.Address };
+    if (name === "bytes") return { kind: SkittlesTypeKind.Bytes };
+    if (name === "bytes32") return { kind: SkittlesTypeKind.Bytes32 };
 
     if (ctx.knownStructs.has(name)) {
       return {
-        kind: "struct" as SkittlesTypeKind,
+        kind: SkittlesTypeKind.Struct,
         structName: name,
         structFields: ctx.knownStructs.get(name),
       };
@@ -81,14 +81,14 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
     if (ctx.knownContractInterfaces.has(name)) {
       return {
-        kind: "contract-interface" as SkittlesTypeKind,
+        kind: SkittlesTypeKind.ContractInterface,
         structName: name,
       };
     }
 
     if (ctx.knownEnums.has(name)) {
       return {
-        kind: "enum" as SkittlesTypeKind,
+        kind: SkittlesTypeKind.Enum,
         structName: name,
       };
     }
@@ -98,7 +98,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
   if (ts.isArrayTypeNode(node)) {
     return {
-      kind: "array" as SkittlesTypeKind,
+      kind: SkittlesTypeKind.Array,
       valueType: parseType(node.elementType),
     };
   }
@@ -109,7 +109,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
   if (ts.isTupleTypeNode(node)) {
     return {
-      kind: "tuple" as SkittlesTypeKind,
+      kind: SkittlesTypeKind.Tuple,
       tupleTypes: node.elements.map((el) => {
         if (ts.isNamedTupleMember(el)) {
           return parseType(el.type);
@@ -121,13 +121,13 @@ export function parseType(node: ts.TypeNode): SkittlesType {
 
   switch (node.kind) {
     case ts.SyntaxKind.NumberKeyword:
-      return { kind: "uint256" as SkittlesTypeKind };
+      return { kind: SkittlesTypeKind.Uint256 };
     case ts.SyntaxKind.StringKeyword:
-      return { kind: "string" as SkittlesTypeKind };
+      return { kind: SkittlesTypeKind.String };
     case ts.SyntaxKind.BooleanKeyword:
-      return { kind: "bool" as SkittlesTypeKind };
+      return { kind: SkittlesTypeKind.Bool };
     case ts.SyntaxKind.VoidKeyword:
-      return { kind: "void" as SkittlesTypeKind };
+      return { kind: SkittlesTypeKind.Void };
     default:
       throw new Error(`Unsupported type node kind: ${ts.SyntaxKind[node.kind]}. Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, and T[].`);
   }
@@ -139,23 +139,23 @@ export function inferType(
 ): SkittlesType | undefined {
   switch (expr.kind) {
     case "number-literal":
-      return { kind: "uint256" as SkittlesTypeKind };
+      return { kind: SkittlesTypeKind.Uint256 };
     case "string-literal":
       if (ADDRESS_LITERAL_RE.test(expr.value))
-        return { kind: "address" as SkittlesTypeKind };
-      return { kind: "string" as SkittlesTypeKind };
+        return { kind: SkittlesTypeKind.Address };
+      return { kind: SkittlesTypeKind.String };
     case "boolean-literal":
-      return { kind: "bool" as SkittlesTypeKind };
+      return { kind: SkittlesTypeKind.Bool };
     case "identifier":
       if (expr.name === "self")
-        return { kind: "address" as SkittlesTypeKind };
+        return { kind: SkittlesTypeKind.Address };
       return varTypes.get(expr.name);
     case "property-access":
       // addr.balance → uint256 (ETH balance of an address)
       if (expr.property === "balance") {
         const objType = inferType(expr.object, varTypes);
-        if (objType?.kind === ("address" as SkittlesTypeKind))
-          return { kind: "uint256" as SkittlesTypeKind };
+        if (objType?.kind === (SkittlesTypeKind.Address))
+          return { kind: SkittlesTypeKind.Uint256 };
       }
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
@@ -165,31 +165,31 @@ export function inferType(
         }
         if (expr.object.name === "msg") {
           if (expr.property === "sender")
-            return { kind: "address" as SkittlesTypeKind };
+            return { kind: SkittlesTypeKind.Address };
           if (expr.property === "value")
-            return { kind: "uint256" as SkittlesTypeKind };
+            return { kind: SkittlesTypeKind.Uint256 };
           if (expr.property === "data")
-            return { kind: "bytes" as SkittlesTypeKind };
+            return { kind: SkittlesTypeKind.Bytes };
           if (expr.property === "sig")
-            return { kind: "bytes32" as SkittlesTypeKind };
+            return { kind: SkittlesTypeKind.Bytes32 };
         }
         if (expr.object.name === "block") {
           if (expr.property === "coinbase")
-            return { kind: "address" as SkittlesTypeKind };
-          return { kind: "uint256" as SkittlesTypeKind };
+            return { kind: SkittlesTypeKind.Address };
+          return { kind: SkittlesTypeKind.Uint256 };
         }
         if (expr.object.name === "tx") {
           if (expr.property === "origin")
-            return { kind: "address" as SkittlesTypeKind };
-          return { kind: "uint256" as SkittlesTypeKind };
+            return { kind: SkittlesTypeKind.Address };
+          return { kind: SkittlesTypeKind.Uint256 };
         }
       }
       return undefined;
     case "element-access": {
       const objType = inferType(expr.object, varTypes);
-      if (objType?.kind === ("mapping" as SkittlesTypeKind))
+      if (objType?.kind === (SkittlesTypeKind.Mapping))
         return objType.valueType;
-      if (objType?.kind === ("array" as SkittlesTypeKind))
+      if (objType?.kind === (SkittlesTypeKind.Array))
         return objType.valueType;
       return undefined;
     }
@@ -199,12 +199,12 @@ export function inferType(
           expr.operator
         )
       ) {
-        return { kind: "bool" as SkittlesTypeKind };
+        return { kind: SkittlesTypeKind.Bool };
       }
       return inferType(expr.left, varTypes);
     case "unary":
       if (expr.operator === "!")
-        return { kind: "bool" as SkittlesTypeKind };
+        return { kind: SkittlesTypeKind.Bool };
       return inferType(expr.operand, varTypes);
     case "conditional": {
       const trueType = inferType(expr.whenTrue, varTypes);
@@ -216,19 +216,19 @@ export function inferType(
       if (expr.callee.kind === "identifier") {
         // address(...) cast returns address type
         if (expr.callee.name === "address") {
-          return { kind: "address" as SkittlesTypeKind };
+          return { kind: SkittlesTypeKind.Address };
         }
         if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
-          return { kind: "bytes32" as SkittlesTypeKind };
+          return { kind: SkittlesTypeKind.Bytes32 };
         }
         if (STRING_RETURNING_HELPERS.has(expr.callee.name)) {
-          return { kind: "string" as SkittlesTypeKind };
+          return { kind: SkittlesTypeKind.String };
         }
         if (expr.callee.name === "_startsWith" || expr.callee.name === "_endsWith") {
-          return { kind: "bool" as SkittlesTypeKind };
+          return { kind: SkittlesTypeKind.Bool };
         }
         if (expr.callee.name === "_split") {
-          return { kind: "array" as SkittlesTypeKind, valueType: { kind: "string" as SkittlesTypeKind } };
+          return { kind: SkittlesTypeKind.Array, valueType: { kind: SkittlesTypeKind.String } };
         }
       }
       return undefined;

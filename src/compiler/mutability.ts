@@ -1,14 +1,14 @@
 import ts from "typescript";
-import type {
-  SkittlesParameter,
-  SkittlesType,
+import {
   SkittlesTypeKind,
-  SkittlesFunction,
-  SkittlesContractInterface,
-  SkittlesContract,
-  StateMutability,
-  Statement,
-  Expression,
+  type SkittlesParameter,
+  type SkittlesType,
+  type SkittlesFunction,
+  type SkittlesContractInterface,
+  type SkittlesContract,
+  type StateMutability,
+  type Statement,
+  type Expression,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import { inferType } from "./type-parser.ts";
@@ -204,7 +204,7 @@ export function collectExternalInterfaceCalls(
       expr.callee.object.object.name === "this"
     ) {
       const propType = stateVarTypes.get(expr.callee.object.property);
-      if (propType?.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
+      if (propType?.kind === (SkittlesTypeKind.ContractInterface) && propType.structName) {
         calls.push({ ifaceName: propType.structName, methodName });
       }
     }
@@ -215,14 +215,14 @@ export function collectExternalInterfaceCalls(
       expr.callee.object.name !== "this"
     ) {
       const varType = localVarTypes.get(expr.callee.object.name);
-      if (varType?.kind === ("contract-interface" as SkittlesTypeKind) && varType.structName) {
+      if (varType?.kind === (SkittlesTypeKind.ContractInterface) && varType.structName) {
         calls.push({ ifaceName: varType.structName, methodName });
       }
     }
   }, (stmt) => {
     // Track local variable declarations of contract-interface types
     if (stmt.kind === "variable-declaration" && stmt.type &&
-        stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
+        stmt.type.kind === (SkittlesTypeKind.ContractInterface) && stmt.name) {
       localVarTypes.set(stmt.name, stmt.type);
     }
   });
@@ -265,7 +265,7 @@ export function rewriteInterfacePropertyGetters(
       expr.object.object.name === "this"
     ) {
       const propType = ctx.stateVarTypes.get(expr.object.property);
-      if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind) && propType.structName) {
+      if (propType && propType.kind === (SkittlesTypeKind.ContractInterface) && propType.structName) {
         const iface = ctx.knownContractInterfaceMap.get(propType.structName);
         if (iface && iface.functions.some(f => f.name === expr.property)) return true;
       }
@@ -277,7 +277,7 @@ export function rewriteInterfacePropertyGetters(
       expr.object.name !== "this"
     ) {
       const varType = localVarTypes.get(expr.object.name) ?? varTypes.get(expr.object.name);
-      if (varType && varType.kind === ("contract-interface" as SkittlesTypeKind) && varType.structName) {
+      if (varType && varType.kind === (SkittlesTypeKind.ContractInterface) && varType.structName) {
         const iface = ctx.knownContractInterfaceMap.get(varType.structName);
         if (iface && iface.functions.some(f => f.name === expr.property)) return true;
       }
@@ -333,7 +333,7 @@ export function rewriteInterfacePropertyGetters(
         return { ...stmt, value: stmt.value ? transformExpr(stmt.value, false) : undefined };
       case "variable-declaration": {
         const transformed = { ...stmt, initializer: stmt.initializer ? transformExpr(stmt.initializer, false) : undefined };
-        if (stmt.type && stmt.type.kind === ("contract-interface" as SkittlesTypeKind) && stmt.name) {
+        if (stmt.type && stmt.type.kind === (SkittlesTypeKind.ContractInterface) && stmt.name) {
           localVarTypes.set(stmt.name, stmt.type);
         }
         return transformed;
@@ -454,7 +454,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         // Treat both typed addresses and explicit address(...) casts as address-like
         const objType = inferType(expr.object, combinedVarTypes);
         const isAddressLike =
-          objType?.kind === ("address" as SkittlesTypeKind) ||
+          objType?.kind === (SkittlesTypeKind.Address) ||
           (
             expr.object.kind === "call" &&
             expr.object.callee.kind === "identifier" &&
@@ -534,7 +534,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
         // Only track contract-interface typed locals in localVarTypes
         // (used for external call detection / .transfer() classification).
-        if (stmt.type.kind === ("contract-interface" as SkittlesTypeKind)) {
+        if (stmt.type.kind === (SkittlesTypeKind.ContractInterface)) {
           localVarTypes.set(stmt.name, stmt.type);
         }
         // Update combinedVarTypes so that inner shadowing declarations
@@ -543,9 +543,9 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         const existingType = combinedVarTypes.get(stmt.name);
         if (existingType) {
           const existingIsAddressLike =
-            existingType.kind === ("address" as SkittlesTypeKind);
+            existingType.kind === (SkittlesTypeKind.Address);
           const newIsAddressLike =
-            stmt.type.kind === ("address" as SkittlesTypeKind);
+            stmt.type.kind === (SkittlesTypeKind.Address);
           if (!existingIsAddressLike || newIsAddressLike) {
             combinedVarTypes.set(stmt.name, stmt.type);
           }
@@ -611,7 +611,7 @@ export function propagateMutability(contracts: SkittlesContract[]): void {
 }
 
 export function collectContractInterfaceTypeRefs(type: SkittlesType, refs: Set<string>): void {
-  if (type.kind === ("contract-interface" as SkittlesTypeKind) && type.structName) {
+  if (type.kind === (SkittlesTypeKind.ContractInterface) && type.structName) {
     refs.add(type.structName);
   }
   if (type.keyType) collectContractInterfaceTypeRefs(type.keyType, refs);
@@ -663,7 +663,7 @@ export function isExternalContractCall(expr: { callee: Expression }, varTypes: M
   ) {
     const propName = expr.callee.object.property;
     const propType = ctx.stateVarTypes.get(propName);
-    if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) {
+    if (propType && propType.kind === (SkittlesTypeKind.ContractInterface)) {
       return true;
     }
   }
@@ -678,7 +678,7 @@ export function isExternalContractCallOnLocal(expr: { callee: Expression }, loca
   ) {
     const varName = expr.callee.object.name;
     const varType = localVarTypes.get(varName);
-    if (varType && varType.kind === ("contract-interface" as SkittlesTypeKind)) {
+    if (varType && varType.kind === (SkittlesTypeKind.ContractInterface)) {
       return true;
     }
   }
@@ -706,7 +706,7 @@ export function getExternalCallMethodMutability(
     varTypes
   ) {
     const propType = ctx.stateVarTypes.get(expr.callee.object.property);
-    if (propType?.kind === ("contract-interface" as SkittlesTypeKind)) {
+    if (propType?.kind === (SkittlesTypeKind.ContractInterface)) {
       ifaceName = propType.structName;
     }
   }
@@ -719,7 +719,7 @@ export function getExternalCallMethodMutability(
     localVarTypes
   ) {
     const varType = localVarTypes.get(expr.callee.object.name);
-    if (varType?.kind === ("contract-interface" as SkittlesTypeKind)) {
+    if (varType?.kind === (SkittlesTypeKind.ContractInterface)) {
       ifaceName = varType.structName;
     }
   }
@@ -757,14 +757,14 @@ export function isContractInterfaceReceiver(
     receiver.object.name === "this"
   ) {
     const propType = ctx.stateVarTypes.get(receiver.property);
-    if (propType && propType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
+    if (propType && propType.kind === (SkittlesTypeKind.ContractInterface)) return true;
   }
   // token.transfer(...) where token is a contract-interface local/param
   if (receiver.kind === "identifier") {
     const localType = localVarTypes?.get(receiver.name);
-    if (localType && localType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
+    if (localType && localType.kind === (SkittlesTypeKind.ContractInterface)) return true;
     const stateType = varTypes?.get(receiver.name);
-    if (stateType && stateType.kind === ("contract-interface" as SkittlesTypeKind)) return true;
+    if (stateType && stateType.kind === (SkittlesTypeKind.ContractInterface)) return true;
   }
   return false;
 }
