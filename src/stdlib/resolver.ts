@@ -11,6 +11,12 @@ interface StdlibEntry {
   filePath: string;
 }
 
+/**
+ * Cached registry of stdlib entries. Once built, the cache persists for the
+ * lifetime of the process. Use {@link clearStdlibRegistryCache} or pass
+ * `force: true` to {@link getRegistry} to invalidate it (useful in tests or
+ * development when stdlib files may change between invocations).
+ */
 let _registry: StdlibEntry[] | null = null;
 
 function buildRegistry(): StdlibEntry[] {
@@ -36,9 +42,19 @@ function buildRegistry(): StdlibEntry[] {
   return entries;
 }
 
-function getRegistry(): StdlibEntry[] {
-  if (!_registry) _registry = buildRegistry();
+function getRegistry(force = false): StdlibEntry[] {
+  if (force || !_registry) _registry = buildRegistry();
   return _registry;
+}
+
+/**
+ * Invalidate the cached stdlib registry so the next call to
+ * {@link getStdlibClassNames} or {@link resolveStdlibFiles} rebuilds it
+ * from disk. This is useful in tests or during development when stdlib
+ * files may be added, removed, or modified between invocations.
+ */
+export function clearStdlibRegistryCache(): void {
+  _registry = null;
 }
 
 /**
