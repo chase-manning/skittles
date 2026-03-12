@@ -1,17 +1,17 @@
 import ts from "typescript";
-import type {
-  SkittlesContract,
-  SkittlesVariable,
-  SkittlesFunction,
-  SkittlesConstructor,
-  SkittlesEvent,
-  SkittlesParameter,
-  SkittlesType,
+import {
   SkittlesTypeKind,
-  SkittlesContractInterface,
-  SkittlesInterfaceFunction,
-  Statement,
-  Expression,
+  type SkittlesContract,
+  type SkittlesVariable,
+  type SkittlesFunction,
+  type SkittlesConstructor,
+  type SkittlesEvent,
+  type SkittlesParameter,
+  type SkittlesType,
+  type SkittlesContractInterface,
+  type SkittlesInterfaceFunction,
+  type Statement,
+  type Expression,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import {
@@ -137,7 +137,7 @@ export function parseInterfaceAsContractInterface(
       const propName = member.name.text;
       const returnType: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: SkittlesTypeKind.Uint256 };
       functions.push({ name: propName, parameters: [], returnType, stateMutability: "view" });
     }
 
@@ -238,7 +238,7 @@ export function parseClass(
       member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
     const type: SkittlesType = member.type
       ? parseType(member.type)
-      : { kind: "uint256" as SkittlesTypeKind };
+      : { kind: SkittlesTypeKind.Uint256 };
     varTypes.set(name, type);
   }
   // Snapshot the state-variable-only map before any initializers/locals/params are parsed.
@@ -393,8 +393,8 @@ export function parseClass(
   const usedEnumNames = new Set<string>();
   const collectTypeRef = (type: SkittlesType | null | undefined) => {
     if (!type) return;
-    if (type.kind === ("struct" as SkittlesTypeKind) && type.structName) usedStructNames.add(type.structName);
-    if (type.kind === ("enum" as SkittlesTypeKind) && type.structName) usedEnumNames.add(type.structName);
+    if (type.kind === (SkittlesTypeKind.Struct) && type.structName) usedStructNames.add(type.structName);
+    if (type.kind === (SkittlesTypeKind.Enum) && type.structName) usedEnumNames.add(type.structName);
     if (type.keyType) collectTypeRef(type.keyType);
     if (type.valueType) collectTypeRef(type.valueType);
     if (type.tupleTypes) for (const t of type.tupleTypes) collectTypeRef(t);
@@ -642,7 +642,7 @@ export function tryParseEvent(
 
       const paramType: SkittlesType = typeNode
         ? parseType(typeNode)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: SkittlesTypeKind.Uint256 };
       parameters.push({ name: paramName, type: paramType, indexed });
     }
   }
@@ -686,7 +686,7 @@ export function tryParseError(
       const paramName = member.name.text;
       const paramType: SkittlesType = member.type
         ? parseType(member.type)
-        : { kind: "uint256" as SkittlesTypeKind };
+        : { kind: SkittlesTypeKind.Uint256 };
       parameters.push({ name: paramName, type: paramType });
     }
   }
@@ -702,7 +702,7 @@ export function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
 
   const type: SkittlesType = node.type
     ? parseType(node.type)
-    : { kind: "uint256" as SkittlesTypeKind };
+    : { kind: SkittlesTypeKind.Uint256 };
 
   const visibility = getVisibility(node.modifiers);
   const isStatic = hasModifier(node.modifiers, ts.SyntaxKind.StaticKeyword);
@@ -860,7 +860,7 @@ export function buildOverloadForwardingBody(
     args,
   };
 
-  if (returnType && returnType.kind !== ("void" as SkittlesTypeKind)) {
+  if (returnType && returnType.kind !== (SkittlesTypeKind.Void)) {
     return [{ kind: "return", value: callExpr }];
   } else {
     return [{ kind: "expression", expression: callExpr }];
@@ -869,16 +869,16 @@ export function buildOverloadForwardingBody(
 
 export function getDefaultValueForType(type: SkittlesType): Expression {
   switch (type.kind) {
-    case "uint256" as SkittlesTypeKind:
-    case "int256" as SkittlesTypeKind:
-    case "bytes32" as SkittlesTypeKind:
+    case SkittlesTypeKind.Uint256:
+    case SkittlesTypeKind.Int256:
+    case SkittlesTypeKind.Bytes32:
       return { kind: "number-literal", value: "0" };
-    case "bool" as SkittlesTypeKind:
+    case SkittlesTypeKind.Bool:
       return { kind: "boolean-literal", value: false };
-    case "string" as SkittlesTypeKind:
-    case "bytes" as SkittlesTypeKind:
+    case SkittlesTypeKind.String:
+    case SkittlesTypeKind.Bytes:
       return { kind: "string-literal", value: "" };
-    case "address" as SkittlesTypeKind:
+    case SkittlesTypeKind.Address:
       return {
         kind: "call",
         callee: { kind: "identifier", name: "address" },
@@ -1004,7 +1004,7 @@ export function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter
   validateReservedName("Parameter name", name);
   const type: SkittlesType = node.type
     ? parseType(node.type)
-    : { kind: "uint256" as SkittlesTypeKind };
+    : { kind: SkittlesTypeKind.Uint256 };
   const param: SkittlesParameter = { name, type };
   if (node.initializer) {
     param.defaultValue = parseExpression(node.initializer);

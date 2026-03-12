@@ -1,13 +1,13 @@
 import ts from "typescript";
-import type {
-  SkittlesType,
+import {
   SkittlesTypeKind,
-  SkittlesParameter,
-  Statement,
-  Expression,
-  EmitStatement,
-  ConsoleLogStatement,
-  SwitchCase,
+  type SkittlesType,
+  type SkittlesParameter,
+  type Statement,
+  type Expression,
+  type EmitStatement,
+  type ConsoleLogStatement,
+  type SwitchCase,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import {
@@ -81,7 +81,7 @@ export function parseArrayDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === ("string" as SkittlesTypeKind)) {
+        if (type.kind === (SkittlesTypeKind.String)) {
           ctx.currentStringNames.add(name);
         }
       }
@@ -133,7 +133,7 @@ export function parseArrayDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === ("string" as SkittlesTypeKind)) {
+        if (type.kind === (SkittlesTypeKind.String)) {
           ctx.currentStringNames.add(name);
         }
       }
@@ -166,7 +166,7 @@ export function parseArrayDestructuring(
       }
     }
 
-    if (tupleType?.kind === ("tuple" as SkittlesTypeKind) && tupleType.tupleTypes) {
+    if (tupleType?.kind === (SkittlesTypeKind.Tuple) && tupleType.tupleTypes) {
       const tupleArity = tupleType.tupleTypes.length;
       const names: (string | null)[] = [];
       const types: (SkittlesType | null)[] = [];
@@ -194,7 +194,7 @@ export function parseArrayDestructuring(
           const t = tupleType.tupleTypes[i];
           types.push(t);
           varTypes.set(bindingName, t);
-          if (t && t.kind === ("string" as SkittlesTypeKind)) {
+          if (t && t.kind === (SkittlesTypeKind.String)) {
             ctx.currentStringNames.add(bindingName);
           } else {
             ctx.currentStringNames.delete(bindingName);
@@ -303,7 +303,7 @@ export function parseObjectDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === ("string" as SkittlesTypeKind)) {
+        if (type.kind === (SkittlesTypeKind.String)) {
           ctx.currentStringNames.add(name);
         }
       }
@@ -347,7 +347,7 @@ export function parseObjectDestructuring(
 
   const initExpr = parseExpression(initializer);
 
-  if (structType?.kind === ("struct" as SkittlesTypeKind) && structType.structName) {
+  if (structType?.kind === (SkittlesTypeKind.Struct) && structType.structName) {
     // Temp variable + field accesses (use __sk_ prefix + counter to avoid collisions)
     const tempName = `__sk_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}_${ctx.destructureCounter++}`;
     statements.push({
@@ -392,7 +392,7 @@ export function parseObjectDestructuring(
         );
       }
       varTypes.set(name, fieldType);
-      if (fieldType.kind === ("string" as SkittlesTypeKind)) {
+      if (fieldType.kind === (SkittlesTypeKind.String)) {
         ctx.currentStringNames.add(name);
       } else {
         ctx.currentStringNames.delete(name);
@@ -456,7 +456,7 @@ export function parseObjectDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === ("string" as SkittlesTypeKind)) {
+        if (type.kind === (SkittlesTypeKind.String)) {
           ctx.currentStringNames.add(name);
         }
       }
@@ -502,7 +502,7 @@ export function parseStatement(
     const type =
       explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
 
-    if (type?.kind === ("string" as SkittlesTypeKind)) {
+    if (type?.kind === (SkittlesTypeKind.String)) {
       ctx.currentStringNames.add(name);
     } else {
       ctx.currentStringNames.delete(name);
@@ -647,7 +647,7 @@ export function parseStatement(
         const resolvedType = loopVarTypes.get(name);
         // Remove any outer tracking for this name; re-add only if string.
         loopStringNames.delete(name);
-        if (resolvedType?.kind === ("string" as SkittlesTypeKind)) {
+        if (resolvedType?.kind === (SkittlesTypeKind.String)) {
           loopStringNames.add(name);
         }
       }
@@ -721,7 +721,7 @@ export function parseStatement(
     // When no explicit type annotation, infer element type from the iterated expression
     const itemTypeNode = explicitType ?? (() => {
       const arrType = inferType(arrExpr, varTypes);
-      if (arrType?.kind === ("array" as SkittlesTypeKind) && arrType.valueType) {
+      if (arrType?.kind === (SkittlesTypeKind.Array) && arrType.valueType) {
         return arrType.valueType;
       }
       return undefined;
@@ -732,7 +732,7 @@ export function parseStatement(
     if (itemTypeNode) {
       loopVarTypes.set(itemName, itemTypeNode);
     }
-    loopVarTypes.set(indexName, { kind: "uint256" as SkittlesTypeKind });
+    loopVarTypes.set(indexName, { kind: SkittlesTypeKind.Uint256 });
 
     // Temporarily switch parser context to loop-scoped var types
     const previousVarTypes = ctx.currentVarTypes;
@@ -740,7 +740,7 @@ export function parseStatement(
     const loopStringNames = new Set(previousStringNames);
     // Shadowing: ensure any outer string classification for `itemName` doesn't leak into the loop scope
     loopStringNames.delete(itemName);
-    if (itemTypeNode && itemTypeNode.kind === ("string" as SkittlesTypeKind)) {
+    if (itemTypeNode && itemTypeNode.kind === (SkittlesTypeKind.String)) {
       loopStringNames.add(itemName);
     }
     let innerBody: Statement[];
@@ -771,7 +771,7 @@ export function parseStatement(
       initializer: {
         kind: "variable-declaration",
         name: indexName,
-        type: { kind: "uint256" as SkittlesTypeKind },
+        type: { kind: SkittlesTypeKind.Uint256 },
         initializer: { kind: "number-literal", value: "0" },
       },
       condition: {
@@ -810,8 +810,8 @@ export function parseStatement(
 
       const indexName = `__sk_i_${itemName}`;
       const loopVarTypes = new Map(varTypes);
-      loopVarTypes.set(itemName, { kind: "enum" as SkittlesTypeKind, structName: enumName });
-      loopVarTypes.set(indexName, { kind: "uint256" as SkittlesTypeKind });
+      loopVarTypes.set(itemName, { kind: SkittlesTypeKind.Enum, structName: enumName });
+      loopVarTypes.set(indexName, { kind: SkittlesTypeKind.Uint256 });
 
       // Temporarily switch parser context to loop-scoped var types
       const previousVarTypes = ctx.currentVarTypes;
@@ -834,7 +834,7 @@ export function parseStatement(
       const itemDecl: Statement = {
         kind: "variable-declaration",
         name: itemName,
-        type: { kind: "enum" as SkittlesTypeKind, structName: enumName },
+        type: { kind: SkittlesTypeKind.Enum, structName: enumName },
         initializer: {
           kind: "call",
           callee: { kind: "identifier", name: enumName },
@@ -847,7 +847,7 @@ export function parseStatement(
         initializer: {
           kind: "variable-declaration",
           name: indexName,
-          type: { kind: "uint256" as SkittlesTypeKind },
+          type: { kind: SkittlesTypeKind.Uint256 },
           initializer: { kind: "number-literal", value: "0" },
         },
         condition: {
@@ -1032,7 +1032,7 @@ export function parseStatements(
           : undefined;
         const type =
           explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
-        if (type?.kind === ("string" as SkittlesTypeKind)) {
+        if (type?.kind === (SkittlesTypeKind.String)) {
           ctx.currentStringNames.add(name);
         } else {
           ctx.currentStringNames.delete(name);

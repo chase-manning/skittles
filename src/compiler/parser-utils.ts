@@ -1,12 +1,12 @@
 import ts from "typescript";
-import { ADDRESS_LITERAL_RE } from "../types/index.ts";
-import type {
-  SkittlesParameter,
-  SkittlesType,
+import {
+  ADDRESS_LITERAL_RE,
   SkittlesTypeKind,
-  Visibility,
-  Statement,
-  Expression,
+  type SkittlesParameter,
+  type SkittlesType,
+  type Visibility,
+  type Statement,
+  type Expression,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 
@@ -20,7 +20,7 @@ export function setupStringTracking(parameters: SkittlesParameter[], varTypes: M
   ctx.currentStringNames = new Set();
   ctx.currentParamTypes = new Map();
   for (const param of parameters) {
-    if (param.type.kind === ("string" as SkittlesTypeKind)) {
+    if (param.type.kind === (SkittlesTypeKind.String)) {
       ctx.currentStringNames.add(param.name);
     }
     ctx.currentParamTypes.set(param.name, param.type);
@@ -42,7 +42,7 @@ export function isStringExpr(expr: Expression): boolean {
     // For this.<prop>, always use the original state-var type map so that
     // local/param shadowing doesn't affect state-variable type resolution.
     const type = ctx.stateVarTypes.get(expr.property);
-    return type?.kind === ("string" as SkittlesTypeKind);
+    return type?.kind === (SkittlesTypeKind.String);
   }
   if (
     expr.kind === "call" &&
@@ -228,9 +228,9 @@ export function mkReturn(value?: Expression): Statement { return { kind: "return
 export function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): Statement {
   return { kind: "if", condition: cond, thenBody, elseBody };
 }
-export const UINT256_TYPE: SkittlesType = { kind: "uint256" as SkittlesTypeKind };
-export const INT256_TYPE: SkittlesType = { kind: "int256" as SkittlesTypeKind };
-export const BOOL_TYPE: SkittlesType = { kind: "bool" as SkittlesTypeKind };
+export const UINT256_TYPE: SkittlesType = { kind: SkittlesTypeKind.Uint256 };
+export const INT256_TYPE: SkittlesType = { kind: SkittlesTypeKind.Int256 };
+export const BOOL_TYPE: SkittlesType = { kind: SkittlesTypeKind.Bool };
 
 export const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
 
@@ -319,17 +319,17 @@ export function mkForLoop(
 
 export function typeToSolidityName(type: SkittlesType): string {
   switch (type.kind) {
-    case "uint256" as SkittlesTypeKind: return "uint256";
-    case "int256" as SkittlesTypeKind: return "int256";
-    case "address" as SkittlesTypeKind: return "address";
-    case "bool" as SkittlesTypeKind: return "bool";
-    case "string" as SkittlesTypeKind: return "string";
-    case "bytes32" as SkittlesTypeKind: return "bytes32";
-    case "bytes" as SkittlesTypeKind: return "bytes";
-    case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
-    case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
-    case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
-    case "array" as SkittlesTypeKind: return `${typeToSolidityName(type.valueType!)}[]`;
+    case SkittlesTypeKind.Uint256: return "uint256";
+    case SkittlesTypeKind.Int256: return "int256";
+    case SkittlesTypeKind.Address: return "address";
+    case SkittlesTypeKind.Bool: return "bool";
+    case SkittlesTypeKind.String: return "string";
+    case SkittlesTypeKind.Bytes32: return "bytes32";
+    case SkittlesTypeKind.Bytes: return "bytes";
+    case SkittlesTypeKind.Struct: return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.Enum: return type.structName ?? "UnknownEnum";
+    case SkittlesTypeKind.ContractInterface: return type.structName ?? "UnknownInterface";
+    case SkittlesTypeKind.Array: return `${typeToSolidityName(type.valueType!)}[]`;
     default: return "uint256";
   }
 }
@@ -341,17 +341,17 @@ export function getArrayHelperSuffix(elementType: SkittlesType | undefined): str
 
 export function identifierSafeType(type: SkittlesType): string {
   switch (type.kind) {
-    case "uint256" as SkittlesTypeKind: return "uint256";
-    case "int256" as SkittlesTypeKind: return "int256";
-    case "address" as SkittlesTypeKind: return "address";
-    case "bool" as SkittlesTypeKind: return "bool";
-    case "string" as SkittlesTypeKind: return "string";
-    case "bytes32" as SkittlesTypeKind: return "bytes32";
-    case "bytes" as SkittlesTypeKind: return "bytes";
-    case "struct" as SkittlesTypeKind: return type.structName ?? "UnknownStruct";
-    case "enum" as SkittlesTypeKind: return type.structName ?? "UnknownEnum";
-    case "contract-interface" as SkittlesTypeKind: return type.structName ?? "UnknownInterface";
-    case "array" as SkittlesTypeKind: return `arr_${identifierSafeType(type.valueType!)}`;
+    case SkittlesTypeKind.Uint256: return "uint256";
+    case SkittlesTypeKind.Int256: return "int256";
+    case SkittlesTypeKind.Address: return "address";
+    case SkittlesTypeKind.Bool: return "bool";
+    case SkittlesTypeKind.String: return "string";
+    case SkittlesTypeKind.Bytes32: return "bytes32";
+    case SkittlesTypeKind.Bytes: return "bytes";
+    case SkittlesTypeKind.Struct: return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.Enum: return type.structName ?? "UnknownEnum";
+    case SkittlesTypeKind.ContractInterface: return type.structName ?? "UnknownInterface";
+    case SkittlesTypeKind.Array: return `arr_${identifierSafeType(type.valueType!)}`;
     default: return "uint256";
   }
 }
@@ -359,12 +359,12 @@ export function identifierSafeType(type: SkittlesType): string {
 export function defaultValueForType(type: SkittlesType | undefined): Expression | null {
   if (!type) return null;
   switch (type.kind) {
-    case "uint256" as SkittlesTypeKind:
-    case "int256" as SkittlesTypeKind:
+    case SkittlesTypeKind.Uint256:
+    case SkittlesTypeKind.Int256:
       return { kind: "number-literal", value: "0" };
-    case "bool" as SkittlesTypeKind:
+    case SkittlesTypeKind.Bool:
       return { kind: "boolean-literal", value: false };
-    case "address" as SkittlesTypeKind:
+    case SkittlesTypeKind.Address:
       return { kind: "identifier", name: "address(0)" };
     default:
       return null;
