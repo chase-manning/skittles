@@ -74,12 +74,14 @@ export function parseArrayDestructuring(
         ? parseExpression(initializer.elements[i])
         : undefined;
       const type = init ? inferType(init, varTypes) : undefined;
+      // Always clear any previous type/string classification for this binding,
+      // so we don't leak outer-scope information into the new declaration.
+      varTypes.delete(name);
+      ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
         if (type.kind === ("string" as SkittlesTypeKind)) {
           ctx.currentStringNames.add(name);
-        } else {
-          ctx.currentStringNames.delete(name);
         }
       }
       statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
@@ -101,25 +103,40 @@ export function parseArrayDestructuring(
 
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        const name = elem.name.text;
-        validateReservedVarName(name);
-        const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
-        const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
-        const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
-        const trueType = inferType(trueVal, varTypes);
-        const falseType = inferType(falseVal, varTypes);
-        const type = (trueType && falseType && typesEqual(trueType, falseType)) ? trueType : undefined;
-        if (type) {
-          varTypes.set(name, type);
-          if (type.kind === ("string" as SkittlesTypeKind)) {
-            ctx.currentStringNames.add(name);
-          } else {
-            ctx.currentStringNames.delete(name);
-          }
-        }
-        statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      if (!ts.isBindingElement(elem)) {
+        continue;
       }
+      // Only support simple identifier bindings with no defaults, rest, renames, or nested patterns.
+      if (
+        !ts.isIdentifier(elem.name) ||
+        !!elem.initializer ||
+        !!elem.dotDotDotToken ||
+        !!elem.propertyName
+      ) {
+        throw new Error(
+          "Unsupported array destructuring binding element in variable declaration. " +
+          "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
+        );
+      }
+      const name = elem.name.text;
+      validateReservedVarName(name);
+      const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
+      const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
+      const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
+      const trueType = inferType(trueVal, varTypes);
+      const falseType = inferType(falseVal, varTypes);
+      const type = (trueType && falseType && typesEqual(trueType, falseType)) ? trueType : undefined;
+      // Always clear any previous type/string classification for this binding,
+      // so we don't leak outer-scope information into the new declaration.
+      varTypes.delete(name);
+      ctx.currentStringNames.delete(name);
+      if (type) {
+        varTypes.set(name, type);
+        if (type.kind === ("string" as SkittlesTypeKind)) {
+          ctx.currentStringNames.add(name);
+        }
+      }
+      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
     }
   } else if (ts.isCallExpression(initializer)) {
     // Tuple destructuring from function call: const [a, b] = this.getReserves()
@@ -215,19 +232,14 @@ export function parseArrayDestructuring(
       "Ensure the called function has an explicit tuple return type annotation."
     );
   } else {
-    // Fallback: parse as expression and hope for the best
-    for (let i = 0; i < pattern.elements.length; i++) {
-      const elem = pattern.elements[i];
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        validateReservedVarName(elem.name.text);
-        statements.push({
-          kind: "variable-declaration" as const,
-          name: elem.name.text,
-          type: undefined,
-          initializer: undefined,
-        });
-      }
-    }
+    // Unsupported initializer form for array destructuring.
+    // To avoid changing semantics (TS destructuring assigns from the initializer),
+    // we reject non-literal / non-conditional / non-call initializers instead of
+    // emitting uninitialized variable declarations.
+    throw new Error(
+      "Unsupported initializer in array destructuring variable declaration. " +
+      "Only array literals, conditional expressions, or function calls with tuple return types are supported."
+    );
   }
 
   return statements;
@@ -282,12 +294,14 @@ export function parseObjectDestructuring(
         ? parseExpression(propMap.get(propName)!)
         : undefined;
       const type = init ? inferType(init, varTypes) : undefined;
+      // Always clear any previous type/string classification for this binding,
+      // so we don't leak outer-scope information into the new declaration.
+      varTypes.delete(name);
+      ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
         if (type.kind === ("string" as SkittlesTypeKind)) {
           ctx.currentStringNames.add(name);
-        } else {
-          ctx.currentStringNames.delete(name);
         }
       }
       statements.push({
@@ -409,15 +423,27 @@ export function parseObjectDestructuring(
         elem.propertyName && ts.isIdentifier(elem.propertyName)
           ? elem.propertyName.text
           : name;
+      const propAccessInit: Expression = {
+        kind: "property-access" as const,
+        object: initExpr,
+        property: propName,
+      };
+      const type = inferType(propAccessInit, varTypes);
+      // Clear any previous type/string classification for this binding,
+      // so we don't leak outer-scope information into the new declaration.
+      varTypes.delete(name);
+      ctx.currentStringNames.delete(name);
+      if (type) {
+        varTypes.set(name, type);
+        if (type.kind === ("string" as SkittlesTypeKind)) {
+          ctx.currentStringNames.add(name);
+        }
+      }
       statements.push({
         kind: "variable-declaration" as const,
         name,
-        type: undefined,
-        initializer: {
-          kind: "property-access" as const,
-          object: initExpr,
-          property: propName,
-        },
+        type,
+        initializer: propAccessInit,
       });
     }
   }
@@ -1007,6 +1033,19 @@ export function parseStatements(
     // Object destructuring: const { a, b } = { a: 1, b: 2 }
     if (decl.name && ts.isObjectBindingPattern(decl.name) && decl.initializer) {
       return parseObjectDestructuring(decl.name, decl.initializer, varTypes, decl);
+    }
+
+    // Explicitly reject unsupported destructuring without initializer,
+    // instead of falling through to parseStatement and creating an "unknown" variable.
+    if (
+      decl.name &&
+      (ts.isArrayBindingPattern(decl.name) || ts.isObjectBindingPattern(decl.name)) &&
+      !decl.initializer
+    ) {
+      throw new Error(
+        "Unsupported destructuring variable declaration without initializer: " +
+          getSourceLine(decl)
+      );
     }
   }
   return [parseStatement(node, varTypes, eventNames)];
