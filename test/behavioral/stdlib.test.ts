@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestEnv, compileAndDeploy, connectAs, TestEnv, DeployedContract } from "./helpers";
+import {
+  createTestEnv,
+  compileAndDeploy,
+  connectAs,
+  TestEnv,
+  DeployedContract,
+} from "./helpers";
 import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
@@ -18,7 +24,10 @@ function readStdlib(name: string): string {
     ReentrancyGuard: "security",
   };
   const subdir = subdirs[name] ?? "";
-  const filePath = path.resolve(__dirname, `../../stdlib/contracts/${subdir}/${name}.ts`);
+  const filePath = path.resolve(
+    __dirname,
+    `../../stdlib/contracts/${subdir}/${name}.ts`
+  );
   const raw = fs.readFileSync(filePath, "utf-8");
   return raw.replace(/^import\s+.*from\s+["'].*["'];?\s*$/gm, "").trim();
 }
@@ -74,10 +83,14 @@ class MyToken extends ERC20 {
     deployerAddr = await deployer.getAddress();
     aliceAddr = await alice.getAddress();
     bobAddr = await bob.getAddress();
-    token = await compileAndDeploy(env, TOKEN_SOURCE, "MyToken", [INITIAL_SUPPLY]);
+    token = await compileAndDeploy(env, TOKEN_SOURCE, "MyToken", [
+      INITIAL_SUPPLY,
+    ]);
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   describe("metadata", () => {
     it("returns the correct name", async () => {
@@ -123,7 +136,13 @@ class MyToken extends ERC20 {
       const receipt = await tx.wait();
       const iface = new ethers.Interface(token.abi);
       const log = receipt.logs
-        .map((l: ethers.Log) => { try { return iface.parseLog(l); } catch { return null; } })
+        .map((l: ethers.Log) => {
+          try {
+            return iface.parseLog(l);
+          } catch {
+            return null;
+          }
+        })
         .find((e: ethers.LogDescription | null) => e?.name === "Transfer");
       expect(log).toBeDefined();
       expect(log!.args[0]).toBe(deployerAddr);
@@ -132,7 +151,9 @@ class MyToken extends ERC20 {
 
     it("reverts on insufficient balance", async () => {
       const aliceToken = connectAs(token, alice);
-      await expect(aliceToken.transfer(bobAddr, INITIAL_SUPPLY * 10n)).rejects.toThrow();
+      await expect(
+        aliceToken.transfer(bobAddr, INITIAL_SUPPLY * 10n)
+      ).rejects.toThrow();
     });
 
     it("reverts when sending to zero address", async () => {
@@ -143,7 +164,9 @@ class MyToken extends ERC20 {
   describe("approve & allowance", () => {
     it("sets allowance", async () => {
       await (await token.contract.approve(aliceAddr, 500n)).wait();
-      expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(500n);
+      expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(
+        500n
+      );
     });
 
     it("emits Approval event", async () => {
@@ -151,14 +174,22 @@ class MyToken extends ERC20 {
       const receipt = await tx.wait();
       const iface = new ethers.Interface(token.abi);
       const log = receipt.logs
-        .map((l: ethers.Log) => { try { return iface.parseLog(l); } catch { return null; } })
+        .map((l: ethers.Log) => {
+          try {
+            return iface.parseLog(l);
+          } catch {
+            return null;
+          }
+        })
         .find((e: ethers.LogDescription | null) => e?.name === "Approval");
       expect(log).toBeDefined();
     });
 
     it("overwrites previous allowance", async () => {
       await (await token.contract.approve(aliceAddr, 999n)).wait();
-      expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(999n);
+      expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(
+        999n
+      );
     });
   });
 
@@ -175,13 +206,17 @@ class MyToken extends ERC20 {
       await (await token.contract.approve(aliceAddr, 1000n)).wait();
       const aliceToken = connectAs(token, alice);
       await (await aliceToken.transferFrom(deployerAddr, bobAddr, 400n)).wait();
-      expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(600n);
+      expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(
+        600n
+      );
     });
 
     it("reverts when exceeding allowance", async () => {
       await (await token.contract.approve(aliceAddr, 10n)).wait();
       const aliceToken = connectAs(token, alice);
-      await expect(aliceToken.transferFrom(deployerAddr, bobAddr, 100n)).rejects.toThrow();
+      await expect(
+        aliceToken.transferFrom(deployerAddr, bobAddr, 100n)
+      ).rejects.toThrow();
     });
   });
 
@@ -202,7 +237,9 @@ class MyToken extends ERC20 {
       const before = await token.contract.totalSupply();
       const deployerBal = await token.contract.balanceOf(deployerAddr);
       await (await token.contract.burn(deployerAddr, 100n)).wait();
-      expect(await token.contract.balanceOf(deployerAddr)).toBe(deployerBal - 100n);
+      expect(await token.contract.balanceOf(deployerAddr)).toBe(
+        deployerBal - 100n
+      );
       expect(await token.contract.totalSupply()).toBe(before - 100n);
     });
 
@@ -253,7 +290,9 @@ class OwnableToken extends Ownable {
     contract = await compileAndDeploy(env, OWNABLE_SOURCE, "OwnableToken");
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("sets the deployer as owner", async () => {
     expect(await contract.contract.owner()).toBe(deployerAddr);
@@ -285,7 +324,9 @@ class OwnableToken extends Ownable {
   });
 
   it("reverts transferOwnership from non-owner", async () => {
-    await expect(contract.contract.transferOwnership(deployerAddr)).rejects.toThrow();
+    await expect(
+      contract.contract.transferOwnership(deployerAddr)
+    ).rejects.toThrow();
   });
 
   it("allows owner to renounce ownership", async () => {
@@ -317,8 +358,10 @@ describe("stdlib AccessControl", () => {
   const AC_BASE = readStdlib("AccessControl");
 
   // keccak256("MINTER_ROLE")
-  const MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-  const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  const MINTER_ROLE =
+    "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
+  const DEFAULT_ADMIN_ROLE =
+    "0x0000000000000000000000000000000000000000000000000000000000000000";
 
   const AC_SOURCE = `
 ${AC_BASE}
@@ -350,14 +393,20 @@ class RoleToken extends AccessControl {
     contract = await compileAndDeploy(env, AC_SOURCE, "RoleToken");
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("deployer has the default admin role", async () => {
-    expect(await contract.contract.hasRole(DEFAULT_ADMIN_ROLE, deployerAddr)).toBe(true);
+    expect(
+      await contract.contract.hasRole(DEFAULT_ADMIN_ROLE, deployerAddr)
+    ).toBe(true);
   });
 
   it("deployer has the minter role", async () => {
-    expect(await contract.contract.hasRole(MINTER_ROLE, deployerAddr)).toBe(true);
+    expect(await contract.contract.hasRole(MINTER_ROLE, deployerAddr)).toBe(
+      true
+    );
   });
 
   it("non-granted account does not have a role", async () => {
@@ -387,7 +436,9 @@ class RoleToken extends AccessControl {
 
   it("non-admin cannot grant roles", async () => {
     const aliceContract = connectAs(contract, alice);
-    await expect(aliceContract.grantRole(MINTER_ROLE, bobAddr)).rejects.toThrow();
+    await expect(
+      aliceContract.grantRole(MINTER_ROLE, bobAddr)
+    ).rejects.toThrow();
   });
 
   it("admin can revoke a role", async () => {
@@ -402,7 +453,9 @@ class RoleToken extends AccessControl {
 
   it("non-admin cannot revoke roles", async () => {
     const bobContract = connectAs(contract, bob);
-    await expect(bobContract.revokeRole(MINTER_ROLE, deployerAddr)).rejects.toThrow();
+    await expect(
+      bobContract.revokeRole(MINTER_ROLE, deployerAddr)
+    ).rejects.toThrow();
   });
 
   it("account can renounce its own role", async () => {
@@ -413,11 +466,15 @@ class RoleToken extends AccessControl {
   });
 
   it("cannot renounce role for another account", async () => {
-    await expect(contract.contract.renounceRole(MINTER_ROLE, aliceAddr)).rejects.toThrow();
+    await expect(
+      contract.contract.renounceRole(MINTER_ROLE, aliceAddr)
+    ).rejects.toThrow();
   });
 
   it("getRoleAdmin returns default admin role", async () => {
-    expect(await contract.contract.getRoleAdmin(MINTER_ROLE)).toBe(DEFAULT_ADMIN_ROLE);
+    expect(await contract.contract.getRoleAdmin(MINTER_ROLE)).toBe(
+      DEFAULT_ADMIN_ROLE
+    );
   });
 });
 
@@ -471,7 +528,9 @@ class MyNFT extends ERC721 {
     nft = await compileAndDeploy(env, NFT_SOURCE, "MyNFT");
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   describe("metadata", () => {
     it("returns the correct name", async () => {
@@ -503,17 +562,23 @@ class MyNFT extends ERC721 {
 
   describe("transfers", () => {
     it("transfers token via transferFrom", async () => {
-      await (await nft.contract.transferFrom(deployerAddr, aliceAddr, 0n)).wait();
+      await (
+        await nft.contract.transferFrom(deployerAddr, aliceAddr, 0n)
+      ).wait();
       expect(await nft.contract.ownerOf(0n)).toBe(aliceAddr);
     });
 
     it("reverts transferFrom by non-owner without approval", async () => {
       const bobNft = connectAs(nft, bob);
-      await expect(bobNft.transferFrom(aliceAddr, bobAddr, 0n)).rejects.toThrow();
+      await expect(
+        bobNft.transferFrom(aliceAddr, bobAddr, 0n)
+      ).rejects.toThrow();
     });
 
     it("reverts transfer to zero address", async () => {
-      await expect(nft.contract.transferFrom(deployerAddr, ZERO_ADDRESS, 1n)).rejects.toThrow();
+      await expect(
+        nft.contract.transferFrom(deployerAddr, ZERO_ADDRESS, 1n)
+      ).rejects.toThrow();
     });
   });
 
@@ -536,7 +601,9 @@ class MyNFT extends ERC721 {
 
     it("sets approval for all", async () => {
       await (await nft.contract.setApprovalForAll(aliceAddr, true)).wait();
-      expect(await nft.contract.isApprovedForAll(deployerAddr, aliceAddr)).toBe(true);
+      expect(await nft.contract.isApprovedForAll(deployerAddr, aliceAddr)).toBe(
+        true
+      );
     });
 
     it("operator can transfer any token of owner", async () => {
@@ -546,7 +613,9 @@ class MyNFT extends ERC721 {
     });
 
     it("reverts approval for zero address operator", async () => {
-      await expect(nft.contract.setApprovalForAll(ZERO_ADDRESS, true)).rejects.toThrow();
+      await expect(
+        nft.contract.setApprovalForAll(ZERO_ADDRESS, true)
+      ).rejects.toThrow();
     });
   });
 
@@ -608,7 +677,9 @@ class PausableVault extends Pausable {
     contract = await compileAndDeploy(env, PAUSABLE_SOURCE, "PausableVault");
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("starts unpaused", async () => {
     expect(await contract.contract.paused()).toBe(false);
@@ -681,7 +752,9 @@ class GuardedVault extends ReentrancyGuard {
     contract = await compileAndDeploy(env, GUARD_SOURCE, "GuardedVault");
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("allows normal calls", async () => {
     await (await contract.contract.deposit(100n)).wait();
@@ -729,10 +802,14 @@ class MyPermitToken extends ERC20Permit {
     alice = env.accounts[1];
     deployerAddr = await deployer.getAddress();
     aliceAddr = await alice.getAddress();
-    token = await compileAndDeploy(env, PERMIT_SOURCE, "MyPermitToken", [INITIAL_SUPPLY]);
+    token = await compileAndDeploy(env, PERMIT_SOURCE, "MyPermitToken", [
+      INITIAL_SUPPLY,
+    ]);
   }, 60_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("inherits ERC20 functionality", async () => {
     expect(await token.contract.name()).toBe("PermitToken");
@@ -795,7 +872,17 @@ class MyPermitToken extends ERC20Permit {
 
     // Submit permit from alice (gasless approval for deployer)
     const aliceToken = connectAs(token, alice);
-    await (await aliceToken.permit(deployerAddr, aliceAddr, value, deadline, BigInt(v), r, s)).wait();
+    await (
+      await aliceToken.permit(
+        deployerAddr,
+        aliceAddr,
+        value,
+        deadline,
+        BigInt(v),
+        r,
+        s
+      )
+    ).wait();
 
     // Verify allowance was set
     expect(await token.contract.allowance(deployerAddr, aliceAddr)).toBe(value);
@@ -838,7 +925,15 @@ class MyPermitToken extends ERC20Permit {
     const { v, r, s } = ethers.Signature.from(sig);
 
     await expect(
-      token.contract.permit(deployerAddr, aliceAddr, value, deadline, BigInt(v), r, s)
+      token.contract.permit(
+        deployerAddr,
+        aliceAddr,
+        value,
+        deadline,
+        BigInt(v),
+        r,
+        s
+      )
     ).rejects.toThrow();
   });
 });
@@ -883,10 +978,14 @@ class MyVotesToken extends ERC20Votes {
     deployerAddr = await deployer.getAddress();
     aliceAddr = await alice.getAddress();
     bobAddr = await bob.getAddress();
-    token = await compileAndDeploy(env, VOTES_SOURCE, "MyVotesToken", [INITIAL_SUPPLY]);
+    token = await compileAndDeploy(env, VOTES_SOURCE, "MyVotesToken", [
+      INITIAL_SUPPLY,
+    ]);
   }, 60_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("inherits ERC20 functionality", async () => {
     expect(await token.contract.name()).toBe("VotesToken");
@@ -926,7 +1025,9 @@ class MyVotesToken extends ERC20Votes {
     await (await token.contract.transfer(bobAddr, transferAmount)).wait();
 
     // alice's votes should decrease, bob's should increase
-    expect(await token.contract.getVotes(aliceAddr)).toBe(INITIAL_SUPPLY - transferAmount);
+    expect(await token.contract.getVotes(aliceAddr)).toBe(
+      INITIAL_SUPPLY - transferAmount
+    );
     expect(await token.contract.getVotes(bobAddr)).toBe(transferAmount);
   });
 
@@ -939,7 +1040,9 @@ class MyVotesToken extends ERC20Votes {
     await (await bobToken.delegate(aliceAddr)).wait();
     expect(await token.contract.delegates(bobAddr)).toBe(aliceAddr);
     expect(await token.contract.getVotes(bobAddr)).toBe(0n);
-    expect(await token.contract.getVotes(aliceAddr)).toBe(aliceVotesBefore + bobBalance);
+    expect(await token.contract.getVotes(aliceAddr)).toBe(
+      aliceVotesBefore + bobBalance
+    );
   });
 
   it("transfer between accounts sharing a delegate does not change votes", async () => {
@@ -971,7 +1074,9 @@ describe("stdlib compiler integration", () => {
     env = await createTestEnv();
   }, 30_000);
 
-  afterAll(async () => { await env?.server.close(); });
+  afterAll(async () => {
+    await env?.server.close();
+  });
 
   it("compiles a user contract that extends stdlib ERC20 via the full pipeline", async () => {
     const { compile } = await import("../../src/compiler/compiler");
@@ -979,7 +1084,9 @@ describe("stdlib compiler integration", () => {
     const path = await import("path");
     const os = await import("os");
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "skittles-stdlib-test-"));
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "skittles-stdlib-test-")
+    );
     const contractsDir = path.join(tmpDir, "contracts");
     fs.mkdirSync(contractsDir, { recursive: true });
 
@@ -1013,7 +1120,10 @@ export class MyToken extends ERC20 {
     expect(result.errors).toHaveLength(0);
 
     const solDir = path.join(tmpDir, "artifacts", "solidity");
-    const myTokenSol = fs.readFileSync(path.join(solDir, "MyToken.sol"), "utf-8");
+    const myTokenSol = fs.readFileSync(
+      path.join(solDir, "MyToken.sol"),
+      "utf-8"
+    );
     const erc20Sol = fs.readFileSync(path.join(solDir, "ERC20.sol"), "utf-8");
 
     expect(myTokenSol).toContain('import "./ERC20.sol"');

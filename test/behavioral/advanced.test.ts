@@ -214,7 +214,9 @@ describe("behavioral: custom errors", () => {
   });
 
   it("should revert with custom error for non-owner", async () => {
-    const nonOwner = contract.contract.connect(env.accounts[1]) as ethers.Contract;
+    const nonOwner = contract.contract.connect(
+      env.accounts[1]
+    ) as ethers.Contract;
     await expect(nonOwner.onlyOwnerAction()).rejects.toThrow();
   });
 });
@@ -240,7 +242,12 @@ describe("behavioral: indexed events", () => {
   let contract: DeployedContract;
 
   beforeAll(async () => {
-    contract = await compileAndDeploy(env, INDEXED_EVENT_SOURCE, "EventToken", [1000]);
+    contract = await compileAndDeploy(
+      env,
+      INDEXED_EVENT_SOURCE,
+      "EventToken",
+      [1000]
+    );
   });
 
   it("should emit Transfer event with indexed parameters", async () => {
@@ -272,7 +279,9 @@ describe("behavioral: receive function", () => {
       value: amount,
     });
 
-    const deposit = await contract.contract.getDeposit(await signer.getAddress());
+    const deposit = await contract.contract.getDeposit(
+      await signer.getAddress()
+    );
     expect(deposit).toBe(amount);
   });
 
@@ -286,7 +295,11 @@ describe("behavioral: ETH transfers", () => {
   let contract: DeployedContract;
 
   beforeAll(async () => {
-    contract = await compileAndDeploy(env, TRANSFER_ETH_SOURCE, "PaymentSplitter");
+    contract = await compileAndDeploy(
+      env,
+      TRANSFER_ETH_SOURCE,
+      "PaymentSplitter"
+    );
   });
 
   it("should transfer ETH to a recipient", async () => {
@@ -302,13 +315,20 @@ describe("behavioral: ETH transfers", () => {
     });
     await fundTx.wait();
 
-    const balanceBefore = BigInt(await env.provider.send('eth_getBalance', [recipientAddr, 'latest']));
+    const balanceBefore = BigInt(
+      await env.provider.send("eth_getBalance", [recipientAddr, "latest"])
+    );
 
     // Send payment
-    const tx = await contract.contract.sendPayment(recipientAddr, ethers.parseEther("1.0"));
+    const tx = await contract.contract.sendPayment(
+      recipientAddr,
+      ethers.parseEther("1.0")
+    );
     await tx.wait();
 
-    const balanceAfter = BigInt(await env.provider.send('eth_getBalance', [recipientAddr, 'latest']));
+    const balanceAfter = BigInt(
+      await env.provider.send("eth_getBalance", [recipientAddr, "latest"])
+    );
     expect(balanceAfter - balanceBefore).toBe(ethers.parseEther("1.0"));
   });
 });
@@ -431,7 +451,11 @@ describe("behavioral: constructor with default parameters", () => {
   let contract: DeployedContract;
 
   beforeAll(async () => {
-    contract = await compileAndDeploy(env, DEFAULT_PARAM_SOURCE, "DefaultToken");
+    contract = await compileAndDeploy(
+      env,
+      DEFAULT_PARAM_SOURCE,
+      "DefaultToken"
+    );
   });
 
   it("should use default supply value", async () => {
@@ -443,7 +467,9 @@ describe("behavioral: constructor with mixed default and required parameters", (
   let contract: DeployedContract;
 
   beforeAll(async () => {
-    contract = await compileAndDeploy(env, MIXED_PARAM_SOURCE, "MixedToken", ["MyToken"]);
+    contract = await compileAndDeploy(env, MIXED_PARAM_SOURCE, "MixedToken", [
+      "MyToken",
+    ]);
   });
 
   it("should accept required parameter", async () => {
@@ -459,7 +485,11 @@ describe("behavioral: function with default parameter", () => {
   let contract: DeployedContract;
 
   beforeAll(async () => {
-    contract = await compileAndDeploy(env, FUNCTION_DEFAULT_PARAM_SOURCE, "DefaultFunc");
+    contract = await compileAndDeploy(
+      env,
+      FUNCTION_DEFAULT_PARAM_SOURCE,
+      "DefaultFunc"
+    );
   });
 
   it("should use default value when called without argument", async () => {
@@ -475,7 +505,11 @@ describe("behavioral: function with mixed default and required parameters", () =
   let contract: DeployedContract;
 
   beforeAll(async () => {
-    contract = await compileAndDeploy(env, FUNCTION_MIXED_DEFAULT_PARAM_SOURCE, "MixedDefaultFunc");
+    contract = await compileAndDeploy(
+      env,
+      FUNCTION_MIXED_DEFAULT_PARAM_SOURCE,
+      "MixedDefaultFunc"
+    );
   });
 
   it("should use all defaults when called with only required param", async () => {
@@ -483,11 +517,19 @@ describe("behavioral: function with mixed default and required parameters", () =
   });
 
   it("should use last default when called with required + first optional", async () => {
-    expect(await contract.contract["mixedParams(uint256,uint256)"](100, 20)).toBe(130n);
+    expect(
+      await contract.contract["mixedParams(uint256,uint256)"](100, 20)
+    ).toBe(130n);
   });
 
   it("should use all provided values when called with all params", async () => {
-    expect(await contract.contract["mixedParams(uint256,uint256,uint256)"](100, 20, 30)).toBe(150n);
+    expect(
+      await contract.contract["mixedParams(uint256,uint256,uint256)"](
+        100,
+        20,
+        30
+      )
+    ).toBe(150n);
   });
 });
 
@@ -518,7 +560,12 @@ describe("behavioral: readonly arrays", () => {
 
   beforeAll(async () => {
     const deployer = await env.accounts[0].getAddress();
-    contract = await compileAndDeploy(env, READONLY_ARRAY_SOURCE, "AdminRegistry", [deployer]);
+    contract = await compileAndDeploy(
+      env,
+      READONLY_ARRAY_SOURCE,
+      "AdminRegistry",
+      [deployer]
+    );
   });
 
   it("should return readonly array via getter", async () => {

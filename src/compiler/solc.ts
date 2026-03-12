@@ -43,7 +43,12 @@ export function compileSolidity(
     output = JSON.parse(solc.compile(JSON.stringify(input)));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { abi: [], bytecode: "", errors: [`Solc compilation failed: ${msg}`], warnings: [] };
+    return {
+      abi: [],
+      bytecode: "",
+      errors: [`Solc compilation failed: ${msg}`],
+      warnings: [],
+    };
   }
 
   const errors: string[] = [];
@@ -127,7 +132,11 @@ export function compileSolidityBatch(
     output = JSON.parse(solc.compile(JSON.stringify(input)));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { contracts: {}, errors: [`Solc compilation failed: ${msg}`], warnings: [] };
+    return {
+      contracts: {},
+      errors: [`Solc compilation failed: ${msg}`],
+      warnings: [],
+    };
   }
 
   const errors: string[] = [];

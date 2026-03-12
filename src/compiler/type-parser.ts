@@ -9,7 +9,9 @@ import {
 import { ctx } from "./parser-context.ts";
 import { STRING_RETURNING_HELPERS } from "./parser-utils.ts";
 
-export function parseTypeLiteralFields(node: ts.TypeLiteralNode): SkittlesParameter[] {
+export function parseTypeLiteralFields(
+  node: ts.TypeLiteralNode
+): SkittlesParameter[] {
   const fields: SkittlesParameter[] = [];
   for (const member of node.members) {
     if (
@@ -93,7 +95,9 @@ export function parseType(node: ts.TypeNode): SkittlesType {
       };
     }
 
-    throw new Error(`Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, T[], type structs, interfaces, and enums.`);
+    throw new Error(
+      `Unsupported type reference: "${name}". Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, T[], type structs, interfaces, and enums.`
+    );
   }
 
   if (ts.isArrayTypeNode(node)) {
@@ -103,7 +107,10 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     };
   }
 
-  if (ts.isTypeOperatorNode(node) && node.operator === ts.SyntaxKind.ReadonlyKeyword) {
+  if (
+    ts.isTypeOperatorNode(node) &&
+    node.operator === ts.SyntaxKind.ReadonlyKeyword
+  ) {
     return parseType(node.type);
   }
 
@@ -129,7 +136,9 @@ export function parseType(node: ts.TypeNode): SkittlesType {
     case ts.SyntaxKind.VoidKeyword:
       return { kind: SkittlesTypeKind.Void };
     default:
-      throw new Error(`Unsupported type node kind: ${ts.SyntaxKind[node.kind]}. Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, and T[].`);
+      throw new Error(
+        `Unsupported type node kind: ${ts.SyntaxKind[node.kind]}. Skittles supports number, string, boolean, address, bytes, bytes32, Record<K,V>, and T[].`
+      );
   }
 }
 
@@ -147,29 +156,29 @@ export function inferType(
     case "boolean-literal":
       return { kind: SkittlesTypeKind.Bool };
     case "identifier":
-      if (expr.name === "self")
-        return { kind: SkittlesTypeKind.Address };
+      if (expr.name === "self") return { kind: SkittlesTypeKind.Address };
       return varTypes.get(expr.name);
     case "property-access":
       // addr.balance → uint256 (ETH balance of an address)
       if (expr.property === "balance") {
         const objType = inferType(expr.object, varTypes);
-        if (objType?.kind === (SkittlesTypeKind.Address))
+        if (objType?.kind === SkittlesTypeKind.Address)
           return { kind: SkittlesTypeKind.Uint256 };
       }
       if (expr.object.kind === "identifier") {
         if (expr.object.name === "this") {
           // Always resolve this.<prop> against state-variable types so that
           // local/param shadowing cannot affect state-variable type inference.
-          return ctx.stateVarTypes.get(expr.property) ?? varTypes.get(expr.property);
+          return (
+            ctx.stateVarTypes.get(expr.property) ?? varTypes.get(expr.property)
+          );
         }
         if (expr.object.name === "msg") {
           if (expr.property === "sender")
             return { kind: SkittlesTypeKind.Address };
           if (expr.property === "value")
             return { kind: SkittlesTypeKind.Uint256 };
-          if (expr.property === "data")
-            return { kind: SkittlesTypeKind.Bytes };
+          if (expr.property === "data") return { kind: SkittlesTypeKind.Bytes };
           if (expr.property === "sig")
             return { kind: SkittlesTypeKind.Bytes32 };
         }
@@ -187,24 +196,19 @@ export function inferType(
       return undefined;
     case "element-access": {
       const objType = inferType(expr.object, varTypes);
-      if (objType?.kind === (SkittlesTypeKind.Mapping))
-        return objType.valueType;
-      if (objType?.kind === (SkittlesTypeKind.Array))
-        return objType.valueType;
+      if (objType?.kind === SkittlesTypeKind.Mapping) return objType.valueType;
+      if (objType?.kind === SkittlesTypeKind.Array) return objType.valueType;
       return undefined;
     }
     case "binary":
       if (
-        ["==", "!=", "<", ">", "<=", ">=", "&&", "||"].includes(
-          expr.operator
-        )
+        ["==", "!=", "<", ">", "<=", ">=", "&&", "||"].includes(expr.operator)
       ) {
         return { kind: SkittlesTypeKind.Bool };
       }
       return inferType(expr.left, varTypes);
     case "unary":
-      if (expr.operator === "!")
-        return { kind: SkittlesTypeKind.Bool };
+      if (expr.operator === "!") return { kind: SkittlesTypeKind.Bool };
       return inferType(expr.operand, varTypes);
     case "conditional": {
       const trueType = inferType(expr.whenTrue, varTypes);
@@ -218,17 +222,27 @@ export function inferType(
         if (expr.callee.name === "address") {
           return { kind: SkittlesTypeKind.Address };
         }
-        if (expr.callee.name === "keccak256" || expr.callee.name === "sha256" || expr.callee.name === "hash") {
+        if (
+          expr.callee.name === "keccak256" ||
+          expr.callee.name === "sha256" ||
+          expr.callee.name === "hash"
+        ) {
           return { kind: SkittlesTypeKind.Bytes32 };
         }
         if (STRING_RETURNING_HELPERS.has(expr.callee.name)) {
           return { kind: SkittlesTypeKind.String };
         }
-        if (expr.callee.name === "_startsWith" || expr.callee.name === "_endsWith") {
+        if (
+          expr.callee.name === "_startsWith" ||
+          expr.callee.name === "_endsWith"
+        ) {
           return { kind: SkittlesTypeKind.Bool };
         }
         if (expr.callee.name === "_split") {
-          return { kind: SkittlesTypeKind.Array, valueType: { kind: SkittlesTypeKind.String } };
+          return {
+            kind: SkittlesTypeKind.Array,
+            valueType: { kind: SkittlesTypeKind.String },
+          };
         }
       }
       return undefined;
@@ -243,8 +257,10 @@ export function typesEqual(a: SkittlesType, b: SkittlesType): boolean {
   if ((a.keyType === undefined) !== (b.keyType === undefined)) return false;
   if (a.keyType && b.keyType && !typesEqual(a.keyType, b.keyType)) return false;
   if ((a.valueType === undefined) !== (b.valueType === undefined)) return false;
-  if (a.valueType && b.valueType && !typesEqual(a.valueType, b.valueType)) return false;
-  if ((a.tupleTypes === undefined) !== (b.tupleTypes === undefined)) return false;
+  if (a.valueType && b.valueType && !typesEqual(a.valueType, b.valueType))
+    return false;
+  if ((a.tupleTypes === undefined) !== (b.tupleTypes === undefined))
+    return false;
   if (a.tupleTypes && b.tupleTypes) {
     if (a.tupleTypes.length !== b.tupleTypes.length) return false;
     for (let i = 0; i < a.tupleTypes.length; i++) {

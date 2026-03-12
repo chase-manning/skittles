@@ -41,9 +41,9 @@ describe("initCommand", () => {
 
   it("should create example Token contract", async () => {
     await initCommand(TEST_DIR);
-    expect(
-      fs.existsSync(path.join(TEST_DIR, "contracts", "Token.ts"))
-    ).toBe(true);
+    expect(fs.existsSync(path.join(TEST_DIR, "contracts", "Token.ts"))).toBe(
+      true
+    );
   });
 
   it("should not overwrite existing config", async () => {
@@ -179,7 +179,10 @@ describe("initCommand", () => {
       expect(initDeps[dep], `${dep} version mismatch`).toBe(exampleDeps[dep]);
     }
     for (const dep of Object.keys(initDeps)) {
-      expect(exampleDeps[dep], `${dep} in init template but missing from example`).toBeDefined();
+      expect(
+        exampleDeps[dep],
+        `${dep} in init template but missing from example`
+      ).toBeDefined();
     }
   });
 });

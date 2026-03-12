@@ -1,4 +1,9 @@
-import type { Statement, Expression, SkittlesFunction, SkittlesConstructor } from "../types/index.ts";
+import type {
+  Statement,
+  Expression,
+  SkittlesFunction,
+  SkittlesConstructor,
+} from "../types/index.ts";
 
 /**
  * Analyze a function body for unreachable code and unused local variables.
@@ -12,7 +17,14 @@ export function analyzeFunction(
   const name = "name" in fn ? fn.name : "constructor";
 
   warnings.push(...checkUnreachableCode(fn.body, contractName, name));
-  warnings.push(...checkUnusedVariables(fn.body, fn.parameters.map((p) => p.name), contractName, name));
+  warnings.push(
+    ...checkUnusedVariables(
+      fn.body,
+      fn.parameters.map((p) => p.name),
+      contractName,
+      name
+    )
+  );
 
   return warnings;
 }

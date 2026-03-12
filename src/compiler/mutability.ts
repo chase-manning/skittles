@@ -21,7 +21,12 @@ import { inferType } from "./type-parser.ts";
  */
 export function propagateStateMutability(functions: SkittlesFunction[]): void {
   type Mut = "pure" | "view" | "nonpayable" | "payable";
-  const rank: Record<Mut, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+  const rank: Record<Mut, number> = {
+    pure: 0,
+    view: 1,
+    nonpayable: 2,
+    payable: 3,
+  };
 
   const mutMap = new Map<string, Mut>();
   for (const f of functions) {
@@ -173,7 +178,8 @@ export function collectThisCalls(stmts: Statement[]): string[] {
       expr.kind === "call" &&
       expr.callee.kind === "property-access" &&
       expr.callee.object.kind === "identifier" &&
-      (expr.callee.object.name === "this" || expr.callee.object.name === "super")
+      (expr.callee.object.name === "this" ||
+        expr.callee.object.name === "super")
     ) {
       names.push(expr.callee.property);
     }
@@ -193,39 +199,54 @@ export function collectExternalInterfaceCalls(
   const calls: { ifaceName: string; methodName: string }[] = [];
   // Track local variable types for detecting external contract calls on locals
   const localVarTypes = new Map<string, SkittlesType>(allVarTypes);
-  walkStatements(stmts, (expr) => {
-    if (expr.kind !== "call" || expr.callee.kind !== "property-access") return;
-    const methodName = expr.callee.property;
+  walkStatements(
+    stmts,
+    (expr) => {
+      if (expr.kind !== "call" || expr.callee.kind !== "property-access")
+        return;
+      const methodName = expr.callee.property;
 
-    // this.token.method() — state variable access (use stateVarTypes, not locals)
-    if (
-      expr.callee.object.kind === "property-access" &&
-      expr.callee.object.object.kind === "identifier" &&
-      expr.callee.object.object.name === "this"
-    ) {
-      const propType = stateVarTypes.get(expr.callee.object.property);
-      if (propType?.kind === (SkittlesTypeKind.ContractInterface) && propType.structName) {
-        calls.push({ ifaceName: propType.structName, methodName });
+      // this.token.method() — state variable access (use stateVarTypes, not locals)
+      if (
+        expr.callee.object.kind === "property-access" &&
+        expr.callee.object.object.kind === "identifier" &&
+        expr.callee.object.object.name === "this"
+      ) {
+        const propType = stateVarTypes.get(expr.callee.object.property);
+        if (
+          propType?.kind === SkittlesTypeKind.ContractInterface &&
+          propType.structName
+        ) {
+          calls.push({ ifaceName: propType.structName, methodName });
+        }
+      }
+
+      // token.method() — local/param variable access
+      if (
+        expr.callee.object.kind === "identifier" &&
+        expr.callee.object.name !== "this"
+      ) {
+        const varType = localVarTypes.get(expr.callee.object.name);
+        if (
+          varType?.kind === SkittlesTypeKind.ContractInterface &&
+          varType.structName
+        ) {
+          calls.push({ ifaceName: varType.structName, methodName });
+        }
+      }
+    },
+    (stmt) => {
+      // Track local variable declarations of contract-interface types
+      if (
+        stmt.kind === "variable-declaration" &&
+        stmt.type &&
+        stmt.type.kind === SkittlesTypeKind.ContractInterface &&
+        stmt.name
+      ) {
+        localVarTypes.set(stmt.name, stmt.type);
       }
     }
-
-    // token.method() — local/param variable access
-    if (
-      expr.callee.object.kind === "identifier" &&
-      expr.callee.object.name !== "this"
-    ) {
-      const varType = localVarTypes.get(expr.callee.object.name);
-      if (varType?.kind === (SkittlesTypeKind.ContractInterface) && varType.structName) {
-        calls.push({ ifaceName: varType.structName, methodName });
-      }
-    }
-  }, (stmt) => {
-    // Track local variable declarations of contract-interface types
-    if (stmt.kind === "variable-declaration" && stmt.type &&
-        stmt.type.kind === (SkittlesTypeKind.ContractInterface) && stmt.name) {
-      localVarTypes.set(stmt.name, stmt.type);
-    }
-  });
+  );
   return calls;
 }
 
@@ -265,21 +286,29 @@ export function rewriteInterfacePropertyGetters(
       expr.object.object.name === "this"
     ) {
       const propType = ctx.stateVarTypes.get(expr.object.property);
-      if (propType && propType.kind === (SkittlesTypeKind.ContractInterface) && propType.structName) {
+      if (
+        propType &&
+        propType.kind === SkittlesTypeKind.ContractInterface &&
+        propType.structName
+      ) {
         const iface = ctx.knownContractInterfaceMap.get(propType.structName);
-        if (iface && iface.functions.some(f => f.name === expr.property)) return true;
+        if (iface && iface.functions.some((f) => f.name === expr.property))
+          return true;
       }
     }
 
     // Pattern B: <localVar>.<property>
-    if (
-      expr.object.kind === "identifier" &&
-      expr.object.name !== "this"
-    ) {
-      const varType = localVarTypes.get(expr.object.name) ?? varTypes.get(expr.object.name);
-      if (varType && varType.kind === (SkittlesTypeKind.ContractInterface) && varType.structName) {
+    if (expr.object.kind === "identifier" && expr.object.name !== "this") {
+      const varType =
+        localVarTypes.get(expr.object.name) ?? varTypes.get(expr.object.name);
+      if (
+        varType &&
+        varType.kind === SkittlesTypeKind.ContractInterface &&
+        varType.structName
+      ) {
         const iface = ctx.knownContractInterfaceMap.get(varType.structName);
-        if (iface && iface.functions.some(f => f.name === expr.property)) return true;
+        if (iface && iface.functions.some((f) => f.name === expr.property))
+          return true;
       }
     }
 
@@ -297,31 +326,64 @@ export function rewriteInterfacePropertyGetters(
         } else {
           callee = transformExpr(callee, true);
         }
-        return { ...expr, callee, args: expr.args.map(a => transformExpr(a, false)) };
+        return {
+          ...expr,
+          callee,
+          args: expr.args.map((a) => transformExpr(a, false)),
+        };
       }
       case "property-access": {
-        const newExpr: Expression = { ...expr, object: transformExpr(expr.object, false) };
+        const newExpr: Expression = {
+          ...expr,
+          object: transformExpr(expr.object, false),
+        };
         if (!isCallCallee && isInterfacePropAccess(newExpr)) {
           return { kind: "call", callee: newExpr, args: [] } as Expression;
         }
         return newExpr;
       }
       case "binary":
-        return { ...expr, left: transformExpr(expr.left, false), right: transformExpr(expr.right, false) };
+        return {
+          ...expr,
+          left: transformExpr(expr.left, false),
+          right: transformExpr(expr.right, false),
+        };
       case "unary":
         return { ...expr, operand: transformExpr(expr.operand, false) };
       case "assignment":
-        return { ...expr, target: transformExpr(expr.target, false), value: transformExpr(expr.value, false) };
+        return {
+          ...expr,
+          target: transformExpr(expr.target, false),
+          value: transformExpr(expr.value, false),
+        };
       case "conditional":
-        return { ...expr, condition: transformExpr(expr.condition, false), whenTrue: transformExpr(expr.whenTrue, false), whenFalse: transformExpr(expr.whenFalse, false) };
+        return {
+          ...expr,
+          condition: transformExpr(expr.condition, false),
+          whenTrue: transformExpr(expr.whenTrue, false),
+          whenFalse: transformExpr(expr.whenFalse, false),
+        };
       case "element-access":
-        return { ...expr, object: transformExpr(expr.object, false), index: transformExpr(expr.index, false) };
+        return {
+          ...expr,
+          object: transformExpr(expr.object, false),
+          index: transformExpr(expr.index, false),
+        };
       case "new":
-        return { ...expr, args: expr.args.map(a => transformExpr(a, false)) };
+        return { ...expr, args: expr.args.map((a) => transformExpr(a, false)) };
       case "object-literal":
-        return { ...expr, properties: expr.properties.map(p => ({ ...p, value: transformExpr(p.value, false) })) };
+        return {
+          ...expr,
+          properties: expr.properties.map((p) => ({
+            ...p,
+            value: transformExpr(p.value, false),
+          })),
+        };
       case "tuple-literal":
-        return { ...expr, elements: expr.elements.map(e => transformExpr(e, false)) };
+        return {
+          ...expr,
+          elements: expr.elements.map((e) => transformExpr(e, false)),
+        };
       default:
         return expr;
     }
@@ -330,10 +392,22 @@ export function rewriteInterfacePropertyGetters(
   function transformStmt(stmt: Statement): Statement {
     switch (stmt.kind) {
       case "return":
-        return { ...stmt, value: stmt.value ? transformExpr(stmt.value, false) : undefined };
+        return {
+          ...stmt,
+          value: stmt.value ? transformExpr(stmt.value, false) : undefined,
+        };
       case "variable-declaration": {
-        const transformed = { ...stmt, initializer: stmt.initializer ? transformExpr(stmt.initializer, false) : undefined };
-        if (stmt.type && stmt.type.kind === (SkittlesTypeKind.ContractInterface) && stmt.name) {
+        const transformed = {
+          ...stmt,
+          initializer: stmt.initializer
+            ? transformExpr(stmt.initializer, false)
+            : undefined,
+        };
+        if (
+          stmt.type &&
+          stmt.type.kind === SkittlesTypeKind.ContractInterface &&
+          stmt.name
+        ) {
           localVarTypes.set(stmt.name, stmt.type);
         }
         return transformed;
@@ -341,7 +415,12 @@ export function rewriteInterfacePropertyGetters(
       case "expression":
         return { ...stmt, expression: transformExpr(stmt.expression, false) };
       case "if":
-        return { ...stmt, condition: transformExpr(stmt.condition, false), thenBody: stmt.thenBody.map(transformStmt), elseBody: stmt.elseBody?.map(transformStmt) };
+        return {
+          ...stmt,
+          condition: transformExpr(stmt.condition, false),
+          thenBody: stmt.thenBody.map(transformStmt),
+          elseBody: stmt.elseBody?.map(transformStmt),
+        };
       case "for": {
         let initializer = stmt.initializer;
         if (initializer) {
@@ -355,26 +434,55 @@ export function rewriteInterfacePropertyGetters(
         return {
           ...stmt,
           initializer,
-          condition: stmt.condition ? transformExpr(stmt.condition, false) : undefined,
-          incrementor: stmt.incrementor ? transformExpr(stmt.incrementor, false) : undefined,
+          condition: stmt.condition
+            ? transformExpr(stmt.condition, false)
+            : undefined,
+          incrementor: stmt.incrementor
+            ? transformExpr(stmt.incrementor, false)
+            : undefined,
           body: stmt.body.map(transformStmt),
         };
       }
       case "while":
       case "do-while":
-        return { ...stmt, condition: transformExpr(stmt.condition, false), body: stmt.body.map(transformStmt) };
+        return {
+          ...stmt,
+          condition: transformExpr(stmt.condition, false),
+          body: stmt.body.map(transformStmt),
+        };
       case "revert":
-        return { ...stmt, message: stmt.message ? transformExpr(stmt.message, false) : undefined, customErrorArgs: stmt.customErrorArgs?.map(a => transformExpr(a, false)) };
+        return {
+          ...stmt,
+          message: stmt.message
+            ? transformExpr(stmt.message, false)
+            : undefined,
+          customErrorArgs: stmt.customErrorArgs?.map((a) =>
+            transformExpr(a, false)
+          ),
+        };
       case "emit":
-        return { ...stmt, args: stmt.args.map(a => transformExpr(a, false)) };
+        return { ...stmt, args: stmt.args.map((a) => transformExpr(a, false)) };
       case "delete":
         return { ...stmt, target: transformExpr(stmt.target, false) };
       case "try-catch":
-        return { ...stmt, call: transformExpr(stmt.call, false), successBody: stmt.successBody.map(transformStmt), catchBody: stmt.catchBody.map(transformStmt) };
+        return {
+          ...stmt,
+          call: transformExpr(stmt.call, false),
+          successBody: stmt.successBody.map(transformStmt),
+          catchBody: stmt.catchBody.map(transformStmt),
+        };
       case "switch":
-        return { ...stmt, discriminant: transformExpr(stmt.discriminant, false), cases: stmt.cases.map(c => ({ ...c, body: c.body.map(transformStmt), value: c.value ? transformExpr(c.value, false) : undefined })) };
+        return {
+          ...stmt,
+          discriminant: transformExpr(stmt.discriminant, false),
+          cases: stmt.cases.map((c) => ({
+            ...c,
+            body: c.body.map(transformStmt),
+            value: c.value ? transformExpr(c.value, false) : undefined,
+          })),
+        };
       case "console-log":
-        return { ...stmt, args: stmt.args.map(a => transformExpr(a, false)) };
+        return { ...stmt, args: stmt.args.map((a) => transformExpr(a, false)) };
       default:
         return stmt;
     }
@@ -383,7 +491,12 @@ export function rewriteInterfacePropertyGetters(
   return body.map(transformStmt);
 }
 
-export function inferStateMutability(body: Statement[], varTypes?: Map<string, SkittlesType>, params?: SkittlesParameter[], skipExternalCalls?: boolean): "pure" | "view" | "nonpayable" | "payable" {
+export function inferStateMutability(
+  body: Statement[],
+  varTypes?: Map<string, SkittlesType>,
+  params?: SkittlesParameter[],
+  skipExternalCalls?: boolean
+): "pure" | "view" | "nonpayable" | "payable" {
   let readsState = false;
   let writesState = false;
   let usesMsgValue = false;
@@ -421,7 +534,11 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         thisCallCallees.add(expr.callee);
       }
       if (expr.kind === "property-access") {
-        if (expr.object.kind === "identifier" && expr.object.name === "this" && !thisCallCallees.has(expr)) {
+        if (
+          expr.object.kind === "identifier" &&
+          expr.object.name === "this" &&
+          !thisCallCallees.has(expr)
+        ) {
           readsState = true;
         }
         if (
@@ -435,11 +552,9 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         // (msg.value is excluded here because it is handled separately as payable)
         if (
           expr.object.kind === "identifier" &&
-          (
-            (expr.object.name === "msg" && expr.property !== "value") ||
+          ((expr.object.name === "msg" && expr.property !== "value") ||
             expr.object.name === "block" ||
-            expr.object.name === "tx"
-          )
+            expr.object.name === "tx")
         ) {
           readsEnvironment = true;
         }
@@ -454,12 +569,10 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         // Treat both typed addresses and explicit address(...) casts as address-like
         const objType = inferType(expr.object, combinedVarTypes);
         const isAddressLike =
-          objType?.kind === (SkittlesTypeKind.Address) ||
-          (
-            expr.object.kind === "call" &&
+          objType?.kind === SkittlesTypeKind.Address ||
+          (expr.object.kind === "call" &&
             expr.object.callee.kind === "identifier" &&
-            expr.object.callee.name === "address"
-          );
+            expr.object.callee.name === "address");
         if (isAddressLike) {
           readsState = true;
         }
@@ -492,7 +605,11 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       // Per-type array mutating helpers (codegen-emitted)
       if (expr.kind === "call" && expr.callee.kind === "identifier") {
         const n = expr.callee.name;
-        if (n.startsWith("_arrRemove_") || n.startsWith("_arrReverse_") || n.startsWith("_arrSplice_")) {
+        if (
+          n.startsWith("_arrRemove_") ||
+          n.startsWith("_arrReverse_") ||
+          n.startsWith("_arrSplice_")
+        ) {
           writesState = true;
         }
       }
@@ -503,20 +620,41 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         expr.callee.kind === "property-access" &&
         expr.callee.property === "transfer" &&
         expr.args.length === 1 &&
-        !isContractInterfaceReceiver(expr.callee.object, varTypes, localVarTypes)
+        !isContractInterfaceReceiver(
+          expr.callee.object,
+          varTypes,
+          localVarTypes
+        )
       ) {
         writesState = true;
       }
-      if (!skipExternalCalls && expr.kind === "call" && varTypes && isExternalContractCall(expr, varTypes)) {
-        const methodMut = getExternalCallMethodMutability(expr, varTypes, localVarTypes);
+      if (
+        !skipExternalCalls &&
+        expr.kind === "call" &&
+        varTypes &&
+        isExternalContractCall(expr, varTypes)
+      ) {
+        const methodMut = getExternalCallMethodMutability(
+          expr,
+          varTypes,
+          localVarTypes
+        );
         if (methodMut === "view") {
           readsState = true;
         } else if (methodMut !== "pure") {
           writesState = true;
         }
       }
-      if (!skipExternalCalls && expr.kind === "call" && isExternalContractCallOnLocal(expr, localVarTypes)) {
-        const methodMut = getExternalCallMethodMutability(expr, varTypes, localVarTypes);
+      if (
+        !skipExternalCalls &&
+        expr.kind === "call" &&
+        isExternalContractCallOnLocal(expr, localVarTypes)
+      ) {
+        const methodMut = getExternalCallMethodMutability(
+          expr,
+          varTypes,
+          localVarTypes
+        );
         if (methodMut === "view") {
           readsState = true;
         } else if (methodMut !== "pure") {
@@ -534,7 +672,7 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
       if (stmt.kind === "variable-declaration" && stmt.type && stmt.name) {
         // Only track contract-interface typed locals in localVarTypes
         // (used for external call detection / .transfer() classification).
-        if (stmt.type.kind === (SkittlesTypeKind.ContractInterface)) {
+        if (stmt.type.kind === SkittlesTypeKind.ContractInterface) {
           localVarTypes.set(stmt.name, stmt.type);
         }
         // Update combinedVarTypes so that inner shadowing declarations
@@ -543,9 +681,8 @@ export function inferStateMutability(body: Statement[], varTypes?: Map<string, S
         const existingType = combinedVarTypes.get(stmt.name);
         if (existingType) {
           const existingIsAddressLike =
-            existingType.kind === (SkittlesTypeKind.Address);
-          const newIsAddressLike =
-            stmt.type.kind === (SkittlesTypeKind.Address);
+            existingType.kind === SkittlesTypeKind.Address;
+          const newIsAddressLike = stmt.type.kind === SkittlesTypeKind.Address;
           if (!existingIsAddressLike || newIsAddressLike) {
             combinedVarTypes.set(stmt.name, stmt.type);
           }
@@ -595,12 +732,19 @@ export function propagateMutability(contracts: SkittlesContract[]): void {
       for (const fn of contract.functions) {
         const calledMethods = collectThisCalls(fn.body);
         for (const calledName of calledMethods) {
-          const calledFn = contract.functions.find((f) => f.name === calledName) ?? parentFunctions.get(calledName);
+          const calledFn =
+            contract.functions.find((f) => f.name === calledName) ??
+            parentFunctions.get(calledName);
           if (!calledFn) continue;
           const calledRank = MUTABILITY_RANK[calledFn.stateMutability];
           const currentRank = MUTABILITY_RANK[fn.stateMutability];
           if (calledRank > currentRank) {
-            const rankToMut = ["pure", "view", "nonpayable", "payable"] as const;
+            const rankToMut = [
+              "pure",
+              "view",
+              "nonpayable",
+              "payable",
+            ] as const;
             fn.stateMutability = rankToMut[calledRank];
             globalChanged = true;
           }
@@ -610,15 +754,21 @@ export function propagateMutability(contracts: SkittlesContract[]): void {
   }
 }
 
-export function collectContractInterfaceTypeRefs(type: SkittlesType, refs: Set<string>): void {
-  if (type.kind === (SkittlesTypeKind.ContractInterface) && type.structName) {
+export function collectContractInterfaceTypeRefs(
+  type: SkittlesType,
+  refs: Set<string>
+): void {
+  if (type.kind === SkittlesTypeKind.ContractInterface && type.structName) {
     refs.add(type.structName);
   }
   if (type.keyType) collectContractInterfaceTypeRefs(type.keyType, refs);
   if (type.valueType) collectContractInterfaceTypeRefs(type.valueType, refs);
 }
 
-export function collectBodyContractInterfaceRefs(stmts: Statement[], refs: Set<string>): void {
+export function collectBodyContractInterfaceRefs(
+  stmts: Statement[],
+  refs: Set<string>
+): void {
   for (const stmt of stmts) {
     if (stmt.kind === "variable-declaration" && stmt.type) {
       collectContractInterfaceTypeRefs(stmt.type, refs);
@@ -627,11 +777,16 @@ export function collectBodyContractInterfaceRefs(stmts: Statement[], refs: Set<s
       collectBodyContractInterfaceRefs(stmt.thenBody, refs);
       if (stmt.elseBody) collectBodyContractInterfaceRefs(stmt.elseBody, refs);
     }
-    if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+    if (
+      stmt.kind === "for" ||
+      stmt.kind === "while" ||
+      stmt.kind === "do-while"
+    ) {
       collectBodyContractInterfaceRefs(stmt.body, refs);
     }
     if (stmt.kind === "switch") {
-      for (const c of stmt.cases) collectBodyContractInterfaceRefs(c.body, refs);
+      for (const c of stmt.cases)
+        collectBodyContractInterfaceRefs(c.body, refs);
     }
     if (stmt.kind === "try-catch") {
       collectBodyContractInterfaceRefs(stmt.successBody, refs);
@@ -654,7 +809,10 @@ export function isStateAccess(expr: Expression): boolean {
   return false;
 }
 
-export function isExternalContractCall(expr: { callee: Expression }, varTypes: Map<string, SkittlesType>): boolean {
+export function isExternalContractCall(
+  expr: { callee: Expression },
+  varTypes: Map<string, SkittlesType>
+): boolean {
   if (
     expr.callee.kind === "property-access" &&
     expr.callee.object.kind === "property-access" &&
@@ -663,14 +821,17 @@ export function isExternalContractCall(expr: { callee: Expression }, varTypes: M
   ) {
     const propName = expr.callee.object.property;
     const propType = ctx.stateVarTypes.get(propName);
-    if (propType && propType.kind === (SkittlesTypeKind.ContractInterface)) {
+    if (propType && propType.kind === SkittlesTypeKind.ContractInterface) {
       return true;
     }
   }
   return false;
 }
 
-export function isExternalContractCallOnLocal(expr: { callee: Expression }, localVarTypes: Map<string, SkittlesType>): boolean {
+export function isExternalContractCallOnLocal(
+  expr: { callee: Expression },
+  localVarTypes: Map<string, SkittlesType>
+): boolean {
   if (
     expr.callee.kind === "property-access" &&
     expr.callee.object.kind === "identifier" &&
@@ -678,7 +839,7 @@ export function isExternalContractCallOnLocal(expr: { callee: Expression }, loca
   ) {
     const varName = expr.callee.object.name;
     const varType = localVarTypes.get(varName);
-    if (varType && varType.kind === (SkittlesTypeKind.ContractInterface)) {
+    if (varType && varType.kind === SkittlesTypeKind.ContractInterface) {
       return true;
     }
   }
@@ -706,7 +867,7 @@ export function getExternalCallMethodMutability(
     varTypes
   ) {
     const propType = ctx.stateVarTypes.get(expr.callee.object.property);
-    if (propType?.kind === (SkittlesTypeKind.ContractInterface)) {
+    if (propType?.kind === SkittlesTypeKind.ContractInterface) {
       ifaceName = propType.structName;
     }
   }
@@ -719,7 +880,7 @@ export function getExternalCallMethodMutability(
     localVarTypes
   ) {
     const varType = localVarTypes.get(expr.callee.object.name);
-    if (varType?.kind === (SkittlesTypeKind.ContractInterface)) {
+    if (varType?.kind === SkittlesTypeKind.ContractInterface) {
       ifaceName = varType.structName;
     }
   }
@@ -727,14 +888,15 @@ export function getExternalCallMethodMutability(
   if (!ifaceName) return undefined;
   const iface = ctx.knownContractInterfaceMap.get(ifaceName);
   if (!iface) return undefined;
-  const method = iface.functions.find(f => f.name === methodName);
+  const method = iface.functions.find((f) => f.name === methodName);
   return method?.stateMutability;
 }
 
 export function isStateMutatingCall(expr: { callee: Expression }): boolean {
   if (expr.callee.kind !== "property-access") return false;
   const method = expr.callee.property;
-  if (!["push", "pop", "remove", "splice", "reverse"].includes(method)) return false;
+  if (!["push", "pop", "remove", "splice", "reverse"].includes(method))
+    return false;
   return isStateAccess(expr.callee.object);
 }
 
@@ -757,14 +919,17 @@ export function isContractInterfaceReceiver(
     receiver.object.name === "this"
   ) {
     const propType = ctx.stateVarTypes.get(receiver.property);
-    if (propType && propType.kind === (SkittlesTypeKind.ContractInterface)) return true;
+    if (propType && propType.kind === SkittlesTypeKind.ContractInterface)
+      return true;
   }
   // token.transfer(...) where token is a contract-interface local/param
   if (receiver.kind === "identifier") {
     const localType = localVarTypes?.get(receiver.name);
-    if (localType && localType.kind === (SkittlesTypeKind.ContractInterface)) return true;
+    if (localType && localType.kind === SkittlesTypeKind.ContractInterface)
+      return true;
     const stateType = varTypes?.get(receiver.name);
-    if (stateType && stateType.kind === (SkittlesTypeKind.ContractInterface)) return true;
+    if (stateType && stateType.kind === SkittlesTypeKind.ContractInterface)
+      return true;
   }
   return false;
 }

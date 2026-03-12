@@ -35,8 +35,7 @@ export async function loadConfig(
 
       return mergeConfig(userConfig);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       throw new Error(`Failed to load config from ${filename}: ${message}`);
     }
   }
@@ -44,9 +43,7 @@ export async function loadConfig(
   return DEFAULT_CONFIG;
 }
 
-function mergeConfig(
-  userConfig: SkittlesConfig
-): Required<SkittlesConfig> {
+function mergeConfig(userConfig: SkittlesConfig): Required<SkittlesConfig> {
   return {
     typeCheck: userConfig.typeCheck ?? DEFAULT_CONFIG.typeCheck,
     optimizer: {
@@ -59,10 +56,8 @@ function mergeConfig(
     cacheDir: userConfig.cacheDir ?? DEFAULT_CONFIG.cacheDir,
     consoleLog: userConfig.consoleLog ?? DEFAULT_CONFIG.consoleLog,
     solidity: {
-      version:
-        userConfig.solidity?.version ?? DEFAULT_CONFIG.solidity.version,
-      license:
-        userConfig.solidity?.license ?? DEFAULT_CONFIG.solidity.license,
+      version: userConfig.solidity?.version ?? DEFAULT_CONFIG.solidity.version,
+      license: userConfig.solidity?.license ?? DEFAULT_CONFIG.solidity.license,
     },
   };
 }

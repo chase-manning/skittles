@@ -28,13 +28,19 @@ const UNSUPPORTED_OBJECT_DESTRUCTURING_MSG =
   "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
   "with no default values, rest elements, computed property names, or nested patterns.";
 
-function validateArrayLiteralElements(elements: ts.NodeArray<ts.Expression>): void {
+function validateArrayLiteralElements(
+  elements: ts.NodeArray<ts.Expression>
+): void {
   for (const arrElem of elements) {
     if (ts.isOmittedExpression(arrElem)) {
-      throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
+      throw new Error(
+        "Array literal in destructuring assignment must not contain holes (e.g. [, 2])."
+      );
     }
     if (ts.isSpreadElement(arrElem)) {
-      throw new Error("Array literal in destructuring assignment must not contain spread elements.");
+      throw new Error(
+        "Array literal in destructuring assignment must not contain spread elements."
+      );
     }
   }
 }
@@ -66,14 +72,15 @@ export function parseArrayDestructuring(
       ) {
         throw new Error(
           "Unsupported array destructuring binding element in variable declaration. " +
-          "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
+            "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
         );
       }
       const name = elem.name.text;
       validateReservedVarName(name);
-      const init = i < initializer.elements.length
-        ? parseExpression(initializer.elements[i])
-        : undefined;
+      const init =
+        i < initializer.elements.length
+          ? parseExpression(initializer.elements[i])
+          : undefined;
       const type = init ? inferType(init, varTypes) : undefined;
       // Always clear any previous type/string classification for this binding,
       // so we don't leak outer-scope information into the new declaration.
@@ -81,26 +88,39 @@ export function parseArrayDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === (SkittlesTypeKind.String)) {
+        if (type.kind === SkittlesTypeKind.String) {
           ctx.currentStringNames.add(name);
         }
       }
-      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init, sourceLine: sl });
+      statements.push({
+        kind: "variable-declaration" as const,
+        name,
+        type,
+        initializer: init,
+        sourceLine: sl,
+      });
     }
   } else if (ts.isConditionalExpression(initializer)) {
     // Conditional destructuring: let [a, b] = cond ? [x, y] : [y, x]
     const condition = parseExpression(initializer.condition);
 
-    if (!ts.isArrayLiteralExpression(initializer.whenTrue) || !ts.isArrayLiteralExpression(initializer.whenFalse)) {
-      throw new Error("Conditional array destructuring requires array literals in both branches.");
+    if (
+      !ts.isArrayLiteralExpression(initializer.whenTrue) ||
+      !ts.isArrayLiteralExpression(initializer.whenFalse)
+    ) {
+      throw new Error(
+        "Conditional array destructuring requires array literals in both branches."
+      );
     }
 
     // Validate that the array literals in both branches have no holes or spread elements
     validateArrayLiteralElements(initializer.whenTrue.elements);
     validateArrayLiteralElements(initializer.whenFalse.elements);
 
-    const trueExprs: Expression[] = initializer.whenTrue.elements.map(parseExpression);
-    const falseExprs: Expression[] = initializer.whenFalse.elements.map(parseExpression);
+    const trueExprs: Expression[] =
+      initializer.whenTrue.elements.map(parseExpression);
+    const falseExprs: Expression[] =
+      initializer.whenFalse.elements.map(parseExpression);
 
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
@@ -116,28 +136,48 @@ export function parseArrayDestructuring(
       ) {
         throw new Error(
           "Unsupported array destructuring binding element in variable declaration. " +
-          "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
+            "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
         );
       }
       const name = elem.name.text;
       validateReservedVarName(name);
-      const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
-      const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
-      const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
+      const trueVal =
+        i < trueExprs.length
+          ? trueExprs[i]
+          : { kind: "number-literal" as const, value: "0" };
+      const falseVal =
+        i < falseExprs.length
+          ? falseExprs[i]
+          : { kind: "number-literal" as const, value: "0" };
+      const init: Expression = {
+        kind: "conditional",
+        condition,
+        whenTrue: trueVal,
+        whenFalse: falseVal,
+      };
       const trueType = inferType(trueVal, varTypes);
       const falseType = inferType(falseVal, varTypes);
-      const type = (trueType && falseType && typesEqual(trueType, falseType)) ? trueType : undefined;
+      const type =
+        trueType && falseType && typesEqual(trueType, falseType)
+          ? trueType
+          : undefined;
       // Always clear any previous type/string classification for this binding,
       // so we don't leak outer-scope information into the new declaration.
       varTypes.delete(name);
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === (SkittlesTypeKind.String)) {
+        if (type.kind === SkittlesTypeKind.String) {
           ctx.currentStringNames.add(name);
         }
       }
-      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init, sourceLine: sl });
+      statements.push({
+        kind: "variable-declaration" as const,
+        name,
+        type,
+        initializer: init,
+        sourceLine: sl,
+      });
     }
   } else if (ts.isCallExpression(initializer)) {
     // Tuple destructuring from function call: const [a, b] = this.getReserves()
@@ -166,7 +206,7 @@ export function parseArrayDestructuring(
       }
     }
 
-    if (tupleType?.kind === (SkittlesTypeKind.Tuple) && tupleType.tupleTypes) {
+    if (tupleType?.kind === SkittlesTypeKind.Tuple && tupleType.tupleTypes) {
       const tupleArity = tupleType.tupleTypes.length;
       const names: (string | null)[] = [];
       const types: (SkittlesType | null)[] = [];
@@ -194,7 +234,7 @@ export function parseArrayDestructuring(
           const t = tupleType.tupleTypes[i];
           types.push(t);
           varTypes.set(bindingName, t);
-          if (t && t.kind === (SkittlesTypeKind.String)) {
+          if (t && t.kind === SkittlesTypeKind.String) {
             ctx.currentStringNames.add(bindingName);
           } else {
             ctx.currentStringNames.delete(bindingName);
@@ -202,12 +242,12 @@ export function parseArrayDestructuring(
         } else if (ts.isBindingElement(elem)) {
           throw new Error(
             "Unsupported tuple destructuring binding element in variable declaration. " +
-            "Nested patterns, default values in tuple destructuring (e.g. [a = 1]), and rest elements are not supported."
+              "Nested patterns, default values in tuple destructuring (e.g. [a = 1]), and rest elements are not supported."
           );
         } else {
           throw new Error(
             "Unsupported element in tuple destructuring assignment. " +
-            "Only simple identifiers and omitted elements are supported in tuple destructuring patterns."
+              "Only simple identifiers and omitted elements are supported in tuple destructuring patterns."
           );
         }
       }
@@ -218,20 +258,22 @@ export function parseArrayDestructuring(
         types.push(tupleType.tupleTypes[i]);
       }
       const initExpr = parseExpression(initializer);
-      return [{
-        kind: "tuple-destructuring" as const,
-        names,
-        types,
-        initializer: initExpr,
-        sourceLine: sl,
-      }];
+      return [
+        {
+          kind: "tuple-destructuring" as const,
+          names,
+          types,
+          initializer: initExpr,
+          sourceLine: sl,
+        },
+      ];
     }
 
     // Unable to resolve tuple return type – emit a compile-time error rather than
     // silently generating uninitialized locals with default Solidity values.
     throw new Error(
       "Unable to resolve tuple return type for call expression in destructuring assignment. " +
-      "Ensure the called function has an explicit tuple return type annotation."
+        "Ensure the called function has an explicit tuple return type annotation."
     );
   } else {
     // Unsupported initializer form for array destructuring.
@@ -240,7 +282,7 @@ export function parseArrayDestructuring(
     // emitting uninitialized variable declarations.
     throw new Error(
       "Unsupported initializer in array destructuring variable declaration. " +
-      "Only array literals, conditional expressions, or function calls with tuple return types are supported."
+        "Only array literals, conditional expressions, or function calls with tuple return types are supported."
     );
   }
 
@@ -265,8 +307,7 @@ export function parseObjectDestructuring(
       } else if (ts.isShorthandPropertyAssignment(prop)) {
         const name = prop.name.text;
         const valueExpr =
-          prop.objectAssignmentInitializer ??
-          ts.factory.createIdentifier(name);
+          prop.objectAssignmentInitializer ?? ts.factory.createIdentifier(name);
         propMap.set(name, valueExpr);
       }
     }
@@ -303,7 +344,7 @@ export function parseObjectDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === (SkittlesTypeKind.String)) {
+        if (type.kind === SkittlesTypeKind.String) {
           ctx.currentStringNames.add(name);
         }
       }
@@ -347,7 +388,7 @@ export function parseObjectDestructuring(
 
   const initExpr = parseExpression(initializer);
 
-  if (structType?.kind === (SkittlesTypeKind.Struct) && structType.structName) {
+  if (structType?.kind === SkittlesTypeKind.Struct && structType.structName) {
     // Temp variable + field accesses (use __sk_ prefix + counter to avoid collisions)
     const tempName = `__sk_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}_${ctx.destructureCounter++}`;
     statements.push({
@@ -388,11 +429,11 @@ export function parseObjectDestructuring(
         const validFields = [...fieldMap.keys()].join(", ");
         throw new Error(
           `Property '${propName}' does not exist on struct '${structType.structName}'. ` +
-          `Valid fields: ${validFields || "(none)"}`
+            `Valid fields: ${validFields || "(none)"}`
         );
       }
       varTypes.set(name, fieldType);
-      if (fieldType.kind === (SkittlesTypeKind.String)) {
+      if (fieldType.kind === SkittlesTypeKind.String) {
         ctx.currentStringNames.add(name);
       } else {
         ctx.currentStringNames.delete(name);
@@ -422,8 +463,8 @@ export function parseObjectDestructuring(
     ) {
       throw new Error(
         "Unsupported initializer in object destructuring variable declaration. " +
-        "Only identifiers and property accesses are supported in the fallback path " +
-        "to avoid re-evaluating side-effectful expressions for each binding."
+          "Only identifiers and property accesses are supported in the fallback path " +
+          "to avoid re-evaluating side-effectful expressions for each binding."
       );
     }
     for (const elem of pattern.elements) {
@@ -456,7 +497,7 @@ export function parseObjectDestructuring(
       ctx.currentStringNames.delete(name);
       if (type) {
         varTypes.set(name, type);
-        if (type.kind === (SkittlesTypeKind.String)) {
+        if (type.kind === SkittlesTypeKind.String) {
           ctx.currentStringNames.add(name);
         }
       }
@@ -473,7 +514,6 @@ export function parseObjectDestructuring(
   return statements;
 }
 
-
 export function parseStatement(
   node: ts.Statement,
   varTypes: Map<string, SkittlesType>,
@@ -482,9 +522,7 @@ export function parseStatement(
   if (ts.isReturnStatement(node)) {
     return {
       kind: "return",
-      value: node.expression
-        ? parseExpression(node.expression)
-        : undefined,
+      value: node.expression ? parseExpression(node.expression) : undefined,
       sourceLine: getSourceLine(node),
     };
   }
@@ -500,9 +538,10 @@ export function parseStatement(
       ? parseExpression(decl.initializer)
       : undefined;
     const type =
-      explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
+      explicitType ||
+      (initializer ? inferType(initializer, varTypes) : undefined);
 
-    if (type?.kind === (SkittlesTypeKind.String)) {
+    if (type?.kind === SkittlesTypeKind.String) {
       ctx.currentStringNames.add(name);
     } else {
       ctx.currentStringNames.delete(name);
@@ -518,7 +557,13 @@ export function parseStatement(
       // remove any previous entry to avoid stale type information.
       varTypes.delete(name);
     }
-    return { kind: "variable-declaration", name, type, initializer, sourceLine: getSourceLine(node) };
+    return {
+      kind: "variable-declaration",
+      name,
+      type,
+      initializer,
+      sourceLine: getSourceLine(node),
+    };
   }
 
   if (ts.isExpressionStatement(node)) {
@@ -536,15 +581,21 @@ export function parseStatement(
 
     // Detect delete expressions: `delete this.mapping[key]`
     if (ts.isDeleteExpression(node.expression)) {
-      return { kind: "delete", target: parseExpression(node.expression.expression), sourceLine: getSourceLine(node) };
+      return {
+        kind: "delete",
+        target: parseExpression(node.expression.expression),
+        sourceLine: getSourceLine(node),
+      };
     }
 
     // Map.delete(key) → delete mapping[key]
-    if (ts.isCallExpression(node.expression) &&
-        ts.isPropertyAccessExpression(node.expression.expression) &&
-        node.expression.expression.name.text === "delete" &&
-        node.expression.arguments.length === 1 &&
-        isMappingLikeReceiver(node.expression.expression.expression)) {
+    if (
+      ts.isCallExpression(node.expression) &&
+      ts.isPropertyAccessExpression(node.expression.expression) &&
+      node.expression.expression.name.text === "delete" &&
+      node.expression.arguments.length === 1 &&
+      isMappingLikeReceiver(node.expression.expression.expression)
+    ) {
       return {
         kind: "delete" as const,
         target: {
@@ -557,11 +608,13 @@ export function parseStatement(
     }
 
     // Map.set(key, value) → mapping[key] = value
-    if (ts.isCallExpression(node.expression) &&
-        ts.isPropertyAccessExpression(node.expression.expression) &&
-        node.expression.expression.name.text === "set" &&
-        node.expression.arguments.length === 2 &&
-        isMappingLikeReceiver(node.expression.expression.expression)) {
+    if (
+      ts.isCallExpression(node.expression) &&
+      ts.isPropertyAccessExpression(node.expression.expression) &&
+      node.expression.expression.name.text === "set" &&
+      node.expression.arguments.length === 2 &&
+      isMappingLikeReceiver(node.expression.expression.expression)
+    ) {
       return {
         kind: "expression" as const,
         expression: {
@@ -578,7 +631,11 @@ export function parseStatement(
       };
     }
 
-    return { kind: "expression", expression: parseExpression(node.expression), sourceLine: getSourceLine(node) };
+    return {
+      kind: "expression",
+      expression: parseExpression(node.expression),
+      sourceLine: getSourceLine(node),
+    };
   }
 
   if (ts.isIfStatement(node)) {
@@ -587,12 +644,23 @@ export function parseStatement(
     const elseBody = node.elseStatement
       ? parseBlock(node.elseStatement, varTypes, eventNames)
       : undefined;
-    return { kind: "if", condition, thenBody, elseBody, sourceLine: getSourceLine(node) };
+    return {
+      kind: "if",
+      condition,
+      thenBody,
+      elseBody,
+      sourceLine: getSourceLine(node),
+    };
   }
 
   if (ts.isForStatement(node)) {
     let initializer:
-      | { kind: "variable-declaration"; name: string; type?: SkittlesType; initializer?: Expression }
+      | {
+          kind: "variable-declaration";
+          name: string;
+          type?: SkittlesType;
+          initializer?: Expression;
+        }
       | { kind: "expression"; expression: Expression }
       | undefined;
 
@@ -609,7 +677,8 @@ export function parseStatement(
         const init = decl.initializer
           ? parseExpression(decl.initializer)
           : undefined;
-        const resolvedType = t || (init ? inferType(init, varTypes) : undefined);
+        const resolvedType =
+          t || (init ? inferType(init, varTypes) : undefined);
         initializer = {
           kind: "variable-declaration",
           name: n,
@@ -647,7 +716,7 @@ export function parseStatement(
         const resolvedType = loopVarTypes.get(name);
         // Remove any outer tracking for this name; re-add only if string.
         loopStringNames.delete(name);
-        if (resolvedType?.kind === (SkittlesTypeKind.String)) {
+        if (resolvedType?.kind === SkittlesTypeKind.String) {
           loopStringNames.add(name);
         }
       }
@@ -709,23 +778,29 @@ export function parseStatement(
     // →  for (uint256 _i = 0; _i < arr.length; _i++) { T item = arr[_i]; ... }
     const arrExpr = parseExpression(node.expression);
     const itemName = ts.isVariableDeclarationList(node.initializer)
-      ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
+      ? ts.isIdentifier(node.initializer.declarations[0].name)
+        ? node.initializer.declarations[0].name.text
+        : "_item"
       : "_item";
 
     validateReservedVarName(itemName);
 
-    const explicitType = ts.isVariableDeclarationList(node.initializer) && node.initializer.declarations[0].type
-      ? parseType(node.initializer.declarations[0].type)
-      : undefined;
+    const explicitType =
+      ts.isVariableDeclarationList(node.initializer) &&
+      node.initializer.declarations[0].type
+        ? parseType(node.initializer.declarations[0].type)
+        : undefined;
 
     // When no explicit type annotation, infer element type from the iterated expression
-    const itemTypeNode = explicitType ?? (() => {
-      const arrType = inferType(arrExpr, varTypes);
-      if (arrType?.kind === (SkittlesTypeKind.Array) && arrType.valueType) {
-        return arrType.valueType;
-      }
-      return undefined;
-    })();
+    const itemTypeNode =
+      explicitType ??
+      (() => {
+        const arrType = inferType(arrExpr, varTypes);
+        if (arrType?.kind === SkittlesTypeKind.Array && arrType.valueType) {
+          return arrType.valueType;
+        }
+        return undefined;
+      })();
 
     const indexName = `__sk_i_${itemName}`;
     const loopVarTypes = new Map(varTypes);
@@ -740,7 +815,7 @@ export function parseStatement(
     const loopStringNames = new Set(previousStringNames);
     // Shadowing: ensure any outer string classification for `itemName` doesn't leak into the loop scope
     loopStringNames.delete(itemName);
-    if (itemTypeNode && itemTypeNode.kind === (SkittlesTypeKind.String)) {
+    if (itemTypeNode && itemTypeNode.kind === SkittlesTypeKind.String) {
       loopStringNames.add(itemName);
     }
     let innerBody: Statement[];
@@ -798,19 +873,26 @@ export function parseStatement(
   if (ts.isForInStatement(node)) {
     // Desugar: for (const item in EnumType) { ... }
     // →  for (uint256 _i = 0; _i < memberCount; _i++) { EnumType item = EnumType(_i); ... }
-    const enumName = ts.isIdentifier(node.expression) ? node.expression.text : "";
+    const enumName = ts.isIdentifier(node.expression)
+      ? node.expression.text
+      : "";
     const enumMembers = ctx.knownEnums.get(enumName);
 
     if (enumMembers) {
       const itemName = ts.isVariableDeclarationList(node.initializer)
-        ? (ts.isIdentifier(node.initializer.declarations[0].name) ? node.initializer.declarations[0].name.text : "_item")
+        ? ts.isIdentifier(node.initializer.declarations[0].name)
+          ? node.initializer.declarations[0].name.text
+          : "_item"
         : "_item";
 
       validateReservedVarName(itemName);
 
       const indexName = `__sk_i_${itemName}`;
       const loopVarTypes = new Map(varTypes);
-      loopVarTypes.set(itemName, { kind: SkittlesTypeKind.Enum, structName: enumName });
+      loopVarTypes.set(itemName, {
+        kind: SkittlesTypeKind.Enum,
+        structName: enumName,
+      });
       loopVarTypes.set(indexName, { kind: SkittlesTypeKind.Uint256 });
 
       // Temporarily switch parser context to loop-scoped var types
@@ -885,7 +967,12 @@ export function parseStatement(
         cases.push({ value: undefined, body });
       }
     }
-    return { kind: "switch", discriminant, cases, sourceLine: getSourceLine(node) };
+    return {
+      kind: "switch",
+      discriminant,
+      cases,
+      sourceLine: getSourceLine(node),
+    };
   }
 
   if (ts.isTryStatement(node)) {
@@ -894,7 +981,9 @@ export function parseStatement(
     const tryStatements = tryBlock.statements;
 
     if (tryStatements.length === 0) {
-      throw new Error("try block must contain at least one statement with an external call");
+      throw new Error(
+        "try block must contain at least one statement with an external call"
+      );
     }
 
     // The first statement must be an external call (either variable declaration or expression)
@@ -916,7 +1005,9 @@ export function parseStatement(
           returnType = inferType(call, varTypes);
         }
       } else {
-        throw new Error("try block variable declaration must have an initializer with an external call");
+        throw new Error(
+          "try block variable declaration must have an initializer with an external call"
+        );
       }
     } else if (ts.isExpressionStatement(firstStmt)) {
       call = parseExpression(firstStmt.expression);
@@ -927,7 +1018,9 @@ export function parseStatement(
     // Remaining statements become success body
     const successBody: Statement[] = [];
     for (let i = 1; i < tryStatements.length; i++) {
-      successBody.push(...parseStatements(tryStatements[i], varTypes, eventNames));
+      successBody.push(
+        ...parseStatements(tryStatements[i], varTypes, eventNames)
+      );
     }
 
     // Parse catch body
@@ -938,28 +1031,39 @@ export function parseStatement(
       }
     }
 
-    return { kind: "try-catch", call, returnVarName, returnType, successBody, catchBody };
+    return {
+      kind: "try-catch",
+      call,
+      returnVarName,
+      returnType,
+      successBody,
+      catchBody,
+    };
   }
 
   if (ts.isThrowStatement(node)) {
     // Pattern: throw new ErrorName(args) (class extends Error style)
     if (node.expression && ts.isNewExpression(node.expression)) {
-      const errorName = node.expression.expression && ts.isIdentifier(node.expression.expression)
-        ? node.expression.expression.text
-        : "";
+      const errorName =
+        node.expression.expression &&
+        ts.isIdentifier(node.expression.expression)
+          ? node.expression.expression.text
+          : "";
 
       if (errorName !== "Error" && ctx.knownCustomErrors.has(errorName)) {
         const args = node.expression.arguments
           ? Array.from(node.expression.arguments).map(parseExpression)
           : [];
-        return { kind: "revert", customError: errorName, customErrorArgs: args, sourceLine: getSourceLine(node) };
+        return {
+          kind: "revert",
+          customError: errorName,
+          customErrorArgs: args,
+          sourceLine: getSourceLine(node),
+        };
       }
 
       let message: Expression | undefined;
-      if (
-        node.expression.arguments &&
-        node.expression.arguments.length > 0
-      ) {
+      if (node.expression.arguments && node.expression.arguments.length > 0) {
         message = parseExpression(node.expression.arguments[0]);
       }
       return { kind: "revert", message, sourceLine: getSourceLine(node) };
@@ -975,7 +1079,12 @@ export function parseStatement(
         const errorName = callee.name.text;
         if (ctx.knownCustomErrors.has(errorName)) {
           const args = node.expression.arguments.map(parseExpression);
-          return { kind: "revert", customError: errorName, customErrorArgs: args, sourceLine: getSourceLine(node) };
+          return {
+            kind: "revert",
+            customError: errorName,
+            customErrorArgs: args,
+            sourceLine: getSourceLine(node),
+          };
         }
       }
     }
@@ -996,7 +1105,9 @@ export function parseBlock(
     const savedVarTypes = new Map(varTypes);
     const savedStringNames = new Set(ctx.currentStringNames);
     try {
-      const result = node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+      const result = node.statements.flatMap((s) =>
+        parseStatements(s, varTypes, eventNames)
+      );
       return result;
     } finally {
       // Restore outer scope: undo any varTypes mutations made inside the block.
@@ -1031,8 +1142,9 @@ export function parseStatements(
           ? parseExpression(decl.initializer)
           : undefined;
         const type =
-          explicitType || (initializer ? inferType(initializer, varTypes) : undefined);
-        if (type?.kind === (SkittlesTypeKind.String)) {
+          explicitType ||
+          (initializer ? inferType(initializer, varTypes) : undefined);
+        if (type?.kind === SkittlesTypeKind.String) {
           ctx.currentStringNames.add(name);
         } else {
           ctx.currentStringNames.delete(name);
@@ -1046,26 +1158,43 @@ export function parseStatements(
           // Clear any previous mapping to avoid stale types when no type can be inferred.
           varTypes.delete(name);
         }
-        return { kind: "variable-declaration" as const, name, type, initializer, sourceLine: sl };
+        return {
+          kind: "variable-declaration" as const,
+          name,
+          type,
+          initializer,
+          sourceLine: sl,
+        };
       });
     }
 
     // Array destructuring: const [a, b, c] = [7, 8, 9]
     const decl = node.declarationList.declarations[0];
     if (decl.name && ts.isArrayBindingPattern(decl.name) && decl.initializer) {
-      return parseArrayDestructuring(decl.name, decl.initializer, varTypes, decl);
+      return parseArrayDestructuring(
+        decl.name,
+        decl.initializer,
+        varTypes,
+        decl
+      );
     }
 
     // Object destructuring: const { a, b } = { a: 1, b: 2 }
     if (decl.name && ts.isObjectBindingPattern(decl.name) && decl.initializer) {
-      return parseObjectDestructuring(decl.name, decl.initializer, varTypes, decl);
+      return parseObjectDestructuring(
+        decl.name,
+        decl.initializer,
+        varTypes,
+        decl
+      );
     }
 
     // Explicitly reject unsupported destructuring without initializer,
     // instead of falling through to parseStatement and creating an "unknown" variable.
     if (
       decl.name &&
-      (ts.isArrayBindingPattern(decl.name) || ts.isObjectBindingPattern(decl.name)) &&
+      (ts.isArrayBindingPattern(decl.name) ||
+        ts.isObjectBindingPattern(decl.name)) &&
       !decl.initializer
     ) {
       throw new Error(
