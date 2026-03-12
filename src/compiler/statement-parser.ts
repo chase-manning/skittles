@@ -421,7 +421,7 @@ export function parseObjectDestructuring(
     ) {
       throw new Error(
         "Unsupported initializer in object destructuring variable declaration. " +
-        "Only identifiers, property accesses, or struct-typed expressions are supported " +
+        "Only identifiers and property accesses are supported in the fallback path " +
         "to avoid re-evaluating side-effectful expressions for each binding."
       );
     }
