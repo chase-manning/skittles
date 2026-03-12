@@ -560,11 +560,11 @@ export function parseStatement(
     // Temporarily switch parser context to loop-scoped var types
     const previousVarTypes = ctx.currentVarTypes;
     const previousStringNames = ctx.currentStringNames;
-    ctx.currentVarTypes = loopVarTypes;
-    const loopStringNames = new Set(ctx.currentStringNames);
+    const loopStringNames = new Set(previousStringNames);
     if (itemTypeNode && itemTypeNode.kind === ("string" as SkittlesTypeKind)) {
       loopStringNames.add(itemName);
     }
+    ctx.currentVarTypes = loopVarTypes;
     ctx.currentStringNames = loopStringNames;
     const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
     // Restore outer parser context
