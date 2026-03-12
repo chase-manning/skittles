@@ -48,7 +48,7 @@ import {
 } from "./parser-utils.ts";
 import { parseType, inferType } from "./type-parser.ts";
 import { inferStateMutability } from "./mutability.ts";
-import { parseStatement } from "./statement-parser.ts";
+import { parseStatement, parseStatements } from "./statement-parser.ts";
 
 export function parseExpression(node: ts.Expression): Expression {
   if (ts.isNumericLiteral(node)) {
@@ -893,7 +893,7 @@ function parseArrowCallback(
     if (paramTypes?.second && secondParamName) varTypes.set(secondParamName, paramTypes.second);
     const parsedStmts: Statement[] = [];
     for (const s of stmts) {
-      parsedStmts.push(parseStatement(s, varTypes, ctx.currentEventNames));
+      parsedStmts.push(...parseStatements(s, varTypes, ctx.currentEventNames));
     }
     return { paramName, secondParamName, bodyStmts: parsedStmts };
   }

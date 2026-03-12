@@ -42,6 +42,14 @@ export function parseArrayDestructuring(
           ? parseExpression(initializer.elements[i])
           : undefined;
         const type = init ? inferType(init, varTypes) : undefined;
+        if (type) {
+          varTypes.set(name, type);
+          if (type.kind === ("string" as SkittlesTypeKind)) {
+            ctx.currentStringNames.add(name);
+          } else {
+            ctx.currentStringNames.delete(name);
+          }
+        }
         statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
       }
     }
@@ -64,7 +72,17 @@ export function parseArrayDestructuring(
         const trueVal = i < trueExprs.length ? trueExprs[i] : { kind: "number-literal" as const, value: "0" };
         const falseVal = i < falseExprs.length ? falseExprs[i] : { kind: "number-literal" as const, value: "0" };
         const init: Expression = { kind: "conditional", condition, whenTrue: trueVal, whenFalse: falseVal };
-        const type = inferType(trueVal, varTypes);
+        const trueType = inferType(trueVal, varTypes);
+        const falseType = inferType(falseVal, varTypes);
+        const type = (trueType && falseType && trueType.kind === falseType.kind) ? trueType : (trueType ?? falseType);
+        if (type) {
+          varTypes.set(name, type);
+          if (type.kind === ("string" as SkittlesTypeKind)) {
+            ctx.currentStringNames.add(name);
+          } else {
+            ctx.currentStringNames.delete(name);
+          }
+        }
         statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
       }
     }
@@ -202,6 +220,14 @@ export function parseObjectDestructuring(
           ? parseExpression(propMap.get(propName)!)
           : undefined;
         const type = init ? inferType(init, varTypes) : undefined;
+        if (type) {
+          varTypes.set(name, type);
+          if (type.kind === ("string" as SkittlesTypeKind)) {
+            ctx.currentStringNames.add(name);
+          } else {
+            ctx.currentStringNames.delete(name);
+          }
+        }
         statements.push({
           kind: "variable-declaration" as const,
           name,
@@ -243,8 +269,8 @@ export function parseObjectDestructuring(
   const initExpr = parseExpression(initializer);
 
   if (structType?.kind === ("struct" as SkittlesTypeKind) && structType.structName) {
-    // Temp variable + field accesses
-    const tempName = `_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}`;
+    // Temp variable + field accesses (use __sk_ prefix to avoid collisions with user names)
+    const tempName = `__sk_${structType.structName.charAt(0).toLowerCase()}${structType.structName.slice(1)}`;
     statements.push({
       kind: "variable-declaration" as const,
       name: tempName,
@@ -267,10 +293,19 @@ export function parseObjectDestructuring(
           elem.propertyName && ts.isIdentifier(elem.propertyName)
             ? elem.propertyName.text
             : name;
+        const fieldType = fieldMap.get(propName);
+        if (fieldType) {
+          varTypes.set(name, fieldType);
+          if (fieldType.kind === ("string" as SkittlesTypeKind)) {
+            ctx.currentStringNames.add(name);
+          } else {
+            ctx.currentStringNames.delete(name);
+          }
+        }
         statements.push({
           kind: "variable-declaration" as const,
           name,
-          type: fieldMap.get(propName),
+          type: fieldType,
           initializer: {
             kind: "property-access" as const,
             object: { kind: "identifier" as const, name: tempName },
@@ -425,6 +460,10 @@ export function parseStatement(
       | { kind: "expression"; expression: Expression }
       | undefined;
 
+    // Use loop-scoped varTypes so the loop variable is available inside
+    // the condition, incrementor, and body, but doesn't leak outside.
+    const loopVarTypes = new Map(varTypes);
+
     if (node.initializer) {
       if (ts.isVariableDeclarationList(node.initializer)) {
         const decl = node.initializer.declarations[0];
@@ -434,12 +473,16 @@ export function parseStatement(
         const init = decl.initializer
           ? parseExpression(decl.initializer)
           : undefined;
+        const resolvedType = t || (init ? inferType(init, varTypes) : undefined);
         initializer = {
           kind: "variable-declaration",
           name: n,
-          type: t || (init ? inferType(init, varTypes) : undefined),
+          type: resolvedType,
           initializer: init,
         };
+        if (resolvedType) {
+          loopVarTypes.set(n, resolvedType);
+        }
       } else {
         initializer = {
           kind: "expression",
@@ -457,7 +500,7 @@ export function parseStatement(
       incrementor: node.incrementor
         ? parseExpression(node.incrementor)
         : undefined,
-      body: parseBlock(node.statement, varTypes, eventNames),
+      body: parseBlock(node.statement, loopVarTypes, eventNames),
       sourceLine: getSourceLine(node),
     };
   }
@@ -503,7 +546,12 @@ export function parseStatement(
       : undefined;
 
     const indexName = `_i_${itemName}`;
-    const innerBody = parseBlock(node.statement, varTypes, eventNames);
+    const loopVarTypes = new Map(varTypes);
+    if (itemTypeNode) {
+      loopVarTypes.set(itemName, itemTypeNode);
+    }
+    loopVarTypes.set(indexName, { kind: "uint256" as SkittlesTypeKind });
+    const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
 
     // Prepend: T item = arr[_i];
     const itemDecl: Statement = {
@@ -560,7 +608,10 @@ export function parseStatement(
       validateReservedVarName(itemName);
 
       const indexName = `_i_${itemName}`;
-      const innerBody = parseBlock(node.statement, varTypes, eventNames);
+      const loopVarTypes = new Map(varTypes);
+      loopVarTypes.set(itemName, { kind: "enum" as SkittlesTypeKind, structName: enumName });
+      loopVarTypes.set(indexName, { kind: "uint256" as SkittlesTypeKind });
+      const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
 
       // Prepend: EnumType item = EnumType(_i);
       const itemDecl: Statement = {

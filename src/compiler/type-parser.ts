@@ -42,7 +42,7 @@ export function parseType(node: ts.TypeNode): SkittlesType {
   if (ts.isTypeReferenceNode(node)) {
     const name = ts.isIdentifier(node.typeName)
       ? node.typeName.text
-      : "";
+      : node.typeName.getText();
 
     if (
       (name === "Record" || name === "Map") &&
@@ -206,8 +206,12 @@ export function inferType(
       if (expr.operator === "!")
         return { kind: "bool" as SkittlesTypeKind };
       return inferType(expr.operand, varTypes);
-    case "conditional":
-      return inferType(expr.whenTrue, varTypes) ?? inferType(expr.whenFalse, varTypes);
+    case "conditional": {
+      const trueType = inferType(expr.whenTrue, varTypes);
+      const falseType = inferType(expr.whenFalse, varTypes);
+      if (!trueType || !falseType) return undefined;
+      return typesEqual(trueType, falseType) ? trueType : undefined;
+    }
     case "call":
       if (expr.callee.kind === "identifier") {
         // address(...) cast returns address type

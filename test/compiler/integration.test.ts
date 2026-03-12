@@ -4318,9 +4318,9 @@ describe("integration: object destructuring", () => {
       }
     `);
     expect(errors).toHaveLength(0);
-    expect(solidity).toContain("StakeInfo memory _stakeInfo = getStakeInfo(account);");
-    expect(solidity).toContain("uint256 amount = _stakeInfo.amount;");
-    expect(solidity).toContain("uint256 timestamp = _stakeInfo.timestamp;");
+    expect(solidity).toContain("StakeInfo memory __sk_stakeInfo = getStakeInfo(account);");
+    expect(solidity).toContain("uint256 amount = __sk_stakeInfo.amount;");
+    expect(solidity).toContain("uint256 timestamp = __sk_stakeInfo.timestamp;");
   });
 
   it("should compile object destructuring with renaming", () => {
