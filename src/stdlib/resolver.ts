@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { findExtendsReferences } from "../utils/regex.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STDLIB_CONTRACTS_DIR = path.resolve(__dirname, "../../stdlib/contracts");
@@ -64,13 +65,9 @@ export function resolveStdlibFiles(referencedClasses: Set<string>): string[] {
     needed.add(entry.filePath);
 
     const source = fs.readFileSync(entry.filePath, "utf-8");
-    const extendsMatch = source.match(/extends\s+(\w+)/g);
-    if (extendsMatch) {
-      for (const m of extendsMatch) {
-        const parent = m.replace(/^extends\s+/, "");
-        const parentEntry = registry.find((e) => e.className === parent);
-        if (parentEntry && !needed.has(parentEntry.filePath)) queue.push(parent);
-      }
+    for (const parent of findExtendsReferences(source)) {
+      const parentEntry = registry.find((e) => e.className === parent);
+      if (parentEntry && !needed.has(parentEntry.filePath)) queue.push(parent);
     }
   }
 

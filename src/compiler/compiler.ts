@@ -15,6 +15,7 @@ import type {
   StateMutability,
 } from "../types/index.ts";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
+import { findExtendsReferences } from "../utils/regex.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { parse, collectTypes, collectFunctions, collectClassNames } from "./parser.ts";
 import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
@@ -170,10 +171,9 @@ export async function compile(
   const stdlibClassNames = getStdlibClassNames();
   const referencedStdlib = new Set<string>();
   for (const source of userSources.values()) {
-    const matches = source.matchAll(/extends\s+(\w+)/g);
-    for (const m of matches) {
-      if (stdlibClassNames.has(m[1]) && !contractOriginFile.has(m[1])) {
-        referencedStdlib.add(m[1]);
+    for (const name of findExtendsReferences(source)) {
+      if (stdlibClassNames.has(name) && !contractOriginFile.has(name)) {
+        referencedStdlib.add(name);
       }
     }
   }
@@ -243,11 +243,10 @@ export async function compile(
     allSourceHashes.set(filePath, hashString(source));
 
     const parents: string[] = [];
-    const extMatches = source.matchAll(/extends\s+(\w+)/g);
-    for (const m of extMatches) {
-      const parentBase = contractOriginFile.get(m[1]);
+    for (const name of findExtendsReferences(source)) {
+      const parentBase = contractOriginFile.get(name);
       if (parentBase && parentBase !== baseName) {
-        parents.push(m[1]);
+        parents.push(name);
       }
     }
     fileExtendsParents.set(filePath, parents);
