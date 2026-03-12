@@ -33,6 +33,15 @@ export function parseArrayDestructuring(
 
   if (ts.isArrayLiteralExpression(initializer)) {
     // Direct array literal: const [a, b, c] = [7, 8, 9]
+    // Validate that the array literal has no holes or spread elements
+    for (const arrElem of initializer.elements) {
+      if (ts.isOmittedExpression(arrElem)) {
+        throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
+      }
+      if (ts.isSpreadElement(arrElem)) {
+        throw new Error("Array literal in destructuring assignment must not contain spread elements.");
+      }
+    }
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
@@ -207,11 +216,17 @@ export function parseObjectDestructuring(
   const statements: Statement[] = [];
 
   if (ts.isObjectLiteralExpression(initializer)) {
-    // Direct object literal: const { a, b } = { a: 1, b: 2 }
+    // Direct object literal: const { a, b } = { a: 1, b: 2 } or { a, b }
     const propMap = new Map<string, ts.Expression>();
     for (const prop of initializer.properties) {
       if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name)) {
         propMap.set(prop.name.text, prop.initializer);
+      } else if (ts.isShorthandPropertyAssignment(prop)) {
+        const name = prop.name.text;
+        const valueExpr =
+          prop.objectAssignmentInitializer ??
+          ts.factory.createIdentifier(name);
+        propMap.set(name, valueExpr);
       }
     }
 

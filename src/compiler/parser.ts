@@ -205,20 +205,13 @@ export function parse(
   const emptyVarTypes = new Map<string, SkittlesType>();
   const emptyEventNames = new Set<string>();
 
-  // First: collect file level functions and constants
+  // First pass: collect file level constants so parseExpression can inline them
+  // when parsing standalone functions in the second pass
   ts.forEachChild(sourceFile, (node) => {
-    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      fileFunctions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
-    }
-
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.initializer) {
-          if (ts.isArrowFunction(decl.initializer)) {
-            fileFunctions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
-          } else {
-            fileConstants.set(decl.name.text, parseExpression(decl.initializer));
-          }
+        if (ts.isIdentifier(decl.name) && decl.initializer && !ts.isArrowFunction(decl.initializer)) {
+          fileConstants.set(decl.name.text, parseExpression(decl.initializer));
         }
       }
     }
@@ -226,6 +219,21 @@ export function parse(
 
   // Set module level constant registry so parseExpression can inline them
   ctx.fileConstants = fileConstants;
+
+  // Second pass: collect file level standalone functions (with access to constants)
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      fileFunctions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
+    }
+
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrowFunction(decl.initializer)) {
+          fileFunctions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
+        }
+      }
+    }
+  });
 
   // Second: parse classes (with access to file constants and functions)
   ts.forEachChild(sourceFile, (node) => {
@@ -387,6 +395,22 @@ export function collectFunctions(source: string, filePath: string): {
     });
   }
 
+  // First pass: collect file level constants so parseExpression can inline them
+  // when parsing standalone functions in the second pass
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.initializer && !ts.isArrowFunction(decl.initializer)) {
+          constants.set(decl.name.text, parseExpression(decl.initializer));
+        }
+      }
+    }
+  });
+
+  // Set module level constant registry so parseExpression can inline them
+  ctx.fileConstants = constants;
+
+  // Second pass: collect file level standalone functions (with access to constants)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name && node.body) {
       functions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
@@ -394,12 +418,8 @@ export function collectFunctions(source: string, filePath: string): {
 
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.initializer) {
-          if (ts.isArrowFunction(decl.initializer)) {
-            functions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
-          } else {
-            constants.set(decl.name.text, parseExpression(decl.initializer));
-          }
+        if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrowFunction(decl.initializer)) {
+          functions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
         }
       }
     }
