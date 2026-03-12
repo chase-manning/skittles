@@ -235,7 +235,7 @@ export function parse(
     }
   });
 
-  // Second: parse classes (with access to file constants and functions)
+  // Third: parse classes (with access to file constants and functions)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isClassDeclaration(node) && node.name) {
       if (extendsError(node)) {
