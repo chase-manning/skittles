@@ -46,6 +46,7 @@ export function parseArrayDestructuring(
   decl: ts.VariableDeclaration
 ): Statement[] {
   const statements: Statement[] = [];
+  const sl = getSourceLine(decl);
 
   if (ts.isArrayLiteralExpression(initializer)) {
     // Direct array literal: const [a, b, c] = [7, 8, 9]
@@ -84,7 +85,7 @@ export function parseArrayDestructuring(
           ctx.currentStringNames.add(name);
         }
       }
-      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init, sourceLine: sl });
     }
   } else if (ts.isConditionalExpression(initializer)) {
     // Conditional destructuring: let [a, b] = cond ? [x, y] : [y, x]
@@ -136,7 +137,7 @@ export function parseArrayDestructuring(
           ctx.currentStringNames.add(name);
         }
       }
-      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init, sourceLine: sl });
     }
   } else if (ts.isCallExpression(initializer)) {
     // Tuple destructuring from function call: const [a, b] = this.getReserves()
@@ -252,6 +253,7 @@ export function parseObjectDestructuring(
   decl: ts.VariableDeclaration
 ): Statement[] {
   const statements: Statement[] = [];
+  const sl = getSourceLine(decl);
 
   if (ts.isObjectLiteralExpression(initializer)) {
     // Direct object literal: const { a, b } = { a: 1, b: 2 } or { a, b }
@@ -309,6 +311,7 @@ export function parseObjectDestructuring(
         name,
         type,
         initializer: init,
+        sourceLine: sl,
       });
     }
     return statements;
@@ -351,6 +354,7 @@ export function parseObjectDestructuring(
       name: tempName,
       type: structType,
       initializer: initExpr,
+      sourceLine: sl,
     });
 
     const fieldMap = new Map<string, SkittlesType>();
@@ -401,10 +405,26 @@ export function parseObjectDestructuring(
           object: { kind: "identifier" as const, name: tempName },
           property: propName,
         },
+        sourceLine: sl,
       });
     }
   } else {
-    // Fallback: property-access expressions directly on the initializer
+    // Fallback: property-access expressions directly on the initializer.
+    // To avoid re-evaluating the initializer for each binding (which would
+    // change semantics for call expressions or other side-effectful expressions),
+    // only allow simple, side-effect-free initializers (identifiers and
+    // property-access chains like this.field).
+    if (
+      !ts.isIdentifier(initializer) &&
+      !ts.isPropertyAccessExpression(initializer) &&
+      !(initializer.kind === ts.SyntaxKind.ThisKeyword)
+    ) {
+      throw new Error(
+        "Unsupported initializer in object destructuring variable declaration. " +
+        "Only identifiers, property accesses, or struct-typed expressions are supported " +
+        "to avoid re-evaluating side-effectful expressions for each binding."
+      );
+    }
     for (const elem of pattern.elements) {
       if (!ts.isBindingElement(elem)) {
         continue;
@@ -444,6 +464,7 @@ export function parseObjectDestructuring(
         name,
         type,
         initializer: propAccessInit,
+        sourceLine: sl,
       });
     }
   }
@@ -596,6 +617,10 @@ export function parseStatement(
         };
         if (resolvedType) {
           loopVarTypes.set(n, resolvedType);
+        } else {
+          // If there is no resolved type for the loop variable, ensure we
+          // do not inherit any outer-scope type for the same name.
+          loopVarTypes.delete(n);
         }
       } else {
         initializer = {

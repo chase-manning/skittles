@@ -68,6 +68,10 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isIdentifier(node)) {
+    // undefined → 0 (Solidity zero value)
+    if (node.text === "undefined") {
+      return { kind: "number-literal", value: "0" };
+    }
     // Inline file level constants
     const constExpr = ctx.fileConstants.get(node.text);
     if (constExpr) return constExpr;
@@ -88,9 +92,8 @@ export function parseExpression(node: ts.Expression): Expression {
     return { kind: "number-literal", value: "0" };
   }
 
-  // undefined → 0 (Solidity zero value)
-  if (node.kind === ts.SyntaxKind.UndefinedKeyword ||
-      (ts.isIdentifier(node) && node.text === "undefined")) {
+  // undefined → 0 (Solidity zero value) — covers UndefinedKeyword token
+  if (node.kind === ts.SyntaxKind.UndefinedKeyword) {
     return { kind: "number-literal", value: "0" };
   }
 
