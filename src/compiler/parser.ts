@@ -82,12 +82,19 @@ export function collectTypes(source: string, filePath: string): {
     }
   });
 
-  // Pass 2: parse interfaces (which may reference structs/enums via parseType)
+  // Pass 2: pre-scan interface names so parseType can resolve forward references
+  // between interfaces (e.g. an interface method that returns another interface type)
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      ctx.knownContractInterfaces.add(node.name.text);
+    }
+  });
+
+  // Pass 3: parse interfaces (which may reference structs/enums/other interfaces via parseType)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isInterfaceDeclaration(node) && node.name) {
       const iface = parseInterfaceAsContractInterface(node);
       contractInterfaces.set(node.name.text, iface);
-      ctx.knownContractInterfaces.add(node.name.text);
     }
   });
 

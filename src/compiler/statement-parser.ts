@@ -44,23 +44,36 @@ export function parseArrayDestructuring(
     }
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        const name = elem.name.text;
-        validateReservedVarName(name);
-        const init = i < initializer.elements.length
-          ? parseExpression(initializer.elements[i])
-          : undefined;
-        const type = init ? inferType(init, varTypes) : undefined;
-        if (type) {
-          varTypes.set(name, type);
-          if (type.kind === ("string" as SkittlesTypeKind)) {
-            ctx.currentStringNames.add(name);
-          } else {
-            ctx.currentStringNames.delete(name);
-          }
-        }
-        statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
+      if (!ts.isBindingElement(elem)) {
+        continue;
       }
+      // Only support simple identifier bindings with no defaults, rest, renames, or nested patterns.
+      if (
+        !ts.isIdentifier(elem.name) ||
+        !!elem.initializer ||
+        !!elem.dotDotDotToken ||
+        !!elem.propertyName
+      ) {
+        throw new Error(
+          "Unsupported array destructuring binding element in variable declaration. " +
+          "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
+        );
+      }
+      const name = elem.name.text;
+      validateReservedVarName(name);
+      const init = i < initializer.elements.length
+        ? parseExpression(initializer.elements[i])
+        : undefined;
+      const type = init ? inferType(init, varTypes) : undefined;
+      if (type) {
+        varTypes.set(name, type);
+        if (type.kind === ("string" as SkittlesTypeKind)) {
+          ctx.currentStringNames.add(name);
+        } else {
+          ctx.currentStringNames.delete(name);
+        }
+      }
+      statements.push({ kind: "variable-declaration" as const, name, type, initializer: init });
     }
   } else if (ts.isConditionalExpression(initializer)) {
     // Conditional destructuring: let [a, b] = cond ? [x, y] : [y, x]
@@ -68,6 +81,24 @@ export function parseArrayDestructuring(
 
     if (!ts.isArrayLiteralExpression(initializer.whenTrue) || !ts.isArrayLiteralExpression(initializer.whenFalse)) {
       throw new Error("Conditional array destructuring requires array literals in both branches.");
+    }
+
+    // Validate that the array literals in both branches have no holes or spread elements
+    for (const arrElem of initializer.whenTrue.elements) {
+      if (ts.isOmittedExpression(arrElem)) {
+        throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
+      }
+      if (ts.isSpreadElement(arrElem)) {
+        throw new Error("Array literal in destructuring assignment must not contain spread elements.");
+      }
+    }
+    for (const arrElem of initializer.whenFalse.elements) {
+      if (ts.isOmittedExpression(arrElem)) {
+        throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
+      }
+      if (ts.isSpreadElement(arrElem)) {
+        throw new Error("Array literal in destructuring assignment must not contain spread elements.");
+      }
     }
 
     const trueExprs: Expression[] = initializer.whenTrue.elements.map(parseExpression);
@@ -231,32 +262,49 @@ export function parseObjectDestructuring(
     }
 
     for (const elem of pattern.elements) {
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        const name = elem.name.text;
-        validateReservedVarName(name);
-        const propName =
-          elem.propertyName && ts.isIdentifier(elem.propertyName)
-            ? elem.propertyName.text
-            : name;
-        const init = propMap.has(propName)
-          ? parseExpression(propMap.get(propName)!)
-          : undefined;
-        const type = init ? inferType(init, varTypes) : undefined;
-        if (type) {
-          varTypes.set(name, type);
-          if (type.kind === ("string" as SkittlesTypeKind)) {
-            ctx.currentStringNames.add(name);
-          } else {
-            ctx.currentStringNames.delete(name);
-          }
-        }
-        statements.push({
-          kind: "variable-declaration" as const,
-          name,
-          type,
-          initializer: init,
-        });
+      if (!ts.isBindingElement(elem)) {
+        continue;
       }
+
+      // Only support simple bindings: { a } or { prop: a } with identifiers only,
+      // and no defaults, rest elements, or nested patterns.
+      if (
+        !ts.isIdentifier(elem.name) ||
+        (!!elem.propertyName && !ts.isIdentifier(elem.propertyName)) ||
+        !!elem.initializer ||
+        !!elem.dotDotDotToken
+      ) {
+        throw new Error(
+          "Unsupported object destructuring pattern in variable declaration. " +
+            "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
+            "with no default values, rest elements, computed property names, or nested patterns."
+        );
+      }
+
+      const name = (elem.name as ts.Identifier).text;
+      validateReservedVarName(name);
+      const propName =
+        elem.propertyName && ts.isIdentifier(elem.propertyName)
+          ? elem.propertyName.text
+          : name;
+      const init = propMap.has(propName)
+        ? parseExpression(propMap.get(propName)!)
+        : undefined;
+      const type = init ? inferType(init, varTypes) : undefined;
+      if (type) {
+        varTypes.set(name, type);
+        if (type.kind === ("string" as SkittlesTypeKind)) {
+          ctx.currentStringNames.add(name);
+        } else {
+          ctx.currentStringNames.delete(name);
+        }
+      }
+      statements.push({
+        kind: "variable-declaration" as const,
+        name,
+        type,
+        initializer: init,
+      });
     }
     return statements;
   }
@@ -308,60 +356,86 @@ export function parseObjectDestructuring(
     }
 
     for (const elem of pattern.elements) {
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        const name = elem.name.text;
-        validateReservedVarName(name);
-        const propName =
-          elem.propertyName && ts.isIdentifier(elem.propertyName)
-            ? elem.propertyName.text
-            : name;
-        const fieldType = fieldMap.get(propName);
-        if (!fieldType) {
-          const validFields = [...fieldMap.keys()].join(", ");
-          throw new Error(
-            `Property '${propName}' does not exist on struct '${structType.structName}'. ` +
-            `Valid fields: ${validFields || "(none)"}`
-          );
-        }
-        varTypes.set(name, fieldType);
-        if (fieldType.kind === ("string" as SkittlesTypeKind)) {
-          ctx.currentStringNames.add(name);
-        } else {
-          ctx.currentStringNames.delete(name);
-        }
-        statements.push({
-          kind: "variable-declaration" as const,
-          name,
-          type: fieldType,
-          initializer: {
-            kind: "property-access" as const,
-            object: { kind: "identifier" as const, name: tempName },
-            property: propName,
-          },
-        });
+      if (!ts.isBindingElement(elem)) {
+        continue;
       }
+      if (
+        !ts.isIdentifier(elem.name) ||
+        (!!elem.propertyName && !ts.isIdentifier(elem.propertyName)) ||
+        !!elem.initializer ||
+        !!elem.dotDotDotToken
+      ) {
+        throw new Error(
+          "Unsupported object destructuring pattern in variable declaration. " +
+            "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
+            "with no default values, rest elements, computed property names, or nested patterns."
+        );
+      }
+      const name = (elem.name as ts.Identifier).text;
+      validateReservedVarName(name);
+      const propName =
+        elem.propertyName && ts.isIdentifier(elem.propertyName)
+          ? elem.propertyName.text
+          : name;
+      const fieldType = fieldMap.get(propName);
+      if (!fieldType) {
+        const validFields = [...fieldMap.keys()].join(", ");
+        throw new Error(
+          `Property '${propName}' does not exist on struct '${structType.structName}'. ` +
+          `Valid fields: ${validFields || "(none)"}`
+        );
+      }
+      varTypes.set(name, fieldType);
+      if (fieldType.kind === ("string" as SkittlesTypeKind)) {
+        ctx.currentStringNames.add(name);
+      } else {
+        ctx.currentStringNames.delete(name);
+      }
+      statements.push({
+        kind: "variable-declaration" as const,
+        name,
+        type: fieldType,
+        initializer: {
+          kind: "property-access" as const,
+          object: { kind: "identifier" as const, name: tempName },
+          property: propName,
+        },
+      });
     }
   } else {
     // Fallback: property-access expressions directly on the initializer
     for (const elem of pattern.elements) {
-      if (ts.isBindingElement(elem) && ts.isIdentifier(elem.name)) {
-        const name = elem.name.text;
-        validateReservedVarName(name);
-        const propName =
-          elem.propertyName && ts.isIdentifier(elem.propertyName)
-            ? elem.propertyName.text
-            : name;
-        statements.push({
-          kind: "variable-declaration" as const,
-          name,
-          type: undefined,
-          initializer: {
-            kind: "property-access" as const,
-            object: initExpr,
-            property: propName,
-          },
-        });
+      if (!ts.isBindingElement(elem)) {
+        continue;
       }
+      if (
+        !ts.isIdentifier(elem.name) ||
+        (!!elem.propertyName && !ts.isIdentifier(elem.propertyName)) ||
+        !!elem.initializer ||
+        !!elem.dotDotDotToken
+      ) {
+        throw new Error(
+          "Unsupported object destructuring pattern in variable declaration. " +
+            "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
+            "with no default values, rest elements, computed property names, or nested patterns."
+        );
+      }
+      const name = (elem.name as ts.Identifier).text;
+      validateReservedVarName(name);
+      const propName =
+        elem.propertyName && ts.isIdentifier(elem.propertyName)
+          ? elem.propertyName.text
+          : name;
+      statements.push({
+        kind: "variable-declaration" as const,
+        name,
+        type: undefined,
+        initializer: {
+          kind: "property-access" as const,
+          object: initExpr,
+          property: propName,
+        },
+      });
     }
   }
 
@@ -886,12 +960,15 @@ export function parseBlock(
     // Snapshot outer scope so block-scoped declarations don't leak.
     const savedVarTypes = new Map(varTypes);
     const savedStringNames = new Set(ctx.currentStringNames);
-    const result = node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
-    // Restore outer scope: undo any varTypes mutations made inside the block.
-    varTypes.clear();
-    for (const [k, v] of savedVarTypes) varTypes.set(k, v);
-    ctx.currentStringNames = savedStringNames;
-    return result;
+    try {
+      const result = node.statements.flatMap((s) => parseStatements(s, varTypes, eventNames));
+      return result;
+    } finally {
+      // Restore outer scope: undo any varTypes mutations made inside the block.
+      varTypes.clear();
+      for (const [k, v] of savedVarTypes) varTypes.set(k, v);
+      ctx.currentStringNames = savedStringNames;
+    }
   }
   return parseStatements(node, varTypes, eventNames);
 }
