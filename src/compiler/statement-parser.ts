@@ -223,6 +223,7 @@ export function parseArrayDestructuring(
         names,
         types,
         initializer: initExpr,
+        sourceLine: sl,
       }];
     }
 

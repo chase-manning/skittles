@@ -135,22 +135,22 @@ export function parseExpression(node: ts.Expression): Expression {
 
     // Desugar ?? to ternary: x ?? y → (x == defaultZero ? y : x)
     // Solidity has no null/undefined; all types have default zero values.
+    // The left operand is parsed once to avoid duplicating side effects.
     if (opKind === ts.SyntaxKind.QuestionQuestionToken) {
-      const leftForCondition = parseExpression(node.left);
-      const leftForFallback = parseExpression(node.left);
+      const leftExpr = parseExpression(node.left);
       const right = parseExpression(node.right);
-      const leftType = inferType(leftForCondition, ctx.currentVarTypes);
+      const leftType = inferType(leftExpr, ctx.currentVarTypes);
       const zeroValue = defaultValueForType(leftType) ?? { kind: "number-literal" as const, value: "0" };
       return {
         kind: "conditional",
         condition: {
           kind: "binary",
           operator: "==",
-          left: leftForCondition,
+          left: leftExpr,
           right: zeroValue,
         },
         whenTrue: right,
-        whenFalse: leftForFallback,
+        whenFalse: leftExpr,
       };
     }
 

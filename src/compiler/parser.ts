@@ -179,7 +179,17 @@ export function parse(
   ctx.knownStructs = structs;
   ctx.knownEnums = new Map(enums);
 
-  // Second pass: parse interfaces (may reference struct/enum types collected above)
+  // Second pass: pre-scan interface names (including externalTypes) so parseType
+  // can resolve forward/interface-to-interface references during interface parsing
+  ctx.knownContractInterfaces = new Set(contractInterfaces.keys());
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      ctx.knownContractInterfaces.add(node.name.text);
+    }
+  });
+  ctx.knownContractInterfaceMap = new Map(contractInterfaces);
+
+  // Third pass: parse interfaces (may reference struct/enum types and other interfaces)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isInterfaceDeclaration(node) && node.name) {
       const iface = parseInterfaceAsContractInterface(node);
