@@ -8,7 +8,7 @@ import type {
   SkittlesContractInterface,
   Expression,
 } from "../types/index.ts";
-import { ctx, resetContext } from "./parser-context.ts";
+import { ctx } from "./parser-context.ts";
 import type { ParserContext } from "./parser-context.ts";
 import { parseTypeLiteralFields, parseType, inferType } from "./type-parser.ts";
 import { parseExpression } from "./expression-parser.ts";
@@ -64,25 +64,30 @@ export function collectTypes(source: string, filePath: string): {
   const prevInterfaces = ctx.knownContractInterfaces;
   const prevInterfaceMap = ctx.knownContractInterfaceMap;
   ctx.knownStructs = structs;
-  ctx.knownEnums = new Map();
+  ctx.knownEnums = enums;
   ctx.knownContractInterfaces = new Set();
   ctx.knownContractInterfaceMap = new Map();
 
+  // Pass 1: collect structs and enums first so parseType can resolve forward references
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
       const fields = parseTypeLiteralFields(node.type);
       structs.set(node.name.text, fields);
-    }
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      const iface = parseInterfaceAsContractInterface(node);
-      contractInterfaces.set(node.name.text, iface);
-      ctx.knownContractInterfaces.add(node.name.text);
     }
     if (ts.isEnumDeclaration(node) && node.name) {
       const members = node.members.map((m) =>
         ts.isIdentifier(m.name) ? m.name.text : "Unknown"
       );
       enums.set(node.name.text, members);
+    }
+  });
+
+  // Pass 2: parse interfaces (which may reference structs/enums via parseType)
+  ts.forEachChild(sourceFile, (node) => {
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const iface = parseInterfaceAsContractInterface(node);
+      contractInterfaces.set(node.name.text, iface);
+      ctx.knownContractInterfaces.add(node.name.text);
     }
   });
 
@@ -121,6 +126,7 @@ export function parse(
   ctx.currentSourceFile = sourceFile;
   ctx.arrayMethodCounter = 0;
   ctx.stateVarTypes = new Map();
+  ctx.destructureCounter = 0;
   // Reset per-parse caches to avoid leaking state between parse() calls.
   ctx.currentVarTypes = new Map();
   ctx.currentStringNames = new Set();
@@ -341,21 +347,43 @@ export function collectFunctions(source: string, filePath: string): {
   ctx.currentStringNames = new Set();
   ctx.currentParamTypes = new Map();
   ctx.currentEventNames = new Set();
+  ctx.destructureCounter = 0;
 
   const functions: SkittlesFunction[] = [];
   const constants: Map<string, Expression> = new Map();
   const emptyVarTypes = new Map<string, SkittlesType>();
   const emptyEventNames = new Set<string>();
 
-  // Need to set up struct/enum/interface registries for type parsing
+  // Reuse the struct/enum/interface registries if they were already populated
+  // (e.g. by a prior collectTypes() call), so standalone functions that reference
+  // struct/enum/interface types can be parsed correctly.
+  // Only reset if they are completely empty (i.e. no prior collectTypes() call).
   const prevStructs = ctx.knownStructs;
   const prevEnums = ctx.knownEnums;
   const prevInterfaces = ctx.knownContractInterfaces;
   const prevInterfaceMap = ctx.knownContractInterfaceMap;
-  ctx.knownStructs = new Map();
-  ctx.knownEnums = new Map();
-  ctx.knownContractInterfaces = new Set();
-  ctx.knownContractInterfaceMap = new Map();
+
+  // Pre-scan the file for type declarations so standalone functions can reference them
+  if (ctx.knownStructs.size === 0 && ctx.knownEnums.size === 0) {
+    const localStructs = new Map<string, SkittlesParameter[]>();
+    const localEnums = new Map<string, string[]>();
+    ctx.knownStructs = localStructs;
+    ctx.knownEnums = localEnums;
+    ctx.knownContractInterfaces = new Set();
+    ctx.knownContractInterfaceMap = new Map();
+
+    ts.forEachChild(sourceFile, (node) => {
+      if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
+        localStructs.set(node.name.text, parseTypeLiteralFields(node.type));
+      }
+      if (ts.isEnumDeclaration(node) && node.name) {
+        const members = node.members.map((m) =>
+          ts.isIdentifier(m.name) ? m.name.text : "Unknown"
+        );
+        localEnums.set(node.name.text, members);
+      }
+    });
+  }
 
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name && node.body) {

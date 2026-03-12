@@ -57,12 +57,12 @@ export function parseArrayDestructuring(
     // Conditional destructuring: let [a, b] = cond ? [x, y] : [y, x]
     const condition = parseExpression(initializer.condition);
 
-    const trueExprs: Expression[] = ts.isArrayLiteralExpression(initializer.whenTrue)
-      ? initializer.whenTrue.elements.map(parseExpression)
-      : [];
-    const falseExprs: Expression[] = ts.isArrayLiteralExpression(initializer.whenFalse)
-      ? initializer.whenFalse.elements.map(parseExpression)
-      : [];
+    if (!ts.isArrayLiteralExpression(initializer.whenTrue) || !ts.isArrayLiteralExpression(initializer.whenFalse)) {
+      throw new Error("Conditional array destructuring requires array literals in both branches.");
+    }
+
+    const trueExprs: Expression[] = initializer.whenTrue.elements.map(parseExpression);
+    const falseExprs: Expression[] = initializer.whenFalse.elements.map(parseExpression);
 
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
@@ -512,35 +512,44 @@ export function parseStatement(
     const previousVarTypes = ctx.currentVarTypes;
     const previousStringNames = ctx.currentStringNames;
     const loopStringNames = new Set(previousStringNames);
-    // Track loop initializer variable for string transforms if needed
+    // Track loop initializer variable for string transforms if needed.
+    // If the loop initializer declares a variable that shadows an outer
+    // string variable, make sure we only keep the name in loopStringNames
+    // when the loop-scoped variable is actually a string.
     if (node.initializer && ts.isVariableDeclarationList(node.initializer)) {
       const decl = node.initializer.declarations[0];
       if (ts.isIdentifier(decl.name)) {
-        const resolvedType = loopVarTypes.get(decl.name.text);
+        const name = decl.name.text;
+        const resolvedType = loopVarTypes.get(name);
+        // Remove any outer tracking for this name; re-add only if string.
+        loopStringNames.delete(name);
         if (resolvedType?.kind === ("string" as SkittlesTypeKind)) {
-          loopStringNames.add(decl.name.text);
+          loopStringNames.add(name);
         }
       }
     }
     ctx.currentVarTypes = loopVarTypes;
     ctx.currentStringNames = loopStringNames;
 
-    const result: Statement = {
-      kind: "for",
-      initializer,
-      condition: node.condition
-        ? wrapStringTruthiness(parseExpression(node.condition))
-        : undefined,
-      incrementor: node.incrementor
-        ? parseExpression(node.incrementor)
-        : undefined,
-      body: parseBlock(node.statement, loopVarTypes, eventNames),
-      sourceLine: getSourceLine(node),
-    };
-
-    // Restore outer parser context
-    ctx.currentVarTypes = previousVarTypes;
-    ctx.currentStringNames = previousStringNames;
+    let result: Statement;
+    try {
+      result = {
+        kind: "for",
+        initializer,
+        condition: node.condition
+          ? wrapStringTruthiness(parseExpression(node.condition))
+          : undefined,
+        incrementor: node.incrementor
+          ? parseExpression(node.incrementor)
+          : undefined,
+        body: parseBlock(node.statement, loopVarTypes, eventNames),
+        sourceLine: getSourceLine(node),
+      };
+    } finally {
+      // Restore outer parser context even if parsing throws
+      ctx.currentVarTypes = previousVarTypes;
+      ctx.currentStringNames = previousStringNames;
+    }
 
     return result;
   }
@@ -605,15 +614,21 @@ export function parseStatement(
     const previousVarTypes = ctx.currentVarTypes;
     const previousStringNames = ctx.currentStringNames;
     const loopStringNames = new Set(previousStringNames);
+    // Shadowing: ensure any outer string classification for `itemName` doesn't leak into the loop scope
+    loopStringNames.delete(itemName);
     if (itemTypeNode && itemTypeNode.kind === ("string" as SkittlesTypeKind)) {
       loopStringNames.add(itemName);
     }
-    ctx.currentVarTypes = loopVarTypes;
-    ctx.currentStringNames = loopStringNames;
-    const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
-    // Restore outer parser context
-    ctx.currentVarTypes = previousVarTypes;
-    ctx.currentStringNames = previousStringNames;
+    let innerBody: Statement[];
+    try {
+      ctx.currentVarTypes = loopVarTypes;
+      ctx.currentStringNames = loopStringNames;
+      innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
+    } finally {
+      // Restore outer parser context even if parseBlock throws
+      ctx.currentVarTypes = previousVarTypes;
+      ctx.currentStringNames = previousStringNames;
+    }
 
     // Prepend: T item = arr[_i];
     const itemDecl: Statement = {
@@ -677,12 +692,19 @@ export function parseStatement(
       // Temporarily switch parser context to loop-scoped var types
       const previousVarTypes = ctx.currentVarTypes;
       const previousStringNames = ctx.currentStringNames;
-      ctx.currentVarTypes = loopVarTypes;
-      ctx.currentStringNames = new Set(ctx.currentStringNames);
-      const innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
-      // Restore outer parser context
-      ctx.currentVarTypes = previousVarTypes;
-      ctx.currentStringNames = previousStringNames;
+      const loopStringNames = new Set(previousStringNames);
+      // Shadowing: ensure any outer string classification for `itemName` doesn't leak into the loop scope
+      loopStringNames.delete(itemName);
+      let innerBody: Statement[];
+      try {
+        ctx.currentVarTypes = loopVarTypes;
+        ctx.currentStringNames = loopStringNames;
+        innerBody = parseBlock(node.statement, loopVarTypes, eventNames);
+      } finally {
+        // Restore outer parser context even if parseBlock throws
+        ctx.currentVarTypes = previousVarTypes;
+        ctx.currentStringNames = previousStringNames;
+      }
 
       // Prepend: EnumType item = EnumType(_i);
       const itemDecl: Statement = {

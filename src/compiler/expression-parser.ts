@@ -888,6 +888,11 @@ function parseArrowCallback(
   const outerStringNames = ctx.currentStringNames;
   const callbackVarTypes = new Map(outerVarTypes);
   const callbackStringNames = new Set(outerStringNames);
+  // Ensure callback parameters correctly shadow any outer string variables with the same name
+  callbackStringNames.delete(paramName);
+  if (secondParamName) {
+    callbackStringNames.delete(secondParamName);
+  }
   if (paramTypes?.first) {
     callbackVarTypes.set(paramName, paramTypes.first);
     if (paramTypes.first.kind === ("string" as SkittlesTypeKind)) {
