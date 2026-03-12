@@ -95,6 +95,7 @@ export class Staking {
 };
 
 const DEFAULT_EXAMPLE = "Token";
+const DEBOUNCE_MS = 300;
 
 function encodeSource(source: string): string {
   return btoa(encodeURIComponent(source));
@@ -172,7 +173,7 @@ function SolLine({ line }: { line: string }) {
   return (
     <div className="pg-code-line">
       {tokens.map((t, i) => (
-        <span key={i} className={`tok-${t.type}`}>{t.text}</span>
+        <span key={`${i}-${t.type}`} className={`tok-${t.type}`}>{t.text}</span>
       ))}
     </div>
   );
@@ -230,7 +231,7 @@ function TSLine({ line }: { line: string }) {
   return (
     <div className="pg-code-line">
       {tokens.map((t, i) => (
-        <span key={i} className={`tok-${t.type}`}>{t.text}</span>
+        <span key={`${i}-${t.type}`} className={`tok-${t.type}`}>{t.text}</span>
       ))}
     </div>
   );
@@ -244,6 +245,12 @@ function getInitialData() {
     _cachedInitial = { source, solidity: result.solidity, error: result.error };
   }
   return _cachedInitial;
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    _cachedInitial = null;
+  });
 }
 
 export default function Playground() {
@@ -283,7 +290,7 @@ export default function Playground() {
     setSource(value);
     setSelectedExample("");
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => compile(value), 300);
+    timerRef.current = setTimeout(() => compile(value), DEBOUNCE_MS);
   };
 
   const handleExampleChange = (name: string) => {
@@ -295,13 +302,16 @@ export default function Playground() {
     window.location.hash = "playground";
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const encoded = encodeSource(source);
     const url = `${window.location.origin}${window.location.pathname}#playground&code=${encoded}`;
-    navigator.clipboard.writeText(url).then(() => {
+    try {
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch {
+      window.prompt("Copy this URL to share:", url);
+    }
   };
 
   const solLines = solidity.split("\n");
@@ -310,7 +320,7 @@ export default function Playground() {
     <div className="pg">
       <header className="pg-header">
         <div className="pg-header-left">
-          <a href="#" className="pg-logo">
+          <a href="/" className="pg-logo">
             <img src="/logo.svg" alt="Skittles" className="pg-logo-img" />
           </a>
           <span className="pg-title">Playground</span>
@@ -320,6 +330,7 @@ export default function Playground() {
             className="pg-select"
             value={selectedExample}
             onChange={(e) => handleExampleChange(e.target.value)}
+            aria-label="Load example contract"
           >
             <option value="" disabled>
               Load Example…
@@ -353,7 +364,7 @@ export default function Playground() {
               aria-hidden="true"
             >
               {source.split("\n").map((line, i) => (
-                <TSLine key={i} line={line} />
+                <TSLine key={`${i}-${line}`} line={line} />
               ))}
             </pre>
             <textarea
@@ -363,6 +374,7 @@ export default function Playground() {
               onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                 handleSourceChange(e.target.value)
               }
+              aria-label="TypeScript contract source editor"
               onKeyDown={(e) => {
                 if (e.key === "Tab") {
                   e.preventDefault();
@@ -401,7 +413,7 @@ export default function Playground() {
             {error ? (
               <div className="pg-error">{error}</div>
             ) : (
-              solLines.map((line, i) => <SolLine key={i} line={line} />)
+              solLines.map((line, i) => <SolLine key={`${i}-${line}`} line={line} />)
             )}
           </div>
         </div>
