@@ -150,7 +150,6 @@ function renameInStatement(stmt: Statement, renames: Map<string, string>): State
       return { ...stmt, initializer: init, condition: stmt.condition ? renameInExpression(stmt.condition, renames) : undefined, incrementor: stmt.incrementor ? renameInExpression(stmt.incrementor, renames) : undefined, body: renameInStatements(stmt.body, renames) };
     }
     case "while":
-      return { ...stmt, condition: renameInExpression(stmt.condition, renames), body: renameInStatements(stmt.body, renames) };
     case "do-while":
       return { ...stmt, condition: renameInExpression(stmt.condition, renames), body: renameInStatements(stmt.body, renames) };
     case "emit":

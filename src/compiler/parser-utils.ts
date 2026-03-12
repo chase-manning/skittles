@@ -277,7 +277,7 @@ export function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string>
         walkStmts(s.body);
         break;
       }
-      case "while": walkExpr(s.condition); walkStmts(s.body); break;
+      case "while":
       case "do-while": walkExpr(s.condition); walkStmts(s.body); break;
       case "emit": s.args.forEach(walkExpr); break;
       case "revert": if (s.message) walkExpr(s.message); if (s.customErrorArgs) s.customErrorArgs.forEach(walkExpr); break;
