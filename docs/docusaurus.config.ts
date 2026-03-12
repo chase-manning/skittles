@@ -1,6 +1,7 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import { URLS } from "./constants";
 
 const config: Config = {
   title: "Skittles Docs",
@@ -62,17 +63,17 @@ const config: Config = {
       },
       items: [
         {
-          href: "https://skittles.dev",
+          href: URLS.website,
           label: "Website",
           position: "right",
         },
         {
-          href: "https://www.npmjs.com/package/skittles",
+          href: URLS.npm,
           label: "npm",
           position: "right",
         },
         {
-          href: "https://github.com/chase-manning/skittles",
+          href: URLS.github,
           label: "GitHub",
           position: "right",
         },
@@ -107,11 +108,11 @@ const config: Config = {
           items: [
             {
               label: "GitHub",
-              href: "https://github.com/chase-manning/skittles",
+              href: URLS.github,
             },
             {
               label: "npm",
-              href: "https://www.npmjs.com/package/skittles",
+              href: URLS.npm,
             },
           ],
         },
@@ -120,7 +121,7 @@ const config: Config = {
           items: [
             {
               label: "Website",
-              href: "https://skittles.dev",
+              href: URLS.website,
             },
           ],
         },

@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, lazy, Suspense } from "react";
 import { Zap, Shuffle, Code, Shield, Layers, Timer } from "lucide-react";
 import "./App.css";
+import { URLS } from "./constants.ts";
 
 const Playground = lazy(() => import("./Playground.tsx"));
 
@@ -9,7 +10,7 @@ const VersionContext = createContext<string | null>(null);
 function useNpmVersion() {
   const [version, setVersion] = useState<string | null>(null);
   useEffect(() => {
-    fetch("https://registry.npmjs.org/skittles/latest")
+    fetch(URLS.npmApi)
       .then((res) => res.json())
       .then((data) => {
         if (data.version) setVersion(data.version);
@@ -37,16 +38,16 @@ function Header() {
         <a href="#playground" className="nav-link">
           Playground
         </a>
-        <a href="https://docs.skittles.dev" className="nav-link">
+        <a href={URLS.docs} className="nav-link">
           Docs
         </a>
-        <a href="https://github.com/chase-manning/skittles" target="_blank" rel="noopener noreferrer" className="nav-link">
+        <a href={URLS.github} target="_blank" rel="noopener noreferrer" className="nav-link">
           GitHub
         </a>
-        <a href="https://github.com/chase-manning/skittles/tree/main/example" target="_blank" rel="noopener noreferrer" className="nav-link">
+        <a href={URLS.githubExamples} target="_blank" rel="noopener noreferrer" className="nav-link">
           Examples
         </a>
-        <a href="https://www.npmjs.com/package/skittles" target="_blank" rel="noopener noreferrer" className="nav-link">
+        <a href={URLS.npm} target="_blank" rel="noopener noreferrer" className="nav-link">
           npm
         </a>
         <a href="#get-started" className="header-cta">
@@ -237,7 +238,7 @@ function Hero() {
         </p>
       </div>
       <div className="hero-actions">
-        <a href="https://docs.skittles.dev" className="btn-primary">
+        <a href={URLS.docs} className="btn-primary">
           <span>Read the Docs</span>
           <span>&rarr;</span>
         </a>
@@ -518,11 +519,11 @@ function FinalCTA() {
         MIT licensed. Node.js 22+. Works with every EVM toolchain.
       </p>
       <div className="final-cta-actions">
-        <a href="https://docs.skittles.dev" className="btn-primary btn-primary--lg">
+        <a href={URLS.docs} className="btn-primary btn-primary--lg">
           <span>Read the Docs</span>
           <span>&rarr;</span>
         </a>
-        <a href="https://github.com/chase-manning/skittles" target="_blank" rel="noopener noreferrer" className="btn-secondary btn-secondary--lg">
+        <a href={URLS.github} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-secondary--lg">
           <span>GitHub</span>
         </a>
       </div>
@@ -546,20 +547,20 @@ function Footer() {
         <div className="footer-cols">
           <div className="footer-col">
             <span className="footer-col-title">PRODUCT</span>
-            <a href="https://docs.skittles.dev" className="footer-link">Documentation</a>
+            <a href={URLS.docs} className="footer-link">Documentation</a>
             <a href="#playground" className="footer-link">Playground</a>
-            <a href="https://github.com/chase-manning/skittles/tree/main/example" target="_blank" rel="noopener noreferrer" className="footer-link">Examples</a>
-            <a href="https://github.com/chase-manning/skittles/releases" target="_blank" rel="noopener noreferrer" className="footer-link">Changelog</a>
+            <a href={URLS.githubExamples} target="_blank" rel="noopener noreferrer" className="footer-link">Examples</a>
+            <a href={URLS.githubReleases} target="_blank" rel="noopener noreferrer" className="footer-link">Changelog</a>
           </div>
           <div className="footer-col">
             <span className="footer-col-title">COMMUNITY</span>
-            <a href="https://github.com/chase-manning/skittles" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
-            <a href="https://www.npmjs.com/package/skittles" target="_blank" rel="noopener noreferrer" className="footer-link">npm</a>
-            <a href="https://github.com/chase-manning/skittles/issues" target="_blank" rel="noopener noreferrer" className="footer-link">Issues</a>
+            <a href={URLS.github} target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
+            <a href={URLS.npm} target="_blank" rel="noopener noreferrer" className="footer-link">npm</a>
+            <a href={URLS.githubIssues} target="_blank" rel="noopener noreferrer" className="footer-link">Issues</a>
           </div>
           <div className="footer-col">
             <span className="footer-col-title">LEGAL</span>
-            <a href="https://github.com/chase-manning/skittles/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" className="footer-link">MIT License</a>
+            <a href={URLS.githubLicense} target="_blank" rel="noopener noreferrer" className="footer-link">MIT License</a>
           </div>
         </div>
       </div>
