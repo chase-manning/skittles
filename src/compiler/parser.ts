@@ -179,8 +179,9 @@ export function parse(
   ctx.knownStructs = structs;
   ctx.knownEnums = new Map(enums);
 
-  // Second pass: pre-scan interface names (including externalTypes) so parseType
-  // can resolve forward/interface-to-interface references during interface parsing
+  // Second pass: pre-scan interface names so parseType can resolve forward references
+  // between interfaces. External interface names are already in contractInterfaces (seeded above);
+  // this also adds locally declared interface names from the source file.
   ctx.knownContractInterfaces = new Set(contractInterfaces.keys());
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isInterfaceDeclaration(node) && node.name) {
