@@ -1546,12 +1546,7 @@ function generateFunction(f: SkittlesFunction): string {
 }
 
 function isSuperCall(stmt: Statement): boolean {
-  return (
-    stmt.kind === "expression" &&
-    stmt.expression.kind === "call" &&
-    stmt.expression.callee.kind === "identifier" &&
-    stmt.expression.callee.name === "super"
-  );
+  return getSuperCallArgs(stmt) !== null;
 }
 
 function getSuperCallArgs(stmt: Statement): Expression[] | null {
