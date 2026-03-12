@@ -1,5 +1,4 @@
-import { parse, collectTypes, collectFunctions } from "../../src/compiler/parser.ts";
-import { generateSolidity, generateSolidityFile } from "../../src/compiler/codegen.ts";
+import { parse, collectTypes, collectFunctions, generateSolidity, generateSolidityFile } from "skittles";
 
 export interface CompileResult {
   solidity: string;
