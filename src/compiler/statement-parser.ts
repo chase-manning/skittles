@@ -23,6 +23,22 @@ import { parseType, inferType, typesEqual } from "./type-parser.ts";
 import { parseExpression } from "./expression-parser.ts";
 import { isMappingLikeReceiver } from "./expression-parser.ts";
 
+const UNSUPPORTED_OBJECT_DESTRUCTURING_MSG =
+  "Unsupported object destructuring pattern in variable declaration. " +
+  "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
+  "with no default values, rest elements, computed property names, or nested patterns.";
+
+function validateArrayLiteralElements(elements: ts.NodeArray<ts.Expression>): void {
+  for (const arrElem of elements) {
+    if (ts.isOmittedExpression(arrElem)) {
+      throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
+    }
+    if (ts.isSpreadElement(arrElem)) {
+      throw new Error("Array literal in destructuring assignment must not contain spread elements.");
+    }
+  }
+}
+
 export function parseArrayDestructuring(
   pattern: ts.ArrayBindingPattern,
   initializer: ts.Expression,
@@ -34,14 +50,7 @@ export function parseArrayDestructuring(
   if (ts.isArrayLiteralExpression(initializer)) {
     // Direct array literal: const [a, b, c] = [7, 8, 9]
     // Validate that the array literal has no holes or spread elements
-    for (const arrElem of initializer.elements) {
-      if (ts.isOmittedExpression(arrElem)) {
-        throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
-      }
-      if (ts.isSpreadElement(arrElem)) {
-        throw new Error("Array literal in destructuring assignment must not contain spread elements.");
-      }
-    }
+    validateArrayLiteralElements(initializer.elements);
     for (let i = 0; i < pattern.elements.length; i++) {
       const elem = pattern.elements[i];
       if (!ts.isBindingElement(elem)) {
@@ -84,22 +93,8 @@ export function parseArrayDestructuring(
     }
 
     // Validate that the array literals in both branches have no holes or spread elements
-    for (const arrElem of initializer.whenTrue.elements) {
-      if (ts.isOmittedExpression(arrElem)) {
-        throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
-      }
-      if (ts.isSpreadElement(arrElem)) {
-        throw new Error("Array literal in destructuring assignment must not contain spread elements.");
-      }
-    }
-    for (const arrElem of initializer.whenFalse.elements) {
-      if (ts.isOmittedExpression(arrElem)) {
-        throw new Error("Array literal in destructuring assignment must not contain holes (e.g. [, 2]).");
-      }
-      if (ts.isSpreadElement(arrElem)) {
-        throw new Error("Array literal in destructuring assignment must not contain spread elements.");
-      }
-    }
+    validateArrayLiteralElements(initializer.whenTrue.elements);
+    validateArrayLiteralElements(initializer.whenFalse.elements);
 
     const trueExprs: Expression[] = initializer.whenTrue.elements.map(parseExpression);
     const falseExprs: Expression[] = initializer.whenFalse.elements.map(parseExpression);
@@ -274,11 +269,7 @@ export function parseObjectDestructuring(
         !!elem.initializer ||
         !!elem.dotDotDotToken
       ) {
-        throw new Error(
-          "Unsupported object destructuring pattern in variable declaration. " +
-            "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
-            "with no default values, rest elements, computed property names, or nested patterns."
-        );
+        throw new Error(UNSUPPORTED_OBJECT_DESTRUCTURING_MSG);
       }
 
       const name = (elem.name as ts.Identifier).text;
@@ -365,11 +356,7 @@ export function parseObjectDestructuring(
         !!elem.initializer ||
         !!elem.dotDotDotToken
       ) {
-        throw new Error(
-          "Unsupported object destructuring pattern in variable declaration. " +
-            "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
-            "with no default values, rest elements, computed property names, or nested patterns."
-        );
+        throw new Error(UNSUPPORTED_OBJECT_DESTRUCTURING_MSG);
       }
       const name = (elem.name as ts.Identifier).text;
       validateReservedVarName(name);
@@ -414,11 +401,7 @@ export function parseObjectDestructuring(
         !!elem.initializer ||
         !!elem.dotDotDotToken
       ) {
-        throw new Error(
-          "Unsupported object destructuring pattern in variable declaration. " +
-            "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
-            "with no default values, rest elements, computed property names, or nested patterns."
-        );
+        throw new Error(UNSUPPORTED_OBJECT_DESTRUCTURING_MSG);
       }
       const name = (elem.name as ts.Identifier).text;
       validateReservedVarName(name);
