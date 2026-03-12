@@ -15,7 +15,9 @@ import type {
   Statement,
 } from "../../src/types";
 
-function emptyContract(overrides: Partial<SkittlesContract> = {}): SkittlesContract {
+function emptyContract(
+  overrides: Partial<SkittlesContract> = {}
+): SkittlesContract {
   return {
     name: "Test",
     sourcePath: "test.ts",
@@ -79,7 +81,7 @@ describe("generateSolidity", () => {
         ],
       })
     );
-    expect(sol).toContain('uint256 public x = 0;');
+    expect(sol).toContain("uint256 public x = 0;");
     expect(sol).toContain('string public name = "Token";');
   });
 
@@ -122,7 +124,9 @@ describe("generateSolidity", () => {
         ],
       })
     );
-    expect(sol).toContain("function getHash(bytes32 data) public pure virtual returns (bytes32)");
+    expect(sol).toContain(
+      "function getHash(bytes32 data) public pure virtual returns (bytes32)"
+    );
   });
 
   it("should generate mapping with bytes32 key", () => {
@@ -162,9 +166,7 @@ describe("generateSolidity", () => {
         ],
       })
     );
-    expect(sol).toContain(
-      "mapping(address => uint256) internal balances;"
-    );
+    expect(sol).toContain("mapping(address => uint256) internal balances;");
   });
 
   it("should generate readonly array as internal with public getter", () => {
@@ -185,7 +187,9 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("address[] internal admins;");
-    expect(sol).toContain("function getAdmins() public view returns (address[] memory)");
+    expect(sol).toContain(
+      "function getAdmins() public view returns (address[] memory)"
+    );
     expect(sol).toContain("return admins;");
   });
 
@@ -316,10 +320,14 @@ describe("generateSolidity", () => {
       })
     );
     // Main function with all params
-    expect(sol).toContain("function defaultParam(uint256 x) public pure virtual returns (uint256)");
+    expect(sol).toContain(
+      "function defaultParam(uint256 x) public pure virtual returns (uint256)"
+    );
     // Overload without default params that forwards via local variable declarations
     // (widened to view since defaults may reference state/environment)
-    expect(sol).toContain("function defaultParam() public view virtual returns (uint256)");
+    expect(sol).toContain(
+      "function defaultParam() public view virtual returns (uint256)"
+    );
     expect(sol).toContain("uint256 x = 10;");
     expect(sol).toContain("return defaultParam(x);");
   });
@@ -369,13 +377,19 @@ describe("generateSolidity", () => {
       })
     );
     // Main function with all params
-    expect(sol).toContain("function mixedParams(uint256 a, uint256 b, uint256 c) public pure virtual returns (uint256)");
+    expect(sol).toContain(
+      "function mixedParams(uint256 a, uint256 b, uint256 c) public pure virtual returns (uint256)"
+    );
     // Overload with just required param + first default
-    expect(sol).toContain("function mixedParams(uint256 a, uint256 b) public view virtual returns (uint256)");
+    expect(sol).toContain(
+      "function mixedParams(uint256 a, uint256 b) public view virtual returns (uint256)"
+    );
     expect(sol).toContain("uint256 c = 10;");
     expect(sol).toContain("return mixedParams(a, b, c);");
     // Overload with just required param
-    expect(sol).toContain("function mixedParams(uint256 a) public view virtual returns (uint256)");
+    expect(sol).toContain(
+      "function mixedParams(uint256 a) public view virtual returns (uint256)"
+    );
     expect(sol).toContain("uint256 b = 5;");
   });
 
@@ -447,10 +461,14 @@ describe("generateSolidity", () => {
       })
     );
     // Main function keeps override
-    expect(sol).toContain("function overriddenFn(uint256 a, uint256 b) public pure override returns (uint256)");
+    expect(sol).toContain(
+      "function overriddenFn(uint256 a, uint256 b) public pure override returns (uint256)"
+    );
     // Overload inherits override from the original so it correctly participates
     // in inheritance when the parent also generates the shorter-arity overload.
-    expect(sol).toContain("function overriddenFn(uint256 a) public view override returns (uint256)");
+    expect(sol).toContain(
+      "function overriddenFn(uint256 a) public view override returns (uint256)"
+    );
   });
 
   it("should throw when a parameter name shadows the function name with defaults", () => {
@@ -511,10 +529,16 @@ describe("generateSolidity", () => {
       })
     );
     // Main function stays abstract (no body)
-    expect(sol).toContain("function abstractFn(uint256 x) public pure virtual returns (uint256);");
+    expect(sol).toContain(
+      "function abstractFn(uint256 x) public pure virtual returns (uint256);"
+    );
     // Overload must be concrete (has body with forwarding call), not abstract
-    expect(sol).toContain("function abstractFn() public view virtual returns (uint256)");
-    expect(sol).not.toContain("function abstractFn() public view virtual returns (uint256);");
+    expect(sol).toContain(
+      "function abstractFn() public view virtual returns (uint256)"
+    );
+    expect(sol).not.toContain(
+      "function abstractFn() public view virtual returns (uint256);"
+    );
     expect(sol).toContain("uint256 x = 10;");
     expect(sol).toContain("return abstractFn(x);");
   });
@@ -563,14 +587,20 @@ describe("generateSolidity", () => {
       })
     );
     // The sibling function value() exists
-    expect(sol).toContain("function value() public pure virtual returns (uint256)");
+    expect(sol).toContain(
+      "function value() public pure virtual returns (uint256)"
+    );
     // Main function: parameter "value" is renamed to avoid shadowing
     // the sibling function name (paramRenames mechanism)
-    expect(sol).toContain("function compute(uint256 _value) public pure virtual returns (uint256)");
+    expect(sol).toContain(
+      "function compute(uint256 _value) public pure virtual returns (uint256)"
+    );
     // Overload: the generated local variable from the omitted default
     // keeps the original name since the forwarding call uses compute(),
     // not value(), so shadowing the sibling doesn't break anything
-    expect(sol).toContain("function compute() public view virtual returns (uint256)");
+    expect(sol).toContain(
+      "function compute() public view virtual returns (uint256)"
+    );
     expect(sol).toContain("uint256 value = 10;");
     expect(sol).toContain("return compute(value);");
   });
@@ -608,10 +638,14 @@ describe("generateSolidity", () => {
       })
     );
     // Main function stays pure
-    expect(sol).toContain("function compute(uint256 x) public pure virtual returns (uint256)");
+    expect(sol).toContain(
+      "function compute(uint256 x) public pure virtual returns (uint256)"
+    );
     // Overload widens to nonpayable (no mutability keyword) because the
     // default expression is a function call whose mutability is unknown.
-    expect(sol).toContain("function compute() public virtual returns (uint256)");
+    expect(sol).toContain(
+      "function compute() public virtual returns (uint256)"
+    );
     expect(sol).not.toContain("function compute() public view virtual");
     expect(sol).not.toContain("function compute() public pure virtual");
   });
@@ -650,9 +684,13 @@ describe("generateSolidity", () => {
       })
     );
     // Main function stays pure
-    expect(sol).toContain("function compute(uint256 x) public pure virtual returns (uint256)");
+    expect(sol).toContain(
+      "function compute(uint256 x) public pure virtual returns (uint256)"
+    );
     // Overload widens to nonpayable because ++ is state-modifying
-    expect(sol).toContain("function compute() public virtual returns (uint256)");
+    expect(sol).toContain(
+      "function compute() public virtual returns (uint256)"
+    );
     expect(sol).not.toContain("function compute() public view virtual");
     expect(sol).not.toContain("function compute() public pure virtual");
   });
@@ -690,7 +728,9 @@ describe("generateSolidity", () => {
           ],
         })
       )
-    ).toThrow("Cannot use state-modifying default parameter expression on overriding");
+    ).toThrow(
+      "Cannot use state-modifying default parameter expression on overriding"
+    );
   });
 
   it("should omit super() call with no arguments in constructor", () => {
@@ -765,7 +805,9 @@ describe("generateSolidity", () => {
         },
       })
     );
-    expect(sol).toContain('constructor(uint256 initialSupply) ERC20("MyToken", "MTK") {');
+    expect(sol).toContain(
+      'constructor(uint256 initialSupply) ERC20("MyToken", "MTK") {'
+    );
     expect(sol).not.toContain("super");
     expect(sol).toContain("_mint(msg.sender, initialSupply);");
   });
@@ -877,9 +919,7 @@ describe("generateSolidity", () => {
         ],
       })
     );
-    expect(sol).toContain(
-      "function getX() public view returns (uint256) {"
-    );
+    expect(sol).toContain("function getX() public view returns (uint256) {");
     expect(sol).toContain("return x;");
   });
 
@@ -961,8 +1001,12 @@ describe("generateSolidity", () => {
       })
     );
     expect(sol).toContain("abstract contract Base {");
-    expect(sol).toContain("function getValue() public virtual returns (uint256);");
-    expect(sol).not.toContain("function getValue() public virtual returns (uint256) {");
+    expect(sol).toContain(
+      "function getValue() public virtual returns (uint256);"
+    );
+    expect(sol).not.toContain(
+      "function getValue() public virtual returns (uint256) {"
+    );
   });
 
   it("should generate a function with tuple return type", () => {
@@ -1074,7 +1118,10 @@ describe("generateSolidity", () => {
         variables: [
           {
             name: "token",
-            type: { kind: SkittlesTypeKind.ContractInterface, structName: "IToken" },
+            type: {
+              kind: SkittlesTypeKind.ContractInterface,
+              structName: "IToken",
+            },
             visibility: "private",
             immutable: false,
             constant: false,
@@ -1086,7 +1133,9 @@ describe("generateSolidity", () => {
             functions: [
               {
                 name: "balanceOf",
-                parameters: [{ name: "account", type: { kind: SkittlesTypeKind.Address } }],
+                parameters: [
+                  { name: "account", type: { kind: SkittlesTypeKind.Address } },
+                ],
                 returnType: { kind: SkittlesTypeKind.Uint256 },
                 stateMutability: "view",
               },
@@ -1164,9 +1213,15 @@ describe("generateType", () => {
 
 describe("generateExpression", () => {
   it("should generate literals", () => {
-    expect(generateExpression({ kind: "number-literal", value: "42" })).toBe("42");
-    expect(generateExpression({ kind: "string-literal", value: "hi" })).toBe('"hi"');
-    expect(generateExpression({ kind: "boolean-literal", value: true })).toBe("true");
+    expect(generateExpression({ kind: "number-literal", value: "42" })).toBe(
+      "42"
+    );
+    expect(generateExpression({ kind: "string-literal", value: "hi" })).toBe(
+      '"hi"'
+    );
+    expect(generateExpression({ kind: "boolean-literal", value: true })).toBe(
+      "true"
+    );
   });
 
   it("should escape non-printable ASCII in string literals", () => {
@@ -1259,7 +1314,9 @@ describe("generateExpression", () => {
       kind: "call",
       callee: { kind: "identifier", name: "Contract" },
       args: [{ kind: "identifier", name: "tokenAddress" }],
-      typeArgs: [{ kind: SkittlesTypeKind.ContractInterface, structName: "IToken" }],
+      typeArgs: [
+        { kind: SkittlesTypeKind.ContractInterface, structName: "IToken" },
+      ],
     };
     expect(generateExpression(expr)).toBe("IToken(tokenAddress)");
   });
@@ -1274,7 +1331,9 @@ describe("generateExpression", () => {
       },
       args: [{ kind: "identifier", name: "amount" }],
     };
-    expect(generateExpression(expr)).toBe("payable(recipient).transfer(amount)");
+    expect(generateExpression(expr)).toBe(
+      "payable(recipient).transfer(amount)"
+    );
   });
 
   it("should generate msg.sender.transfer(amount) as payable(msg.sender).transfer(amount)", () => {
@@ -1291,7 +1350,9 @@ describe("generateExpression", () => {
       },
       args: [{ kind: "identifier", name: "amount" }],
     };
-    expect(generateExpression(expr)).toBe("payable(msg.sender).transfer(amount)");
+    expect(generateExpression(expr)).toBe(
+      "payable(msg.sender).transfer(amount)"
+    );
   });
 
   it("should not wrap this.transfer in payable", () => {
@@ -1457,7 +1518,9 @@ describe("generateStatement", () => {
       ],
     };
     const result = generateStatement(stmt, "");
-    expect(result).toContain("try token.balanceOf(account) returns (uint256 balance) {");
+    expect(result).toContain(
+      "try token.balanceOf(account) returns (uint256 balance) {"
+    );
     expect(result).toContain("return balance;");
     expect(result).toContain("} catch {");
     expect(result).toContain("return 0;");
@@ -1515,7 +1578,9 @@ describe("generateStatement", () => {
       kind: "console-log",
       args: [{ kind: "number-literal", value: "42" }],
     };
-    expect(generateStatement(stmt, "        ")).toBe("        console.log(42);");
+    expect(generateStatement(stmt, "        ")).toBe(
+      "        console.log(42);"
+    );
   });
 });
 
@@ -1544,7 +1609,10 @@ describe("resolveShadowedLocals", () => {
       expect(resolved[0].name).toBe("_result");
     }
     expect(resolved[1].kind).toBe("return");
-    if (resolved[1].kind === "return" && resolved[1].value?.kind === "identifier") {
+    if (
+      resolved[1].kind === "return" &&
+      resolved[1].value?.kind === "identifier"
+    ) {
       expect(resolved[1].value.name).toBe("_result");
     }
   });
@@ -1644,10 +1712,16 @@ describe("resolveShadowedLocals", () => {
       if (forStmt.initializer?.kind === "variable-declaration") {
         expect(forStmt.initializer.name).toBe("_index");
       }
-      if (forStmt.condition?.kind === "binary" && forStmt.condition.left.kind === "identifier") {
+      if (
+        forStmt.condition?.kind === "binary" &&
+        forStmt.condition.left.kind === "identifier"
+      ) {
         expect(forStmt.condition.left.name).toBe("_index");
       }
-      if (forStmt.incrementor?.kind === "unary" && forStmt.incrementor.operand.kind === "identifier") {
+      if (
+        forStmt.incrementor?.kind === "unary" &&
+        forStmt.incrementor.operand.kind === "identifier"
+      ) {
         expect(forStmt.incrementor.operand.name).toBe("_index");
       }
     }
@@ -1787,7 +1861,10 @@ describe("resolveShadowedLocals", () => {
     if (resolved[0].kind === "variable-declaration") {
       expect(resolved[0].name).toBe("__result"); // skipped _result (param), went to __result
     }
-    if (resolved[1].kind === "return" && resolved[1].value?.kind === "identifier") {
+    if (
+      resolved[1].kind === "return" &&
+      resolved[1].value?.kind === "identifier"
+    ) {
       expect(resolved[1].value.name).toBe("__result");
     }
   });
@@ -1873,7 +1950,10 @@ describe("resolveShadowedLocals", () => {
     const resolved = resolveShadowedLocals(body, stateVars);
 
     // The first "count" reference (before the block) should NOT be renamed
-    if (resolved[0].kind === "expression" && resolved[0].expression.kind === "identifier") {
+    if (
+      resolved[0].kind === "expression" &&
+      resolved[0].expression.kind === "identifier"
+    ) {
       expect(resolved[0].expression.name).toBe("count");
     }
 
@@ -1883,13 +1963,19 @@ describe("resolveShadowedLocals", () => {
       if (ifStmt.thenBody[0].kind === "variable-declaration") {
         expect(ifStmt.thenBody[0].name).toBe("_count");
       }
-      if (ifStmt.thenBody[1].kind === "expression" && ifStmt.thenBody[1].expression.kind === "identifier") {
+      if (
+        ifStmt.thenBody[1].kind === "expression" &&
+        ifStmt.thenBody[1].expression.kind === "identifier"
+      ) {
         expect(ifStmt.thenBody[1].expression.name).toBe("_count");
       }
     }
 
     // The last "count" reference (after the block) should NOT be renamed
-    if (resolved[2].kind === "expression" && resolved[2].expression.kind === "identifier") {
+    if (
+      resolved[2].kind === "expression" &&
+      resolved[2].expression.kind === "identifier"
+    ) {
       expect(resolved[2].expression.name).toBe("count");
     }
   });

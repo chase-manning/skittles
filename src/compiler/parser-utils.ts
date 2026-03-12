@@ -12,15 +12,21 @@ import { ctx } from "./parser-context.ts";
 
 export function getSourceLine(node: ts.Node): number | undefined {
   if (!ctx.currentSourceFile) return undefined;
-  return ctx.currentSourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1; // 1-based
+  return (
+    ctx.currentSourceFile.getLineAndCharacterOfPosition(node.getStart()).line +
+    1
+  ); // 1-based
 }
 
-export function setupStringTracking(parameters: SkittlesParameter[], varTypes: Map<string, SkittlesType>) {
+export function setupStringTracking(
+  parameters: SkittlesParameter[],
+  varTypes: Map<string, SkittlesType>
+) {
   ctx.currentVarTypes = varTypes;
   ctx.currentStringNames = new Set();
   ctx.currentParamTypes = new Map();
   for (const param of parameters) {
-    if (param.type.kind === (SkittlesTypeKind.String)) {
+    if (param.type.kind === SkittlesTypeKind.String) {
       ctx.currentStringNames.add(param.name);
     }
     ctx.currentParamTypes.set(param.name, param.type);
@@ -33,7 +39,8 @@ export function isStringExpr(expr: Expression): boolean {
     if (ADDRESS_LITERAL_RE.test(expr.value)) return false;
     return true;
   }
-  if (expr.kind === "identifier" && ctx.currentStringNames.has(expr.name)) return true;
+  if (expr.kind === "identifier" && ctx.currentStringNames.has(expr.name))
+    return true;
   if (
     expr.kind === "property-access" &&
     expr.object.kind === "identifier" &&
@@ -42,7 +49,7 @@ export function isStringExpr(expr: Expression): boolean {
     // For this.<prop>, always use the original state-var type map so that
     // local/param shadowing doesn't affect state-variable type resolution.
     const type = ctx.stateVarTypes.get(expr.property);
-    return type?.kind === (SkittlesTypeKind.String);
+    return type?.kind === SkittlesTypeKind.String;
   }
   if (
     expr.kind === "call" &&
@@ -64,12 +71,20 @@ export function isStringExpr(expr: Expression): boolean {
 }
 
 export const STRING_RETURNING_HELPERS = new Set([
-  "_charAt", "_substring", "_toLowerCase", "_toUpperCase", "_trim",
-  "_replace", "_replaceAll",
+  "_charAt",
+  "_substring",
+  "_toLowerCase",
+  "_toUpperCase",
+  "_trim",
+  "_replace",
+  "_replaceAll",
 ]);
 
 // Internal helper to build a bytes(expr).length <op> 0 comparison
-export function makeStringLengthComparison(inner: Expression, operator: string): Expression {
+export function makeStringLengthComparison(
+  inner: Expression,
+  operator: string
+): Expression {
   return {
     kind: "binary",
     operator,
@@ -89,7 +104,10 @@ export function makeStringLengthComparison(inner: Expression, operator: string):
 export function wrapStringTruthiness(expr: Expression): Expression {
   // Recursively rewrite logical AND / OR so that any string operands
   // used in a boolean context are converted to length checks.
-  if (expr.kind === "binary" && (expr.operator === "&&" || expr.operator === "||")) {
+  if (
+    expr.kind === "binary" &&
+    (expr.operator === "&&" || expr.operator === "||")
+  ) {
     return {
       ...expr,
       left: wrapStringTruthiness(expr.left),
@@ -138,7 +156,10 @@ export function wrapStringTruthiness(expr: Expression): Expression {
   return expr;
 }
 
-export const STRING_METHODS: Record<string, { helper: string; minArgs: number; maxArgs: number }> = {
+export const STRING_METHODS: Record<
+  string,
+  { helper: string; minArgs: number; maxArgs: number }
+> = {
   charAt: { helper: "_charAt", minArgs: 0, maxArgs: 1 },
   substring: { helper: "_substring", minArgs: 1, maxArgs: 2 },
   toLowerCase: { helper: "_toLowerCase", minArgs: 0, maxArgs: 0 },
@@ -152,12 +173,30 @@ export const STRING_METHODS: Record<string, { helper: string; minArgs: number; m
 };
 
 export const KNOWN_ARRAY_METHODS = new Set([
-  "includes", "indexOf", "lastIndexOf", "at",
-  "slice", "concat", "filter", "map", "forEach", "some", "every",
-  "find", "findIndex", "reduce", "remove", "reverse", "splice", "sort",
+  "includes",
+  "indexOf",
+  "lastIndexOf",
+  "at",
+  "slice",
+  "concat",
+  "filter",
+  "map",
+  "forEach",
+  "some",
+  "every",
+  "find",
+  "findIndex",
+  "reduce",
+  "remove",
+  "reverse",
+  "splice",
+  "sort",
 ]);
 
-export function describeExpectedArgs(method: string, argCount?: number): string {
+export function describeExpectedArgs(
+  method: string,
+  argCount?: number
+): string {
   const allArgs: Record<string, string[]> = {
     charAt: ["index"],
     substring: ["start", "end"],
@@ -177,7 +216,9 @@ export function describeExpectedArgs(method: string, argCount?: number): string 
 
 export function validateReservedName(kind: string, name: string): void {
   if (name.startsWith("__sk_")) {
-    throw new Error(`${kind} '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`);
+    throw new Error(
+      `${kind} '${name}' uses the reserved prefix '__sk_'. Names starting with '__sk_' are reserved for compiler-generated identifiers.`
+    );
   }
 }
 
@@ -185,7 +226,9 @@ export function validateReservedVarName(name: string): void {
   validateReservedName("Variable name", name);
 }
 
-export function findEnclosingClass(node: ts.Node): ts.ClassDeclaration | undefined {
+export function findEnclosingClass(
+  node: ts.Node
+): ts.ClassDeclaration | undefined {
   let current: ts.Node | undefined = node.parent;
   while (current) {
     if (ts.isClassDeclaration(current)) return current;
@@ -212,50 +255,121 @@ export function findMethodReturnType(
 }
 
 // IR construction helpers for generated array method code
-export function mkId(name: string): Expression { return { kind: "identifier", name }; }
-export function mkNum(value: string): Expression { return { kind: "number-literal", value }; }
-export function mkProp(obj: Expression, prop: string): Expression { return { kind: "property-access", object: obj, property: prop }; }
-export function mkElem(obj: Expression, index: Expression): Expression { return { kind: "element-access", object: obj, index }; }
-export function mkBin(left: Expression, op: string, right: Expression): Expression { return { kind: "binary", operator: op, left, right }; }
-export function mkAssign(target: Expression, value: Expression): Expression { return { kind: "assignment", operator: "=", target, value }; }
-export function mkIncr(name: string): Expression { return { kind: "unary", operator: "++", operand: mkId(name), prefix: false }; }
-export function mkDecr(name: string): Expression { return { kind: "unary", operator: "--", operand: mkId(name), prefix: false }; }
-export function mkVarDecl(name: string, type: SkittlesType | undefined, init?: Expression): Statement {
+export function mkId(name: string): Expression {
+  return { kind: "identifier", name };
+}
+export function mkNum(value: string): Expression {
+  return { kind: "number-literal", value };
+}
+export function mkProp(obj: Expression, prop: string): Expression {
+  return { kind: "property-access", object: obj, property: prop };
+}
+export function mkElem(obj: Expression, index: Expression): Expression {
+  return { kind: "element-access", object: obj, index };
+}
+export function mkBin(
+  left: Expression,
+  op: string,
+  right: Expression
+): Expression {
+  return { kind: "binary", operator: op, left, right };
+}
+export function mkAssign(target: Expression, value: Expression): Expression {
+  return { kind: "assignment", operator: "=", target, value };
+}
+export function mkIncr(name: string): Expression {
+  return { kind: "unary", operator: "++", operand: mkId(name), prefix: false };
+}
+export function mkDecr(name: string): Expression {
+  return { kind: "unary", operator: "--", operand: mkId(name), prefix: false };
+}
+export function mkVarDecl(
+  name: string,
+  type: SkittlesType | undefined,
+  init?: Expression
+): Statement {
   return { kind: "variable-declaration", name, type: type, initializer: init };
 }
-export function mkExprStmt(expr: Expression): Statement { return { kind: "expression", expression: expr }; }
-export function mkReturn(value?: Expression): Statement { return { kind: "return", value }; }
-export function mkIf(cond: Expression, thenBody: Statement[], elseBody?: Statement[]): Statement {
+export function mkExprStmt(expr: Expression): Statement {
+  return { kind: "expression", expression: expr };
+}
+export function mkReturn(value?: Expression): Statement {
+  return { kind: "return", value };
+}
+export function mkIf(
+  cond: Expression,
+  thenBody: Statement[],
+  elseBody?: Statement[]
+): Statement {
   return { kind: "if", condition: cond, thenBody, elseBody };
 }
 export const UINT256_TYPE: SkittlesType = { kind: SkittlesTypeKind.Uint256 };
 export const INT256_TYPE: SkittlesType = { kind: SkittlesTypeKind.Int256 };
 export const BOOL_TYPE: SkittlesType = { kind: SkittlesTypeKind.Bool };
 
-export const BUILTIN_IDENTIFIERS = new Set(["msg", "block", "tx", "self", "type", "abi", "this", "super"]);
+export const BUILTIN_IDENTIFIERS = new Set([
+  "msg",
+  "block",
+  "tx",
+  "self",
+  "type",
+  "abi",
+  "this",
+  "super",
+]);
 
 export function collectBareIdentifiers(expr: Expression): Set<string> {
   const ids = new Set<string>();
   function walkExpr(e: Expression) {
     switch (e.kind) {
-      case "identifier": ids.add(e.name); break;
-      case "binary": walkExpr(e.left); walkExpr(e.right); break;
-      case "unary": walkExpr(e.operand); break;
-      case "call": walkExpr(e.callee); e.args.forEach(walkExpr); break;
-      case "property-access": walkExpr(e.object); break;
-      case "element-access": walkExpr(e.object); walkExpr(e.index); break;
-      case "assignment": walkExpr(e.target); walkExpr(e.value); break;
-      case "conditional": walkExpr(e.condition); walkExpr(e.whenTrue); walkExpr(e.whenFalse); break;
-      case "new": e.args.forEach(walkExpr); break;
-      case "object-literal": e.properties.forEach(p => walkExpr(p.value)); break;
-      case "tuple-literal": e.elements.forEach(walkExpr); break;
+      case "identifier":
+        ids.add(e.name);
+        break;
+      case "binary":
+        walkExpr(e.left);
+        walkExpr(e.right);
+        break;
+      case "unary":
+        walkExpr(e.operand);
+        break;
+      case "call":
+        walkExpr(e.callee);
+        e.args.forEach(walkExpr);
+        break;
+      case "property-access":
+        walkExpr(e.object);
+        break;
+      case "element-access":
+        walkExpr(e.object);
+        walkExpr(e.index);
+        break;
+      case "assignment":
+        walkExpr(e.target);
+        walkExpr(e.value);
+        break;
+      case "conditional":
+        walkExpr(e.condition);
+        walkExpr(e.whenTrue);
+        walkExpr(e.whenFalse);
+        break;
+      case "new":
+        e.args.forEach(walkExpr);
+        break;
+      case "object-literal":
+        e.properties.forEach((p) => walkExpr(p.value));
+        break;
+      case "tuple-literal":
+        e.elements.forEach(walkExpr);
+        break;
     }
   }
   walkExpr(expr);
   return ids;
 }
 
-export function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string> {
+export function collectBareIdentifiersFromStmts(
+  stmts: Statement[]
+): Set<string> {
   const ids = new Set<string>();
   function walkExpr(e: Expression) {
     for (const id of collectBareIdentifiers(e)) ids.add(id);
@@ -265,11 +379,23 @@ export function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string>
   }
   function walkStmt(s: Statement) {
     switch (s.kind) {
-      case "expression": walkExpr(s.expression); break;
-      case "return": if (s.value) walkExpr(s.value); break;
-      case "variable-declaration": if (s.initializer) walkExpr(s.initializer); break;
-      case "tuple-destructuring": walkExpr(s.initializer); break;
-      case "if": walkExpr(s.condition); walkStmts(s.thenBody); if (s.elseBody) walkStmts(s.elseBody); break;
+      case "expression":
+        walkExpr(s.expression);
+        break;
+      case "return":
+        if (s.value) walkExpr(s.value);
+        break;
+      case "variable-declaration":
+        if (s.initializer) walkExpr(s.initializer);
+        break;
+      case "tuple-destructuring":
+        walkExpr(s.initializer);
+        break;
+      case "if":
+        walkExpr(s.condition);
+        walkStmts(s.thenBody);
+        if (s.elseBody) walkStmts(s.elseBody);
+        break;
       case "for": {
         if (s.initializer) walkStmt(s.initializer);
         if (s.condition) walkExpr(s.condition);
@@ -278,27 +404,58 @@ export function collectBareIdentifiersFromStmts(stmts: Statement[]): Set<string>
         break;
       }
       case "while":
-      case "do-while": walkExpr(s.condition); walkStmts(s.body); break;
-      case "emit": s.args.forEach(walkExpr); break;
-      case "revert": if (s.message) walkExpr(s.message); if (s.customErrorArgs) s.customErrorArgs.forEach(walkExpr); break;
-      case "delete": walkExpr(s.target); break;
-      case "switch": walkExpr(s.discriminant); s.cases.forEach(c => { if (c.value) walkExpr(c.value); walkStmts(c.body); }); break;
-      case "try-catch": walkExpr(s.call); walkStmts(s.successBody); walkStmts(s.catchBody); break;
-      case "console-log": s.args.forEach(walkExpr); break;
+      case "do-while":
+        walkExpr(s.condition);
+        walkStmts(s.body);
+        break;
+      case "emit":
+        s.args.forEach(walkExpr);
+        break;
+      case "revert":
+        if (s.message) walkExpr(s.message);
+        if (s.customErrorArgs) s.customErrorArgs.forEach(walkExpr);
+        break;
+      case "delete":
+        walkExpr(s.target);
+        break;
+      case "switch":
+        walkExpr(s.discriminant);
+        s.cases.forEach((c) => {
+          if (c.value) walkExpr(c.value);
+          walkStmts(c.body);
+        });
+        break;
+      case "try-catch":
+        walkExpr(s.call);
+        walkStmts(s.successBody);
+        walkStmts(s.catchBody);
+        break;
+      case "console-log":
+        s.args.forEach(walkExpr);
+        break;
     }
   }
   walkStmts(stmts);
   return ids;
 }
 
-export function validateCallbackScope(expr: Expression | null, stmts: Statement[] | undefined, allowedNames: Set<string>, methodName: string): void {
-  const ids = expr ? collectBareIdentifiers(expr) : stmts ? collectBareIdentifiersFromStmts(stmts) : new Set<string>();
+export function validateCallbackScope(
+  expr: Expression | null,
+  stmts: Statement[] | undefined,
+  allowedNames: Set<string>,
+  methodName: string
+): void {
+  const ids = expr
+    ? collectBareIdentifiers(expr)
+    : stmts
+      ? collectBareIdentifiersFromStmts(stmts)
+      : new Set<string>();
   for (const id of ids) {
     if (BUILTIN_IDENTIFIERS.has(id)) continue;
     if (allowedNames.has(id)) continue;
     throw new Error(
       `Array .${methodName}() callback references '${id}', which is not accessible in the generated helper. ` +
-      `Callbacks can only reference their parameters, literals, and state variables (this.*).`
+        `Callbacks can only reference their parameters, literals, and state variables (this.*).`
     );
   }
 }
@@ -310,7 +467,12 @@ export function mkForLoop(
 ): Statement {
   return {
     kind: "for",
-    initializer: { kind: "variable-declaration", name: indexName, type: UINT256_TYPE, initializer: mkNum("0") },
+    initializer: {
+      kind: "variable-declaration",
+      name: indexName,
+      type: UINT256_TYPE,
+      initializer: mkNum("0"),
+    },
     condition: mkBin(mkId(indexName), "<", mkProp(arrayExpr, "length")),
     incrementor: mkIncr(indexName),
     body,
@@ -319,44 +481,72 @@ export function mkForLoop(
 
 export function typeToSolidityName(type: SkittlesType): string {
   switch (type.kind) {
-    case SkittlesTypeKind.Uint256: return "uint256";
-    case SkittlesTypeKind.Int256: return "int256";
-    case SkittlesTypeKind.Address: return "address";
-    case SkittlesTypeKind.Bool: return "bool";
-    case SkittlesTypeKind.String: return "string";
-    case SkittlesTypeKind.Bytes32: return "bytes32";
-    case SkittlesTypeKind.Bytes: return "bytes";
-    case SkittlesTypeKind.Struct: return type.structName ?? "UnknownStruct";
-    case SkittlesTypeKind.Enum: return type.structName ?? "UnknownEnum";
-    case SkittlesTypeKind.ContractInterface: return type.structName ?? "UnknownInterface";
-    case SkittlesTypeKind.Array: return `${typeToSolidityName(type.valueType!)}[]`;
-    default: return "uint256";
+    case SkittlesTypeKind.Uint256:
+      return "uint256";
+    case SkittlesTypeKind.Int256:
+      return "int256";
+    case SkittlesTypeKind.Address:
+      return "address";
+    case SkittlesTypeKind.Bool:
+      return "bool";
+    case SkittlesTypeKind.String:
+      return "string";
+    case SkittlesTypeKind.Bytes32:
+      return "bytes32";
+    case SkittlesTypeKind.Bytes:
+      return "bytes";
+    case SkittlesTypeKind.Struct:
+      return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.Enum:
+      return type.structName ?? "UnknownEnum";
+    case SkittlesTypeKind.ContractInterface:
+      return type.structName ?? "UnknownInterface";
+    case SkittlesTypeKind.Array:
+      return `${typeToSolidityName(type.valueType!)}[]`;
+    default:
+      return "uint256";
   }
 }
 
-export function getArrayHelperSuffix(elementType: SkittlesType | undefined): string {
+export function getArrayHelperSuffix(
+  elementType: SkittlesType | undefined
+): string {
   if (!elementType) return "uint256";
   return identifierSafeType(elementType);
 }
 
 export function identifierSafeType(type: SkittlesType): string {
   switch (type.kind) {
-    case SkittlesTypeKind.Uint256: return "uint256";
-    case SkittlesTypeKind.Int256: return "int256";
-    case SkittlesTypeKind.Address: return "address";
-    case SkittlesTypeKind.Bool: return "bool";
-    case SkittlesTypeKind.String: return "string";
-    case SkittlesTypeKind.Bytes32: return "bytes32";
-    case SkittlesTypeKind.Bytes: return "bytes";
-    case SkittlesTypeKind.Struct: return type.structName ?? "UnknownStruct";
-    case SkittlesTypeKind.Enum: return type.structName ?? "UnknownEnum";
-    case SkittlesTypeKind.ContractInterface: return type.structName ?? "UnknownInterface";
-    case SkittlesTypeKind.Array: return `arr_${identifierSafeType(type.valueType!)}`;
-    default: return "uint256";
+    case SkittlesTypeKind.Uint256:
+      return "uint256";
+    case SkittlesTypeKind.Int256:
+      return "int256";
+    case SkittlesTypeKind.Address:
+      return "address";
+    case SkittlesTypeKind.Bool:
+      return "bool";
+    case SkittlesTypeKind.String:
+      return "string";
+    case SkittlesTypeKind.Bytes32:
+      return "bytes32";
+    case SkittlesTypeKind.Bytes:
+      return "bytes";
+    case SkittlesTypeKind.Struct:
+      return type.structName ?? "UnknownStruct";
+    case SkittlesTypeKind.Enum:
+      return type.structName ?? "UnknownEnum";
+    case SkittlesTypeKind.ContractInterface:
+      return type.structName ?? "UnknownInterface";
+    case SkittlesTypeKind.Array:
+      return `arr_${identifierSafeType(type.valueType!)}`;
+    default:
+      return "uint256";
   }
 }
 
-export function defaultValueForType(type: SkittlesType | undefined): Expression | null {
+export function defaultValueForType(
+  type: SkittlesType | undefined
+): Expression | null {
   if (!type) return null;
   switch (type.kind) {
     case SkittlesTypeKind.Uint256:

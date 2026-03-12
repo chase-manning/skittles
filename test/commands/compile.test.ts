@@ -39,7 +39,9 @@ describe("compileCommand", () => {
     fs.writeFileSync(path.join(contractsDir, "Counter.ts"), SIMPLE_CONTRACT);
 
     // Mock process.exit to prevent test from exiting
-    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(() => undefined as never);
 
     await compileCommand(TEST_DIR);
 
@@ -64,15 +66,24 @@ describe("watchCompile", () => {
       const solDir = path.join(TEST_DIR, "artifacts", "solidity");
       expect(fs.existsSync(path.join(solDir, "Counter.sol"))).toBe(true);
 
-      const initialSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      const initialSol = fs.readFileSync(
+        path.join(solDir, "Counter.sol"),
+        "utf-8"
+      );
 
       // Modify the contract file to trigger recompilation
-      fs.writeFileSync(path.join(contractsDir, "Counter.ts"), MODIFIED_CONTRACT);
+      fs.writeFileSync(
+        path.join(contractsDir, "Counter.ts"),
+        MODIFIED_CONTRACT
+      );
 
       // Wait for debounce (200ms) + compilation time
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const updatedSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      const updatedSol = fs.readFileSync(
+        path.join(solDir, "Counter.sol"),
+        "utf-8"
+      );
       expect(updatedSol).not.toBe(initialSol);
       expect(updatedSol).toContain("count += 2");
     } finally {
@@ -89,7 +100,10 @@ describe("watchCompile", () => {
 
     try {
       const solDir = path.join(TEST_DIR, "artifacts", "solidity");
-      const initialSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      const initialSol = fs.readFileSync(
+        path.join(solDir, "Counter.sol"),
+        "utf-8"
+      );
 
       // Write a non-ts file
       fs.writeFileSync(path.join(contractsDir, "notes.txt"), "some notes");
@@ -98,7 +112,10 @@ describe("watchCompile", () => {
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Solidity output should remain unchanged
-      const afterSol = fs.readFileSync(path.join(solDir, "Counter.sol"), "utf-8");
+      const afterSol = fs.readFileSync(
+        path.join(solDir, "Counter.sol"),
+        "utf-8"
+      );
       expect(afterSol).toBe(initialSol);
     } finally {
       cleanup();

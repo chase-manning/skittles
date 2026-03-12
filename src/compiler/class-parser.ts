@@ -24,7 +24,11 @@ import {
 } from "./parser-utils.ts";
 import { parseType, inferType, parseTypeLiteralFields } from "./type-parser.ts";
 import { parseExpression } from "./expression-parser.ts";
-import { parseStatement, parseBlock, parseStatements } from "./statement-parser.ts";
+import {
+  parseStatement,
+  parseBlock,
+  parseStatements,
+} from "./statement-parser.ts";
 import {
   propagateStateMutability,
   walkStatements,
@@ -49,8 +53,12 @@ export function parseStandaloneFunction(
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
   const localVarTypes = new Map(varTypes);
   setupStringTracking(parameters, localVarTypes);
-  const returnType: SkittlesType | null = node.type ? parseType(node.type) : null;
-  const body = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
+  const returnType: SkittlesType | null = node.type
+    ? parseType(node.type)
+    : null;
+  const body = node.body
+    ? parseBlock(node.body, localVarTypes, eventNames)
+    : [];
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   return {
@@ -80,7 +88,9 @@ export function parseStandaloneArrowFunction(
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
   const localVarTypes = new Map(varTypes);
   setupStringTracking(parameters, localVarTypes);
-  const returnType: SkittlesType | null = arrow.type ? parseType(arrow.type) : null;
+  const returnType: SkittlesType | null = arrow.type
+    ? parseType(arrow.type)
+    : null;
 
   let body: Statement[] = [];
   if (arrow.body) {
@@ -117,7 +127,9 @@ export function extendsError(node: ts.ClassDeclaration): boolean {
   );
 }
 
-export function parseErrorClass(node: ts.ClassDeclaration): SkittlesParameter[] {
+export function parseErrorClass(
+  node: ts.ClassDeclaration
+): SkittlesParameter[] {
   for (const member of node.members) {
     if (ts.isConstructorDeclaration(member)) {
       return member.parameters.map(parseParameter);
@@ -133,18 +145,33 @@ export function parseInterfaceAsContractInterface(
   const functions: SkittlesInterfaceFunction[] = [];
 
   for (const member of node.members) {
-    if (ts.isPropertySignature(member) && member.name && ts.isIdentifier(member.name)) {
+    if (
+      ts.isPropertySignature(member) &&
+      member.name &&
+      ts.isIdentifier(member.name)
+    ) {
       const propName = member.name.text;
       const returnType: SkittlesType = member.type
         ? parseType(member.type)
         : { kind: SkittlesTypeKind.Uint256 };
-      functions.push({ name: propName, parameters: [], returnType, stateMutability: "view" });
+      functions.push({
+        name: propName,
+        parameters: [],
+        returnType,
+        stateMutability: "view",
+      });
     }
 
-    if (ts.isMethodSignature(member) && member.name && ts.isIdentifier(member.name)) {
+    if (
+      ts.isMethodSignature(member) &&
+      member.name &&
+      ts.isIdentifier(member.name)
+    ) {
       const methodName = member.name.text;
       const parameters = member.parameters.map(parseParameter);
-      const returnType: SkittlesType | null = member.type ? parseType(member.type) : null;
+      const returnType: SkittlesType | null = member.type
+        ? parseType(member.type)
+        : null;
       functions.push({ name: methodName, parameters, returnType });
     }
   }
@@ -235,7 +262,9 @@ export function parseClass(
   const varTypes = new Map<string, SkittlesType>();
   for (const member of propertyMembers) {
     const name =
-      member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
+      member.name && ts.isIdentifier(member.name)
+        ? member.name.text
+        : "unknown";
     const type: SkittlesType = member.type
       ? parseType(member.type)
       : { kind: SkittlesTypeKind.Uint256 };
@@ -264,8 +293,14 @@ export function parseClass(
 
   for (const member of node.members) {
     if (ts.isMethodDeclaration(member)) {
-      const name = member.name && ts.isIdentifier(member.name) ? member.name.text : "unknown";
-      const isStatic = hasModifier(member.modifiers, ts.SyntaxKind.StaticKeyword);
+      const name =
+        member.name && ts.isIdentifier(member.name)
+          ? member.name.text
+          : "unknown";
+      const isStatic = hasModifier(
+        member.modifiers,
+        ts.SyntaxKind.StaticKeyword
+      );
       const key = `${isStatic ? "static" : "instance"}:${name}`;
       if (!methodGroups.has(key)) {
         methodGroups.set(key, []);
@@ -280,8 +315,10 @@ export function parseClass(
   for (const key of methodOrder) {
     const decls = methodGroups.get(key)!;
     const name = key.split(":").slice(1).join(":");
-    const overloadSigs = decls.filter(d => !d.body && !hasModifier(d.modifiers, ts.SyntaxKind.AbstractKeyword));
-    const impls = decls.filter(d => !!d.body);
+    const overloadSigs = decls.filter(
+      (d) => !d.body && !hasModifier(d.modifiers, ts.SyntaxKind.AbstractKeyword)
+    );
+    const impls = decls.filter((d) => !!d.body);
 
     if (overloadSigs.length > 0) {
       if (impls.length !== 1) {
@@ -291,11 +328,20 @@ export function parseClass(
         );
       }
       // Overloaded method: resolve signatures with the single implementation body
-      resolveOverloadedMethods(overloadSigs, impls[0], varTypes, eventNames, functions);
+      resolveOverloadedMethods(
+        overloadSigs,
+        impls[0],
+        varTypes,
+        eventNames,
+        functions
+      );
     } else {
       // Normal methods (no overloading)
       for (const decl of decls) {
-        const isStatic = hasModifier(decl.modifiers, ts.SyntaxKind.StaticKeyword);
+        const isStatic = hasModifier(
+          decl.modifiers,
+          ts.SyntaxKind.StaticKeyword
+        );
         const fn = parseMethod(decl, varTypes, eventNames);
         // Static methods are internal pure/view helpers
         if (isStatic) {
@@ -333,7 +379,11 @@ export function parseClass(
   const usedFileFnNames = new Set<string>();
   const collectFnCalls = (stmts: Statement[]) => {
     walkStatements(stmts, (expr) => {
-      if (expr.kind === "call" && expr.callee.kind === "identifier" && fileFnNames.has(expr.callee.name)) {
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "identifier" &&
+        fileFnNames.has(expr.callee.name)
+      ) {
         usedFileFnNames.add(expr.callee.name);
       }
     });
@@ -342,11 +392,18 @@ export function parseClass(
   if (ctor) collectFnCalls(ctor.body);
   for (const v of variables) {
     if (v.initialValue) {
-      walkStatements([{ kind: "expression", expression: v.initialValue }], (expr) => {
-        if (expr.kind === "call" && expr.callee.kind === "identifier" && fileFnNames.has(expr.callee.name)) {
-          usedFileFnNames.add(expr.callee.name);
+      walkStatements(
+        [{ kind: "expression", expression: v.initialValue }],
+        (expr) => {
+          if (
+            expr.kind === "call" &&
+            expr.callee.kind === "identifier" &&
+            fileFnNames.has(expr.callee.name)
+          ) {
+            usedFileFnNames.add(expr.callee.name);
+          }
         }
-      });
+      );
     }
   }
   // Transitively include file functions called by other used file functions
@@ -356,7 +413,12 @@ export function parseClass(
     for (const fn of fileFunctions) {
       if (!usedFileFnNames.has(fn.name)) continue;
       walkStatements(fn.body, (expr) => {
-        if (expr.kind === "call" && expr.callee.kind === "identifier" && fileFnNames.has(expr.callee.name) && !usedFileFnNames.has(expr.callee.name)) {
+        if (
+          expr.kind === "call" &&
+          expr.callee.kind === "identifier" &&
+          fileFnNames.has(expr.callee.name) &&
+          !usedFileFnNames.has(expr.callee.name)
+        ) {
           usedFileFnNames.add(expr.callee.name);
           fnChanged = true;
         }
@@ -380,7 +442,10 @@ export function parseClass(
     for (const clause of node.heritageClauses) {
       if (clause.token === ts.SyntaxKind.ImplementsKeyword) {
         for (const type of clause.types) {
-          if (ts.isIdentifier(type.expression) && knownContractInterfaces.has(type.expression.text)) {
+          if (
+            ts.isIdentifier(type.expression) &&
+            knownContractInterfaces.has(type.expression.text)
+          ) {
             implementedInterfaceNames.add(type.expression.text);
           }
         }
@@ -393,32 +458,46 @@ export function parseClass(
   const usedEnumNames = new Set<string>();
   const collectTypeRef = (type: SkittlesType | null | undefined) => {
     if (!type) return;
-    if (type.kind === (SkittlesTypeKind.Struct) && type.structName) usedStructNames.add(type.structName);
-    if (type.kind === (SkittlesTypeKind.Enum) && type.structName) usedEnumNames.add(type.structName);
+    if (type.kind === SkittlesTypeKind.Struct && type.structName)
+      usedStructNames.add(type.structName);
+    if (type.kind === SkittlesTypeKind.Enum && type.structName)
+      usedEnumNames.add(type.structName);
     if (type.keyType) collectTypeRef(type.keyType);
     if (type.valueType) collectTypeRef(type.valueType);
     if (type.tupleTypes) for (const t of type.tupleTypes) collectTypeRef(t);
     // Include struct field types transitively
-    if (type.structFields) for (const f of type.structFields) collectTypeRef(f.type);
+    if (type.structFields)
+      for (const f of type.structFields) collectTypeRef(f.type);
   };
   const collectBodyTypeRefs = (stmts: Statement[]) => {
-    walkStatements(stmts, (expr) => {
-      // Enum member access: Color.Red
-      if (expr.kind === "property-access" && expr.object.kind === "identifier" && knownEnums.has(expr.object.name)) {
-        usedEnumNames.add(expr.object.name);
+    walkStatements(
+      stmts,
+      (expr) => {
+        // Enum member access: Color.Red
+        if (
+          expr.kind === "property-access" &&
+          expr.object.kind === "identifier" &&
+          knownEnums.has(expr.object.name)
+        ) {
+          usedEnumNames.add(expr.object.name);
+        }
+        // Type arguments on call expressions (e.g. contract interface casts)
+        if (expr.kind === "call" && expr.typeArgs) {
+          for (const t of expr.typeArgs) collectTypeRef(t);
+        }
+      },
+      (stmt) => {
+        if (stmt.kind === "variable-declaration" && stmt.type)
+          collectTypeRef(stmt.type);
+        if (stmt.kind === "try-catch" && stmt.returnType)
+          collectTypeRef(stmt.returnType);
       }
-      // Type arguments on call expressions (e.g. contract interface casts)
-      if (expr.kind === "call" && expr.typeArgs) {
-        for (const t of expr.typeArgs) collectTypeRef(t);
-      }
-    }, (stmt) => {
-      if (stmt.kind === "variable-declaration" && stmt.type) collectTypeRef(stmt.type);
-      if (stmt.kind === "try-catch" && stmt.returnType) collectTypeRef(stmt.returnType);
-    });
+    );
   };
   for (const v of variables) {
     collectTypeRef(v.type);
-    if (v.initialValue) collectBodyTypeRefs([{ kind: "expression", expression: v.initialValue }]);
+    if (v.initialValue)
+      collectBodyTypeRefs([{ kind: "expression", expression: v.initialValue }]);
   }
   for (const f of functions) {
     for (const p of f.parameters) collectTypeRef(p.type);
@@ -443,14 +522,16 @@ export function parseClass(
       for (const field of fields) {
         const sizeBefore = usedStructNames.size + usedEnumNames.size;
         collectTypeRef(field.type);
-        if (usedStructNames.size + usedEnumNames.size > sizeBefore) typeChanged = true;
+        if (usedStructNames.size + usedEnumNames.size > sizeBefore)
+          typeChanged = true;
       }
     }
   }
 
   const contractStructs: { name: string; fields: SkittlesParameter[] }[] = [];
   for (const [sName, fields] of knownStructs) {
-    if (usedStructNames.has(sName)) contractStructs.push({ name: sName, fields });
+    if (usedStructNames.has(sName))
+      contractStructs.push({ name: sName, fields });
   }
 
   const contractEnums: { name: string; members: string[] }[] = [];
@@ -467,12 +548,15 @@ export function parseClass(
     collectContractInterfaceTypeRefs(v.type, usedIfaceNames);
   }
   for (const f of functions) {
-    for (const p of f.parameters) collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
-    if (f.returnType) collectContractInterfaceTypeRefs(f.returnType, usedIfaceNames);
+    for (const p of f.parameters)
+      collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
+    if (f.returnType)
+      collectContractInterfaceTypeRefs(f.returnType, usedIfaceNames);
     collectBodyContractInterfaceRefs(f.body, usedIfaceNames);
   }
   if (ctor) {
-    for (const p of ctor.parameters) collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
+    for (const p of ctor.parameters)
+      collectContractInterfaceTypeRefs(p.type, usedIfaceNames);
     collectBodyContractInterfaceRefs(ctor.body, usedIfaceNames);
   }
 
@@ -502,7 +586,9 @@ export function parseClass(
         if (impl) {
           ifn.stateMutability = impl.stateMutability;
         } else {
-          const varImpl = variables.find((v) => v.name === ifn.name && v.visibility === "public");
+          const varImpl = variables.find(
+            (v) => v.name === ifn.name && v.visibility === "public"
+          );
           if (varImpl) {
             ifn.stateMutability = "view";
           }
@@ -517,7 +603,12 @@ export function parseClass(
       }
     }
     for (const v of variables) {
-      if (v.visibility === "public" && interfaceFnNames.has(v.name) && !v.constant && !v.immutable) {
+      if (
+        v.visibility === "public" &&
+        interfaceFnNames.has(v.name) &&
+        !v.constant &&
+        !v.immutable
+      ) {
         v.isOverride = true;
       }
     }
@@ -534,21 +625,26 @@ export function parseClass(
     for (const p of fn.parameters) {
       fnVarTypes.set(p.name, p.type);
     }
-    const externalCalls = collectExternalInterfaceCalls(fn.body, varTypes, fnVarTypes);
+    const externalCalls = collectExternalInterfaceCalls(
+      fn.body,
+      varTypes,
+      fnVarTypes
+    );
     if (externalCalls.length === 0) continue;
 
     let allExternalAreViewLike = true;
     let externalNeedsView = false;
     for (const { ifaceName, methodName } of externalCalls) {
-      const iface = contractIfaceList.find(i => i.name === ifaceName);
+      const iface = contractIfaceList.find((i) => i.name === ifaceName);
       if (!iface) {
         allExternalAreViewLike = false;
         break;
       }
-      const ifaceMethod = iface.functions.find(f => f.name === methodName);
+      const ifaceMethod = iface.functions.find((f) => f.name === methodName);
       if (
         !ifaceMethod ||
-        (ifaceMethod.stateMutability !== "view" && ifaceMethod.stateMutability !== "pure")
+        (ifaceMethod.stateMutability !== "view" &&
+          ifaceMethod.stateMutability !== "pure")
       ) {
         allExternalAreViewLike = false;
         break;
@@ -562,13 +658,22 @@ export function parseClass(
     // All external calls are to explicitly view/pure methods, so the wrapper
     // itself can safely be marked with the base mutability (or at least view
     // when any external call is view, e.g. for local interface variables).
-    const baseMut = inferStateMutability(fn.body, varTypes, fn.parameters, true);
+    const baseMut = inferStateMutability(
+      fn.body,
+      varTypes,
+      fn.parameters,
+      true
+    );
     if (baseMut === "view" || baseMut === "pure") {
-      fn.stateMutability = (baseMut === "pure" && externalNeedsView) ? "view" : baseMut;
+      fn.stateMutability =
+        baseMut === "pure" && externalNeedsView ? "view" : baseMut;
     }
   }
 
-  const contractCustomErrors: { name: string; parameters: SkittlesParameter[] }[] = [];
+  const contractCustomErrors: {
+    name: string;
+    parameters: SkittlesParameter[];
+  }[] = [];
   for (const [cName, params] of knownCustomErrors) {
     contractCustomErrors.push({ name: cName, parameters: params });
   }
@@ -591,7 +696,8 @@ export function parseClass(
     inherits,
     isAbstract,
     sourceLine: getSourceLine(node),
-    neededArrayHelpers: ctx.neededArrayHelpers.size > 0 ? [...ctx.neededArrayHelpers] : undefined,
+    neededArrayHelpers:
+      ctx.neededArrayHelpers.size > 0 ? [...ctx.neededArrayHelpers] : undefined,
   };
 }
 
@@ -722,7 +828,15 @@ export function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     }
   }
 
-  return { name, type, visibility, immutable, constant, initialValue, sourceLine: getSourceLine(node) };
+  return {
+    name,
+    type,
+    visibility,
+    immutable,
+    constant,
+    initialValue,
+    sourceLine: getSourceLine(node),
+  };
 }
 
 export function parseMethod(
@@ -743,15 +857,37 @@ export function parseMethod(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const isAbstractMethod = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
-  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
-  const stateMutability = isAbstractMethod ? inferAbstractStateMutability() : inferStateMutability(body, localVarTypes, parameters);
+  const isAbstractMethod = hasModifier(
+    node.modifiers,
+    ts.SyntaxKind.AbstractKeyword
+  );
+  const rawBody = node.body
+    ? parseBlock(node.body, localVarTypes, eventNames)
+    : [];
+  const body = rewriteInterfacePropertyGetters(
+    rawBody,
+    localVarTypes,
+    parameters
+  );
+  const stateMutability = isAbstractMethod
+    ? inferAbstractStateMutability()
+    : inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, isAbstract: isAbstractMethod ? true : undefined, body, sourceLine: getSourceLine(node) };
+  return {
+    name,
+    parameters,
+    returnType,
+    visibility,
+    stateMutability,
+    isVirtual,
+    isOverride,
+    isAbstract: isAbstractMethod ? true : undefined,
+    body,
+    sourceLine: getSourceLine(node),
+  };
 }
 
 export function resolveOverloadedMethods(
@@ -770,10 +906,11 @@ export function resolveOverloadedMethods(
   );
 
   // Reject overload sets where multiple signatures share the same parameter count
-  const paramCounts = sortedSigs.map(s => s.parameters.length);
+  const paramCounts = sortedSigs.map((s) => s.parameters.length);
   const uniqueCounts = new Set(paramCounts);
   if (uniqueCounts.size !== paramCounts.length) {
-    const name = impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
+    const name =
+      impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
     throw new Error(
       `Method "${name}" has multiple overload signatures with the same parameter count. ` +
         "Skittles only supports overloads distinguished by parameter count."
@@ -785,7 +922,8 @@ export function resolveOverloadedMethods(
 
   // Validate that implementation has the same parameter count as the longest overload
   if (impl.parameters.length !== longestSig.parameters.length) {
-    const name = impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
+    const name =
+      impl.name && ts.isIdentifier(impl.name) ? impl.name.text : "unknown";
     throw new Error(
       `Method "${name}" implementation has ${impl.parameters.length} parameter(s) but the longest overload signature has ${longestSig.parameters.length}. ` +
         "The implementation must have the same number of parameters as the longest overload signature."
@@ -807,7 +945,7 @@ export function resolveOverloadedMethods(
       // signature parameter names differ from the implementation's.
       const minParamLen = Math.min(
         sigFn.parameters.length,
-        implFn.parameters.length,
+        implFn.parameters.length
       );
       for (let i = 0; i < minParamLen; i++) {
         sigFn.parameters[i].name = implFn.parameters[i].name;
@@ -860,7 +998,7 @@ export function buildOverloadForwardingBody(
     args,
   };
 
-  if (returnType && returnType.kind !== (SkittlesTypeKind.Void)) {
+  if (returnType && returnType.kind !== SkittlesTypeKind.Void) {
     return [{ kind: "return", value: callExpr }];
   } else {
     return [{ kind: "expression", expression: callExpr }];
@@ -909,14 +1047,30 @@ export function parseGetAccessor(
     ? parseType(node.type)
     : null;
   const visibility = getVisibility(node.modifiers);
-  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const rawBody = node.body
+    ? parseBlock(node.body, localVarTypes, eventNames)
+    : [];
+  const body = rewriteInterfacePropertyGetters(
+    rawBody,
+    localVarTypes,
+    parameters
+  );
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
+  return {
+    name,
+    parameters,
+    returnType,
+    visibility,
+    stateMutability,
+    isVirtual,
+    isOverride,
+    body,
+    sourceLine: getSourceLine(node),
+  };
 }
 
 export function parseSetAccessor(
@@ -935,14 +1089,30 @@ export function parseSetAccessor(
   setupStringTracking(parameters, localVarTypes);
   const returnType: SkittlesType | null = null; // setters don't return
   const visibility = getVisibility(node.modifiers);
-  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const rawBody = node.body
+    ? parseBlock(node.body, localVarTypes, eventNames)
+    : [];
+  const body = rewriteInterfacePropertyGetters(
+    rawBody,
+    localVarTypes,
+    parameters
+  );
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
+  return {
+    name,
+    parameters,
+    returnType,
+    visibility,
+    stateMutability,
+    isVirtual,
+    isOverride,
+    body,
+    sourceLine: getSourceLine(node),
+  };
 }
 
 export function parseArrowProperty(
@@ -973,16 +1143,32 @@ export function parseArrowProperty(
       rawBody = parseBlock(arrow.body, localVarTypes, eventNames);
     } else {
       // Expression body: `() => expr` treated as `() => { return expr; }`
-      rawBody = [{ kind: "return" as const, value: parseExpression(arrow.body) }];
+      rawBody = [
+        { kind: "return" as const, value: parseExpression(arrow.body) },
+      ];
     }
   }
 
-  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const body = rewriteInterfacePropertyGetters(
+    rawBody,
+    localVarTypes,
+    parameters
+  );
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
 
-  return { name, parameters, returnType, visibility, stateMutability, isVirtual, isOverride, body, sourceLine: getSourceLine(node) };
+  return {
+    name,
+    parameters,
+    returnType,
+    visibility,
+    stateMutability,
+    isVirtual,
+    isOverride,
+    body,
+    sourceLine: getSourceLine(node),
+  };
 }
 
 export function parseConstructorDecl(
@@ -994,12 +1180,20 @@ export function parseConstructorDecl(
   // Clone varTypes to create a per-function scope that won't leak locals to other methods
   const localVarTypes = new Map(varTypes);
   setupStringTracking(parameters, localVarTypes);
-  const rawBody = node.body ? parseBlock(node.body, localVarTypes, eventNames) : [];
-  const body = rewriteInterfacePropertyGetters(rawBody, localVarTypes, parameters);
+  const rawBody = node.body
+    ? parseBlock(node.body, localVarTypes, eventNames)
+    : [];
+  const body = rewriteInterfacePropertyGetters(
+    rawBody,
+    localVarTypes,
+    parameters
+  );
   return { parameters, body, sourceLine: getSourceLine(node) };
 }
 
-export function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter {
+export function parseParameter(
+  node: ts.ParameterDeclaration
+): SkittlesParameter {
   const name = ts.isIdentifier(node.name) ? node.name.text : "unknown";
   validateReservedName("Parameter name", name);
   const type: SkittlesType = node.type
@@ -1015,4 +1209,3 @@ export function parseParameter(node: ts.ParameterDeclaration): SkittlesParameter
 // ============================================================
 // Type parsing
 // ============================================================
-

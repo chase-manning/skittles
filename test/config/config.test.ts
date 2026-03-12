@@ -66,9 +66,7 @@ describe("loadConfig", () => {
       "not valid json{{"
     );
 
-    await expect(loadConfig(TEST_DIR)).rejects.toThrow(
-      "Failed to load config"
-    );
+    await expect(loadConfig(TEST_DIR)).rejects.toThrow("Failed to load config");
   });
 
   it("should load solidity version and license from config", async () => {

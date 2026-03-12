@@ -75,7 +75,11 @@ describe("Array Methods (behavioral)", () => {
         }
       }
     `;
-    const { contract } = await compileAndDeploy(env, source, "StringIncludesTest");
+    const { contract } = await compileAndDeploy(
+      env,
+      source,
+      "StringIncludesTest"
+    );
     await (await contract.addName("alice")).wait();
     await (await contract.addName("bob")).wait();
     expect(await contract.hasName("alice")).toBe(true);
@@ -422,7 +426,11 @@ describe("Array Methods (behavioral)", () => {
         }
       }
     `;
-    const { contract } = await compileAndDeploy(env, source, "FindIndexNotFoundTest");
+    const { contract } = await compileAndDeploy(
+      env,
+      source,
+      "FindIndexNotFoundTest"
+    );
     await (await contract.addValue(5)).wait();
     await (await contract.addValue(15)).wait();
     const result = await contract.findLargeIndex();
@@ -822,7 +830,11 @@ describe("Array Methods (behavioral)", () => {
         }
       }
     `;
-    const { contract } = await compileAndDeploy(env, source, "StorageSpreadTest");
+    const { contract } = await compileAndDeploy(
+      env,
+      source,
+      "StorageSpreadTest"
+    );
     await (await contract.addItem1(10)).wait();
     await (await contract.addItem1(20)).wait();
     await (await contract.addItem2(30)).wait();

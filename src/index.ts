@@ -53,7 +53,8 @@ yargs(hideBin(process.argv))
       yargs.option("install", {
         type: "boolean",
         default: true,
-        describe: "Install dependencies automatically (use --no-install to skip)",
+        describe:
+          "Install dependencies automatically (use --no-install to skip)",
       }),
     async (argv) => {
       await initCommand(process.cwd(), { install: argv.install });

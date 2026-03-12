@@ -6,7 +6,10 @@ import { compile } from "../compiler/compiler.ts";
 import { logSuccess, logError, logInfo } from "../utils/console.ts";
 
 export async function compileCommand(projectRoot: string): Promise<void> {
-  const spinner = ora({ text: "Loading configuration...", color: "cyan" }).start();
+  const spinner = ora({
+    text: "Loading configuration...",
+    color: "cyan",
+  }).start();
 
   try {
     const config = await loadConfig(projectRoot);
@@ -50,15 +53,19 @@ export async function watchCompile(projectRoot: string): Promise<() => void> {
     fs.mkdirSync(contractsDir, { recursive: true });
   }
 
-  const watcher = fs.watch(contractsDir, { recursive: true }, (_event, filename) => {
-    if (!filename || !filename.endsWith(".ts")) return;
+  const watcher = fs.watch(
+    contractsDir,
+    { recursive: true },
+    (_event, filename) => {
+      if (!filename || !filename.endsWith(".ts")) return;
 
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      logInfo(`File changed: ${filename}`);
-      runCompilation(projectRoot);
-    }, 200);
-  });
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        logInfo(`File changed: ${filename}`);
+        runCompilation(projectRoot);
+      }, 200);
+    }
+  );
 
   return () => {
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -67,7 +74,10 @@ export async function watchCompile(projectRoot: string): Promise<() => void> {
 }
 
 async function runCompilation(projectRoot: string): Promise<void> {
-  const spinner = ora({ text: "Compiling contracts...", color: "cyan" }).start();
+  const spinner = ora({
+    text: "Compiling contracts...",
+    color: "cyan",
+  }).start();
 
   try {
     const config = await loadConfig(projectRoot);

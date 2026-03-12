@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { createTestEnv, compileAndDeploy, connectAs, TestEnv, DeployedContract } from "./helpers";
+import {
+  createTestEnv,
+  compileAndDeploy,
+  connectAs,
+  TestEnv,
+  DeployedContract,
+} from "./helpers";
 import { ethers } from "ethers";
 
 // ============================================================
@@ -88,7 +94,9 @@ describe("ERC20 behavioral tests", () => {
     aliceAddr = await alice.getAddress();
     bobAddr = await bob.getAddress();
 
-    token = await compileAndDeploy(env, ERC20_SOURCE, "ERC20", [INITIAL_SUPPLY]);
+    token = await compileAndDeploy(env, ERC20_SOURCE, "ERC20", [
+      INITIAL_SUPPLY,
+    ]);
   }, 30_000);
 
   afterAll(async () => {
@@ -161,7 +169,11 @@ describe("ERC20 behavioral tests", () => {
       const iface = new ethers.Interface(token.abi);
       const transferEvent = receipt.logs
         .map((log: ethers.Log) => {
-          try { return iface.parseLog(log); } catch { return null; }
+          try {
+            return iface.parseLog(log);
+          } catch {
+            return null;
+          }
         })
         .find((e: ethers.LogDescription | null) => e?.name === "Transfer");
 
@@ -175,9 +187,7 @@ describe("ERC20 behavioral tests", () => {
       const aliceToken = connectAs(token, alice);
       const tooMuch = INITIAL_SUPPLY * 10n;
 
-      await expect(
-        aliceToken.transfer(bobAddr, tooMuch)
-      ).rejects.toThrow();
+      await expect(aliceToken.transfer(bobAddr, tooMuch)).rejects.toThrow();
     });
   });
 
@@ -203,7 +213,11 @@ describe("ERC20 behavioral tests", () => {
       const iface = new ethers.Interface(token.abi);
       const approvalEvent = receipt.logs
         .map((log: ethers.Log) => {
-          try { return iface.parseLog(log); } catch { return null; }
+          try {
+            return iface.parseLog(log);
+          } catch {
+            return null;
+          }
         })
         .find((e: ethers.LogDescription | null) => e?.name === "Approval");
 
@@ -238,7 +252,11 @@ describe("ERC20 behavioral tests", () => {
 
       // Alice calls transferFrom to move tokens from deployer to bob
       const aliceToken = connectAs(token, alice);
-      const tx = await aliceToken.transferFrom(deployerAddr, bobAddr, transferAmount);
+      const tx = await aliceToken.transferFrom(
+        deployerAddr,
+        bobAddr,
+        transferAmount
+      );
       await tx.wait();
 
       // Verify balances changed
@@ -256,7 +274,9 @@ describe("ERC20 behavioral tests", () => {
       await (await token.contract.approve(aliceAddr, approveAmount)).wait();
 
       const aliceToken = connectAs(token, alice);
-      await (await aliceToken.transferFrom(deployerAddr, bobAddr, transferAmount)).wait();
+      await (
+        await aliceToken.transferFrom(deployerAddr, bobAddr, transferAmount)
+      ).wait();
 
       const remaining = await token.contract.allowance(deployerAddr, aliceAddr);
       expect(remaining).toBe(approveAmount - transferAmount);
@@ -296,7 +316,11 @@ describe("ERC20 behavioral tests", () => {
       const iface = new ethers.Interface(token.abi);
       const transferEvent = receipt.logs
         .map((log: ethers.Log) => {
-          try { return iface.parseLog(log); } catch { return null; }
+          try {
+            return iface.parseLog(log);
+          } catch {
+            return null;
+          }
         })
         .find((e: ethers.LogDescription | null) => e?.name === "Transfer");
 
