@@ -363,10 +363,12 @@ export function collectFunctions(source: string, filePath: string): {
   const prevInterfaces = ctx.knownContractInterfaces;
   const prevInterfaceMap = ctx.knownContractInterfaceMap;
 
-  // Pre-scan the file for type declarations so standalone functions can reference them
-  if (ctx.knownStructs.size === 0 && ctx.knownEnums.size === 0) {
-    const localStructs = new Map<string, SkittlesParameter[]>();
-    const localEnums = new Map<string, string[]>();
+  // Pre-scan the file for type declarations so standalone functions can reference them.
+  // If registries are already populated (e.g. by a prior collectTypes()), reuse them;
+  // otherwise scan the current file for structs and enums.
+  if (ctx.knownStructs.size === 0 || ctx.knownEnums.size === 0) {
+    const localStructs = ctx.knownStructs.size > 0 ? ctx.knownStructs : new Map<string, SkittlesParameter[]>();
+    const localEnums = ctx.knownEnums.size > 0 ? ctx.knownEnums : new Map<string, string[]>();
     ctx.knownStructs = localStructs;
     ctx.knownEnums = localEnums;
     ctx.knownContractInterfaces = new Set();
