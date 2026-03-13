@@ -6,6 +6,50 @@ import { DEFAULT_CONFIG } from "./defaults.ts";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
 
+function requireString(
+  obj: Record<string, unknown>,
+  key: string,
+  prefix?: string
+): void {
+  if (key in obj && typeof obj[key] !== "string") {
+    const label = prefix ? `${prefix}.${key}` : key;
+    throw new Error(`Config "${label}" must be a string`);
+  }
+}
+
+function requireBoolean(
+  obj: Record<string, unknown>,
+  key: string,
+  prefix?: string
+): void {
+  if (key in obj && typeof obj[key] !== "boolean") {
+    const label = prefix ? `${prefix}.${key}` : key;
+    throw new Error(`Config "${label}" must be a boolean`);
+  }
+}
+
+function requireNumber(
+  obj: Record<string, unknown>,
+  key: string,
+  prefix?: string
+): void {
+  if (key in obj && typeof obj[key] !== "number") {
+    const label = prefix ? `${prefix}.${key}` : key;
+    throw new Error(`Config "${label}" must be a number`);
+  }
+}
+
+function requireObject(
+  obj: Record<string, unknown>,
+  key: string
+): Record<string, unknown> | undefined {
+  if (!(key in obj)) return undefined;
+  if (typeof obj[key] !== "object" || obj[key] === null) {
+    throw new Error(`Config "${key}" must be an object`);
+  }
+  return obj[key] as Record<string, unknown>;
+}
+
 /**
  * Validate that a loaded config has the expected shape and types.
  */
@@ -16,57 +60,26 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
 
   const obj = config as Record<string, unknown>;
 
-  if ("typeCheck" in obj && typeof obj.typeCheck !== "boolean") {
-    throw new Error('Config "typeCheck" must be a boolean');
+  requireBoolean(obj, "typeCheck");
+  requireString(obj, "contractsDir");
+  requireString(obj, "outputDir");
+  requireString(obj, "cacheDir");
+  requireBoolean(obj, "consoleLog");
+
+  const opt = requireObject(obj, "optimizer");
+  if (opt) {
+    requireBoolean(opt, "enabled", "optimizer");
+    requireNumber(opt, "runs", "optimizer");
   }
 
-  if ("optimizer" in obj) {
-    if (typeof obj.optimizer !== "object" || obj.optimizer === null) {
-      throw new Error('Config "optimizer" must be an object');
-    }
-    const opt = obj.optimizer as Record<string, unknown>;
-    if ("enabled" in opt && typeof opt.enabled !== "boolean") {
-      throw new Error('Config "optimizer.enabled" must be a boolean');
-    }
-    if ("runs" in opt && typeof opt.runs !== "number") {
-      throw new Error('Config "optimizer.runs" must be a number');
-    }
+  const sol = requireObject(obj, "solidity");
+  if (sol) {
+    requireString(sol, "version", "solidity");
+    requireString(sol, "license", "solidity");
   }
 
-  if ("contractsDir" in obj && typeof obj.contractsDir !== "string") {
-    throw new Error('Config "contractsDir" must be a string');
-  }
-
-  if ("outputDir" in obj && typeof obj.outputDir !== "string") {
-    throw new Error('Config "outputDir" must be a string');
-  }
-
-  if ("cacheDir" in obj && typeof obj.cacheDir !== "string") {
-    throw new Error('Config "cacheDir" must be a string');
-  }
-
-  if ("consoleLog" in obj && typeof obj.consoleLog !== "boolean") {
-    throw new Error('Config "consoleLog" must be a boolean');
-  }
-
-  if ("solidity" in obj) {
-    if (typeof obj.solidity !== "object" || obj.solidity === null) {
-      throw new Error('Config "solidity" must be an object');
-    }
-    const sol = obj.solidity as Record<string, unknown>;
-    if ("version" in sol && typeof sol.version !== "string") {
-      throw new Error('Config "solidity.version" must be a string');
-    }
-    if ("license" in sol && typeof sol.license !== "string") {
-      throw new Error('Config "solidity.license" must be a string');
-    }
-  }
-
-  if ("formatting" in obj) {
-    if (typeof obj.formatting !== "object" || obj.formatting === null) {
-      throw new Error('Config "formatting" must be an object');
-    }
-    const fmt = obj.formatting as Record<string, unknown>;
+  const fmt = requireObject(obj, "formatting");
+  if (fmt) {
     if ("indent" in fmt) {
       if (fmt.indent !== "tab" && typeof fmt.indent !== "number") {
         throw new Error(
@@ -74,9 +87,7 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
         );
       }
     }
-    if ("bracketSpacing" in fmt && typeof fmt.bracketSpacing !== "boolean") {
-      throw new Error('Config "formatting.bracketSpacing" must be a boolean');
-    }
+    requireBoolean(fmt, "bracketSpacing", "formatting");
     if ("braceStyle" in fmt) {
       if (fmt.braceStyle !== "same-line" && fmt.braceStyle !== "next-line") {
         throw new Error(
@@ -84,9 +95,7 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
         );
       }
     }
-    if ("formatOutput" in fmt && typeof fmt.formatOutput !== "boolean") {
-      throw new Error('Config "formatting.formatOutput" must be a boolean');
-    }
+    requireBoolean(fmt, "formatOutput", "formatting");
   }
 
   return config as Partial<SkittlesConfig>;
