@@ -82,11 +82,13 @@ This contract creates a simple token with balances and transfers. The `balances`
 - **Events** let you log activity on the blockchain — use `SkittlesEvent<T>` with `Indexed<T>` to mark searchable parameters
 - **Custom errors** for better error messages — use `SkittlesError<T>` or extend the `Error` class
 - **Inheritance** with `extends` and `super` — build modular, reusable contracts
-- **Control flow** — all the standard JavaScript patterns work: `if`/`else`, `for`, `while`, `do`/`while`, `for...of`, `switch`/`case`, ternary operators
+- **Control flow** — all the standard JavaScript patterns work: `if`/`else`, `for`, `while`, `do`/`while`, `for...of`, `for...in` (enums), `switch`/`case`, ternary operators, `try`/`catch` for external calls
+- **Destructuring** — array, tuple, and object destructuring for local variables and function return values
 - **[Operators](/guide/operators)** — arithmetic (`+`, `-`, `*`, `/`, `%`, `**`), comparison, logical, bitwise, and compound assignment operators all work as expected
 - **Blockchain globals** — access `msg.sender` (who called your function), `msg.value` (how much they sent), `block.timestamp`, `block.number`, `tx.origin`, and more
 - **Built-in functions** — `keccak256()`, `sha256()`, `ecrecover()`, `abi.encode()`, `abi.encodePacked()` for cryptographic operations and data encoding, plus `Math.min()`, `Math.max()`, `Math.sqrt()`, `Math.pow()` for common math operations
-- **Standard library** — built-in ERC20, ERC721, Ownable, Pausable, and ReentrancyGuard contracts ready to extend — no extra packages needed
+- **Standard library** — built-in ERC20, ERC20Permit, ERC20Votes, ERC721, Ownable, AccessControl, Pausable, and ReentrancyGuard contracts ready to extend, no extra packages needed
+- **Debugging** — `console.log()` support maps to Hardhat's console, and is automatically stripped from production builds
 - **Multi-file projects** — share types, constants, and functions across contract files
 - **Fast incremental builds** — SHA256-based caching only recompiles what changed
 
@@ -95,7 +97,7 @@ This contract creates a simple token with balances and transfers. The `balances`
 When you compile your TypeScript contracts, Skittles generates:
 
 ```
-build/
+artifacts/
   solidity/     # Generated contract source code
 ```
 

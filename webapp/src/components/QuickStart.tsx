@@ -28,7 +28,7 @@ function QuickStart() {
           </div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-success">
-            &nbsp; ✓ 5 tests passed
+            &nbsp; ✓ 4 tests passed
           </div>
         </div>
       </div>

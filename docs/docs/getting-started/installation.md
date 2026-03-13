@@ -69,13 +69,18 @@ The `skittles` package provides:
 
 | Export                             | Purpose                                                    |
 | ---------------------------------- | ---------------------------------------------------------- |
-| `address`, `bytes`                 | Ethereum primitive types for contract files                |
+| `address`, `bytes`, `bytes32`      | Ethereum primitive types for contract files                |
 | `msg`, `block`, `tx`               | Blockchain context (`msg.sender`, `block.timestamp`, etc.) |
-| `SkittlesEvent<T>`                 | Declare contract events                                    |
+| `self`                             | The contract's own address (`address(this)` in Solidity)   |
+| `SkittlesEvent<T>`, `Event<T>`     | Declare contract events                                    |
 | `SkittlesError<T>`                 | Declare custom errors                                      |
 | `Indexed<T>`                       | Mark event parameters as indexed                           |
-| `keccak256`, `sha256`, `ecrecover` | Built-in cryptographic functions                           |
+| `keccak256`, `sha256`, `hash`      | Built-in hash functions (`hash` is an alias for `keccak256`) |
+| `ecrecover`                        | Recover signer address from a signature                    |
+| `addmod`, `mulmod`                 | Arbitrary precision modular arithmetic                     |
+| `gasleft`                          | Get remaining gas for the current transaction              |
 | `abi`                              | ABI encoding/decoding namespace                            |
+| `Contract<T>`                      | Reference an external contract at an address via its interface |
 | `SkittlesConfig`                   | Configuration type for `skittles.config.json`              |
 
 For testing compiled contracts, use [Hardhat](https://hardhat.org) with the setup created by `skittles init`. See the [Testing Guide](/guide/testing) for details.

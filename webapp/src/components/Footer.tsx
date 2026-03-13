@@ -44,7 +44,7 @@ function Footer() {
       <div className="footer-divider" />
       <div className="footer-bottom">
         <span className="footer-copyright">
-          &copy; 2025 Chase Manning. Built with TypeScript.
+          &copy; 2026 Chase Manning. Built with TypeScript.
         </span>
         <FooterVersion />
       </div>

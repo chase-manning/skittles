@@ -28,7 +28,7 @@ your-project/
 └── hardhat.config.ts      # Hardhat config with Ethers toolbox
 ```
 
-It also updates your `.gitignore` to exclude `build/`, `dist/`, and `node_modules/`.
+It also updates your `.gitignore` to exclude `artifacts/`, `cache/`, `dist/`, `node_modules/`, and other generated directories.
 
 ## Write a Contract
 
