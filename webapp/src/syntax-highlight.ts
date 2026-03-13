@@ -35,10 +35,14 @@ function highlightLine(line: string, rules: { regex: RegExp; type: Token["type"]
   return tokens.length > 0 ? tokens : [{ text: line, type: "plain" }];
 }
 
+const SHARED_RULES: { regex: RegExp; type: Token["type"] }[] = [
+  { regex: /\/\/.*/g, type: "comment" },
+  { regex: /"[^"]*"|'[^']*'/g, type: "string" },
+];
+
 export function highlightTS(line: string): Token[] {
   return highlightLine(line, [
-    { regex: /\/\/.*/g, type: "comment" },
-    { regex: /"[^"]*"|'[^']*'/g, type: "string" },
+    ...SHARED_RULES,
     { regex: /\b(import|from|export|class|private|constructor|if|throw|new|return|this|const|let|var|function|extends|implements)\b/g, type: "keyword" },
     { regex: /\b(string|number|boolean|void|address|Record|Map|Error|Indexed)\b/g, type: "type" },
     { regex: /\b\d+\b/g, type: "number" },
@@ -47,8 +51,7 @@ export function highlightTS(line: string): Token[] {
 
 export function highlightSol(line: string): Token[] {
   return highlightLine(line, [
-    { regex: /\/\/.*/g, type: "comment" },
-    { regex: /"[^"]*"|'[^']*'/g, type: "string" },
+    ...SHARED_RULES,
     { regex: /\b(pragma|solidity|contract|function|constructor|mapping|public|internal|virtual|view|returns|require|return|event|emit|modifier|memory|storage|calldata|payable|external|pure|indexed)\b/g, type: "keyword" },
     { regex: /\b(uint256|address|bool|string|bytes|bytes32|int256)\b/g, type: "type" },
     { regex: /\b\d+(\.\d+)?\b/g, type: "number" },
