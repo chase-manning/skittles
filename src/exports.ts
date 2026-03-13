@@ -71,6 +71,8 @@ export {
   collectTypes,
   parse,
 } from "./compiler/parser.ts";
+export { compileToSolidity } from "./compiler/pipeline.ts";
+export type { CompilePipelineResult } from "./compiler/pipeline.ts";
 
 // Utility functions
 export { getErrorMessage } from "./utils/error.ts";
