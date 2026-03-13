@@ -218,6 +218,11 @@ export function parse(
   const collectedArrowFuncDecls: ts.VariableDeclaration[] = [];
   const collectedClassDecls: ts.ClassDeclaration[] = [];
 
+  // Reset context registries before Pass 2 so parseExpression doesn't see
+  // stale constants/errors from a previously parsed file.
+  ctx.fileConstants = new Map();
+  ctx.knownCustomErrors = new Set();
+
   ts.forEachChild(sourceFile, (node) => {
     // Parse interfaces (depends on structs/enums from Pass 1)
     if (ts.isInterfaceDeclaration(node) && node.name) {
