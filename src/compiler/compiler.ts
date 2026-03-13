@@ -104,95 +104,59 @@ function saveCache(outputDir: string, cache: CompilationCache): void {
   fs.writeFileSync(cachePath, JSON.stringify(cache), "utf-8");
 }
 
+// ============================================================
+// Internal types for passing data between compilation phases
+// ============================================================
+
+interface PreScanState {
+  globalStructs: Map<string, SkittlesParameter[]>;
+  globalEnums: Map<string, string[]>;
+  globalContractInterfaces: Map<string, SkittlesContractInterface>;
+  globalFunctions: SkittlesFunction[];
+  globalConstants: Map<string, Expression>;
+  interfaceOriginFile: Map<string, string>;
+  contractOriginFile: Map<string, string>;
+  preScanContractFiles: string[];
+}
+
+interface ParsedFile {
+  filePath: string;
+  relativePath: string;
+  source: string;
+  fileHash: string;
+  depsHash: string;
+  contracts: SkittlesContract[];
+}
+
+interface CachedFile {
+  filePath: string;
+  relativePath: string;
+  cached: CacheEntry;
+}
+
+// ============================================================
+// Phase 1: Discover source files (user + stdlib)
+// ============================================================
+
 /**
- * Main compilation pipeline:
- * 1. Find all TypeScript contract files
- * 2. Parse each file into a SkittlesContract IR
- * 3. Generate Solidity source from each contract
- * 4. Write Solidity to artifacts/solidity (Hardhat compiles to ABI + bytecode)
+ * Find user contract files in the contracts directory, then detect
+ * stdlib references and resolve the required standard library files.
+ * Pre-scans all discovered files to populate shared type/function maps.
  */
-export async function compile(
-  projectRoot: string,
-  config: Required<SkittlesConfig>
-): Promise<CompilationResult> {
-  const contractsDir = path.join(projectRoot, config.contractsDir);
-  const outputDir = path.join(projectRoot, config.outputDir);
-  const cacheDir = path.join(projectRoot, config.cacheDir);
-
-  const artifacts: BuildArtifact[] = [];
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  // Step 1: Find source files
+function discoverFiles(
+  contractsDir: string,
+  state: PreScanState,
+  userSources: Map<string, string>
+): {
+  userSourceFiles: string[];
+  stdlibFiles: string[];
+  stdlibFileSet: Set<string>;
+  sourceFiles: string[];
+} {
   const userSourceFiles = findTypeScriptFiles(contractsDir);
-  if (userSourceFiles.length === 0) {
-    logInfo("No TypeScript contract files found.");
-    return { success: true, artifacts, errors, warnings: [] };
-  }
 
-  logInfo(`Found ${userSourceFiles.length} contract file(s)`);
-
-  // Pre-scan all files to collect shared types (type alias structs, contract
-  // interfaces, enums), file level functions, and file level constants.
-  // This allows contracts in one file to reference things defined in another.
-  // Also tracks which file defines each interface for cross-file imports.
-  const globalStructs: Map<string, SkittlesParameter[]> = new Map();
-  const globalEnums: Map<string, string[]> = new Map();
-  const globalContractInterfaces: Map<string, SkittlesContractInterface> =
-    new Map();
-  const globalFunctions: SkittlesFunction[] = [];
-  const globalConstants: Map<string, Expression> = new Map();
-  const interfaceOriginFile = new Map<string, string>();
-  const contractOriginFile = new Map<string, string>();
-  const preScanContractFiles: string[] = [];
-  const stdlibFileSet = new Set<string>();
-
-  // First pass: pre-scan user files
-  const userSources = new Map<string, string>();
-  for (const filePath of userSourceFiles) {
-    try {
-      const source = readFile(filePath);
-      userSources.set(filePath, source);
-      const { structs, enums, contractInterfaces } = collectTypes(
-        source,
-        filePath
-      );
-      const baseName = path.basename(filePath, path.extname(filePath));
-      for (const [name, fields] of structs) globalStructs.set(name, fields);
-      for (const [name, members] of enums) globalEnums.set(name, members);
-      for (const [name, iface] of contractInterfaces) {
-        const existingOrigin = interfaceOriginFile.get(name);
-        if (!existingOrigin || baseName < existingOrigin) {
-          globalContractInterfaces.set(name, iface);
-          interfaceOriginFile.set(name, baseName);
-        }
-      }
-
-      const { functions, constants } = collectFunctions(source, filePath);
-      for (const fn of functions) {
-        if (!globalFunctions.some((f) => f.name === fn.name)) {
-          globalFunctions.push(fn);
-        }
-      }
-      for (const [name, expr] of constants) globalConstants.set(name, expr);
-
-      const classNames = collectClassNames(source, filePath);
-      for (const className of classNames) {
-        const existingOrigin = contractOriginFile.get(className);
-        if (!existingOrigin || baseName < existingOrigin) {
-          contractOriginFile.set(className, baseName);
-        }
-      }
-      if (classNames.length > 0) {
-        preScanContractFiles.push(baseName);
-      }
-    } catch (err) {
-      // Pre-scan failed; will be re-reported during full compilation
-      logWarning(
-        `Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-  }
+  // Pre-scan user files
+  preScanContracts(userSourceFiles, state, userSources);
 
   // Detect stdlib contract references: scan user sources for `extends`
   // clauses that reference stdlib classes, then include those files.
@@ -200,53 +164,79 @@ export async function compile(
   const referencedStdlib = new Set<string>();
   for (const source of userSources.values()) {
     for (const name of findExtendsReferences(source)) {
-      if (stdlibClassNames.has(name) && !contractOriginFile.has(name)) {
+      if (stdlibClassNames.has(name) && !state.contractOriginFile.has(name)) {
         referencedStdlib.add(name);
       }
     }
   }
 
   const stdlibFiles = resolveStdlibFiles(referencedStdlib);
-  for (const stdlibPath of stdlibFiles) {
-    stdlibFileSet.add(stdlibPath);
-  }
+  const stdlibFileSet = new Set<string>(stdlibFiles);
 
   // Pre-scan stdlib files into the global maps
-  for (const filePath of stdlibFiles) {
+  preScanContracts(stdlibFiles, state);
+
+  const sourceFiles = [...userSourceFiles, ...stdlibFiles];
+  return { userSourceFiles, stdlibFiles, stdlibFileSet, sourceFiles };
+}
+
+// ============================================================
+// Phase 2: Pre-scan contracts for types, functions, class names
+// ============================================================
+
+/**
+ * Pre-scan a list of contract files to collect shared types (type alias
+ * structs, contract interfaces, enums), file-level functions, and
+ * file-level constants. This allows contracts in one file to reference
+ * things defined in another. Also tracks which file defines each
+ * interface and class for cross-file imports.
+ *
+ * Optionally stores read sources into `sourcesOut` for later reuse.
+ */
+function preScanContracts(
+  files: string[],
+  state: PreScanState,
+  sourcesOut?: Map<string, string>
+): void {
+  for (const filePath of files) {
     try {
       const source = readFile(filePath);
+      if (sourcesOut) sourcesOut.set(filePath, source);
       const { structs, enums, contractInterfaces } = collectTypes(
         source,
         filePath
       );
       const baseName = path.basename(filePath, path.extname(filePath));
-      for (const [name, fields] of structs) globalStructs.set(name, fields);
-      for (const [name, members] of enums) globalEnums.set(name, members);
+      for (const [name, fields] of structs)
+        state.globalStructs.set(name, fields);
+      for (const [name, members] of enums)
+        state.globalEnums.set(name, members);
       for (const [name, iface] of contractInterfaces) {
-        const existingOrigin = interfaceOriginFile.get(name);
+        const existingOrigin = state.interfaceOriginFile.get(name);
         if (!existingOrigin || baseName < existingOrigin) {
-          globalContractInterfaces.set(name, iface);
-          interfaceOriginFile.set(name, baseName);
+          state.globalContractInterfaces.set(name, iface);
+          state.interfaceOriginFile.set(name, baseName);
         }
       }
 
       const { functions, constants } = collectFunctions(source, filePath);
       for (const fn of functions) {
-        if (!globalFunctions.some((f) => f.name === fn.name)) {
-          globalFunctions.push(fn);
+        if (!state.globalFunctions.some((f) => f.name === fn.name)) {
+          state.globalFunctions.push(fn);
         }
       }
-      for (const [name, expr] of constants) globalConstants.set(name, expr);
+      for (const [name, expr] of constants)
+        state.globalConstants.set(name, expr);
 
       const classNames = collectClassNames(source, filePath);
       for (const className of classNames) {
-        const existingOrigin = contractOriginFile.get(className);
+        const existingOrigin = state.contractOriginFile.get(className);
         if (!existingOrigin || baseName < existingOrigin) {
-          contractOriginFile.set(className, baseName);
+          state.contractOriginFile.set(className, baseName);
         }
       }
       if (classNames.length > 0) {
-        preScanContractFiles.push(baseName);
+        state.preScanContractFiles.push(baseName);
       }
     } catch (err) {
       // Pre-scan failed; will be re-reported during full compilation
@@ -255,16 +245,37 @@ export async function compile(
       );
     }
   }
+}
 
-  if (stdlibFiles.length > 0) {
-    logInfo(`Including ${stdlibFiles.length} standard library contract(s)`);
-  }
+// ============================================================
+// Phase 3: Resolve compilation order (dependency hashes)
+// ============================================================
 
-  const sourceFiles = [...userSourceFiles, ...stdlibFiles];
-
-  // Build maps for dependency-aware cache invalidation.
-  // Track which parent classes each file extends (cross-file only) and
-  // precompute source hashes so we can detect when parent sources change.
+/**
+ * Build maps for dependency-aware cache invalidation. Track which parent
+ * classes each file extends (cross-file only) and precompute source hashes
+ * so we can detect when parent sources change. Also computes shared and
+ * config hashes used for cache invalidation.
+ */
+function resolveCompilationOrder(
+  sourceFiles: string[],
+  userSources: Map<string, string>,
+  state: PreScanState,
+  config: Required<SkittlesConfig>
+): {
+  computeDepsHash: (filePath: string) => string;
+  sharedHash: string;
+  configHash: string;
+  externalTypes: {
+    structs: Map<string, SkittlesParameter[]>;
+    enums: Map<string, string[]>;
+    contractInterfaces: Map<string, SkittlesContractInterface>;
+  };
+  externalFunctions: {
+    functions: SkittlesFunction[];
+    constants: Map<string, Expression>;
+  };
+} {
   const allSourceHashes = new Map<string, string>();
   const baseNameToFilePath = new Map<string, string>();
   const fileExtendsParents = new Map<string, string[]>();
@@ -277,7 +288,7 @@ export async function compile(
 
     const parents: string[] = [];
     for (const name of findExtendsReferences(source)) {
-      const parentBase = contractOriginFile.get(name);
+      const parentBase = state.contractOriginFile.get(name);
       if (parentBase && parentBase !== baseName) {
         parents.push(name);
       }
@@ -296,7 +307,7 @@ export async function compile(
       const parents = fileExtendsParents.get(current);
       if (!parents) continue;
       for (const parentName of parents) {
-        const parentBase = contractOriginFile.get(parentName);
+        const parentBase = state.contractOriginFile.get(parentName);
         if (!parentBase) continue;
         const parentPath = baseNameToFilePath.get(parentBase);
         if (!parentPath || visited.has(parentPath)) continue;
@@ -313,13 +324,13 @@ export async function compile(
   }
 
   const externalTypes = {
-    structs: globalStructs,
-    enums: globalEnums,
-    contractInterfaces: globalContractInterfaces,
+    structs: state.globalStructs,
+    enums: state.globalEnums,
+    contractInterfaces: state.globalContractInterfaces,
   };
   const externalFunctions = {
-    functions: globalFunctions,
-    constants: globalConstants,
+    functions: state.globalFunctions,
+    constants: state.globalConstants,
   };
 
   // Compute a hash of all shared definitions (types, functions, constants).
@@ -328,24 +339,24 @@ export async function compile(
   // gains or loses a class declaration the import structure may change, so
   // all caches must be invalidated.
   const sharedDefinitions = {
-    structs: Array.from(globalStructs.entries()).sort(([a], [b]) =>
+    structs: Array.from(state.globalStructs.entries()).sort(([a], [b]) =>
       a.localeCompare(b)
     ),
-    enums: Array.from(globalEnums.entries()).sort(([a], [b]) =>
+    enums: Array.from(state.globalEnums.entries()).sort(([a], [b]) =>
       a.localeCompare(b)
     ),
-    contractInterfaces: Array.from(globalContractInterfaces.entries()).sort(
-      ([a], [b]) => a.localeCompare(b)
-    ),
-    functions: [...globalFunctions].sort((a, b) =>
+    contractInterfaces: Array.from(
+      state.globalContractInterfaces.entries()
+    ).sort(([a], [b]) => a.localeCompare(b)),
+    functions: [...state.globalFunctions].sort((a, b) =>
       a.name.localeCompare(b.name)
     ),
-    constants: Array.from(globalConstants.entries()).sort(([a], [b]) =>
+    constants: Array.from(state.globalConstants.entries()).sort(([a], [b]) =>
       a.localeCompare(b)
     ),
-    contractFiles: preScanContractFiles.sort(),
-    contractOrigins: Array.from(contractOriginFile.entries()).sort(([a], [b]) =>
-      a.localeCompare(b)
+    contractFiles: state.preScanContractFiles.sort(),
+    contractOrigins: Array.from(state.contractOriginFile.entries()).sort(
+      ([a], [b]) => a.localeCompare(b)
     ),
   };
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
@@ -358,29 +369,48 @@ export async function compile(
     })
   );
 
-  // Load incremental compilation cache
-  const cache = loadCache(cacheDir);
-  const newCache: CompilationCache = {
-    version: CACHE_VERSION,
-    skittlesVersion: PACKAGE_VERSION,
-    files: {},
+  return {
+    computeDepsHash,
+    sharedHash,
+    configHash,
+    externalTypes,
+    externalFunctions,
   };
+}
 
-  // Phase 1: Parse all files (needed to resolve cross-file interface mutabilities)
-  interface ParsedFile {
-    filePath: string;
-    relativePath: string;
-    source: string;
-    fileHash: string;
-    depsHash: string;
-    contracts: SkittlesContract[];
-  }
+// ============================================================
+// Phase 4: Parse contract files into IR
+// ============================================================
+
+/**
+ * Parse all contract source files into the intermediate representation,
+ * using the incremental compilation cache to skip unchanged files.
+ */
+function parseContracts(
+  sourceFiles: string[],
+  projectRoot: string,
+  stdlibFileSet: Set<string>,
+  cache: CompilationCache,
+  computeDepsHash: (filePath: string) => string,
+  sharedHash: string,
+  configHash: string,
+  externalTypes: {
+    structs: Map<string, SkittlesParameter[]>;
+    enums: Map<string, string[]>;
+    contractInterfaces: Map<string, SkittlesContractInterface>;
+  },
+  externalFunctions: {
+    functions: SkittlesFunction[];
+    constants: Map<string, Expression>;
+  },
+  errors: string[]
+): {
+  parsedFiles: ParsedFile[];
+  cachedFiles: CachedFile[];
+  filesWithContracts: Set<string>;
+} {
   const parsedFiles: ParsedFile[] = [];
-  const cachedFiles: {
-    filePath: string;
-    relativePath: string;
-    cached: CacheEntry;
-  }[] = [];
+  const cachedFiles: CachedFile[] = [];
   const filesWithContracts = new Set<string>();
 
   for (const filePath of sourceFiles) {
@@ -436,6 +466,22 @@ export async function compile(
     }
   }
 
+  return { parsedFiles, cachedFiles, filesWithContracts };
+}
+
+// ============================================================
+// Phase 5: Analyze contracts (mutability propagation + warnings)
+// ============================================================
+
+/**
+ * Run analysis passes on parsed contracts: cross-file mutability
+ * propagation and detection of unreachable code / unused variables.
+ */
+function analyzeContracts(
+  parsedFiles: ParsedFile[],
+  cachedFiles: CachedFile[],
+  warnings: string[]
+): void {
   // Cross-file mutability propagation: when a child contract extends a
   // parent from another file, calls to inherited internal functions (e.g.
   // _mint, _burn) need to propagate the callee's mutability to the caller.
@@ -534,8 +580,32 @@ export async function compile(
       }
     }
   }
+}
 
-  // Phase 2: Resolve interface mutabilities from implementing contracts
+// ============================================================
+// Phase 6: Generate output (codegen + Solidity compilation)
+// ============================================================
+
+/**
+ * Resolve interface mutabilities, emit cached files, and generate
+ * Solidity source for freshly parsed contracts.
+ */
+function generateOutput(
+  parsedFiles: ParsedFile[],
+  cachedFiles: CachedFile[],
+  globalContractInterfaces: Map<string, SkittlesContractInterface>,
+  interfaceOriginFile: Map<string, string>,
+  contractOriginFile: Map<string, string>,
+  filesWithContracts: Set<string>,
+  sharedHash: string,
+  configHash: string,
+  config: Required<SkittlesConfig>,
+  outputDir: string,
+  artifacts: BuildArtifact[],
+  errors: string[],
+  newCache: CompilationCache
+): void {
+  // Resolve interface mutabilities from implementing contracts
   // and propagate back to the global interface map.
   // Process both freshly parsed files and cached files so that
   // mutabilities are available even when the implementing file is cached.
@@ -576,7 +646,7 @@ export async function compile(
     }
   }
 
-  // Phase 3: Emit cached files
+  // Emit cached files
   for (const { filePath, relativePath, cached } of cachedFiles) {
     logInfo(`${relativePath} unchanged, using cache`);
     const cachedBaseName = path.basename(filePath, path.extname(filePath));
@@ -591,7 +661,7 @@ export async function compile(
     newCache.files[relativePath] = cached;
   }
 
-  // Phase 4: Generate Solidity for parsed files, with imports for external interfaces
+  // Generate Solidity for parsed files, with imports for external interfaces
   for (const {
     filePath,
     relativePath,
@@ -735,13 +805,121 @@ export async function compile(
       logError(`Failed to compile ${relativePath}: ${message}`);
     }
   }
+}
 
-  // Save updated cache
+// ============================================================
+// Phase 7: Update incremental build cache
+// ============================================================
+
+/**
+ * Write the updated incremental build cache to disk.
+ */
+function updateCache(cacheDir: string, newCache: CompilationCache): void {
   try {
     saveCache(cacheDir, newCache);
   } catch {
     // Non critical if cache save fails
   }
+}
+
+// ============================================================
+// Main compilation pipeline
+// ============================================================
+
+/**
+ * Main compilation pipeline:
+ * 1. Find all TypeScript contract files
+ * 2. Parse each file into a SkittlesContract IR
+ * 3. Generate Solidity source from each contract
+ * 4. Write Solidity to artifacts/solidity (Hardhat compiles to ABI + bytecode)
+ */
+export async function compile(
+  projectRoot: string,
+  config: Required<SkittlesConfig>
+): Promise<CompilationResult> {
+  const contractsDir = path.join(projectRoot, config.contractsDir);
+  const outputDir = path.join(projectRoot, config.outputDir);
+  const cacheDir = path.join(projectRoot, config.cacheDir);
+
+  const artifacts: BuildArtifact[] = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Phase 1: Discover source files (user + stdlib)
+  const state: PreScanState = {
+    globalStructs: new Map(),
+    globalEnums: new Map(),
+    globalContractInterfaces: new Map(),
+    globalFunctions: [],
+    globalConstants: new Map(),
+    interfaceOriginFile: new Map(),
+    contractOriginFile: new Map(),
+    preScanContractFiles: [],
+  };
+  const userSources = new Map<string, string>();
+
+  const { userSourceFiles, stdlibFiles, stdlibFileSet, sourceFiles } =
+    discoverFiles(contractsDir, state, userSources);
+
+  if (userSourceFiles.length === 0) {
+    logInfo("No TypeScript contract files found.");
+    return { success: true, artifacts, errors, warnings: [] };
+  }
+
+  logInfo(`Found ${userSourceFiles.length} contract file(s)`);
+
+  if (stdlibFiles.length > 0) {
+    logInfo(`Including ${stdlibFiles.length} standard library contract(s)`);
+  }
+
+  // Phase 3: Resolve compilation order (dependency hashes)
+  const { computeDepsHash, sharedHash, configHash, externalTypes, externalFunctions } =
+    resolveCompilationOrder(sourceFiles, userSources, state, config);
+
+  // Load incremental compilation cache
+  const cache = loadCache(cacheDir);
+  const newCache: CompilationCache = {
+    version: CACHE_VERSION,
+    skittlesVersion: PACKAGE_VERSION,
+    files: {},
+  };
+
+  // Phase 4: Parse all files
+  const { parsedFiles, cachedFiles, filesWithContracts } = parseContracts(
+    sourceFiles,
+    projectRoot,
+    stdlibFileSet,
+    cache,
+    computeDepsHash,
+    sharedHash,
+    configHash,
+    externalTypes,
+    externalFunctions,
+    errors
+  );
+
+  // Phase 5: Analyze contracts (mutability propagation + warnings)
+  analyzeContracts(parsedFiles, cachedFiles, warnings);
+
+  // Phase 6: Generate output (codegen + emit)
+  generateOutput(
+    parsedFiles,
+    cachedFiles,
+    state.globalContractInterfaces,
+    state.interfaceOriginFile,
+    state.contractOriginFile,
+    filesWithContracts,
+    sharedHash,
+    configHash,
+    config,
+    outputDir,
+    artifacts,
+    errors,
+    newCache
+  );
+
+  // Phase 7: Update incremental build cache
+  updateCache(cacheDir, newCache);
 
   return {
     success: errors.length === 0,
