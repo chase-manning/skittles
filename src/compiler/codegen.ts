@@ -16,7 +16,7 @@ import {
   type Visibility,
 } from "../types/index.ts";
 import { cctx } from "./codegen-context.ts";
-import { walkStatements } from "./walker.ts";
+import { containsStatement, walkStatements } from "./walker.ts";
 
 // Sub-module imports
 import {
@@ -1003,13 +1003,7 @@ function generateConstructor(
 // ============================================================
 
 function statementsUseConsoleLog(stmts: Statement[]): boolean {
-  let found = false;
-  walkStatements(stmts, {
-    visitStatement(stmt) {
-      if (stmt.kind === "console-log") found = true;
-    },
-  });
-  return found;
+  return containsStatement(stmts, (stmt) => stmt.kind === "console-log");
 }
 
 function contractUsesConsoleLog(contract: SkittlesContract): boolean {

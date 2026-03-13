@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ASTVisitor } from "../../src/compiler/walker";
-import { filterStatements, walkExpression, walkStatements } from "../../src/compiler/walker";
+import { containsStatement, filterStatements, walkExpression, walkStatements } from "../../src/compiler/walker";
 import type { Expression, Statement } from "../../src/types/index";
 
 // ============================================================
@@ -508,5 +508,136 @@ describe("filterStatements", () => {
     ];
     const result = filterStatements(stmts, (s) => s.kind === "console-log");
     expect(result.map((s) => s.kind)).toEqual(["break", "continue"]);
+  });
+});
+
+// ============================================================
+// containsStatement
+// ============================================================
+
+describe("containsStatement", () => {
+  it("should return true when a top-level statement matches", () => {
+    const stmts: Statement[] = [
+      { kind: "break" },
+      { kind: "console-log", args: [] },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should return false when no statement matches", () => {
+    const stmts: Statement[] = [
+      { kind: "break" },
+      { kind: "continue" },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(false);
+  });
+
+  it("should return false for an empty list", () => {
+    expect(containsStatement([], (s) => s.kind === "console-log")).toBe(false);
+  });
+
+  it("should find statements nested inside if/else bodies", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [{ kind: "console-log", args: [] }],
+        elseBody: [{ kind: "break" }],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find statements nested inside else body", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [{ kind: "break" }],
+        elseBody: [{ kind: "console-log", args: [] }],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find statements nested inside for loop body", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "for",
+        initializer: undefined,
+        condition: undefined,
+        incrementor: undefined,
+        body: [{ kind: "console-log", args: [] }],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find statements nested inside while body", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "while",
+        condition: { kind: "boolean-literal", value: true },
+        body: [{ kind: "console-log", args: [] }],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find statements nested inside do-while body", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "do-while",
+        condition: { kind: "boolean-literal", value: false },
+        body: [{ kind: "console-log", args: [] }],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find statements nested inside switch cases", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "switch",
+        discriminant: { kind: "identifier", name: "x" },
+        cases: [
+          {
+            value: { kind: "number-literal", value: "1" },
+            body: [{ kind: "console-log", args: [] }],
+          },
+        ],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find statements nested inside try-catch bodies", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "try-catch",
+        call: { kind: "call", callee: { kind: "identifier", name: "foo" }, args: [] },
+        successBody: [{ kind: "break" }],
+        catchBody: [{ kind: "console-log", args: [] }],
+        catchParamName: "e",
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
+  });
+
+  it("should find deeply nested statements", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [
+          {
+            kind: "while",
+            condition: { kind: "boolean-literal", value: true },
+            body: [{ kind: "console-log", args: [] }],
+          },
+        ],
+      },
+    ];
+    expect(containsStatement(stmts, (s) => s.kind === "console-log")).toBe(true);
   });
 });
