@@ -225,6 +225,10 @@ function walkAllStatements(
  */
 function collectUsedIdentifiers(expr: Expression, used: Set<string>): void {
   switch (expr.kind) {
+    case "number-literal":
+    case "string-literal":
+    case "boolean-literal":
+      break;
     case "identifier":
       used.add(expr.name);
       break;
@@ -272,5 +276,9 @@ function collectUsedIdentifiers(expr: Expression, used: Set<string>): void {
         collectUsedIdentifiers(elem, used);
       }
       break;
+    default: {
+      const _exhaustive: never = expr;
+      throw new Error(`Unhandled expression kind: ${(_exhaustive as Expression).kind}`);
+    }
   }
 }
