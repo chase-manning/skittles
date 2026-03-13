@@ -64,7 +64,7 @@ export class Token implements IToken {
     to: address,
     amount: number
   ): boolean {
-    let currentAllowance: number = this.allowances[from][msg.sender];
+    const currentAllowance: number = this.allowances[from][msg.sender];
 
     if (currentAllowance < amount) {
       throw this.InsufficientAllowance(msg.sender, currentAllowance, amount);

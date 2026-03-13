@@ -18,6 +18,28 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: eslint src/ test/
+      - run: npm install
+        working-directory: webapp
+      - run: npm run lint
+        working-directory: webapp
+      - run: npm install
+        working-directory: docs
+      - run: npm run lint
+        working-directory: docs
+      - run: npm install
+        working-directory: example
+      - run: npm run lint
+        working-directory: example
+
   example:
     runs-on: ubuntu-latest
     steps:

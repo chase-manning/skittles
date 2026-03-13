@@ -70,6 +70,24 @@ export default defineConfig({
 });
 `;
 
+const ESLINT_CONFIG_TEMPLATE = `import js from "@eslint/js";
+import globals from "globals";
+import tseslint from "typescript-eslint";
+import { defineConfig, globalIgnores } from "eslint/config";
+
+export default defineConfig([
+  globalIgnores(["artifacts", "cache", "dist", "node_modules"]),
+  {
+    files: ["**/*.ts"],
+    extends: [js.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.node,
+    },
+  },
+]);
+`;
+
 const EXAMPLE_CONTRACT = `import { address, msg } from "skittles";
 import { ERC20 } from "skittles/contracts";
 
@@ -146,19 +164,24 @@ const DEFAULT_SCRIPTS: Record<string, string> = {
   build: "skittles compile && hardhat build",
   clean: "skittles clean",
   test: "skittles compile && hardhat test",
+  lint: "eslint .",
 };
 
 const REQUIRED_DEV_DEPS: Record<string, string> = {
+  "@eslint/js": "^9.39.4",
   "@nomicfoundation/hardhat-ethers": "^4.0.0",
   "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.0",
   "@nomicfoundation/hardhat-mocha": "^3.0.0",
   "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
   "@nomicfoundation/hardhat-typechain": "^3.0.0",
+  "@types/mocha": "^10.0.0",
   chai: "^5.1.2",
+  eslint: "^9.39.4",
   ethers: "^6.16.0",
+  globals: "^17.4.0",
   hardhat: "^3.0.0",
   mocha: "^11.0.0",
-  "@types/mocha": "^10.0.0",
+  "typescript-eslint": "^8.57.0",
 };
 
 /**
@@ -303,6 +326,13 @@ function initProjectFiles(projectRoot: string): void {
     path.join(projectRoot, "hardhat.config.ts"),
     HARDHAT_CONFIG_TEMPLATE,
     "hardhat.config.ts"
+  );
+
+  // Write eslint.config.js
+  writeIfNotExists(
+    path.join(projectRoot, "eslint.config.js"),
+    ESLINT_CONFIG_TEMPLATE,
+    "eslint.config.js"
   );
 
   // Update .gitignore
