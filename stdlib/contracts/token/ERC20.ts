@@ -1,4 +1,5 @@
 import { address, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
+import { ZERO_ADDRESS } from "../constants.ts";
 
 /**
  * Implementation of the ERC-20 token standard.
@@ -94,14 +95,14 @@ export class ERC20 {
     to: address,
     value: number
   ): void {
-    if (from == "0x0000000000000000000000000000000000000000") {
+    if (from == ZERO_ADDRESS) {
       throw this.ERC20InvalidSender(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
-    if (to == "0x0000000000000000000000000000000000000000") {
+    if (to == ZERO_ADDRESS) {
       throw this.ERC20InvalidReceiver(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     this._update(from, to, value);
@@ -112,7 +113,7 @@ export class ERC20 {
     to: address,
     value: number
   ): void {
-    if (from == "0x0000000000000000000000000000000000000000") {
+    if (from == ZERO_ADDRESS) {
       this._totalSupply += value;
     } else {
       if (this._balances[from] < value) {
@@ -125,7 +126,7 @@ export class ERC20 {
       this._balances[from] -= value;
     }
 
-    if (to == "0x0000000000000000000000000000000000000000") {
+    if (to == ZERO_ADDRESS) {
       this._totalSupply -= value;
     } else {
       this._balances[to] += value;
@@ -135,23 +136,23 @@ export class ERC20 {
   }
 
   protected _mint(to: address, value: number): void {
-    if (to == "0x0000000000000000000000000000000000000000") {
+    if (to == ZERO_ADDRESS) {
       throw this.ERC20InvalidReceiver(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
-    this._update("0x0000000000000000000000000000000000000000", to, value);
+    this._update(ZERO_ADDRESS, to, value);
   }
 
   protected _burn(from: address, value: number): void {
-    if (from == "0x0000000000000000000000000000000000000000") {
+    if (from == ZERO_ADDRESS) {
       throw this.ERC20InvalidSender(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     this._update(
       from,
-      "0x0000000000000000000000000000000000000000",
+      ZERO_ADDRESS,
       value
     );
   }
@@ -161,14 +162,14 @@ export class ERC20 {
     spender: address,
     value: number
   ): void {
-    if (owner == "0x0000000000000000000000000000000000000000") {
+    if (owner == ZERO_ADDRESS) {
       throw this.ERC20InvalidApprover(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
-    if (spender == "0x0000000000000000000000000000000000000000") {
+    if (spender == ZERO_ADDRESS) {
       throw this.ERC20InvalidSpender(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     this._allowances[owner][spender] = value;
