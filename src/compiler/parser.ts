@@ -145,6 +145,9 @@ export function parse(
   ctx.currentStringNames = new Set();
   ctx.currentParamTypes = new Map();
   ctx.currentEventNames = new Set();
+  ctx.contractStateVarNames = new Map();
+  ctx.contractParentNames = new Map();
+  ctx.parentStateVarNames = new Set();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
