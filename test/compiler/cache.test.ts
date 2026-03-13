@@ -496,6 +496,106 @@ describe("incremental compilation cache", () => {
     expect(stakingArtifact!.solidity).toContain("enum VaultStatus {");
   });
 
+  it("should continue compiling other files when one file has errors", async () => {
+    // Write one valid contract and one invalid contract
+    writeContract(
+      projectRoot,
+      "Good.ts",
+      `
+      class Good {
+        public value: number = 0;
+        public setValue(v: number): void {
+          this.value = v;
+        }
+      }
+    `
+    );
+
+    writeContract(
+      projectRoot,
+      "Bad.ts",
+      `
+      class Bad {
+        public x: bigint = 0;
+      }
+    `
+    );
+
+    const result = await compile(projectRoot, defaultConfig);
+    expect(result.success).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.failedFiles).toBeGreaterThan(0);
+
+    // The valid contract should still have been compiled successfully
+    const goodArtifact = result.artifacts.find(
+      (a) => a.contractName === "Good"
+    );
+    expect(goodArtifact).toBeDefined();
+  });
+
+  it("should report failedFiles count of zero on success", async () => {
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
+      class Counter {
+        public count: number = 0;
+        public increment(): void {
+          this.count = this.count + 1;
+        }
+      }
+    `
+    );
+
+    const result = await compile(projectRoot, defaultConfig);
+    expect(result.success).toBe(true);
+    expect(result.failedFiles).toBe(0);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should report multiple errors from multiple files", async () => {
+    writeContract(
+      projectRoot,
+      "Bad1.ts",
+      `
+      class Bad1 {
+        public x: bigint = 0;
+      }
+    `
+    );
+
+    writeContract(
+      projectRoot,
+      "Bad2.ts",
+      `
+      class Bad2 {
+        public y: bigint = 0;
+      }
+    `
+    );
+
+    writeContract(
+      projectRoot,
+      "Good.ts",
+      `
+      class Good {
+        public value: number = 0;
+      }
+    `
+    );
+
+    const result = await compile(projectRoot, defaultConfig);
+    expect(result.success).toBe(false);
+    expect(result.failedFiles).toBe(2);
+    expect(result.errors.length).toBeGreaterThanOrEqual(2);
+
+    // The valid contract should still compile
+    const goodArtifact = result.artifacts.find(
+      (a) => a.contractName === "Good"
+    );
+    expect(goodArtifact).toBeDefined();
+  });
+
   it("should generate import statement for cross-file contract inheritance", async () => {
     writeContract(
       projectRoot,

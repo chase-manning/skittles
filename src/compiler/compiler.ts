@@ -42,6 +42,7 @@ export interface CompilationResult {
   artifacts: BuildArtifact[];
   errors: string[];
   warnings: string[];
+  failedFiles: number;
 }
 
 // ============================================================
@@ -404,7 +405,8 @@ function parseContracts(
     functions: SkittlesFunction[];
     constants: Map<string, Expression>;
   },
-  errors: string[]
+  errors: string[],
+  failedFiles: Set<string>
 ): {
   parsedFiles: ParsedFile[];
   cachedFiles: CachedFile[];
@@ -463,7 +465,8 @@ function parseContracts(
       const message =
         err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
-      logError(`Failed to compile ${relativePath}: ${message}`);
+      failedFiles.add(relativePath);
+      logError(`${relativePath}: ${message}`);
     }
   }
 
@@ -604,6 +607,7 @@ function generateOutput(
   outputDir: string,
   artifacts: BuildArtifact[],
   errors: string[],
+  failedFiles: Set<string>,
   newCache: CompilationCache
 ): void {
   // Resolve interface mutabilities from implementing contracts
@@ -803,7 +807,8 @@ function generateOutput(
       const message =
         err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
-      logError(`Failed to compile ${relativePath}: ${message}`);
+      failedFiles.add(relativePath);
+      logError(`${relativePath}: ${message}`);
     }
   }
 }
@@ -845,6 +850,7 @@ export async function compile(
   const artifacts: BuildArtifact[] = [];
   const errors: string[] = [];
   const warnings: string[] = [];
+  const failedFiles = new Set<string>();
 
   // Phase 1: Discover source files (user + stdlib)
   const state: PreScanState = {
@@ -864,7 +870,7 @@ export async function compile(
 
   if (userSourceFiles.length === 0) {
     logInfo("No TypeScript contract files found.");
-    return { success: true, artifacts, errors, warnings: [] };
+    return { success: true, artifacts, errors, warnings: [], failedFiles: 0 };
   }
 
   logInfo(`Found ${userSourceFiles.length} contract file(s)`);
@@ -896,7 +902,8 @@ export async function compile(
     configHash,
     externalTypes,
     externalFunctions,
-    errors
+    errors,
+    failedFiles
   );
 
   // Phase 5: Analyze contracts (mutability propagation + warnings)
@@ -916,6 +923,7 @@ export async function compile(
     outputDir,
     artifacts,
     errors,
+    failedFiles,
     newCache
   );
 
@@ -927,6 +935,7 @@ export async function compile(
     artifacts,
     errors,
     warnings,
+    failedFiles: failedFiles.size,
   };
 }
 

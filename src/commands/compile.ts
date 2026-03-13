@@ -30,9 +30,16 @@ async function executeCompilation(
       return true;
     } else {
       spinner.fail("Compilation failed");
-      for (const error of result.errors) {
-        logError(error);
+
+      if (result.failedFiles > 0) {
+        logError(`${result.failedFiles} file(s) failed to compile`);
       }
+      if (result.artifacts.length > 0) {
+        logSuccess(
+          `${result.artifacts.length} contract(s) compiled successfully`
+        );
+      }
+
       if (options?.exitOnError) {
         process.exit(1);
       }
