@@ -82,6 +82,10 @@ function hashString(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex").slice(0, 16);
 }
 
+function baseName(filePath: string): string {
+  return path.basename(filePath, path.extname(filePath));
+}
+
 function loadCache(outputDir: string): CompilationCache {
   const cachePath = path.join(outputDir, ".skittles-cache.json");
   try {
@@ -211,7 +215,7 @@ function preScanContracts(
         source,
         filePath
       );
-      const baseName = path.basename(filePath, path.extname(filePath));
+      const base = baseName(filePath);
       for (const [name, fields] of structs)
         state.globalStructs.set(name, fields);
       for (const [name, members] of enums)
