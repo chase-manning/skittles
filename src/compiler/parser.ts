@@ -529,7 +529,41 @@ export function collectClassNames(source: string, filePath: string): string[] {
   const names: string[] = [];
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isClassDeclaration(node) && node.name && !extendsError(node)) {
-      names.push(node.name.text);
+      const className = node.name.text;
+      names.push(className);
+
+      // Collect state variable names (property declarations that are not
+      // arrow-function methods) for resolving `this.<prop>` across inheritance.
+      const stateVarNames = new Set<string>();
+      for (const member of node.members) {
+        if (ts.isPropertyDeclaration(member) && member.name) {
+          // Skip arrow function properties (they become methods)
+          if (member.initializer && ts.isArrowFunction(member.initializer))
+            continue;
+          const propName = ts.isIdentifier(member.name)
+            ? member.name.text
+            : ts.isPrivateIdentifier(member.name)
+              ? member.name.text.replace(/^#/, "")
+              : null;
+          if (propName) stateVarNames.add(propName);
+        }
+      }
+      ctx.contractStateVarNames.set(className, stateVarNames);
+
+      // Collect parent class names for inheritance chain traversal.
+      const parents: string[] = [];
+      if (node.heritageClauses) {
+        for (const clause of node.heritageClauses) {
+          if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
+            for (const type of clause.types) {
+              if (ts.isIdentifier(type.expression)) {
+                parents.push(type.expression.text);
+              }
+            }
+          }
+        }
+      }
+      ctx.contractParentNames.set(className, parents);
     }
   });
   return names;
