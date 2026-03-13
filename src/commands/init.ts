@@ -2,15 +2,16 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
+import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import { logError, logInfo, logSuccess, logWarning } from "../utils/console.ts";
-import { ensureDirectory,writeFile } from "../utils/file.ts";
+import { ensureDirectory, writeFile } from "../utils/file.ts";
 
 const CONFIG_TEMPLATE = JSON.stringify(
   {
-    typeCheck: true,
+    typeCheck: DEFAULT_CONFIG.typeCheck,
     consoleLog: true,
-    contractsDir: "contracts",
-    outputDir: "artifacts",
+    contractsDir: DEFAULT_CONFIG.contractsDir,
+    outputDir: DEFAULT_CONFIG.outputDir,
   },
   null,
   2
