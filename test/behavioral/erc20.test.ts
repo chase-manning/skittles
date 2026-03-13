@@ -8,6 +8,7 @@ import {
   DeployedContract,
 } from "./helpers";
 import { ethers } from "ethers";
+import { INITIAL_SUPPLY, BEHAVIORAL_TIMEOUT } from "../constants";
 
 // ============================================================
 // ERC20 TypeScript source (the contract under test)
@@ -84,8 +85,6 @@ describe("ERC20 behavioral tests", () => {
   let aliceAddr: string;
   let bobAddr: string;
 
-  const INITIAL_SUPPLY = 1_000_000n;
-
   beforeAll(async () => {
     env = await createTestEnv();
     deployer = env.accounts[0];
@@ -98,7 +97,7 @@ describe("ERC20 behavioral tests", () => {
     token = await compileAndDeploy(env, ERC20_SOURCE, "ERC20", [
       INITIAL_SUPPLY,
     ]);
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();

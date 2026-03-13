@@ -5,6 +5,7 @@ import {
   type TestEnv,
   type DeployedContract,
 } from "./helpers";
+import { BEHAVIORAL_TIMEOUT } from "../constants";
 
 const SOURCE = `
 class ControlFlow {
@@ -84,7 +85,7 @@ let contract: DeployedContract;
 beforeAll(async () => {
   env = await createTestEnv();
   contract = await compileAndDeploy(env, SOURCE, "ControlFlow");
-}, 30000);
+}, BEHAVIORAL_TIMEOUT);
 
 afterAll(async () => {
   await env.server.close();

@@ -8,6 +8,7 @@ import {
 } from "./helpers";
 import { parse } from "../../src/compiler/parser";
 import { generateSolidityFile } from "../../src/compiler/codegen";
+import { BEHAVIORAL_TIMEOUT } from "../constants";
 import { compileSolidity } from "../../src/compiler/solc";
 import { defaultConfig } from "../fixtures";
 import { ethers } from "ethers";
@@ -175,7 +176,7 @@ let env: TestEnv;
 
 beforeAll(async () => {
   env = await createTestEnv();
-}, 30000);
+}, BEHAVIORAL_TIMEOUT);
 
 afterAll(async () => {
   await env.server.close();
