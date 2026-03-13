@@ -2,6 +2,20 @@ import fs from "fs";
 import path from "path";
 
 /**
+ * Check if a filename is a TypeScript source file (.ts but not .d.ts).
+ * Optionally exclude index.ts files.
+ */
+export function isTypeScriptSourceFile(
+  name: string,
+  options?: { excludeIndex?: boolean }
+): boolean {
+  if (!name.endsWith(".ts")) return false;
+  if (name.endsWith(".d.ts")) return false;
+  if (options?.excludeIndex && name === "index.ts") return false;
+  return true;
+}
+
+/**
  * Recursively find all TypeScript files in a directory
  */
 export function findTypeScriptFiles(dir: string): string[] {
@@ -17,7 +31,7 @@ export function findTypeScriptFiles(dir: string): string[] {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...findTypeScriptFiles(fullPath));
-    } else if (entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
+    } else if (isTypeScriptSourceFile(entry.name)) {
       files.push(fullPath);
     }
   }

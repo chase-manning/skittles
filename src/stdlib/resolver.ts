@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import { isTypeScriptSourceFile } from "../utils/file.ts";
 import { findExtendsReferences } from "../utils/regex.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,11 +27,7 @@ function buildRegistry(): StdlibEntry[] {
     for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
       if (item.isDirectory()) {
         walk(path.join(dir, item.name));
-      } else if (
-        item.name.endsWith(".ts") &&
-        !item.name.endsWith(".d.ts") &&
-        item.name !== "index.ts"
-      ) {
+      } else if (isTypeScriptSourceFile(item.name, { excludeIndex: true })) {
         const className = item.name.replace(/\.ts$/, "");
         entries.push({
           className,
