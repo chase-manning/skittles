@@ -33,6 +33,19 @@ export type Visibility = "public" | "private" | "internal" | "external";
 export type StateMutability = "pure" | "view" | "nonpayable" | "payable";
 
 // ============================================================
+// NatSpec documentation
+// ============================================================
+
+export interface NatSpec {
+  title?: string;
+  author?: string;
+  notice?: string;
+  dev?: string;
+  params?: { name: string; description: string }[];
+  returns?: string;
+}
+
+// ============================================================
 // Contract IR
 // ============================================================
 
@@ -61,6 +74,7 @@ export interface SkittlesEnum {
 export interface SkittlesCustomError {
   name: string;
   parameters: SkittlesParameter[];
+  natspec?: NatSpec;
 }
 
 export interface SkittlesContract {
@@ -78,6 +92,7 @@ export interface SkittlesContract {
   isAbstract?: boolean;
   sourceLine?: number;
   neededArrayHelpers?: string[];
+  natspec?: NatSpec;
 }
 
 export interface SkittlesVariable {
@@ -89,6 +104,7 @@ export interface SkittlesVariable {
   isOverride?: boolean;
   initialValue?: Expression;
   sourceLine?: number;
+  natspec?: NatSpec;
 }
 
 export interface SkittlesFunction {
@@ -102,6 +118,7 @@ export interface SkittlesFunction {
   isAbstract?: boolean;
   body: Statement[];
   sourceLine?: number;
+  natspec?: NatSpec;
 }
 
 export interface SkittlesConstructor {
@@ -114,6 +131,7 @@ export interface SkittlesEvent {
   name: string;
   parameters: SkittlesParameter[];
   sourceLine?: number;
+  natspec?: NatSpec;
 }
 
 export interface SkittlesParameter {
