@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import type {
   SkittlesConfig,
   SkittlesContract,
@@ -53,11 +52,9 @@ export interface CompilationResult {
 // ============================================================
 
 import { CACHE_VERSION } from "./constants.ts";
+import { getPackageVersion } from "../utils/package.ts";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PACKAGE_VERSION: string = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf-8")
-).version;
+const PACKAGE_VERSION: string = getPackageVersion();
 
 interface CacheEntry {
   fileHash: string;
