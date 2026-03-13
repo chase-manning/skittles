@@ -1,4 +1,4 @@
-import { parse, collectTypes, collectFunctions, generateSolidity, generateSolidityFile, getErrorMessage } from "skittles";
+import { parse, collectTypes, collectFunctions, generateSolidityForContracts, getErrorMessage } from "skittles";
 
 const PLAYGROUND_FILENAME = "playground.ts";
 
@@ -24,10 +24,7 @@ export function compileSource(source: string): CompileResult {
       return { solidity: "", error: "No contract class found. Define a class to compile." };
     }
 
-    const solidity =
-      contracts.length > 1
-        ? generateSolidityFile(contracts)
-        : generateSolidity(contracts[0]);
+    const solidity = generateSolidityForContracts(contracts);
 
     return { solidity, error: null };
   } catch (err) {

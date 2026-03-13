@@ -64,7 +64,7 @@ export type Indexed<T> = T;
 export type View<T> = T;
 
 // Compiler API (parser + codegen)
-export { generateSolidity, generateSolidityFile } from "./compiler/codegen.ts";
+export { generateSolidity, generateSolidityFile, generateSolidityForContracts } from "./compiler/codegen.ts";
 export {
   collectClassNames,
   collectFunctions,

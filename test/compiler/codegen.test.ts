@@ -4,6 +4,7 @@ import {
   generateExpression,
   generateSolidity,
   generateSolidityFile,
+  generateSolidityForContracts,
   generateStatement,
   generateType,
   resolveShadowedLocals,
@@ -1147,6 +1148,42 @@ describe("generateSolidity", () => {
     );
     expect(sol).toContain("interface IToken {");
     expect(sol).toContain("IToken internal token;");
+  });
+});
+
+// ============================================================
+// generateSolidityForContracts (branching helper)
+// ============================================================
+
+describe("generateSolidityForContracts", () => {
+  it("should return empty string for empty contracts array", () => {
+    const sol = generateSolidityForContracts([]);
+    expect(sol).toBe("");
+  });
+
+  it("should generate solidity for a single contract", () => {
+    const sol = generateSolidityForContracts([emptyContract()]);
+    expect(sol).toContain("pragma solidity ^0.8.20;");
+    expect(sol).toContain("contract Test {");
+  });
+
+  it("should generate solidity for multiple contracts", () => {
+    const parent = emptyContract({ name: "Base" });
+    const child = emptyContract({ name: "Child", inherits: ["Base"] });
+    const sol = generateSolidityForContracts([parent, child]);
+    expect(sol).toContain("contract Base {");
+    expect(sol).toContain("contract Child is Base {");
+  });
+
+  it("should forward imports and solidity config", () => {
+    const sol = generateSolidityForContracts(
+      [emptyContract()],
+      ["@openzeppelin/contracts/token/ERC20/ERC20.sol"],
+      { version: "^0.8.24", license: "GPL-3.0" }
+    );
+    expect(sol).toContain("pragma solidity ^0.8.24;");
+    expect(sol).toContain("SPDX-License-Identifier: GPL-3.0");
+    expect(sol).toContain('import "@openzeppelin/contracts/token/ERC20/ERC20.sol";');
   });
 });
 
