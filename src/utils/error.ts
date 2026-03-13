@@ -2,14 +2,13 @@
  * Extract a human-readable error message from an unknown caught value.
  *
  * @param err - The caught error value (typically from a `catch` clause).
- * @param fallback - Optional fallback message when `err` is not an `Error` instance.
- *                   Defaults to `"Unknown error"`.
+ * @param fallback - Optional fallback message when `err` is not an `Error` instance
+ *                   and `err` is nullish. Defaults to `"Unknown error occurred"`.
  * @returns The error message string.
  */
 export function getErrorMessage(
   err: unknown,
-  fallback: string = "Unknown error"
+  fallback = "Unknown error occurred"
 ): string {
-  if (err instanceof Error) return err.message;
-  return fallback;
+  return err instanceof Error ? err.message : String(err ?? fallback);
 }
