@@ -33,6 +33,10 @@ jobs:
         working-directory: example
       - run: npm run lint
         working-directory: example
+      - run: npm install
+        working-directory: webapp
+      - run: npm run lint
+        working-directory: webapp
 
   example:
     runs-on: ubuntu-latest
