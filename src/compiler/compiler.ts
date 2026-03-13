@@ -51,7 +51,7 @@ export interface CompilationResult {
 // Incremental compilation cache
 // ============================================================
 
-import { CACHE_VERSION } from "./constants.ts";
+import { CACHE_HASH_LENGTH, CACHE_VERSION } from "./constants.ts";
 import { getPackageVersion } from "../utils/package.ts";
 
 const PACKAGE_VERSION: string = getPackageVersion();
@@ -77,7 +77,7 @@ interface CompilationCache {
 }
 
 function hashString(input: string): string {
-  return crypto.createHash("sha256").update(input).digest("hex").slice(0, 16);
+  return crypto.createHash("sha256").update(input).digest("hex").slice(0, CACHE_HASH_LENGTH);
 }
 
 function baseName(filePath: string): string {

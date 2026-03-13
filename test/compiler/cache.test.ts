@@ -3,18 +3,12 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { compile } from "../../src/compiler/compiler";
-import type { SkittlesConfig } from "../../src/types";
 import * as parserModule from "../../src/compiler/parser";
-import { defaultConfig as baseDefaultConfig } from "../fixtures.js";
+import { defaultConfig } from "../fixtures.js";
 
 const pkgJson = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf-8")
 );
-
-const defaultConfig: Required<SkittlesConfig> = {
-  ...baseDefaultConfig,
-  solidity: { version: "^0.8.20", license: "MIT" },
-};
 
 function createTempProject(): string {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "skittles-cache-test-"));
