@@ -262,8 +262,10 @@ export function parseClass(
   const varTypes = new Map<string, SkittlesType>();
   for (const member of propertyMembers) {
     const name =
-      member.name && ts.isIdentifier(member.name)
-        ? member.name.text
+      member.name && (ts.isIdentifier(member.name) || ts.isPrivateIdentifier(member.name))
+        ? ts.isPrivateIdentifier(member.name)
+          ? member.name.text.replace(/^#/, "")
+          : member.name.text
         : "unknown";
     const type: SkittlesType = member.type
       ? parseType(member.type)
@@ -806,8 +808,13 @@ export function tryParseError(
 }
 
 export function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
+  const isPrivateField = node.name && ts.isPrivateIdentifier(node.name);
   const name =
-    node.name && ts.isIdentifier(node.name) ? node.name.text : "unknown";
+    node.name && (ts.isIdentifier(node.name) || ts.isPrivateIdentifier(node.name))
+      ? isPrivateField
+        ? node.name.text.replace(/^#/, "")
+        : node.name.text
+      : "unknown";
 
   validateReservedName("Property name", name);
 
@@ -815,7 +822,7 @@ export function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     ? parseType(node.type)
     : { kind: SkittlesTypeKind.Uint256 };
 
-  const visibility = getVisibility(node.modifiers);
+  const visibility = isPrivateField ? "private" as const : getVisibility(node.modifiers);
   const isStatic = hasModifier(node.modifiers, ts.SyntaxKind.StaticKeyword);
   const isReadonly = hasModifier(node.modifiers, ts.SyntaxKind.ReadonlyKeyword);
   const constant = isStatic && isReadonly;

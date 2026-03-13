@@ -293,6 +293,38 @@ describe("parse", () => {
     expect(vars[2].visibility).toBe("internal");
   });
 
+  it("should parse private class fields (#field syntax)", () => {
+    const contracts = parse(
+      `class T {
+        #balance: number = 0;
+        #name: string = "";
+      }`,
+      "test.ts"
+    );
+    const vars = contracts[0].variables;
+    expect(vars[0].name).toBe("balance");
+    expect(vars[0].visibility).toBe("private");
+    expect(vars[1].name).toBe("name");
+    expect(vars[1].visibility).toBe("private");
+  });
+
+  it("should parse this.#field access in method bodies", () => {
+    const contracts = parse(
+      `class T {
+        #value: number = 0;
+        getValue(): number {
+          return this.#value;
+        }
+      }`,
+      "test.ts"
+    );
+    const fn = contracts[0].functions[0];
+    expect(fn.body[0].kind).toBe("return");
+    const ret = fn.body[0] as { kind: "return"; value: any };
+    expect(ret.value.kind).toBe("property-access");
+    expect(ret.value.property).toBe("value");
+  });
+
   it("should parse readonly as immutable", () => {
     const contracts = parse(
       `class T { public readonly x: number = 42; }`,
