@@ -12,8 +12,7 @@ import { writeFile } from "../../utils/file.ts";
 import { solidityOutputPath } from "../../utils/paths.ts";
 import {
   buildSourceMap,
-  generateSolidity,
-  generateSolidityFile,
+  generateSolidityForContracts,
 } from "../codegen.ts";
 import { formatSolidity } from "../formatter.ts";
 import { filterStatements } from "../walker.ts";
@@ -206,12 +205,7 @@ export function generateOutput(
         }
       }
 
-      const rawSolidity =
-        contracts.length > 1
-          ? generateSolidityFile(contracts, uniqueImports, config.solidity)
-          : contracts.length === 1
-            ? generateSolidity(contracts[0], uniqueImports, config.solidity)
-            : "";
+      const rawSolidity = generateSolidityForContracts(contracts, uniqueImports, config.solidity);
 
       if (!rawSolidity) continue;
 

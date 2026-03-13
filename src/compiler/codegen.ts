@@ -188,6 +188,23 @@ export function generateSolidity(
   return generateSolidityFile([contract], imports, solidityConfig);
 }
 
+/**
+ * Generate Solidity source for one or more contracts, encapsulating the
+ * common branching between `generateSolidityFile` (multiple contracts)
+ * and `generateSolidity` (single contract).  Returns an empty string
+ * when the contracts array is empty.
+ */
+export function generateSolidityForContracts(
+  contracts: SkittlesContract[],
+  imports?: string[],
+  solidityConfig?: SolidityConfig
+): string {
+  if (contracts.length === 0) return "";
+  return contracts.length > 1
+    ? generateSolidityFile(contracts, imports, solidityConfig)
+    : generateSolidity(contracts[0], imports, solidityConfig);
+}
+
 // ============================================================
 // Contract body generation
 // ============================================================

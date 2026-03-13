@@ -1,8 +1,7 @@
 import { ethers } from "ethers";
 
 import {
-  generateSolidity,
-  generateSolidityFile,
+  generateSolidityForContracts,
 } from "../../src/compiler/codegen";
 import { parse } from "../../src/compiler/parser";
 import { compileSolidity } from "../../src/compiler/solc";
@@ -65,10 +64,7 @@ export async function compileAndDeploy(
     throw new Error("No contracts found in source");
   }
 
-  const solidity =
-    contracts.length > 1
-      ? generateSolidityFile(contracts)
-      : generateSolidity(contracts[0]);
+  const solidity = generateSolidityForContracts(contracts);
 
   const compiled = compileSolidity(contractName, solidity, defaultConfig);
   if (compiled.errors.length > 0) {
