@@ -375,6 +375,23 @@ describe("integration: enums", () => {
     );
   });
 
+  it("should emit uint256 cast when returning enum state variable from number-returning function", () => {
+    const { errors, solidity } = compileTS(`
+      enum VaultStatus { Active, Paused }
+
+      class Staking {
+        public status: VaultStatus = VaultStatus.Active;
+
+        public getStatus(): number {
+          return this.status;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("returns (uint256)");
+    expect(solidity).toContain("return uint256(status);");
+  });
+
   it("should reject 'asserts' type predicates with a clear error", () => {
     expect(() =>
       compileTS(`

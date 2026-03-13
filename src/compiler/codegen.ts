@@ -1000,6 +1000,13 @@ function generateContractBody(
   cctx.helpers = new Set();
   cctx.currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
+  // Track state variables whose type is an enum (for enum→uint256 return casts)
+  cctx.currentEnumStateVarNames = new Set(
+    contract.variables
+      .filter((v) => v.type.kind === SkittlesTypeKind.Enum)
+      .map((v) => v.name)
+  );
+
   const inheritance =
     contract.inherits.length > 0 ? ` is ${contract.inherits.join(", ")}` : "";
   const abstractPrefix = contract.isAbstract ? "abstract " : "";
@@ -1784,6 +1791,8 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
 
 function generateFunction(f: SkittlesFunction): string {
   const natspecLines = generateNatSpecLines(f.natspec, "    ");
+  const prevReturnType = cctx.currentFunctionReturnType;
+  cctx.currentFunctionReturnType = f.returnType;
 
   if (f.name === "receive") {
     const lines: string[] = [...natspecLines];
@@ -1792,6 +1801,7 @@ function generateFunction(f: SkittlesFunction): string {
       lines.push(generateStatement(s, "        "));
     }
     lines.push("    }");
+    cctx.currentFunctionReturnType = prevReturnType;
     return lines.join("\n");
   }
 
@@ -1802,6 +1812,7 @@ function generateFunction(f: SkittlesFunction): string {
       lines.push(generateStatement(s, "        "));
     }
     lines.push("    }");
+    cctx.currentFunctionReturnType = prevReturnType;
     return lines.join("\n");
   }
 
@@ -1849,6 +1860,7 @@ function generateFunction(f: SkittlesFunction): string {
     }
     lines.push("    }");
   }
+  cctx.currentFunctionReturnType = prevReturnType;
   return lines.join("\n");
 }
 
@@ -2084,13 +2096,43 @@ export function generateExpression(expr: Expression): string {
 // Statement generation
 // ============================================================
 
+/**
+ * Check whether an expression refers to an enum-typed state variable.
+ * Used to decide whether a uint256(...) cast is needed in return statements.
+ */
+function isEnumExpression(expr: Expression): boolean {
+  // Direct identifier: `status` (state variable)
+  if (expr.kind === "identifier") {
+    return cctx.currentEnumStateVarNames.has(expr.name);
+  }
+  // Property access: `this.status`
+  if (
+    expr.kind === "property-access" &&
+    expr.object.kind === "identifier" &&
+    expr.object.name === "this"
+  ) {
+    return cctx.currentEnumStateVarNames.has(expr.property);
+  }
+  return false;
+}
+
 export function generateStatement(stmt: Statement, indent: string): string {
   const inner = indent + "    ";
 
   switch (stmt.kind) {
     case "return":
       if (stmt.value) {
-        return `${indent}return ${generateExpression(stmt.value)};`;
+        let retExpr = generateExpression(stmt.value);
+        // When the function returns uint256 but the expression is an enum
+        // state variable, emit an explicit uint256(...) cast so Solidity
+        // doesn't reject the implicit enum→uint256 conversion.
+        if (
+          cctx.currentFunctionReturnType?.kind === SkittlesTypeKind.Uint256 &&
+          isEnumExpression(stmt.value)
+        ) {
+          retExpr = `uint256(${retExpr})`;
+        }
+        return `${indent}return ${retExpr};`;
       }
       return `${indent}return;`;
 

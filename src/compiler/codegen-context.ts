@@ -8,6 +8,12 @@ export interface CodegenContext {
   // Type name registries across all contracts in the current file
   allKnownEnumNames: Set<string>;
   allKnownInterfaceNames: Set<string>;
+
+  // Current function return type (set during function generation for enum→uint256 casts)
+  currentFunctionReturnType: import("../types/index.ts").SkittlesType | null;
+
+  // State variable names whose type is an enum (set per-contract)
+  currentEnumStateVarNames: Set<string>;
 }
 
 export function createCodegenContext(): CodegenContext {
@@ -16,6 +22,8 @@ export function createCodegenContext(): CodegenContext {
     currentNeededArrayHelpers: [],
     allKnownEnumNames: new Set(),
     allKnownInterfaceNames: new Set(),
+    currentFunctionReturnType: null,
+    currentEnumStateVarNames: new Set(),
   };
 }
 
