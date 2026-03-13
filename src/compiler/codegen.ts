@@ -794,6 +794,31 @@ function suffixToSolType(suffix: string): string {
 // ============================================================
 
 /**
+ * Compute the transitive set of ancestor contract names for the given contract
+ * using a BFS traversal over `inherits`.
+ */
+function computeAncestors(
+  contract: SkittlesContract,
+  contractByName: Map<string, SkittlesContract>
+): Set<string> {
+  const ancestors = new Set<string>();
+  const queue = [...contract.inherits.filter((n) => contractByName.has(n))];
+  let queueIndex = 0;
+  while (queueIndex < queue.length) {
+    const name = queue[queueIndex++]!;
+    if (ancestors.has(name)) continue;
+    ancestors.add(name);
+    const parent = contractByName.get(name);
+    if (parent) {
+      for (const gp of parent.inherits) {
+        if (contractByName.has(gp)) queue.push(gp);
+      }
+    }
+  }
+  return ancestors;
+}
+
+/**
  * Generate a Solidity file containing multiple contracts.
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
@@ -888,21 +913,7 @@ export function generateSolidityFile(
   const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
   const ancestorsMap = new Map<string, Set<string>>();
   for (const contract of contracts) {
-    const ancestors = new Set<string>();
-    const queue = [...contract.inherits.filter((n) => contractByName.has(n))];
-    let queueIndex = 0;
-    while (queueIndex < queue.length) {
-      const name = queue[queueIndex++]!;
-      if (ancestors.has(name)) continue;
-      ancestors.add(name);
-      const parent = contractByName.get(name);
-      if (parent) {
-        for (const gp of parent.inherits) {
-          if (contractByName.has(gp)) queue.push(gp);
-        }
-      }
-    }
-    ancestorsMap.set(contract.name, ancestors);
+    ancestorsMap.set(contract.name, computeAncestors(contract, contractByName));
   }
 
   // Track all contracts that emitted each definition / function so child
@@ -2670,21 +2681,7 @@ export function buildSourceMap(
   const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
   const smAncestorsMap = new Map<string, Set<string>>();
   for (const c of contracts) {
-    const ancestors = new Set<string>();
-    const queue = [...c.inherits.filter((n) => contractByName.has(n))];
-    let qi = 0;
-    while (qi < queue.length) {
-      const name = queue[qi++]!;
-      if (ancestors.has(name)) continue;
-      ancestors.add(name);
-      const parent = contractByName.get(name);
-      if (parent) {
-        for (const gp of parent.inherits) {
-          if (contractByName.has(gp)) queue.push(gp);
-        }
-      }
-    }
-    smAncestorsMap.set(c.name, ancestors);
+    smAncestorsMap.set(c.name, computeAncestors(c, contractByName));
   }
   const smFunctionOrigins = new Map<string, Set<string>>();
 
