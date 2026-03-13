@@ -68,6 +68,7 @@ interface CacheEntry {
   }[];
   resolvedMutabilities?: Record<string, Record<string, string>>;
   contractFunctions?: Record<string, Record<string, string>>;
+  contractInherits?: Record<string, string[]>;
 }
 
 interface CompilationCache {
@@ -496,27 +497,48 @@ function analyzeContracts(
     for (const c of contracts) allParsedContracts.set(c.name, c);
   }
 
-  // Include function mutabilities from cached contracts so that freshly
-  // parsed children can propagate mutability from cached parents.
+  // Include function mutabilities and inheritance info from cached contracts
+  // so that freshly parsed children can propagate mutability from cached parents.
   const cachedFnMutabilities = new Map<string, Map<string, string>>();
+  const cachedContractInherits = new Map<string, string[]>();
   for (const { cached } of cachedFiles) {
-    if (!cached.contractFunctions) continue;
-    for (const [contractName, fns] of Object.entries(
-      cached.contractFunctions
-    )) {
-      cachedFnMutabilities.set(contractName, new Map(Object.entries(fns)));
+    if (cached.contractFunctions) {
+      for (const [contractName, fns] of Object.entries(
+        cached.contractFunctions
+      )) {
+        cachedFnMutabilities.set(contractName, new Map(Object.entries(fns)));
+      }
+    }
+    if (cached.contractInherits) {
+      for (const [contractName, parents] of Object.entries(
+        cached.contractInherits
+      )) {
+        cachedContractInherits.set(contractName, parents);
+      }
     }
   }
 
   for (const { contracts } of parsedFiles) {
     for (const contract of contracts) {
       const parentMutabilities = new Map<string, string>();
-      for (const parentName of contract.inherits) {
+      // Traverse the full inheritance chain (not just direct parents)
+      // so that functions defined in grandparent contracts (e.g. _mint
+      // in ERC20 when extending ERC20Votes) are included.
+      const visited = new Set<string>();
+      const queue = [...contract.inherits];
+      while (queue.length > 0) {
+        const parentName = queue.pop()!;
+        if (visited.has(parentName)) continue;
+        visited.add(parentName);
         const parent = allParsedContracts.get(parentName);
         if (parent) {
           for (const fn of parent.functions) {
             if (!parentMutabilities.has(fn.name))
               parentMutabilities.set(fn.name, fn.stateMutability);
+          }
+          // Continue up the inheritance chain
+          for (const grandparent of parent.inherits) {
+            if (!visited.has(grandparent)) queue.push(grandparent);
           }
         } else {
           const cachedFns = cachedFnMutabilities.get(parentName);
@@ -524,6 +546,13 @@ function analyzeContracts(
             for (const [fnName, mut] of cachedFns) {
               if (!parentMutabilities.has(fnName))
                 parentMutabilities.set(fnName, mut);
+            }
+          }
+          // Continue up the inheritance chain for cached parents
+          const cachedParents = cachedContractInherits.get(parentName);
+          if (cachedParents) {
+            for (const grandparent of cachedParents) {
+              if (!visited.has(grandparent)) queue.push(grandparent);
             }
           }
         }
@@ -792,10 +821,12 @@ function generateOutput(
       );
 
       const contractFns: Record<string, Record<string, string>> = {};
+      const contractInheritsMap: Record<string, string[]> = {};
       for (const contract of contracts) {
         const fns: Record<string, string> = {};
         for (const fn of contract.functions) fns[fn.name] = fn.stateMutability;
         contractFns[contract.name] = fns;
+        contractInheritsMap[contract.name] = contract.inherits;
       }
 
       const cacheEntry: CacheEntry = {
@@ -806,6 +837,7 @@ function generateOutput(
         contracts: [],
         resolvedMutabilities,
         contractFunctions: contractFns,
+        contractInherits: contractInheritsMap,
       };
       writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
