@@ -45,7 +45,7 @@
 
 .pg-select {
   font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   font-weight: 500;
   color: var(--text-primary);
   background-color: var(--bg-surface);
@@ -68,7 +68,7 @@
 
 .pg-share-btn {
   font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   font-weight: 600;
   color: var(--text-inverted);
   background-color: var(--accent);
@@ -142,7 +142,7 @@
   padding: 20px;
   background-color: var(--bg-inset);
   font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   line-height: 1.8;
   white-space: pre;
   overflow: auto;
@@ -159,7 +159,7 @@
   color: transparent;
   caret-color: var(--text-primary);
   font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   line-height: 1.8;
   border: none;
   outline: 2px solid transparent;
@@ -189,7 +189,7 @@
 
 .pg-code-line {
   font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   line-height: 1.8;
   white-space: pre;
   color: var(--text-secondary);
@@ -198,9 +198,9 @@
 /* ==================== Error ==================== */
 .pg-error {
   font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   line-height: 1.6;
-  color: #ef4444;
+  color: var(--color-error);
   white-space: pre-wrap;
   word-break: break-word;
 }

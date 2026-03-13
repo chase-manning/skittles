@@ -83,7 +83,7 @@
   gap: 8px;
   padding: 8px 16px;
   border-radius: 100px;
-  border: 1px solid #22D3EE30;
+  border: 1px solid var(--accent-translucent);
 }
 
 .badge-dot {
@@ -95,7 +95,7 @@
 
 .badge-text {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   font-weight: 500;
   color: var(--accent);
 }
@@ -208,20 +208,20 @@
 }
 
 .dot-red {
-  background-color: #EF4444;
+  background-color: var(--color-error);
 }
 
 .dot-yellow {
-  background-color: #F59E0B;
+  background-color: var(--color-warning);
 }
 
 .dot-green {
-  background-color: #22C55E;
+  background-color: var(--color-success);
 }
 
 .code-filename {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   font-weight: 500;
   color: var(--text-tertiary);
 }
@@ -232,7 +232,7 @@
 
 .code-line {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   line-height: 1.8;
   white-space: pre;
   color: var(--text-secondary);
@@ -243,7 +243,7 @@
 }
 
 .tok-string {
-  color: #A5D6A7;
+  color: var(--color-syntax-string);
 }
 
 .tok-type {
@@ -256,7 +256,7 @@
 }
 
 .tok-number {
-  color: #F9A8D4;
+  color: var(--color-syntax-number);
 }
 
 .tok-plain {
@@ -398,7 +398,7 @@
 }
 
 .comparison-panel--highlighted {
-  border-color: #22D3EE30;
+  border-color: var(--accent-translucent);
 }
 
 .comparison-header {
@@ -537,7 +537,7 @@
 
 .terminal-comment {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   font-weight: normal;
   color: var(--text-muted);
 }
@@ -550,9 +550,9 @@
 
 .terminal-success {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--font-size-code);
   font-weight: normal;
-  color: #22C55E;
+  color: var(--color-success);
 }
 
 /* ==================== Final CTA ==================== */
