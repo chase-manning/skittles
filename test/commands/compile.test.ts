@@ -60,19 +60,25 @@ describe("watchCompile", () => {
         "utf-8"
       );
 
+      // Wait for fs.watch to be ready on macOS (it does not start immediately)
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
       // Modify the contract file to trigger recompilation
       fs.writeFileSync(
         path.join(contractsDir, "Counter.ts"),
         MODIFIED_CONTRACT
       );
 
-      // Wait for debounce (200ms) + compilation time (may be slow under load)
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      const updatedSol = fs.readFileSync(
-        path.join(solDir, "Counter.sol"),
-        "utf-8"
-      );
+      // Poll for recompilation; fs.watch and compile timing vary by platform/load
+      const solPath = path.join(solDir, "Counter.sol");
+      const deadline = Date.now() + 8000;
+      let updatedSol: string;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        updatedSol = fs.readFileSync(solPath, "utf-8");
+        if (updatedSol.includes("count += 2")) break;
+      }
+      updatedSol = fs.readFileSync(solPath, "utf-8");
       expect(updatedSol).not.toBe(initialSol);
       expect(updatedSol).toContain("count += 2");
     } finally {
