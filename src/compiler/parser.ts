@@ -35,7 +35,10 @@ export { parseExpression } from "./expression-parser.ts";
 export { parseStatement } from "./statement-parser.ts";
 export { inferStateMutability } from "./mutability.ts";
 
-export function collectTypes(source: string, filePath: string): {
+export function collectTypes(
+  source: string,
+  filePath: string
+): {
   structs: Map<string, SkittlesParameter[]>;
   enums: Map<string, string[]>;
   contractInterfaces: Map<string, SkittlesContractInterface>;
@@ -70,7 +73,11 @@ export function collectTypes(source: string, filePath: string): {
 
   // Pass 1: collect structs and enums first so parseType can resolve forward references
   ts.forEachChild(sourceFile, (node) => {
-    if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
+    if (
+      ts.isTypeAliasDeclaration(node) &&
+      node.name &&
+      ts.isTypeLiteralNode(node.type)
+    ) {
       const fields = parseTypeLiteralFields(node.type);
       structs.set(node.name.text, fields);
     }
@@ -164,7 +171,11 @@ export function parse(
 
   // First pass: collect structs and enums so they are available when parsing interfaces
   ts.forEachChild(sourceFile, (node) => {
-    if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
+    if (
+      ts.isTypeAliasDeclaration(node) &&
+      node.name &&
+      ts.isTypeLiteralNode(node.type)
+    ) {
       const fields = parseTypeLiteralFields(node.type);
       structs.set(node.name.text, fields);
     }
@@ -228,7 +239,11 @@ export function parse(
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.initializer && !ts.isArrowFunction(decl.initializer)) {
+        if (
+          ts.isIdentifier(decl.name) &&
+          decl.initializer &&
+          !ts.isArrowFunction(decl.initializer)
+        ) {
           fileConstants.set(decl.name.text, parseExpression(decl.initializer));
         }
       }
@@ -241,13 +256,21 @@ export function parse(
   // Second pass: collect file level standalone functions (with access to constants)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      fileFunctions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
+      fileFunctions.push(
+        parseStandaloneFunction(node, emptyVarTypes, emptyEventNames)
+      );
     }
 
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrowFunction(decl.initializer)) {
-          fileFunctions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
+        if (
+          ts.isIdentifier(decl.name) &&
+          decl.initializer &&
+          ts.isArrowFunction(decl.initializer)
+        ) {
+          fileFunctions.push(
+            parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames)
+          );
         }
       }
     }
@@ -261,7 +284,18 @@ export function parse(
         customErrors.set(node.name.text, params);
         ctx.knownCustomErrors.add(node.name.text);
       } else {
-        contracts.push(parseClass(node, filePath, structs, enums, contractInterfaces, customErrors, fileFunctions, fileConstants));
+        contracts.push(
+          parseClass(
+            node,
+            filePath,
+            structs,
+            enums,
+            contractInterfaces,
+            customErrors,
+            fileFunctions,
+            fileConstants
+          )
+        );
       }
     }
   });
@@ -300,7 +334,8 @@ export function parse(
   const descendantsOf = new Map<string, Set<string>>();
   for (const contract of contracts) {
     for (const parentName of contract.inherits) {
-      if (!descendantsOf.has(parentName)) descendantsOf.set(parentName, new Set());
+      if (!descendantsOf.has(parentName))
+        descendantsOf.set(parentName, new Set());
       descendantsOf.get(parentName)!.add(contract.name);
     }
   }
@@ -332,14 +367,19 @@ export function parse(
       for (const descName of descendants) {
         const desc = contractByName.get(descName);
         if (!desc) continue;
-        const concreteFn = desc.functions.find((f) => f.name === abstractFn.name && !f.isAbstract);
+        const concreteFn = desc.functions.find(
+          (f) => f.name === abstractFn.name && !f.isAbstract
+        );
         if (!concreteFn) continue;
         const rank = MUTABILITY_RANK[concreteFn.stateMutability];
         if (inferredRank === undefined || rank > inferredRank) {
           inferredRank = rank;
         }
       }
-      if (inferredRank !== undefined && inferredRank < MUTABILITY_RANK[abstractFn.stateMutability]) {
+      if (
+        inferredRank !== undefined &&
+        inferredRank < MUTABILITY_RANK[abstractFn.stateMutability]
+      ) {
         const rankToMut = ["pure", "view", "nonpayable", "payable"] as const;
         abstractFn.stateMutability = rankToMut[inferredRank];
       }
@@ -356,7 +396,10 @@ export function parse(
   return contracts;
 }
 
-export function collectFunctions(source: string, filePath: string): {
+export function collectFunctions(
+  source: string,
+  filePath: string
+): {
   functions: SkittlesFunction[];
   constants: Map<string, Expression>;
 } {
@@ -393,15 +436,23 @@ export function collectFunctions(source: string, filePath: string): {
   // If registries are already populated (e.g. by a prior collectTypes()), reuse them;
   // otherwise scan the current file for structs and enums.
   if (ctx.knownStructs.size === 0 || ctx.knownEnums.size === 0) {
-    const localStructs = ctx.knownStructs.size > 0 ? ctx.knownStructs : new Map<string, SkittlesParameter[]>();
-    const localEnums = ctx.knownEnums.size > 0 ? ctx.knownEnums : new Map<string, string[]>();
+    const localStructs =
+      ctx.knownStructs.size > 0
+        ? ctx.knownStructs
+        : new Map<string, SkittlesParameter[]>();
+    const localEnums =
+      ctx.knownEnums.size > 0 ? ctx.knownEnums : new Map<string, string[]>();
     ctx.knownStructs = localStructs;
     ctx.knownEnums = localEnums;
     ctx.knownContractInterfaces = new Set();
     ctx.knownContractInterfaceMap = new Map();
 
     ts.forEachChild(sourceFile, (node) => {
-      if (ts.isTypeAliasDeclaration(node) && node.name && ts.isTypeLiteralNode(node.type)) {
+      if (
+        ts.isTypeAliasDeclaration(node) &&
+        node.name &&
+        ts.isTypeLiteralNode(node.type)
+      ) {
         localStructs.set(node.name.text, parseTypeLiteralFields(node.type));
       }
       if (ts.isEnumDeclaration(node) && node.name) {
@@ -418,7 +469,11 @@ export function collectFunctions(source: string, filePath: string): {
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.initializer && !ts.isArrowFunction(decl.initializer)) {
+        if (
+          ts.isIdentifier(decl.name) &&
+          decl.initializer &&
+          !ts.isArrowFunction(decl.initializer)
+        ) {
           constants.set(decl.name.text, parseExpression(decl.initializer));
         }
       }
@@ -431,13 +486,21 @@ export function collectFunctions(source: string, filePath: string): {
   // Second pass: collect file level standalone functions (with access to constants)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      functions.push(parseStandaloneFunction(node, emptyVarTypes, emptyEventNames));
+      functions.push(
+        parseStandaloneFunction(node, emptyVarTypes, emptyEventNames)
+      );
     }
 
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (ts.isIdentifier(decl.name) && decl.initializer && ts.isArrowFunction(decl.initializer)) {
-          functions.push(parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames));
+        if (
+          ts.isIdentifier(decl.name) &&
+          decl.initializer &&
+          ts.isArrowFunction(decl.initializer)
+        ) {
+          functions.push(
+            parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames)
+          );
         }
       }
     }

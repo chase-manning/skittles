@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { parse } from "../../src/compiler/parser";
-import { generateSolidity, generateSolidityFile, buildSourceMap } from "../../src/compiler/codegen";
+import {
+  generateSolidity,
+  generateSolidityFile,
+  buildSourceMap,
+} from "../../src/compiler/codegen";
 
 // ============================================================
 // Parser: source line capture
@@ -113,7 +117,8 @@ describe("buildSourceMap", () => {
     expect(sourceMap.sourceFile).toBe("test.ts");
     // Find the Solidity line with "contract Token"
     const solLines = solidity.split("\n");
-    const contractLine = solLines.findIndex((l) => l.includes("contract Token")) + 1;
+    const contractLine =
+      solLines.findIndex((l) => l.includes("contract Token")) + 1;
     expect(sourceMap.mappings[contractLine]).toBe(1);
   });
 

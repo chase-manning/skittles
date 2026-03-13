@@ -54,10 +54,7 @@ export {
   collectFunctions,
   collectClassNames,
 } from "./compiler/parser.ts";
-export {
-  generateSolidity,
-  generateSolidityFile,
-} from "./compiler/codegen.ts";
+export { generateSolidity, generateSolidityFile } from "./compiler/codegen.ts";
 
 // Contract IR types (for advanced users / plugins)
 export type {
@@ -98,7 +95,12 @@ export declare const self: string;
 export declare function keccak256(...args: unknown[]): bytes32;
 export declare function sha256(...args: unknown[]): bytes32;
 export declare function hash(...args: unknown[]): bytes32;
-export declare function ecrecover(hash: bytes32, v: number, r: bytes32, s: bytes32): address;
+export declare function ecrecover(
+  hash: bytes32,
+  v: number,
+  r: bytes32,
+  s: bytes32
+): address;
 export declare function addmod(x: number, y: number, k: number): number;
 export declare function mulmod(x: number, y: number, k: number): number;
 

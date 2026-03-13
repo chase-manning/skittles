@@ -46,7 +46,10 @@ describe("findTypeScriptFiles", () => {
   });
 
   it("should exclude .d.ts files", () => {
-    fs.writeFileSync(path.join(TEST_DIR, "types.d.ts"), "declare const x: number;");
+    fs.writeFileSync(
+      path.join(TEST_DIR, "types.d.ts"),
+      "declare const x: number;"
+    );
     fs.writeFileSync(path.join(TEST_DIR, "real.ts"), "const x = 1;");
 
     const files = findTypeScriptFiles(TEST_DIR);

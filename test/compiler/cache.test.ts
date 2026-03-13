@@ -26,8 +26,16 @@ function createTempProject(): string {
   return tmpDir;
 }
 
-function writeContract(projectRoot: string, fileName: string, source: string): void {
-  fs.writeFileSync(path.join(projectRoot, "contracts", fileName), source, "utf-8");
+function writeContract(
+  projectRoot: string,
+  fileName: string,
+  source: string
+): void {
+  fs.writeFileSync(
+    path.join(projectRoot, "contracts", fileName),
+    source,
+    "utf-8"
+  );
 }
 
 function removeTempProject(projectRoot: string): void {
@@ -47,14 +55,18 @@ describe("incremental compilation cache", () => {
   });
 
   it("should use cache on second compile when source is unchanged", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
         public increment(): void {
           this.count = this.count + 1;
         }
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -70,18 +82,24 @@ describe("incremental compilation cache", () => {
 
     expect(spy).not.toHaveBeenCalled();
 
-    expect(result2.artifacts[0].solidity).toEqual(result1.artifacts[0].solidity);
+    expect(result2.artifacts[0].solidity).toEqual(
+      result1.artifacts[0].solidity
+    );
   });
 
   it("should recompile when a contract file is modified", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
         public increment(): void {
           this.count = this.count + 1;
         }
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -89,14 +107,18 @@ describe("incremental compilation cache", () => {
 
     const spy = vi.spyOn(parserModule, "parse");
 
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
         public increment(): void {
           this.count = this.count + 2;
         }
       }
-    `);
+    `
+    );
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -107,14 +129,18 @@ describe("incremental compilation cache", () => {
   });
 
   it("should compile new file without recompiling unchanged files when no shared defs change", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
         public increment(): void {
           this.count = this.count + 1;
         }
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -122,11 +148,15 @@ describe("incremental compilation cache", () => {
 
     const spy = vi.spyOn(parserModule, "parse");
 
-    writeContract(projectRoot, "Token.ts", `
+    writeContract(
+      projectRoot,
+      "Token.ts",
+      `
       class Token {
         public name: string = "Token";
       }
-    `);
+    `
+    );
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -136,25 +166,35 @@ describe("incremental compilation cache", () => {
 
     // Token.ts is new so generateSolidity must be called for it.
     // Counter.ts is unchanged and served from cache (no generateSolidity for Counter).
-    const counterArtifact = result2.artifacts.find((a) => a.contractName === "Counter");
+    const counterArtifact = result2.artifacts.find(
+      (a) => a.contractName === "Counter"
+    );
     expect(counterArtifact?.solidity).toEqual(result1.artifacts[0].solidity);
   });
 
   it("should only recompile the changed file when shared definitions are unchanged", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
         public increment(): void {
           this.count = this.count + 1;
         }
       }
-    `);
+    `
+    );
 
-    writeContract(projectRoot, "Token.ts", `
+    writeContract(
+      projectRoot,
+      "Token.ts",
+      `
       class Token {
         public name: string = "Token";
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -162,11 +202,15 @@ describe("incremental compilation cache", () => {
 
     const spy = vi.spyOn(parserModule, "parse");
 
-    writeContract(projectRoot, "Token.ts", `
+    writeContract(
+      projectRoot,
+      "Token.ts",
+      `
       class Token {
         public name: string = "UpdatedToken";
       }
-    `);
+    `
+    );
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -175,12 +219,19 @@ describe("incremental compilation cache", () => {
     expect(spy).toHaveBeenCalled();
 
     // Counter.ts is unchanged and served from cache
-    const counterArtifact = result2.artifacts.find((a) => a.contractName === "Counter");
-    expect(counterArtifact?.solidity).toEqual(result1.artifacts.find((a) => a.contractName === "Counter")!.solidity);
+    const counterArtifact = result2.artifacts.find(
+      (a) => a.contractName === "Counter"
+    );
+    expect(counterArtifact?.solidity).toEqual(
+      result1.artifacts.find((a) => a.contractName === "Counter")!.solidity
+    );
   });
 
   it("should produce identical artifacts from cache as from fresh compilation", async () => {
-    writeContract(projectRoot, "Math.ts", `
+    writeContract(
+      projectRoot,
+      "Math.ts",
+      `
       class Math {
         public add(a: number, b: number): number {
           return a + b;
@@ -189,7 +240,8 @@ describe("incremental compilation cache", () => {
           return a * b;
         }
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -199,17 +251,25 @@ describe("incremental compilation cache", () => {
 
     expect(result2.artifacts).toHaveLength(result1.artifacts.length);
     for (let i = 0; i < result1.artifacts.length; i++) {
-      expect(result2.artifacts[i].contractName).toEqual(result1.artifacts[i].contractName);
-      expect(result2.artifacts[i].solidity).toEqual(result1.artifacts[i].solidity);
+      expect(result2.artifacts[i].contractName).toEqual(
+        result1.artifacts[i].contractName
+      );
+      expect(result2.artifacts[i].solidity).toEqual(
+        result1.artifacts[i].solidity
+      );
     }
   });
 
   it("should write cache file to the cache directory", async () => {
-    writeContract(projectRoot, "Simple.ts", `
+    writeContract(
+      projectRoot,
+      "Simple.ts",
+      `
       class Simple {
         public value: number = 0;
       }
-    `);
+    `
+    );
 
     await compile(projectRoot, defaultConfig);
 
@@ -223,11 +283,15 @@ describe("incremental compilation cache", () => {
   });
 
   it("should handle corrupted cache gracefully and recompile", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
       }
-    `);
+    `
+    );
 
     await compile(projectRoot, defaultConfig);
 
@@ -244,11 +308,15 @@ describe("incremental compilation cache", () => {
   });
 
   it("should handle missing cache file and compile fresh", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
       }
-    `);
+    `
+    );
 
     const spy = vi.spyOn(parserModule, "parse");
 
@@ -260,7 +328,10 @@ describe("incremental compilation cache", () => {
   });
 
   it("should use cache for multiple contracts in the same file", async () => {
-    writeContract(projectRoot, "Multi.ts", `
+    writeContract(
+      projectRoot,
+      "Multi.ts",
+      `
       class Ownable {
         public owner: address;
 
@@ -272,7 +343,8 @@ describe("incremental compilation cache", () => {
       class Token extends Ownable {
         public totalSupply: number = 0;
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -287,19 +359,25 @@ describe("incremental compilation cache", () => {
 
     expect(result2.artifacts.length).toEqual(result1.artifacts.length);
     for (let i = 0; i < result1.artifacts.length; i++) {
-      expect(result2.artifacts[i].solidity).toEqual(result1.artifacts[i].solidity);
+      expect(result2.artifacts[i].solidity).toEqual(
+        result1.artifacts[i].solidity
+      );
     }
   });
 
   it("should invalidate cache when skittles package version changes", async () => {
-    writeContract(projectRoot, "Counter.ts", `
+    writeContract(
+      projectRoot,
+      "Counter.ts",
+      `
       class Counter {
         public count: number = 0;
         public increment(): void {
           this.count = this.count + 1;
         }
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
@@ -320,31 +398,43 @@ describe("incremental compilation cache", () => {
   });
 
   it("should invalidate cache when shared type definitions change in another file", async () => {
-    writeContract(projectRoot, "types.ts", `
+    writeContract(
+      projectRoot,
+      "types.ts",
+      `
       type Point = {
         x: number;
         y: number;
       };
-    `);
+    `
+    );
 
-    writeContract(projectRoot, "Geometry.ts", `
+    writeContract(
+      projectRoot,
+      "Geometry.ts",
+      `
       class Geometry {
         public origin: Point;
       }
-    `);
+    `
+    );
 
     const result1 = await compile(projectRoot, defaultConfig);
     expect(result1.success).toBe(true);
 
     const spy = vi.spyOn(parserModule, "parse");
 
-    writeContract(projectRoot, "types.ts", `
+    writeContract(
+      projectRoot,
+      "types.ts",
+      `
       type Point = {
         x: number;
         y: number;
         z: number;
       };
-    `);
+    `
+    );
 
     const result2 = await compile(projectRoot, defaultConfig);
     expect(result2.success).toBe(true);
@@ -353,7 +443,10 @@ describe("incremental compilation cache", () => {
   });
 
   it("should compile cross-file type alias structs used as return types and local variables", async () => {
-    writeContract(projectRoot, "types.ts", `
+    writeContract(
+      projectRoot,
+      "types.ts",
+      `
       type StakeInfo = {
         amount: number;
         timestamp: number;
@@ -364,9 +457,13 @@ describe("incremental compilation cache", () => {
         Active,
         Paused,
       }
-    `);
+    `
+    );
 
-    writeContract(projectRoot, "Staking.ts", `
+    writeContract(
+      projectRoot,
+      "Staking.ts",
+      `
       class Staking {
         public status: VaultStatus;
         private deposits: Record<address, number> = {};
@@ -385,14 +482,17 @@ describe("incremental compilation cache", () => {
           return this.deposits[account];
         }
       }
-    `);
+    `
+    );
 
     const result = await compile(projectRoot, defaultConfig);
     expect(result.success).toBe(true);
     expect(result.errors).toHaveLength(0);
     expect(result.artifacts.length).toBeGreaterThanOrEqual(1);
 
-    const stakingArtifact = result.artifacts.find((a) => a.contractName === "Staking");
+    const stakingArtifact = result.artifacts.find(
+      (a) => a.contractName === "Staking"
+    );
     expect(stakingArtifact).toBeDefined();
     expect(stakingArtifact!.solidity).toContain("struct StakeInfo {");
     expect(stakingArtifact!.solidity).toContain("function getStakeInfo(");
@@ -401,7 +501,10 @@ describe("incremental compilation cache", () => {
   });
 
   it("should generate import statement for cross-file contract inheritance", async () => {
-    writeContract(projectRoot, "BaseToken.ts", `
+    writeContract(
+      projectRoot,
+      "BaseToken.ts",
+      `
       class BaseToken {
         public totalSupply: number = 0;
         protected balances: Record<address, number> = {};
@@ -409,23 +512,32 @@ describe("incremental compilation cache", () => {
           return this.balances[account];
         }
       }
-    `);
+    `
+    );
 
-    writeContract(projectRoot, "ChildToken.ts", `
+    writeContract(
+      projectRoot,
+      "ChildToken.ts",
+      `
       class ChildToken extends BaseToken {
         public mint(to: address, amount: number): void {
           this.balances[to] += amount;
           this.totalSupply += amount;
         }
       }
-    `);
+    `
+    );
 
     const result = await compile(projectRoot, defaultConfig);
     expect(result.success).toBe(true);
 
-    const childArtifact = result.artifacts.find((a) => a.contractName === "ChildToken");
+    const childArtifact = result.artifacts.find(
+      (a) => a.contractName === "ChildToken"
+    );
     expect(childArtifact).toBeDefined();
     expect(childArtifact!.solidity).toContain('import "./BaseToken.sol";');
-    expect(childArtifact!.solidity).toContain("contract ChildToken is BaseToken {");
+    expect(childArtifact!.solidity).toContain(
+      "contract ChildToken is BaseToken {"
+    );
   });
 });

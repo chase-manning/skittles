@@ -28,6 +28,8 @@
     "init": "npm run build && node dist/index.js init",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lint": "eslint src/ test/",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prepublishOnly": "npm run build && npm test"
   },
   "repository": {
@@ -64,12 +66,17 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/figlet": "^1.7.0",
     "@types/node": "^25.2.3",
     "@types/yargs": "^17.0.35",
+    "eslint": "^9.39.4",
     "ethers": "^6.16.0",
+    "globals": "^17.4.0",
     "hardhat": "^3.1.8",
+    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
+    "typescript-eslint": "^8.57.0",
     "vitest": "^2.0.0"
   }
 }

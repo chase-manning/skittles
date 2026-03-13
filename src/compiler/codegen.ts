@@ -42,10 +42,25 @@ let _allKnownEnumNames = new Set<string>();
 let _allKnownInterfaceNames = new Set<string>();
 
 const SOLIDITY_VALUE_TYPES = new Set([
-  "uint256", "int256", "address", "bool", "bytes32",
-  "uint8", "uint16", "uint32", "uint64", "uint128",
-  "int8", "int16", "int32", "int64", "int128",
-  "bytes1", "bytes2", "bytes3", "bytes4",
+  "uint256",
+  "int256",
+  "address",
+  "bool",
+  "bytes32",
+  "uint8",
+  "uint16",
+  "uint32",
+  "uint64",
+  "uint128",
+  "int8",
+  "int16",
+  "int32",
+  "int64",
+  "int128",
+  "bytes1",
+  "bytes2",
+  "bytes3",
+  "bytes4",
 ]);
 
 // ============================================================
@@ -64,10 +79,12 @@ function collectLocalVarNames(stmts: Statement[]): Set<string> {
         break;
       case "if":
         for (const n of collectLocalVarNames(s.thenBody)) names.add(n);
-        if (s.elseBody) for (const n of collectLocalVarNames(s.elseBody)) names.add(n);
+        if (s.elseBody)
+          for (const n of collectLocalVarNames(s.elseBody)) names.add(n);
         break;
       case "for":
-        if (s.initializer?.kind === "variable-declaration") names.add(s.initializer.name);
+        if (s.initializer?.kind === "variable-declaration")
+          names.add(s.initializer.name);
         for (const n of collectLocalVarNames(s.body)) names.add(n);
         break;
       case "while":
@@ -75,7 +92,8 @@ function collectLocalVarNames(stmts: Statement[]): Set<string> {
         for (const n of collectLocalVarNames(s.body)) names.add(n);
         break;
       case "switch":
-        for (const c of s.cases) for (const n of collectLocalVarNames(c.body)) names.add(n);
+        for (const c of s.cases)
+          for (const n of collectLocalVarNames(c.body)) names.add(n);
         break;
       case "try-catch":
         if (s.returnVarName) names.add(s.returnVarName);
@@ -95,83 +113,194 @@ function pickNewName(original: string, taken: Set<string>): string {
   return candidate;
 }
 
-function renameInExpression(expr: Expression, renames: Map<string, string>): Expression {
+function renameInExpression(
+  expr: Expression,
+  renames: Map<string, string>
+): Expression {
   switch (expr.kind) {
     case "identifier": {
       const newName = renames.get(expr.name);
       return newName ? { ...expr, name: newName } : expr;
     }
     case "binary":
-      return { ...expr, left: renameInExpression(expr.left, renames), right: renameInExpression(expr.right, renames) };
+      return {
+        ...expr,
+        left: renameInExpression(expr.left, renames),
+        right: renameInExpression(expr.right, renames),
+      };
     case "unary":
       return { ...expr, operand: renameInExpression(expr.operand, renames) };
     case "assignment":
-      return { ...expr, target: renameInExpression(expr.target, renames), value: renameInExpression(expr.value, renames) };
+      return {
+        ...expr,
+        target: renameInExpression(expr.target, renames),
+        value: renameInExpression(expr.value, renames),
+      };
     case "call":
-      return { ...expr, callee: renameInExpression(expr.callee, renames), args: expr.args.map((a) => renameInExpression(a, renames)) };
+      return {
+        ...expr,
+        callee: renameInExpression(expr.callee, renames),
+        args: expr.args.map((a) => renameInExpression(a, renames)),
+      };
     case "conditional":
-      return { ...expr, condition: renameInExpression(expr.condition, renames), whenTrue: renameInExpression(expr.whenTrue, renames), whenFalse: renameInExpression(expr.whenFalse, renames) };
+      return {
+        ...expr,
+        condition: renameInExpression(expr.condition, renames),
+        whenTrue: renameInExpression(expr.whenTrue, renames),
+        whenFalse: renameInExpression(expr.whenFalse, renames),
+      };
     case "property-access":
       return { ...expr, object: renameInExpression(expr.object, renames) };
     case "element-access":
-      return { ...expr, object: renameInExpression(expr.object, renames), index: renameInExpression(expr.index, renames) };
+      return {
+        ...expr,
+        object: renameInExpression(expr.object, renames),
+        index: renameInExpression(expr.index, renames),
+      };
     case "new":
-      return { ...expr, args: expr.args.map((a) => renameInExpression(a, renames)) };
+      return {
+        ...expr,
+        args: expr.args.map((a) => renameInExpression(a, renames)),
+      };
     case "object-literal":
-      return { ...expr, properties: expr.properties.map((p) => ({ ...p, value: renameInExpression(p.value, renames) })) };
+      return {
+        ...expr,
+        properties: expr.properties.map((p) => ({
+          ...p,
+          value: renameInExpression(p.value, renames),
+        })),
+      };
     case "tuple-literal":
-      return { ...expr, elements: expr.elements.map((e) => renameInExpression(e, renames)) };
+      return {
+        ...expr,
+        elements: expr.elements.map((e) => renameInExpression(e, renames)),
+      };
     default:
       return expr;
   }
 }
 
-function renameInStatement(stmt: Statement, renames: Map<string, string>): Statement {
+function renameInStatement(
+  stmt: Statement,
+  renames: Map<string, string>
+): Statement {
   switch (stmt.kind) {
     case "variable-declaration": {
       const newName = renames.get(stmt.name) ?? stmt.name;
-      return { ...stmt, name: newName, initializer: stmt.initializer ? renameInExpression(stmt.initializer, renames) : undefined };
+      return {
+        ...stmt,
+        name: newName,
+        initializer: stmt.initializer
+          ? renameInExpression(stmt.initializer, renames)
+          : undefined,
+      };
     }
     case "tuple-destructuring": {
-      const newNames = stmt.names.map((n) => n === null ? null : (renames.get(n) ?? n));
-      return { ...stmt, names: newNames, initializer: renameInExpression(stmt.initializer, renames) };
+      const newNames = stmt.names.map((n) =>
+        n === null ? null : (renames.get(n) ?? n)
+      );
+      return {
+        ...stmt,
+        names: newNames,
+        initializer: renameInExpression(stmt.initializer, renames),
+      };
     }
     case "return":
-      return { ...stmt, value: stmt.value ? renameInExpression(stmt.value, renames) : undefined };
+      return {
+        ...stmt,
+        value: stmt.value ? renameInExpression(stmt.value, renames) : undefined,
+      };
     case "expression":
-      return { ...stmt, expression: renameInExpression(stmt.expression, renames) };
+      return {
+        ...stmt,
+        expression: renameInExpression(stmt.expression, renames),
+      };
     case "if":
-      return { ...stmt, condition: renameInExpression(stmt.condition, renames), thenBody: renameInStatements(stmt.thenBody, renames), elseBody: stmt.elseBody ? renameInStatements(stmt.elseBody, renames) : undefined };
+      return {
+        ...stmt,
+        condition: renameInExpression(stmt.condition, renames),
+        thenBody: renameInStatements(stmt.thenBody, renames),
+        elseBody: stmt.elseBody
+          ? renameInStatements(stmt.elseBody, renames)
+          : undefined,
+      };
     case "for": {
       let init = stmt.initializer;
       if (init) {
         init = renameInStatement(init, renames) as typeof init;
       }
-      return { ...stmt, initializer: init, condition: stmt.condition ? renameInExpression(stmt.condition, renames) : undefined, incrementor: stmt.incrementor ? renameInExpression(stmt.incrementor, renames) : undefined, body: renameInStatements(stmt.body, renames) };
+      return {
+        ...stmt,
+        initializer: init,
+        condition: stmt.condition
+          ? renameInExpression(stmt.condition, renames)
+          : undefined,
+        incrementor: stmt.incrementor
+          ? renameInExpression(stmt.incrementor, renames)
+          : undefined,
+        body: renameInStatements(stmt.body, renames),
+      };
     }
     case "while":
     case "do-while":
-      return { ...stmt, condition: renameInExpression(stmt.condition, renames), body: renameInStatements(stmt.body, renames) };
+      return {
+        ...stmt,
+        condition: renameInExpression(stmt.condition, renames),
+        body: renameInStatements(stmt.body, renames),
+      };
     case "emit":
-      return { ...stmt, args: stmt.args.map((a) => renameInExpression(a, renames)) };
+      return {
+        ...stmt,
+        args: stmt.args.map((a) => renameInExpression(a, renames)),
+      };
     case "revert":
-      return { ...stmt, message: stmt.message ? renameInExpression(stmt.message, renames) : undefined, customErrorArgs: stmt.customErrorArgs?.map((a) => renameInExpression(a, renames)) };
+      return {
+        ...stmt,
+        message: stmt.message
+          ? renameInExpression(stmt.message, renames)
+          : undefined,
+        customErrorArgs: stmt.customErrorArgs?.map((a) =>
+          renameInExpression(a, renames)
+        ),
+      };
     case "delete":
       return { ...stmt, target: renameInExpression(stmt.target, renames) };
     case "switch":
-      return { ...stmt, discriminant: renameInExpression(stmt.discriminant, renames), cases: stmt.cases.map((c) => ({ ...c, value: c.value ? renameInExpression(c.value, renames) : undefined, body: renameInStatements(c.body, renames) })) };
+      return {
+        ...stmt,
+        discriminant: renameInExpression(stmt.discriminant, renames),
+        cases: stmt.cases.map((c) => ({
+          ...c,
+          value: c.value ? renameInExpression(c.value, renames) : undefined,
+          body: renameInStatements(c.body, renames),
+        })),
+      };
     case "try-catch": {
-      const newReturnVarName = stmt.returnVarName ? (renames.get(stmt.returnVarName) ?? stmt.returnVarName) : undefined;
-      return { ...stmt, call: renameInExpression(stmt.call, renames), returnVarName: newReturnVarName, successBody: renameInStatements(stmt.successBody, renames), catchBody: renameInStatements(stmt.catchBody, renames) };
+      const newReturnVarName = stmt.returnVarName
+        ? (renames.get(stmt.returnVarName) ?? stmt.returnVarName)
+        : undefined;
+      return {
+        ...stmt,
+        call: renameInExpression(stmt.call, renames),
+        returnVarName: newReturnVarName,
+        successBody: renameInStatements(stmt.successBody, renames),
+        catchBody: renameInStatements(stmt.catchBody, renames),
+      };
     }
     case "console-log":
-      return { ...stmt, args: stmt.args.map((a) => renameInExpression(a, renames)) };
+      return {
+        ...stmt,
+        args: stmt.args.map((a) => renameInExpression(a, renames)),
+      };
     default:
       return stmt;
   }
 }
 
-function renameInStatements(stmts: Statement[], renames: Map<string, string>): Statement[] {
+function renameInStatements(
+  stmts: Statement[],
+  renames: Map<string, string>
+): Statement[] {
   return stmts.map((s) => renameInStatement(s, renames));
 }
 
@@ -343,7 +472,11 @@ function scopeAwareRenameStmt(
         const rename = allRenames.get(stmt.returnVarName)!;
         tryActive.set(stmt.returnVarName, rename);
         newReturnVarName = rename;
-      } else if (stmt.returnVarName && tryActive.has(stmt.returnVarName) && !allRenames.has(stmt.returnVarName)) {
+      } else if (
+        stmt.returnVarName &&
+        tryActive.has(stmt.returnVarName) &&
+        !allRenames.has(stmt.returnVarName)
+      ) {
         // Suppress pre-activated rename when try-catch return var re-declares the same name
         tryActive.delete(stmt.returnVarName);
       }
@@ -352,7 +485,11 @@ function scopeAwareRenameStmt(
           ...stmt,
           call: renameInExpression(stmt.call, active),
           returnVarName: newReturnVarName,
-          successBody: scopeAwareRenameBlock(stmt.successBody, tryActive, allRenames),
+          successBody: scopeAwareRenameBlock(
+            stmt.successBody,
+            tryActive,
+            allRenames
+          ),
           catchBody: scopeAwareRenameBlock(stmt.catchBody, active, allRenames),
         },
         active,
@@ -363,7 +500,11 @@ function scopeAwareRenameStmt(
   }
 }
 
-export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<string>, paramNames?: Set<string>): Statement[] {
+export function resolveShadowedLocals(
+  body: Statement[],
+  stateVarNames: Set<string>,
+  paramNames?: Set<string>
+): Statement[] {
   const localNames = collectLocalVarNames(body);
   const shadowed = new Set<string>();
   for (const name of localNames) {
@@ -373,7 +514,11 @@ export function resolveShadowedLocals(body: Statement[], stateVarNames: Set<stri
   }
   if (shadowed.size === 0) return body;
 
-  const taken = new Set([...stateVarNames, ...localNames, ...(paramNames ?? [])]);
+  const taken = new Set([
+    ...stateVarNames,
+    ...localNames,
+    ...(paramNames ?? []),
+  ]);
   const renames = new Map<string, string>();
   for (const name of shadowed) {
     const newName = pickNewName(name, taken);
@@ -396,7 +541,11 @@ function suffixToSolType(suffix: string): string {
  * Generate a Solidity file containing multiple contracts.
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
-export function generateSolidityFile(contracts: SkittlesContract[], imports?: string[], solidityConfig?: SolidityConfig): string {
+export function generateSolidityFile(
+  contracts: SkittlesContract[],
+  imports?: string[],
+  solidityConfig?: SolidityConfig
+): string {
   const license = solidityConfig?.license ?? DEFAULT_CONFIG.solidity.license;
   const version = solidityConfig?.version ?? DEFAULT_CONFIG.solidity.version;
   const parts: string[] = [];
@@ -424,7 +573,8 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   _allKnownInterfaceNames = new Set<string>();
   for (const c of contracts) {
     for (const en of c.enums ?? []) _allKnownEnumNames.add(en.name);
-    for (const iface of c.contractInterfaces ?? []) _allKnownInterfaceNames.add(iface.name);
+    for (const iface of c.contractInterfaces ?? [])
+      _allKnownInterfaceNames.add(iface.name);
   }
 
   // Collect and deduplicate contract interfaces across all contracts
@@ -524,7 +674,11 @@ export function generateSolidityFile(contracts: SkittlesContract[], imports?: st
   return parts.join("\n");
 }
 
-export function generateSolidity(contract: SkittlesContract, imports?: string[], solidityConfig?: SolidityConfig): string {
+export function generateSolidity(
+  contract: SkittlesContract,
+  imports?: string[],
+  solidityConfig?: SolidityConfig
+): string {
   return generateSolidityFile([contract], imports, solidityConfig);
 }
 
@@ -554,9 +708,7 @@ function generateContractBody(
   _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
-    contract.inherits.length > 0
-      ? ` is ${contract.inherits.join(", ")}`
-      : "";
+    contract.inherits.length > 0 ? ` is ${contract.inherits.join(", ")}` : "";
   const abstractPrefix = contract.isAbstract ? "abstract " : "";
   parts.push(`${abstractPrefix}contract ${contract.name}${inheritance} {`);
 
@@ -584,7 +736,9 @@ function generateContractBody(
   for (const ce of contract.customErrors ?? []) {
     if (hasAncestorOrigin(definitionOrigins.get(ce.name))) continue;
     addOrigin(definitionOrigins, ce.name);
-    const params = ce.parameters.map((p) => `${generateType(p.type)} ${p.name}`).join(", ");
+    const params = ce.parameters
+      .map((p) => `${generateType(p.type)} ${p.name}`)
+      .join(", ");
     parts.push(`    error ${ce.name}(${params});`);
     emittedCustomErrorCount++;
   }
@@ -648,7 +802,9 @@ function generateContractBody(
 
   if (
     contract.variables.length > 0 &&
-    (contract.ctor || functionsToEmit.length > 0 || readonlyArrayVars.length > 0)
+    (contract.ctor ||
+      functionsToEmit.length > 0 ||
+      readonlyArrayVars.length > 0)
   ) {
     parts.push("");
   }
@@ -657,11 +813,17 @@ function generateContractBody(
     // Rename default constructor parameters that shadow state variables.
     // Default params become local variable declarations in generateConstructor,
     // so they can trigger shadowing warnings just like body locals.
-    const defaultParams = contract.ctor.parameters.filter((p) => p.defaultValue);
+    const defaultParams = contract.ctor.parameters.filter(
+      (p) => p.defaultValue
+    );
     const defaultParamRenames = new Map<string, string>();
     if (defaultParams.length > 0) {
       const bodyLocals = collectLocalVarNames(contract.ctor.body);
-      const taken = new Set([...stateVarNames, ...contract.ctor.parameters.map((p) => p.name), ...bodyLocals]);
+      const taken = new Set([
+        ...stateVarNames,
+        ...contract.ctor.parameters.map((p) => p.name),
+        ...bodyLocals,
+      ]);
       for (const p of defaultParams) {
         if (stateVarNames.has(p.name)) {
           const newName = pickNewName(p.name, taken);
@@ -686,12 +848,23 @@ function generateContractBody(
             ...(renamedDefault ? { defaultValue: renamedDefault } : {}),
           };
         }),
-        body: scopeAwareRenameBlock(contract.ctor.body, new Map(defaultParamRenames), new Map()),
+        body: scopeAwareRenameBlock(
+          contract.ctor.body,
+          new Map(defaultParamRenames),
+          new Map()
+        ),
       };
     }
 
     const ctorParamNames = new Set(ctorToResolve.parameters.map((p) => p.name));
-    const ctorResolved = { ...ctorToResolve, body: resolveShadowedLocals(ctorToResolve.body, stateVarNames, ctorParamNames) };
+    const ctorResolved = {
+      ...ctorToResolve,
+      body: resolveShadowedLocals(
+        ctorToResolve.body,
+        stateVarNames,
+        ctorParamNames
+      ),
+    };
     parts.push(generateConstructor(ctorResolved, contract.inherits));
     if (functionsToEmit.length > 0 || readonlyArrayVars.length > 0) {
       parts.push("");
@@ -722,7 +895,12 @@ function generateContractBody(
 
     // Rename parameters that shadow sibling function names.
     const paramRenames = new Map<string, string>();
-    const taken = new Set([...stateVarNames, ...allFunctionNames, ...f.parameters.map((p) => p.name), ...collectLocalVarNames(f.body)]);
+    const taken = new Set([
+      ...stateVarNames,
+      ...allFunctionNames,
+      ...f.parameters.map((p) => p.name),
+      ...collectLocalVarNames(f.body),
+    ]);
     for (const p of f.parameters) {
       if (allFunctionNames.has(p.name) && p.name !== f.name) {
         const newName = pickNewName(p.name, taken);
@@ -742,7 +920,10 @@ function generateContractBody(
     }
 
     const funcParamNames = new Set(f.parameters.map((p) => p.name));
-    const resolved = { ...f, body: resolveShadowedLocals(f.body, stateVarNames, funcParamNames) };
+    const resolved = {
+      ...f,
+      body: resolveShadowedLocals(f.body, stateVarNames, funcParamNames),
+    };
     parts.push(generateFunction(resolved));
     if (i < expandedFunctions.length - 1 || readonlyArrayVars.length > 0) {
       parts.push("");
@@ -946,7 +1127,7 @@ function generateContractBody(
   if (needsHelper("__sk_toString", _needsToStringHelper)) {
     emitHelper("__sk_toString", [
       "    function __sk_toString(uint256 value) internal pure returns (string memory) {",
-      "        if (value == 0) return \"0\";",
+      '        if (value == 0) return "0";',
       "        uint256 temp = value;",
       "        uint256 digits;",
       "        while (temp != 0) { digits++; temp /= 10; }",
@@ -1031,7 +1212,10 @@ function generateContractBody(
     const [method, ...typeParts] = helperKey.split("_");
     const suffix = typeParts.join("_");
     const solType = suffixToSolType(suffix);
-    const isRefType = !SOLIDITY_VALUE_TYPES.has(solType) && !_allKnownEnumNames.has(solType) && !_allKnownInterfaceNames.has(solType);
+    const isRefType =
+      !SOLIDITY_VALUE_TYPES.has(solType) &&
+      !_allKnownEnumNames.has(solType) &&
+      !_allKnownInterfaceNames.has(solType);
     const useHashEq = solType === "string" || solType === "bytes";
     const memAnnotation = isRefType ? "memory " : "";
     const eqCheck = useHashEq
@@ -1060,7 +1244,10 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "lastIndexOf" && needsHelper(`_arrLastIndexOf_${suffix}`, true)) {
+    if (
+      method === "lastIndexOf" &&
+      needsHelper(`_arrLastIndexOf_${suffix}`, true)
+    ) {
       emitHelper(`_arrLastIndexOf_${suffix}`, [
         `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
         `        for (uint256 i = arr.length; i > 0; i--) {`,
@@ -1170,7 +1357,10 @@ function generateContractBody(
 // Contract elements
 // ============================================================
 
-function generateStructDecl(s: { name: string; fields: SkittlesParameter[] }): string {
+function generateStructDecl(s: {
+  name: string;
+  fields: SkittlesParameter[];
+}): string {
   const lines: string[] = [];
   lines.push(`    struct ${s.name} {`);
   for (const f of s.fields) {
@@ -1180,7 +1370,10 @@ function generateStructDecl(s: { name: string; fields: SkittlesParameter[] }): s
   return lines.join("\n");
 }
 
-function generateFileScopeStructDecl(s: { name: string; fields: SkittlesParameter[] }): string {
+function generateFileScopeStructDecl(s: {
+  name: string;
+  fields: SkittlesParameter[];
+}): string {
   const lines: string[] = [];
   lines.push(`struct ${s.name} {`);
   for (const f of s.fields) {
@@ -1219,13 +1412,16 @@ function generateInterfaceDecl(iface: SkittlesContractInterface): string {
     const params = f.parameters
       .map((p) => `${generateCalldataParamType(p.type)} ${p.name}`)
       .join(", ");
-    const mut = f.stateMutability && f.stateMutability !== "nonpayable"
-      ? ` ${f.stateMutability}`
-      : "";
+    const mut =
+      f.stateMutability && f.stateMutability !== "nonpayable"
+        ? ` ${f.stateMutability}`
+        : "";
     let returns = "";
     if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
       if (f.returnType.kind === SkittlesTypeKind.Tuple) {
-        const tupleParams = (f.returnType.tupleTypes ?? []).map(generateParamType).join(", ");
+        const tupleParams = (f.returnType.tupleTypes ?? [])
+          .map(generateParamType)
+          .join(", ");
         returns = ` returns (${tupleParams})`;
       } else {
         returns = ` returns (${generateParamType(f.returnType)})`;
@@ -1289,7 +1485,9 @@ function generateReadonlyArrayGetter(v: SkittlesVariable): string {
   const name = v.name;
   const getterName = `get${name.charAt(0).toUpperCase()}${name.slice(1)}`;
   const lines: string[] = [];
-  lines.push(`    function ${getterName}() public view returns (${type} memory) {`);
+  lines.push(
+    `    function ${getterName}() public view returns (${type} memory) {`
+  );
   lines.push(`        return ${name};`);
   lines.push("    }");
   return lines.join("\n");
@@ -1309,7 +1507,10 @@ function expressionMayModifyState(expr: Expression): boolean {
     case "assignment":
       return true;
     case "binary":
-      return expressionMayModifyState(expr.left) || expressionMayModifyState(expr.right);
+      return (
+        expressionMayModifyState(expr.left) ||
+        expressionMayModifyState(expr.right)
+      );
     case "unary":
       // ++ / -- are always state-modifying (they mutate the operand).
       if (expr.operator === "++" || expr.operator === "--") {
@@ -1325,7 +1526,10 @@ function expressionMayModifyState(expr: Expression): boolean {
     case "property-access":
       return expressionMayModifyState(expr.object);
     case "element-access":
-      return expressionMayModifyState(expr.object) || expressionMayModifyState(expr.index);
+      return (
+        expressionMayModifyState(expr.object) ||
+        expressionMayModifyState(expr.index)
+      );
     case "tuple-literal":
       return expr.elements.some(expressionMayModifyState);
     case "object-literal":
@@ -1397,7 +1601,11 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
 
   // Generate overloads for each valid parameter count
   // from (all params - 1 default) down to (only required params)
-  for (let paramCount = f.parameters.length - 1; paramCount >= firstDefaultIdx; paramCount--) {
+  for (
+    let paramCount = f.parameters.length - 1;
+    paramCount >= firstDefaultIdx;
+    paramCount--
+  ) {
     const shortParams = f.parameters.slice(0, paramCount).map((p) => {
       const { defaultValue, ...rest } = p;
       return rest;
@@ -1442,7 +1650,9 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
     // - Otherwise, widen pure → view conservatively (defaults may read
     //   state/environment, e.g. block.timestamp, this.x).
     // - view and nonpayable stay as-is when defaults are simple expressions.
-    const omittedDefaults = f.parameters.slice(paramCount).map((p) => p.defaultValue!);
+    const omittedDefaults = f.parameters
+      .slice(paramCount)
+      .map((p) => p.defaultValue!);
     const defaultsMayModify = omittedDefaults.some(expressionMayModifyState);
 
     let overloadMutability = f.stateMutability;
@@ -1456,7 +1666,7 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
             `Cannot use state-modifying default parameter expression on overriding ` +
               `${overloadMutability} function "${f.name}". Either remove the state-modifying ` +
               `default, change the base function's mutability, or avoid using overrides with ` +
-              `such defaults.`,
+              `such defaults.`
           );
         }
         // Conservatively widen to nonpayable when defaults contain
@@ -1518,14 +1728,24 @@ function generateFunction(f: SkittlesFunction): string {
 
   const vis = mapVisibility(f.visibility);
   const mut =
-    f.stateMutability === "nonpayable" ? "" : f.stateMutability === "payable" ? " payable" : ` ${f.stateMutability}`;
+    f.stateMutability === "nonpayable"
+      ? ""
+      : f.stateMutability === "payable"
+        ? " payable"
+        : ` ${f.stateMutability}`;
 
-  const virtOverride = f.isOverride ? " override" : f.isVirtual ? " virtual" : "";
+  const virtOverride = f.isOverride
+    ? " override"
+    : f.isVirtual
+      ? " virtual"
+      : "";
 
   let returns = "";
   if (f.returnType && f.returnType.kind !== SkittlesTypeKind.Void) {
     if (f.returnType.kind === SkittlesTypeKind.Tuple) {
-      const tupleParams = (f.returnType.tupleTypes ?? []).map(generateParamType).join(", ");
+      const tupleParams = (f.returnType.tupleTypes ?? [])
+        .map(generateParamType)
+        .join(", ");
       returns = ` returns (${tupleParams})`;
     } else {
       returns = ` returns (${generateParamType(f.returnType)})`;
@@ -1534,9 +1754,13 @@ function generateFunction(f: SkittlesFunction): string {
 
   const lines: string[] = [];
   if (f.isAbstract) {
-    lines.push(`    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns};`);
+    lines.push(
+      `    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns};`
+    );
   } else {
-    lines.push(`    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns} {`);
+    lines.push(
+      `    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns} {`
+    );
     for (const s of f.body) {
       lines.push(generateStatement(s, "        "));
     }
@@ -1561,7 +1785,10 @@ function getSuperCallArgs(stmt: Statement): Expression[] | null {
   return null;
 }
 
-function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): string {
+function generateConstructor(
+  c: SkittlesConstructor,
+  inherits: string[] = []
+): string {
   const regularParams = c.parameters.filter((p) => !p.defaultValue);
   const defaultParams = c.parameters.filter((p) => p.defaultValue);
 
@@ -1572,7 +1799,9 @@ function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): s
   // Extract super() call(s) from the body and validate.
   const superCalls = c.body.filter(isSuperCall);
   if (superCalls.length > 1) {
-    throw new Error("Constructor contains multiple super() calls, but only one is allowed");
+    throw new Error(
+      "Constructor contains multiple super() calls, but only one is allowed"
+    );
   }
   const bodyWithoutSuper = c.body.filter((s) => !isSuperCall(s));
   let parentModifier = "";
@@ -1596,7 +1825,9 @@ function generateConstructor(c: SkittlesConstructor, inherits: string[] = []): s
   const lines: string[] = [];
   lines.push(`    constructor(${params})${parentModifier} {`);
   for (const p of defaultParams) {
-    lines.push(`        ${generateParamType(p.type)} ${p.name} = ${generateExpression(p.defaultValue!)};`);
+    lines.push(
+      `        ${generateParamType(p.type)} ${p.name} = ${generateExpression(p.defaultValue!)};`
+    );
   }
   for (const s of bodyWithoutSuper) {
     lines.push(generateStatement(s, "        "));
@@ -1697,10 +1928,7 @@ export function generateExpression(expr: Expression): string {
       if (expr.name === "self") return "address(this)";
       return expr.name;
     case "property-access":
-      if (
-        expr.object.kind === "identifier" &&
-        expr.object.name === "this"
-      ) {
+      if (expr.object.kind === "identifier" && expr.object.name === "this") {
         return expr.property;
       }
       // Number.MAX_VALUE → type(uint256).max
@@ -1753,7 +1981,9 @@ export function generateExpression(expr: Expression): string {
     case "new":
       return `new ${expr.callee}(${expr.args.map(generateExpression).join(", ")})`;
     case "object-literal": {
-      const values = expr.properties.map((p) => generateExpression(p.value)).join(", ");
+      const values = expr.properties
+        .map((p) => generateExpression(p.value))
+        .join(", ");
       return values;
     }
     case "tuple-literal":
@@ -1782,7 +2012,10 @@ export function generateStatement(stmt: Statement, indent: string): string {
       if (stmt.initializer) {
         let initExpr = generateExpression(stmt.initializer);
         // Wrap object literal in struct constructor when the type is a struct
-        if (stmt.initializer.kind === "object-literal" && stmt.type?.kind === SkittlesTypeKind.Struct) {
+        if (
+          stmt.initializer.kind === "object-literal" &&
+          stmt.type?.kind === SkittlesTypeKind.Struct
+        ) {
           initExpr = `${stmt.type.structName}(${initExpr})`;
         }
         return `${indent}${type} ${stmt.name} = ${initExpr};`;
@@ -1794,7 +2027,8 @@ export function generateStatement(stmt: Statement, indent: string): string {
       const parts = stmt.names.map((name, i) => {
         if (name === null) return "";
         const elemType = i < stmt.types.length ? stmt.types[i] : null;
-        const type = elemType !== null ? generateParamType(elemType) : "uint256";
+        const type =
+          elemType !== null ? generateParamType(elemType) : "uint256";
         return `${type} ${name}`;
       });
       const initExpr = generateExpression(stmt.initializer);
@@ -1805,19 +2039,21 @@ export function generateStatement(stmt: Statement, indent: string): string {
       if (stmt.expression.kind === "conditional" && indent) {
         const conditionalExpr = stmt.expression;
         const lines: string[] = [];
-        lines.push(`${indent}if (${generateExpression(conditionalExpr.condition)}) {`);
+        lines.push(
+          `${indent}if (${generateExpression(conditionalExpr.condition)}) {`
+        );
         lines.push(
           generateStatement(
             { kind: "expression", expression: conditionalExpr.whenTrue },
-            inner,
-          ),
+            inner
+          )
         );
         lines.push(`${indent}} else {`);
         lines.push(
           generateStatement(
             { kind: "expression", expression: conditionalExpr.whenFalse },
-            inner,
-          ),
+            inner
+          )
         );
         lines.push(`${indent}}`);
         return lines.join("\n");
@@ -1836,9 +2072,7 @@ export function generateStatement(stmt: Statement, indent: string): string {
       }
 
       const lines: string[] = [];
-      lines.push(
-        `${indent}if (${generateExpression(stmt.condition)}) {`
-      );
+      lines.push(`${indent}if (${generateExpression(stmt.condition)}) {`);
       for (const s of stmt.thenBody) {
         lines.push(generateStatement(s, inner));
       }
@@ -1860,17 +2094,13 @@ export function generateStatement(stmt: Statement, indent: string): string {
           initStr = initStr.slice(0, -1);
         }
       }
-      const condStr = stmt.condition
-        ? generateExpression(stmt.condition)
-        : "";
+      const condStr = stmt.condition ? generateExpression(stmt.condition) : "";
       const incrStr = stmt.incrementor
         ? generateExpression(stmt.incrementor)
         : "";
 
       const lines: string[] = [];
-      lines.push(
-        `${indent}for (${initStr}; ${condStr}; ${incrStr}) {`
-      );
+      lines.push(`${indent}for (${initStr}; ${condStr}; ${incrStr}) {`);
       for (const s of stmt.body) {
         lines.push(generateStatement(s, inner));
       }
@@ -1880,9 +2110,7 @@ export function generateStatement(stmt: Statement, indent: string): string {
 
     case "while": {
       const lines: string[] = [];
-      lines.push(
-        `${indent}while (${generateExpression(stmt.condition)}) {`
-      );
+      lines.push(`${indent}while (${generateExpression(stmt.condition)}) {`);
       for (const s of stmt.body) {
         lines.push(generateStatement(s, inner));
       }
@@ -1896,9 +2124,7 @@ export function generateStatement(stmt: Statement, indent: string): string {
       for (const s of stmt.body) {
         lines.push(generateStatement(s, inner));
       }
-      lines.push(
-        `${indent}} while (${generateExpression(stmt.condition)});`
-      );
+      lines.push(`${indent}} while (${generateExpression(stmt.condition)});`);
       return lines.join("\n");
     }
 
@@ -1910,7 +2136,9 @@ export function generateStatement(stmt: Statement, indent: string): string {
 
     case "revert":
       if (stmt.customError) {
-        const args = (stmt.customErrorArgs ?? []).map(generateExpression).join(", ");
+        const args = (stmt.customErrorArgs ?? [])
+          .map(generateExpression)
+          .join(", ");
         return `${indent}revert ${stmt.customError}(${args});`;
       }
       if (stmt.message) {
@@ -1936,7 +2164,9 @@ export function generateStatement(stmt: Statement, indent: string): string {
           continue;
         }
         const keyword = first ? "if" : "} else if";
-        lines.push(`${indent}${keyword} (${discExpr} == ${generateExpression(c.value)}) {`);
+        lines.push(
+          `${indent}${keyword} (${discExpr} == ${generateExpression(c.value)}) {`
+        );
         for (const s of c.body) {
           lines.push(generateStatement(s, inner));
         }
@@ -1961,7 +2191,11 @@ export function generateStatement(stmt: Statement, indent: string): string {
       const lines: string[] = [];
       const callExpr = generateExpression(stmt.call);
       let returns = "";
-      if (stmt.returnVarName && stmt.returnType && stmt.returnType.kind !== SkittlesTypeKind.Void) {
+      if (
+        stmt.returnVarName &&
+        stmt.returnType &&
+        stmt.returnType.kind !== SkittlesTypeKind.Void
+      ) {
         returns = ` returns (${generateType(stmt.returnType)} ${stmt.returnVarName})`;
       }
       lines.push(`${indent}try ${callExpr}${returns} {`);
@@ -2040,10 +2274,7 @@ function isThisOrContractCall(receiver: Expression): boolean {
 
 function getCallName(expr: Expression): string | null {
   if (expr.kind === "identifier") return expr.name;
-  if (
-    expr.kind === "property-access" &&
-    expr.object.kind === "identifier"
-  ) {
+  if (expr.kind === "property-access" && expr.object.kind === "identifier") {
     return `${expr.object.name}.${expr.property}`;
   }
   return null;
@@ -2088,10 +2319,17 @@ function tryGenerateBuiltinCall(expr: {
     case "gasleft":
       return `gasleft()`;
     case "Contract":
-      if (expr.typeArgs && expr.typeArgs.length > 0 && expr.typeArgs[0].kind === SkittlesTypeKind.ContractInterface && expr.typeArgs[0].structName) {
+      if (
+        expr.typeArgs &&
+        expr.typeArgs.length > 0 &&
+        expr.typeArgs[0].kind === SkittlesTypeKind.ContractInterface &&
+        expr.typeArgs[0].structName
+      ) {
         return `${expr.typeArgs[0].structName}(${args})`;
       }
-      throw new Error("Contract<T>() requires a contract interface type argument, e.g. Contract<IToken>(address)");
+      throw new Error(
+        "Contract<T>() requires a contract interface type argument, e.g. Contract<IToken>(address)"
+      );
     case "string.concat":
       return `string.concat(${args})`;
     case "bytes.concat":
@@ -2178,7 +2416,11 @@ function statementsUseConsoleLog(stmts: Statement[]): boolean {
       if (statementsUseConsoleLog(stmt.thenBody)) return true;
       if (stmt.elseBody && statementsUseConsoleLog(stmt.elseBody)) return true;
     }
-    if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+    if (
+      stmt.kind === "for" ||
+      stmt.kind === "while" ||
+      stmt.kind === "do-while"
+    ) {
       if (statementsUseConsoleLog(stmt.body)) return true;
     }
     if (stmt.kind === "switch") {
@@ -2272,7 +2514,8 @@ export function buildSourceMap(
         mapBodyStatements(stmt.thenBody, currentIdx + 1, indent + "    ");
         if (stmt.elseBody) {
           const thenLineCount = stmt.thenBody.reduce(
-            (sum, s) => sum + generateStatement(s, indent + "    ").split("\n").length,
+            (sum, s) =>
+              sum + generateStatement(s, indent + "    ").split("\n").length,
             0
           );
           // } else { is at currentIdx + 1 + thenLineCount
@@ -2282,7 +2525,11 @@ export function buildSourceMap(
             indent + "    "
           );
         }
-      } else if (stmt.kind === "expression" && stmt.expression.kind === "conditional" && indent) {
+      } else if (
+        stmt.kind === "expression" &&
+        stmt.expression.kind === "conditional" &&
+        indent
+      ) {
         // Lowered void ternary: map all generated lines to the original source line
         for (let i = 1; i < stmtLineCount; i++) {
           addMapping(currentIdx + i, stmt.sourceLine);
@@ -2323,7 +2570,8 @@ export function buildSourceMap(
   for (const contract of contracts) {
     const smAncestors = smAncestorsMap.get(contract.name) ?? new Set<string>();
     const smHasAncestorOrigin = (origins: Set<string> | undefined): boolean =>
-      origins !== undefined && Array.from(origins).some((o) => smAncestors.has(o));
+      origins !== undefined &&
+      Array.from(origins).some((o) => smAncestors.has(o));
     const smGetFunctionKey = (f: SkittlesFunction): string => {
       const paramTypes = f.parameters
         .map((p) => (p.type ? generateType(p.type) : "unknown"))
@@ -2348,7 +2596,10 @@ export function buildSourceMap(
     // Find the contract declaration line
     const contractIdx = findLine((l) => {
       const trimmed = l.trimStart();
-      return trimmed.startsWith(`contract ${contract.name}`) || trimmed.startsWith(`abstract contract ${contract.name}`);
+      return (
+        trimmed.startsWith(`contract ${contract.name}`) ||
+        trimmed.startsWith(`abstract contract ${contract.name}`)
+      );
     });
     if (contractIdx === -1) continue;
     addMapping(contractIdx, contract.sourceLine);

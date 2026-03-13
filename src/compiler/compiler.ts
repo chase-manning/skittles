@@ -17,10 +17,23 @@ import type {
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { findExtendsReferences } from "../utils/regex.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
-import { parse, collectTypes, collectFunctions, collectClassNames } from "./parser.ts";
-import { generateSolidity, generateSolidityFile, buildSourceMap } from "./codegen.ts";
+import {
+  parse,
+  collectTypes,
+  collectFunctions,
+  collectClassNames,
+} from "./parser.ts";
+import {
+  generateSolidity,
+  generateSolidityFile,
+  buildSourceMap,
+} from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
-import { getStdlibClassNames, resolveStdlibFiles, getStdlibContractsDir } from "../stdlib/resolver.ts";
+import {
+  getStdlibClassNames,
+  resolveStdlibFiles,
+  getStdlibContractsDir,
+} from "../stdlib/resolver.ts";
 
 export interface CompilationResult {
   success: boolean;
@@ -68,12 +81,20 @@ function loadCache(outputDir: string): CompilationCache {
   try {
     if (fs.existsSync(cachePath)) {
       const data = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
-      if (data.version === CACHE_VERSION && data.skittlesVersion === PACKAGE_VERSION) return data;
+      if (
+        data.version === CACHE_VERSION &&
+        data.skittlesVersion === PACKAGE_VERSION
+      )
+        return data;
     }
   } catch {
     // Corrupt cache, start fresh
   }
-  return { version: CACHE_VERSION, skittlesVersion: PACKAGE_VERSION, files: {} };
+  return {
+    version: CACHE_VERSION,
+    skittlesVersion: PACKAGE_VERSION,
+    files: {},
+  };
 }
 
 function saveCache(outputDir: string, cache: CompilationCache): void {
@@ -116,7 +137,8 @@ export async function compile(
   // Also tracks which file defines each interface for cross-file imports.
   const globalStructs: Map<string, SkittlesParameter[]> = new Map();
   const globalEnums: Map<string, string[]> = new Map();
-  const globalContractInterfaces: Map<string, SkittlesContractInterface> = new Map();
+  const globalContractInterfaces: Map<string, SkittlesContractInterface> =
+    new Map();
   const globalFunctions: SkittlesFunction[] = [];
   const globalConstants: Map<string, Expression> = new Map();
   const interfaceOriginFile = new Map<string, string>();
@@ -130,7 +152,10 @@ export async function compile(
     try {
       const source = readFile(filePath);
       userSources.set(filePath, source);
-      const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
+      const { structs, enums, contractInterfaces } = collectTypes(
+        source,
+        filePath
+      );
       const baseName = path.basename(filePath, path.extname(filePath));
       for (const [name, fields] of structs) globalStructs.set(name, fields);
       for (const [name, members] of enums) globalEnums.set(name, members);
@@ -162,7 +187,9 @@ export async function compile(
       }
     } catch (err) {
       // Pre-scan failed; will be re-reported during full compilation
-      logWarning(`Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+      logWarning(
+        `Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 
@@ -187,7 +214,10 @@ export async function compile(
   for (const filePath of stdlibFiles) {
     try {
       const source = readFile(filePath);
-      const { structs, enums, contractInterfaces } = collectTypes(source, filePath);
+      const { structs, enums, contractInterfaces } = collectTypes(
+        source,
+        filePath
+      );
       const baseName = path.basename(filePath, path.extname(filePath));
       for (const [name, fields] of structs) globalStructs.set(name, fields);
       for (const [name, members] of enums) globalEnums.set(name, members);
@@ -219,7 +249,9 @@ export async function compile(
       }
     } catch (err) {
       // Pre-scan failed; will be re-reported during full compilation
-      logWarning(`Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`);
+      logWarning(
+        `Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+      );
     }
   }
 
@@ -258,7 +290,8 @@ export async function compile(
     const hashes: string[] = [];
 
     while (queue.length > 0) {
-      const current = queue.pop()!;
+      const current = queue.pop();
+      if (!current) break;
       const parents = fileExtendsParents.get(current);
       if (!parents) continue;
       for (const parentName of parents) {
@@ -278,8 +311,15 @@ export async function compile(
     return hashString(hashes.join(":"));
   }
 
-  const externalTypes = { structs: globalStructs, enums: globalEnums, contractInterfaces: globalContractInterfaces };
-  const externalFunctions = { functions: globalFunctions, constants: globalConstants };
+  const externalTypes = {
+    structs: globalStructs,
+    enums: globalEnums,
+    contractInterfaces: globalContractInterfaces,
+  };
+  const externalFunctions = {
+    functions: globalFunctions,
+    constants: globalConstants,
+  };
 
   // Compute a hash of all shared definitions (types, functions, constants).
   // If any shared definition changes, all files must be recompiled.
@@ -287,25 +327,43 @@ export async function compile(
   // gains or loses a class declaration the import structure may change, so
   // all caches must be invalidated.
   const sharedDefinitions = {
-    structs: Array.from(globalStructs.entries()).sort(([a], [b]) => a.localeCompare(b)),
-    enums: Array.from(globalEnums.entries()).sort(([a], [b]) => a.localeCompare(b)),
-    contractInterfaces: Array.from(globalContractInterfaces.entries()).sort(([a], [b]) => a.localeCompare(b)),
-    functions: [...globalFunctions].sort((a, b) => a.name.localeCompare(b.name)),
-    constants: Array.from(globalConstants.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    structs: Array.from(globalStructs.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    ),
+    enums: Array.from(globalEnums.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    ),
+    contractInterfaces: Array.from(globalContractInterfaces.entries()).sort(
+      ([a], [b]) => a.localeCompare(b)
+    ),
+    functions: [...globalFunctions].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    ),
+    constants: Array.from(globalConstants.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    ),
     contractFiles: preScanContractFiles.sort(),
-    contractOrigins: Array.from(contractOriginFile.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    contractOrigins: Array.from(contractOriginFile.entries()).sort(([a], [b]) =>
+      a.localeCompare(b)
+    ),
   };
   const sharedHash = hashString(JSON.stringify(sharedDefinitions));
 
   // Hash output-affecting config so cache is invalidated when settings change
-  const configHash = hashString(JSON.stringify({
-    consoleLog: config.consoleLog,
-    solidity: config.solidity,
-  }));
+  const configHash = hashString(
+    JSON.stringify({
+      consoleLog: config.consoleLog,
+      solidity: config.solidity,
+    })
+  );
 
   // Load incremental compilation cache
   const cache = loadCache(cacheDir);
-  const newCache: CompilationCache = { version: CACHE_VERSION, skittlesVersion: PACKAGE_VERSION, files: {} };
+  const newCache: CompilationCache = {
+    version: CACHE_VERSION,
+    skittlesVersion: PACKAGE_VERSION,
+    files: {},
+  };
 
   // Phase 1: Parse all files (needed to resolve cross-file interface mutabilities)
   interface ParsedFile {
@@ -317,7 +375,11 @@ export async function compile(
     contracts: SkittlesContract[];
   }
   const parsedFiles: ParsedFile[] = [];
-  const cachedFiles: { filePath: string; relativePath: string; cached: CacheEntry }[] = [];
+  const cachedFiles: {
+    filePath: string;
+    relativePath: string;
+    cached: CacheEntry;
+  }[] = [];
   const filesWithContracts = new Set<string>();
 
   for (const filePath of sourceFiles) {
@@ -331,22 +393,43 @@ export async function compile(
       const depsHash = computeDepsHash(filePath);
       const cached = cache.files[relativePath];
 
-      if (cached && cached.fileHash === fileHash && cached.sharedHash === sharedHash && cached.depsHash === depsHash && cached.configHash === configHash) {
+      if (
+        cached &&
+        cached.fileHash === fileHash &&
+        cached.sharedHash === sharedHash &&
+        cached.depsHash === depsHash &&
+        cached.configHash === configHash
+      ) {
         cachedFiles.push({ filePath, relativePath, cached });
         if (cached.contracts.length > 0) {
-          filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
+          filesWithContracts.add(
+            path.basename(filePath, path.extname(filePath))
+          );
         }
         continue;
       }
 
       logInfo(`Compiling ${relativePath}...`);
-      const contracts: SkittlesContract[] = parse(source, filePath, externalTypes, externalFunctions);
+      const contracts: SkittlesContract[] = parse(
+        source,
+        filePath,
+        externalTypes,
+        externalFunctions
+      );
       if (contracts.length > 0) {
         filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
       }
-      parsedFiles.push({ filePath, relativePath, source, fileHash, depsHash, contracts });
+      parsedFiles.push({
+        filePath,
+        relativePath,
+        source,
+        fileHash,
+        depsHash,
+        contracts,
+      });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      const message =
+        err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
       logError(`Failed to compile ${relativePath}: ${message}`);
     }
@@ -365,7 +448,9 @@ export async function compile(
   const cachedFnMutabilities = new Map<string, Map<string, string>>();
   for (const { cached } of cachedFiles) {
     if (!cached.contractFunctions) continue;
-    for (const [contractName, fns] of Object.entries(cached.contractFunctions)) {
+    for (const [contractName, fns] of Object.entries(
+      cached.contractFunctions
+    )) {
       cachedFnMutabilities.set(contractName, new Map(Object.entries(fns)));
     }
   }
@@ -377,13 +462,15 @@ export async function compile(
         const parent = allParsedContracts.get(parentName);
         if (parent) {
           for (const fn of parent.functions) {
-            if (!parentMutabilities.has(fn.name)) parentMutabilities.set(fn.name, fn.stateMutability);
+            if (!parentMutabilities.has(fn.name))
+              parentMutabilities.set(fn.name, fn.stateMutability);
           }
         } else {
           const cachedFns = cachedFnMutabilities.get(parentName);
           if (cachedFns) {
             for (const [fnName, mut] of cachedFns) {
-              if (!parentMutabilities.has(fnName)) parentMutabilities.set(fnName, mut);
+              if (!parentMutabilities.has(fnName))
+                parentMutabilities.set(fnName, mut);
             }
           }
         }
@@ -391,11 +478,20 @@ export async function compile(
       if (parentMutabilities.size === 0) continue;
 
       const ownMutabilities = new Map<string, string>();
-      for (const fn of contract.functions) ownMutabilities.set(fn.name, fn.stateMutability);
-      const allMutabilities = new Map([...parentMutabilities, ...ownMutabilities]);
+      for (const fn of contract.functions)
+        ownMutabilities.set(fn.name, fn.stateMutability);
+      const allMutabilities = new Map([
+        ...parentMutabilities,
+        ...ownMutabilities,
+      ]);
 
       let changed = true;
-      const rank: Record<string, number> = { pure: 0, view: 1, nonpayable: 2, payable: 3 };
+      const rank: Record<string, number> = {
+        pure: 0,
+        view: 1,
+        nonpayable: 2,
+        payable: 3,
+      };
       while (changed) {
         changed = false;
         for (const fn of contract.functions) {
@@ -429,7 +525,9 @@ export async function compile(
   // Analyze parsed contracts for unreachable code and unused variables
   for (const { contracts } of parsedFiles) {
     for (const contract of contracts) {
-      const fns: (SkittlesFunction | SkittlesConstructor)[] = [...contract.functions];
+      const fns: (SkittlesFunction | SkittlesConstructor)[] = [
+        ...contract.functions,
+      ];
       if (contract.ctor) fns.push(contract.ctor);
 
       for (const fn of fns) {
@@ -452,7 +550,9 @@ export async function compile(
         if (!globalIface) continue;
         for (const fn of iface.functions) {
           if (!fn.stateMutability) continue;
-          const globalFn = globalIface.functions.find((f) => f.name === fn.name);
+          const globalFn = globalIface.functions.find(
+            (f) => f.name === fn.name
+          );
           if (globalFn && !globalFn.stateMutability) {
             globalFn.stateMutability = fn.stateMutability;
           }
@@ -462,13 +562,19 @@ export async function compile(
   }
   for (const { cached } of cachedFiles) {
     if (!cached.resolvedMutabilities) continue;
-    for (const [ifaceName, methods] of Object.entries(cached.resolvedMutabilities)) {
+    for (const [ifaceName, methods] of Object.entries(
+      cached.resolvedMutabilities
+    )) {
       const globalIface = globalContractInterfaces.get(ifaceName);
       if (!globalIface) continue;
       for (const [fnName, mut] of Object.entries(methods)) {
         const globalFn = globalIface.functions.find((f) => f.name === fnName);
         if (globalFn && !globalFn.stateMutability) {
-          globalFn.stateMutability = mut as "pure" | "view" | "nonpayable" | "payable";
+          globalFn.stateMutability = mut as
+            | "pure"
+            | "view"
+            | "nonpayable"
+            | "payable";
         }
       }
     }
@@ -490,7 +596,13 @@ export async function compile(
   }
 
   // Phase 4: Generate Solidity for parsed files, with imports for external interfaces
-  for (const { filePath, relativePath, fileHash, depsHash, contracts } of parsedFiles) {
+  for (const {
+    filePath,
+    relativePath,
+    fileHash,
+    depsHash,
+    contracts,
+  } of parsedFiles) {
     try {
       const baseName = path.basename(filePath, path.extname(filePath));
 
@@ -500,7 +612,11 @@ export async function compile(
       for (const contract of contracts) {
         for (const iface of contract.contractInterfaces) {
           const originBase = interfaceOriginFile.get(iface.name);
-          if (originBase && originBase !== baseName && filesWithContracts.has(originBase)) {
+          if (
+            originBase &&
+            originBase !== baseName &&
+            filesWithContracts.has(originBase)
+          ) {
             if (!importedIfaceNames.has(iface.name)) {
               importedIfaceNames.add(iface.name);
               imports.push(`./${originBase}.sol`);
@@ -511,7 +627,11 @@ export async function compile(
         // Import parent contracts defined in other files
         for (const parentName of contract.inherits) {
           const originBase = contractOriginFile.get(parentName);
-          if (originBase && originBase !== baseName && filesWithContracts.has(originBase)) {
+          if (
+            originBase &&
+            originBase !== baseName &&
+            filesWithContracts.has(originBase)
+          ) {
             imports.push(`./${originBase}.sol`);
           }
         }
@@ -524,7 +644,8 @@ export async function compile(
         for (const iface of contract.contractInterfaces) {
           for (const fn of iface.functions) {
             if (fn.stateMutability) {
-              if (!resolvedMutabilities[iface.name]) resolvedMutabilities[iface.name] = {};
+              if (!resolvedMutabilities[iface.name])
+                resolvedMutabilities[iface.name] = {};
               resolvedMutabilities[iface.name][fn.name] = fn.stateMutability;
             }
           }
@@ -545,7 +666,9 @@ export async function compile(
           if (!globalIface) continue;
           for (const fn of iface.functions) {
             if (fn.stateMutability) continue;
-            const globalFn = globalIface.functions.find((f) => f.name === fn.name);
+            const globalFn = globalIface.functions.find(
+              (f) => f.name === fn.name
+            );
             if (globalFn?.stateMutability) {
               fn.stateMutability = globalFn.stateMutability;
             }
@@ -591,7 +714,15 @@ export async function compile(
         contractFns[contract.name] = fns;
       }
 
-      const cacheEntry: CacheEntry = { fileHash, sharedHash, depsHash, configHash, contracts: [], resolvedMutabilities, contractFunctions: contractFns };
+      const cacheEntry: CacheEntry = {
+        fileHash,
+        sharedHash,
+        depsHash,
+        configHash,
+        contracts: [],
+        resolvedMutabilities,
+        contractFunctions: contractFns,
+      };
       writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
 
       for (const contract of contracts) {
@@ -602,7 +733,8 @@ export async function compile(
 
       newCache.files[relativePath] = cacheEntry;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      const message =
+        err instanceof Error ? err.message : "Unknown error occurred";
       errors.push(`${relativePath}: ${message}`);
       logError(`Failed to compile ${relativePath}: ${message}`);
     }
@@ -630,7 +762,10 @@ export async function compile(
  * Returns them separately so callers can resolve `super` calls against
  * parent mutabilities (not child overrides).
  */
-function collectThisCallNames(stmts: Statement[]): { thisCalls: string[]; superCalls: string[] } {
+function collectThisCallNames(stmts: Statement[]): {
+  thisCalls: string[];
+  superCalls: string[];
+} {
   const thisCalls: string[] = [];
   const superCalls: string[] = [];
 
@@ -761,14 +896,23 @@ function stripConsoleLogStatements(stmts: Statement[]): Statement[] {
       acc.push({
         ...stmt,
         thenBody: stripConsoleLogStatements(stmt.thenBody),
-        elseBody: stmt.elseBody ? stripConsoleLogStatements(stmt.elseBody) : undefined,
+        elseBody: stmt.elseBody
+          ? stripConsoleLogStatements(stmt.elseBody)
+          : undefined,
       });
-    } else if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+    } else if (
+      stmt.kind === "for" ||
+      stmt.kind === "while" ||
+      stmt.kind === "do-while"
+    ) {
       acc.push({ ...stmt, body: stripConsoleLogStatements(stmt.body) });
     } else if (stmt.kind === "switch") {
       acc.push({
         ...stmt,
-        cases: stmt.cases.map((c) => ({ ...c, body: stripConsoleLogStatements(c.body) })),
+        cases: stmt.cases.map((c) => ({
+          ...c,
+          body: stripConsoleLogStatements(c.body),
+        })),
       });
     } else if (stmt.kind === "try-catch") {
       acc.push({

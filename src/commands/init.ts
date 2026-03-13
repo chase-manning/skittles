@@ -248,9 +248,7 @@ export async function initCommand(
         logSuccess("Updated package.json");
       }
     } catch {
-      logWarning(
-        "Could not update existing package.json, creating a new one"
-      );
+      logWarning("Could not update existing package.json, creating a new one");
       writeFile(packageJsonPath, buildPackageJson(projectName) + "\n");
       logSuccess("Created package.json");
     }
@@ -328,9 +326,7 @@ export async function initCommand(
 
   if (fs.existsSync(gitignorePath)) {
     const existing = fs.readFileSync(gitignorePath, "utf-8");
-    const toAdd = gitignoreEntries.filter(
-      (entry) => !existing.includes(entry)
-    );
+    const toAdd = gitignoreEntries.filter((entry) => !existing.includes(entry));
     if (toAdd.length > 0) {
       fs.appendFileSync(gitignorePath, "\n" + toAdd.join("\n") + "\n");
       logSuccess("Updated .gitignore");
@@ -351,13 +347,14 @@ export async function initCommand(
       });
       logSuccess("Dependencies installed");
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       logError(`Failed to install dependencies: ${message}`);
       logInfo(`  You can install manually by running: ${pm} install`);
     }
   } else {
-    logInfo(`Skipping dependency installation. Run \`${pm} install\` manually.`);
+    logInfo(
+      `Skipping dependency installation. Run \`${pm} install\` manually.`
+    );
   }
 
   logSuccess("Skittles project initialized!");

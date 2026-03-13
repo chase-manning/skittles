@@ -92,15 +92,15 @@ afterAll(async () => {
 
 describe("behavioral: bitwise operators", () => {
   it("AND: 0xFF & 0x0F = 0x0F", async () => {
-    expect(await contract.contract.bitwiseAnd(0xFF, 0x0F)).toBe(15n);
+    expect(await contract.contract.bitwiseAnd(0xff, 0x0f)).toBe(15n);
   });
 
   it("OR: 0xF0 | 0x0F = 0xFF", async () => {
-    expect(await contract.contract.bitwiseOr(0xF0, 0x0F)).toBe(255n);
+    expect(await contract.contract.bitwiseOr(0xf0, 0x0f)).toBe(255n);
   });
 
   it("XOR: 0xFF ^ 0x0F = 0xF0", async () => {
-    expect(await contract.contract.bitwiseXor(0xFF, 0x0F)).toBe(240n);
+    expect(await contract.contract.bitwiseXor(0xff, 0x0f)).toBe(240n);
   });
 
   it("left shift: 1 << 8 = 256", async () => {

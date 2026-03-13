@@ -9,13 +9,23 @@ import type { ReturnStatement, CallExpression } from "../../src/types";
 import ts from "typescript";
 
 function makeTypeNode(code: string): ts.TypeNode {
-  const src = ts.createSourceFile("t.ts", `let x: ${code};`, ts.ScriptTarget.Latest, true);
+  const src = ts.createSourceFile(
+    "t.ts",
+    `let x: ${code};`,
+    ts.ScriptTarget.Latest,
+    true
+  );
   const stmt = src.statements[0] as ts.VariableStatement;
   return stmt.declarationList.declarations[0].type!;
 }
 
 function makeExprNode(code: string): ts.Expression {
-  const src = ts.createSourceFile("t.ts", `(${code});`, ts.ScriptTarget.Latest, true);
+  const src = ts.createSourceFile(
+    "t.ts",
+    `(${code});`,
+    ts.ScriptTarget.Latest,
+    true
+  );
   const stmt = src.statements[0] as ts.ExpressionStatement;
   const paren = stmt.expression as ts.ParenthesizedExpression;
   return paren.expression;
@@ -36,20 +46,14 @@ describe("parse", () => {
   });
 
   it("should parse multiple classes", () => {
-    const contracts = parse(
-      "class A {} class B {}",
-      "test.ts"
-    );
+    const contracts = parse("class A {} class B {}", "test.ts");
     expect(contracts).toHaveLength(2);
     expect(contracts[0].name).toBe("A");
     expect(contracts[1].name).toBe("B");
   });
 
   it("should parse inheritance", () => {
-    const contracts = parse(
-      "class Token extends ERC20 {}",
-      "test.ts"
-    );
+    const contracts = parse("class Token extends ERC20 {}", "test.ts");
     expect(contracts[0].inherits).toEqual(["ERC20"]);
   });
 
@@ -191,15 +195,14 @@ describe("parse", () => {
       "test.ts"
     );
     const child = contracts.find((c) => c.name === "Child")!;
-    const callSuperView = child.functions.find((f) => f.name === "callSuperView")!;
+    const callSuperView = child.functions.find(
+      (f) => f.name === "callSuperView"
+    )!;
     expect(callSuperView.stateMutability).toBe("view");
   });
 
   it("should not mark non-abstract classes as abstract", () => {
-    const contracts = parse(
-      "class Token { public x: number = 0; }",
-      "test.ts"
-    );
+    const contracts = parse("class Token { public x: number = 0; }", "test.ts");
     expect(contracts[0].isAbstract).toBeFalsy();
   });
 
@@ -223,10 +226,7 @@ describe("parse", () => {
   });
 
   it("should parse address typed variables", () => {
-    const contracts = parse(
-      `class T { public owner: address; }`,
-      "test.ts"
-    );
+    const contracts = parse(`class T { public owner: address; }`, "test.ts");
     expect(contracts[0].variables[0].type.kind).toBe("address");
   });
 
@@ -601,7 +601,10 @@ describe("parse", () => {
     expect(body[0].kind).toBe("console-log");
     if (body[0].kind === "console-log") {
       expect(body[0].args).toHaveLength(1);
-      expect(body[0].args[0]).toEqual({ kind: "string-literal", value: "hello" });
+      expect(body[0].args[0]).toEqual({
+        kind: "string-literal",
+        value: "hello",
+      });
     }
   });
 
@@ -1297,16 +1300,25 @@ describe("parse: string truthiness", () => {
       expect(ifStmt.condition.kind).toBe("binary");
       if (ifStmt.condition.kind === "binary") {
         expect(ifStmt.condition.operator).toBe(">");
-        expect(ifStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+        expect(ifStmt.condition.right).toEqual({
+          kind: "number-literal",
+          value: "0",
+        });
         const left = ifStmt.condition.left;
         expect(left.kind).toBe("property-access");
         if (left.kind === "property-access") {
           expect(left.property).toBe("length");
           expect(left.object.kind).toBe("call");
           if (left.object.kind === "call") {
-            expect(left.object.callee).toEqual({ kind: "identifier", name: "bytes" });
+            expect(left.object.callee).toEqual({
+              kind: "identifier",
+              name: "bytes",
+            });
             expect(left.object.args).toHaveLength(1);
-            expect(left.object.args[0]).toEqual({ kind: "identifier", name: "data" });
+            expect(left.object.args[0]).toEqual({
+              kind: "identifier",
+              name: "data",
+            });
           }
         }
       }
@@ -1333,16 +1345,25 @@ describe("parse: string truthiness", () => {
       expect(ifStmt.condition.kind).toBe("binary");
       if (ifStmt.condition.kind === "binary") {
         expect(ifStmt.condition.operator).toBe("==");
-        expect(ifStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+        expect(ifStmt.condition.right).toEqual({
+          kind: "number-literal",
+          value: "0",
+        });
         const left = ifStmt.condition.left;
         expect(left.kind).toBe("property-access");
         if (left.kind === "property-access") {
           expect(left.property).toBe("length");
           expect(left.object.kind).toBe("call");
           if (left.object.kind === "call") {
-            expect(left.object.callee).toEqual({ kind: "identifier", name: "bytes" });
+            expect(left.object.callee).toEqual({
+              kind: "identifier",
+              name: "bytes",
+            });
             expect(left.object.args).toHaveLength(1);
-            expect(left.object.args[0]).toEqual({ kind: "identifier", name: "data" });
+            expect(left.object.args[0]).toEqual({
+              kind: "identifier",
+              name: "data",
+            });
           }
         }
       }
@@ -1367,7 +1388,10 @@ describe("parse: string truthiness", () => {
       expect(whileStmt.condition.kind).toBe("binary");
       if (whileStmt.condition.kind === "binary") {
         expect(whileStmt.condition.operator).toBe(">");
-        expect(whileStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+        expect(whileStmt.condition.right).toEqual({
+          kind: "number-literal",
+          value: "0",
+        });
       }
     }
   });
@@ -1390,7 +1414,10 @@ describe("parse: string truthiness", () => {
       expect(doWhileStmt.condition.kind).toBe("binary");
       if (doWhileStmt.condition.kind === "binary") {
         expect(doWhileStmt.condition.operator).toBe(">");
-        expect(doWhileStmt.condition.right).toEqual({ kind: "number-literal", value: "0" });
+        expect(doWhileStmt.condition.right).toEqual({
+          kind: "number-literal",
+          value: "0",
+        });
       }
     }
   });
@@ -1421,7 +1448,10 @@ describe("parse: string truthiness", () => {
           expect(ifStmt.condition.left.operator).toBe(">");
         }
         // Right side should remain unchanged: flag
-        expect(ifStmt.condition.right).toEqual({ kind: "identifier", name: "flag" });
+        expect(ifStmt.condition.right).toEqual({
+          kind: "identifier",
+          name: "flag",
+        });
       }
     }
   });
@@ -1508,7 +1538,10 @@ describe("parse: string truthiness", () => {
       expect(forStmt.condition!.kind).toBe("binary");
       if (forStmt.condition!.kind === "binary") {
         expect(forStmt.condition!.operator).toBe(">");
-        expect(forStmt.condition!.right).toEqual({ kind: "number-literal", value: "0" });
+        expect(forStmt.condition!.right).toEqual({
+          kind: "number-literal",
+          value: "0",
+        });
       }
     }
   });
@@ -1532,7 +1565,10 @@ describe("parse: string truthiness", () => {
       // Should be: flag ? bytes(a).length > 0 : bytes(b).length > 0
       expect(ifStmt.condition.kind).toBe("conditional");
       if (ifStmt.condition.kind === "conditional") {
-        expect(ifStmt.condition.condition).toEqual({ kind: "identifier", name: "flag" });
+        expect(ifStmt.condition.condition).toEqual({
+          kind: "identifier",
+          name: "flag",
+        });
         expect(ifStmt.condition.whenTrue.kind).toBe("binary");
         expect(ifStmt.condition.whenFalse.kind).toBe("binary");
         if (ifStmt.condition.whenTrue.kind === "binary") {
@@ -1568,15 +1604,24 @@ describe("parse: string truthiness", () => {
         expect(ifStmt.condition.condition.kind).toBe("binary");
         if (ifStmt.condition.condition.kind === "binary") {
           expect(ifStmt.condition.condition.operator).toBe(">");
-          expect(ifStmt.condition.condition.right).toEqual({ kind: "number-literal", value: "0" });
+          expect(ifStmt.condition.condition.right).toEqual({
+            kind: "number-literal",
+            value: "0",
+          });
           const left = ifStmt.condition.condition.left;
           expect(left.kind).toBe("property-access");
           if (left.kind === "property-access") {
             expect(left.property).toBe("length");
             expect(left.object.kind).toBe("call");
             if (left.object.kind === "call") {
-              expect(left.object.callee).toEqual({ kind: "identifier", name: "bytes" });
-              expect(left.object.args[0]).toEqual({ kind: "identifier", name: "data" });
+              expect(left.object.callee).toEqual({
+                kind: "identifier",
+                name: "bytes",
+              });
+              expect(left.object.args[0]).toEqual({
+                kind: "identifier",
+                name: "data",
+              });
             }
           }
         }
