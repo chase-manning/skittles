@@ -30,6 +30,7 @@ import {
 } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
 import { MUTABILITY_RANK } from "./mutability.ts";
+import { walkStatements } from "./walker.ts";
 import {
   getStdlibClassNames,
   resolveStdlibFiles,
@@ -943,119 +944,22 @@ function collectThisCallNames(stmts: Statement[]): {
   const thisCalls: string[] = [];
   const superCalls: string[] = [];
 
-  function walkExpr(expr: Expression): void {
-    switch (expr.kind) {
-      case "call":
-        if (
-          expr.callee.kind === "property-access" &&
-          expr.callee.object.kind === "identifier"
-        ) {
-          if (expr.callee.object.name === "this") {
-            thisCalls.push(expr.callee.property);
-          } else if (expr.callee.object.name === "super") {
-            superCalls.push(expr.callee.property);
-          }
+  walkStatements(stmts, {
+    visitExpression(expr) {
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "property-access" &&
+        expr.callee.object.kind === "identifier"
+      ) {
+        if (expr.callee.object.name === "this") {
+          thisCalls.push(expr.callee.property);
+        } else if (expr.callee.object.name === "super") {
+          superCalls.push(expr.callee.property);
         }
-        walkExpr(expr.callee);
-        expr.args.forEach(walkExpr);
-        break;
-      case "binary":
-        walkExpr(expr.left);
-        walkExpr(expr.right);
-        break;
-      case "unary":
-        walkExpr(expr.operand);
-        break;
-      case "assignment":
-        walkExpr(expr.target);
-        walkExpr(expr.value);
-        break;
-      case "property-access":
-        walkExpr(expr.object);
-        break;
-      case "element-access":
-        walkExpr(expr.object);
-        walkExpr(expr.index);
-        break;
-      case "conditional":
-        walkExpr(expr.condition);
-        walkExpr(expr.whenTrue);
-        walkExpr(expr.whenFalse);
-        break;
-      case "new":
-        expr.args.forEach(walkExpr);
-        break;
-      case "object-literal":
-        expr.properties.forEach((p) => walkExpr(p.value));
-        break;
-      case "tuple-literal":
-        expr.elements.forEach(walkExpr);
-        break;
-    }
-  }
+      }
+    },
+  });
 
-  function walkStmt(stmt: Statement): void {
-    switch (stmt.kind) {
-      case "return":
-        if (stmt.value) walkExpr(stmt.value);
-        break;
-      case "variable-declaration":
-        if (stmt.initializer) walkExpr(stmt.initializer);
-        break;
-      case "tuple-destructuring":
-        walkExpr(stmt.initializer);
-        break;
-      case "expression":
-        walkExpr(stmt.expression);
-        break;
-      case "if":
-        walkExpr(stmt.condition);
-        stmt.thenBody.forEach(walkStmt);
-        stmt.elseBody?.forEach(walkStmt);
-        break;
-      case "for":
-        if (stmt.initializer) walkStmt(stmt.initializer);
-        if (stmt.condition) walkExpr(stmt.condition);
-        if (stmt.incrementor) walkExpr(stmt.incrementor);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "while":
-        walkExpr(stmt.condition);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "revert":
-        if (stmt.message) walkExpr(stmt.message);
-        if (stmt.customErrorArgs) stmt.customErrorArgs.forEach(walkExpr);
-        break;
-      case "do-while":
-        walkExpr(stmt.condition);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "emit":
-        stmt.args.forEach(walkExpr);
-        break;
-      case "switch":
-        walkExpr(stmt.discriminant);
-        for (const c of stmt.cases) {
-          if (c.value) walkExpr(c.value);
-          c.body.forEach(walkStmt);
-        }
-        break;
-      case "delete":
-        walkExpr(stmt.target);
-        break;
-      case "try-catch":
-        walkExpr(stmt.call);
-        stmt.successBody.forEach(walkStmt);
-        stmt.catchBody.forEach(walkStmt);
-        break;
-      case "console-log":
-        stmt.args.forEach(walkExpr);
-        break;
-    }
-  }
-
-  stmts.forEach(walkStmt);
   return { thisCalls, superCalls };
 }
 

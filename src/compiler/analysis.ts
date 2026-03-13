@@ -4,6 +4,7 @@ import type {
   SkittlesFunction,
   SkittlesConstructor,
 } from "../types/index.ts";
+import { walkStatements } from "./walker.ts";
 
 /**
  * Analyze a function body for unreachable code and unused local variables.
@@ -135,150 +136,29 @@ function checkUnusedVariables(
 
 /**
  * Walk all statements recursively, collecting declared variable names
- * and used identifier names.
+ * and used identifier names via the shared AST walker.
  */
 function walkAllStatements(
   stmts: Statement[],
   declared: Set<string>,
   used: Set<string>
 ): void {
-  for (const stmt of stmts) {
-    switch (stmt.kind) {
-      case "variable-declaration":
+  walkStatements(stmts, {
+    visitStatement(stmt) {
+      if (stmt.kind === "variable-declaration") {
         declared.add(stmt.name);
-        if (stmt.initializer) collectUsedIdentifiers(stmt.initializer, used);
-        break;
-      case "tuple-destructuring":
+      }
+      if (stmt.kind === "tuple-destructuring") {
         for (const n of stmt.names) if (n !== null) declared.add(n);
-        collectUsedIdentifiers(stmt.initializer, used);
-        break;
-      case "return":
-        if (stmt.value) collectUsedIdentifiers(stmt.value, used);
-        break;
-      case "expression":
-        collectUsedIdentifiers(stmt.expression, used);
-        break;
-      case "if":
-        collectUsedIdentifiers(stmt.condition, used);
-        walkAllStatements(stmt.thenBody, declared, used);
-        if (stmt.elseBody) walkAllStatements(stmt.elseBody, declared, used);
-        break;
-      case "for":
-        if (stmt.initializer) {
-          if (stmt.initializer.kind === "variable-declaration") {
-            declared.add(stmt.initializer.name);
-            if (stmt.initializer.initializer)
-              collectUsedIdentifiers(stmt.initializer.initializer, used);
-          } else {
-            collectUsedIdentifiers(stmt.initializer.expression, used);
-          }
-        }
-        if (stmt.condition) collectUsedIdentifiers(stmt.condition, used);
-        if (stmt.incrementor) collectUsedIdentifiers(stmt.incrementor, used);
-        walkAllStatements(stmt.body, declared, used);
-        break;
-      case "while":
-      case "do-while":
-        collectUsedIdentifiers(stmt.condition, used);
-        walkAllStatements(stmt.body, declared, used);
-        break;
-      case "revert":
-        if (stmt.message) collectUsedIdentifiers(stmt.message, used);
-        if (stmt.customErrorArgs) {
-          for (const arg of stmt.customErrorArgs) {
-            collectUsedIdentifiers(arg, used);
-          }
-        }
-        break;
-      case "emit":
-        for (const arg of stmt.args) {
-          collectUsedIdentifiers(arg, used);
-        }
-        break;
-      case "switch":
-        collectUsedIdentifiers(stmt.discriminant, used);
-        for (const c of stmt.cases) {
-          if (c.value) collectUsedIdentifiers(c.value, used);
-          walkAllStatements(c.body, declared, used);
-        }
-        break;
-      case "delete":
-        collectUsedIdentifiers(stmt.target, used);
-        break;
-      case "try-catch":
-        collectUsedIdentifiers(stmt.call, used);
-        if (stmt.returnVarName) declared.add(stmt.returnVarName);
-        walkAllStatements(stmt.successBody, declared, used);
-        walkAllStatements(stmt.catchBody, declared, used);
-        break;
-      case "console-log":
-        for (const arg of stmt.args) {
-          collectUsedIdentifiers(arg, used);
-        }
-        break;
-    }
-  }
-}
-
-/**
- * Collect all identifier names used in an expression.
- */
-function collectUsedIdentifiers(expr: Expression, used: Set<string>): void {
-  switch (expr.kind) {
-    case "number-literal":
-    case "string-literal":
-    case "boolean-literal":
-      break;
-    case "identifier":
-      used.add(expr.name);
-      break;
-    case "binary":
-      collectUsedIdentifiers(expr.left, used);
-      collectUsedIdentifiers(expr.right, used);
-      break;
-    case "unary":
-      collectUsedIdentifiers(expr.operand, used);
-      break;
-    case "assignment":
-      collectUsedIdentifiers(expr.target, used);
-      collectUsedIdentifiers(expr.value, used);
-      break;
-    case "call":
-      collectUsedIdentifiers(expr.callee, used);
-      for (const arg of expr.args) {
-        collectUsedIdentifiers(arg, used);
       }
-      break;
-    case "property-access":
-      collectUsedIdentifiers(expr.object, used);
-      break;
-    case "element-access":
-      collectUsedIdentifiers(expr.object, used);
-      collectUsedIdentifiers(expr.index, used);
-      break;
-    case "conditional":
-      collectUsedIdentifiers(expr.condition, used);
-      collectUsedIdentifiers(expr.whenTrue, used);
-      collectUsedIdentifiers(expr.whenFalse, used);
-      break;
-    case "new":
-      for (const arg of expr.args) {
-        collectUsedIdentifiers(arg, used);
+      if (stmt.kind === "try-catch" && stmt.returnVarName) {
+        declared.add(stmt.returnVarName);
       }
-      break;
-    case "object-literal":
-      for (const prop of expr.properties) {
-        collectUsedIdentifiers(prop.value, used);
+    },
+    visitExpression(expr) {
+      if (expr.kind === "identifier") {
+        used.add(expr.name);
       }
-      break;
-    case "tuple-literal":
-      for (const elem of expr.elements) {
-        collectUsedIdentifiers(elem, used);
-      }
-      break;
-    default: {
-      const _exhaustive: never = expr;
-      throw new Error(`Unhandled expression kind: ${(_exhaustive as Expression).kind}`);
-    }
-  }
+    },
+  });
 }
