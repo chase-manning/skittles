@@ -99,7 +99,9 @@ export function parseExpression(node: ts.Expression): Expression {
 
   if (ts.isPropertyAccessExpression(node)) {
     const object = parseExpression(node.expression);
-    const property = node.name.text;
+    const property = ts.isPrivateIdentifier(node.name)
+      ? node.name.text.replace(/^#/, "")
+      : node.name.text;
 
     // string.length → bytes(str).length
     if (property === "length" && isStringExpr(object)) {
