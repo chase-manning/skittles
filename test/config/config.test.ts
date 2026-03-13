@@ -1,22 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import { loadConfig, DEFAULT_CONFIG } from "../../src/config/config";
+import { useTempDir } from "../fixtures";
 
-const TEST_DIR = path.join(__dirname, "__test_tmp_config__");
-
-beforeEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-  fs.mkdirSync(TEST_DIR, { recursive: true });
-});
-
-afterEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-});
+const TEST_DIR = useTempDir(__dirname, "__test_tmp_config__");
 
 describe("loadConfig", () => {
   it("should return defaults when no config file exists", async () => {

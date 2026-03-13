@@ -1,26 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { initCommand } from "../../src/commands/init";
+import { useTempDir } from "../fixtures";
 
 vi.mock("child_process", () => ({
   execSync: vi.fn(),
 }));
 
-const TEST_DIR = path.join(__dirname, "__test_tmp_init__");
-
-beforeEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-  fs.mkdirSync(TEST_DIR, { recursive: true });
-});
-
-afterEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-});
+const TEST_DIR = useTempDir(__dirname, "__test_tmp_init__");
 
 describe("initCommand", () => {
   it("should create contracts directory", async () => {

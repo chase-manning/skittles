@@ -106,3 +106,26 @@ export function connectAs(
 ): ethers.Contract {
   return new ethers.Contract(deployed.address, deployed.abi, signer);
 }
+
+/**
+ * Parse a named event from a transaction receipt using the contract ABI.
+ * Returns the parsed log description, or `undefined` if the event is not found.
+ */
+export function getEventFromReceipt(
+  receipt: ethers.TransactionReceipt,
+  abi: ethers.InterfaceAbi,
+  eventName: string
+): ethers.LogDescription | undefined {
+  const iface = new ethers.Interface(abi);
+  return receipt.logs
+    .map((log: ethers.Log) => {
+      try {
+        return iface.parseLog(log);
+      } catch {
+        return null;
+      }
+    })
+    .find(
+      (e: ethers.LogDescription | null) => e?.name === eventName
+    ) as ethers.LogDescription | undefined;
+}

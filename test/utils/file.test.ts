@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import {
@@ -8,21 +8,9 @@ import {
   removeDirectory,
   ensureDirectory,
 } from "../../src/utils/file";
+import { useTempDir } from "../fixtures";
 
-const TEST_DIR = path.join(__dirname, "__test_tmp__");
-
-beforeEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-  fs.mkdirSync(TEST_DIR, { recursive: true });
-});
-
-afterEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-});
+const TEST_DIR = useTempDir(__dirname);
 
 describe("findTypeScriptFiles", () => {
   it("should find .ts files in a directory", () => {

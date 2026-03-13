@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { compileCommand, watchCompile } from "../../src/commands/compile";
+import { useTempDir } from "../fixtures";
 
-const TEST_DIR = path.join(__dirname, "__test_tmp_compile__");
+const TEST_DIR = useTempDir(__dirname, "__test_tmp_compile__");
 
 const SIMPLE_CONTRACT = `export class Counter {
   count: number = 0;
@@ -18,19 +19,6 @@ const MODIFIED_CONTRACT = `export class Counter {
     this.count += 2;
   }
 }`;
-
-beforeEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-  fs.mkdirSync(TEST_DIR, { recursive: true });
-});
-
-afterEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-});
 
 describe("compileCommand", () => {
   it("should compile contracts successfully", async () => {

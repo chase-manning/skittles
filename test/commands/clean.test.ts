@@ -1,22 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import { cleanCommand } from "../../src/commands/clean";
+import { useTempDir } from "../fixtures";
 
-const TEST_DIR = path.join(__dirname, "__test_tmp_clean__");
-
-beforeEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-  fs.mkdirSync(TEST_DIR, { recursive: true });
-});
-
-afterEach(() => {
-  if (fs.existsSync(TEST_DIR)) {
-    fs.rmSync(TEST_DIR, { recursive: true, force: true });
-  }
-});
+const TEST_DIR = useTempDir(__dirname, "__test_tmp_clean__");
 
 describe("cleanCommand", () => {
   it("should remove the default output directory and cache directory", async () => {
