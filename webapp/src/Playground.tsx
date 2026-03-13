@@ -3,10 +3,9 @@ import { compileSource } from "./compiler.ts";
 import "./Playground.css";
 import { highlightTS, highlightSol } from "./syntax-highlight.ts";
 import { EXAMPLES } from "./examples.ts";
+import { DEBOUNCE_MS } from "../../constants/debounce.ts";
 
 const DEFAULT_EXAMPLE = "Token";
-// Debounce delay for recompile-on-change (aligned with src/commands/compile.ts)
-const DEBOUNCE_MS = 300;
 
 function encodeSource(source: string): string {
   return btoa(encodeURIComponent(source));
