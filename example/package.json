@@ -8,7 +8,8 @@
     "compile": "skittles compile",
     "build": "skittles compile && hardhat build",
     "clean": "skittles clean",
-    "test": "skittles compile && hardhat test"
+    "test": "skittles compile && hardhat test",
+    "lint": "eslint ."
   },
   "dependencies": {
     "skittles": "file:.."
@@ -23,7 +24,11 @@
     "ethers": "^6.16.0",
     "hardhat": "^3.0.0",
     "mocha": "^11.0.0",
-    "@types/mocha": "^10.0.0"
+    "@eslint/js": "^9.39.4",
+    "@types/mocha": "^10.0.0",
+    "eslint": "^9.39.4",
+    "globals": "^17.4.0",
+    "typescript-eslint": "^8.57.0"
   },
   "engines": {
     "node": ">=22.0.0"

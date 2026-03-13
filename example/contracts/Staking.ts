@@ -23,6 +23,7 @@ export class Staking {
   }>;
 
   NotOwner: SkittlesError<{ caller: address }>;
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   VaultPaused: SkittlesError<{}>;
   InsufficientDeposit: SkittlesError<{ account: address; deposited: number; requested: number }>;
 
@@ -59,9 +60,9 @@ export class Staking {
       );
     }
 
-    let fee: number = (amount * Staking.FEE_BASIS_POINTS) /
+    const fee: number = (amount * Staking.FEE_BASIS_POINTS) /
       Staking.BASIS_POINTS_DENOMINATOR;
-    let payout: number = amount - fee;
+    const payout: number = amount - fee;
 
     this.deposits[msg.sender] -= amount;
     this.totalDeposited -= amount;
@@ -72,7 +73,7 @@ export class Staking {
   }
 
   public getStakeInfo(account: address): StakeInfo {
-    let info: StakeInfo = {
+    const info: StakeInfo = {
       amount: this.deposits[account],
       timestamp: this.depositTimestamps[account],
       account: account,

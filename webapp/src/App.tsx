@@ -10,7 +10,7 @@ import QuickStart from "./components/QuickStart.tsx";
 import FinalCTA from "./components/FinalCTA.tsx";
 import Footer from "./components/Footer.tsx";
 import { URLS } from "./constants.ts";
-import { type Token, highlightTS, highlightSol } from "./syntax-highlight.ts";
+
 
 const Playground = lazy(() => import("./Playground.tsx"));
 
