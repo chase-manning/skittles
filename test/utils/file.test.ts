@@ -5,6 +5,7 @@ import { describe, expect,it } from "vitest";
 import {
   ensureDirectory,
   findTypeScriptFiles,
+  isTypeScriptSourceFile,
   readFile,
   removeDirectory,
   writeFile,
@@ -12,6 +13,35 @@ import {
 import { useTempDir } from "../fixtures";
 
 const TEST_DIR = useTempDir(__dirname);
+
+describe("isTypeScriptSourceFile", () => {
+  it("should return true for .ts files", () => {
+    expect(isTypeScriptSourceFile("foo.ts")).toBe(true);
+  });
+
+  it("should return false for .d.ts files", () => {
+    expect(isTypeScriptSourceFile("foo.d.ts")).toBe(false);
+  });
+
+  it("should return false for non-ts files", () => {
+    expect(isTypeScriptSourceFile("foo.js")).toBe(false);
+    expect(isTypeScriptSourceFile("foo.txt")).toBe(false);
+  });
+
+  it("should not exclude index.ts by default", () => {
+    expect(isTypeScriptSourceFile("index.ts")).toBe(true);
+  });
+
+  it("should exclude index.ts when excludeIndex is true", () => {
+    expect(isTypeScriptSourceFile("index.ts", { excludeIndex: true })).toBe(
+      false
+    );
+  });
+
+  it("should not exclude non-index files when excludeIndex is true", () => {
+    expect(isTypeScriptSourceFile("foo.ts", { excludeIndex: true })).toBe(true);
+  });
+});
 
 describe("findTypeScriptFiles", () => {
   it("should find .ts files in a directory", () => {
