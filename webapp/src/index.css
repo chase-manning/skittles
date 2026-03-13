@@ -1,5 +1,6 @@
 :root {
   --accent: #22D3EE;
+  --accent-translucent: #22D3EE30;
   --bg-inset: #0F172A;
   --bg-primary: #0A0F1C;
   --bg-surface: #1E293B;
@@ -9,6 +10,15 @@
   --text-secondary: #94A3B8;
   --text-tertiary: #64748B;
   --border: #1E293B;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+  --color-success: #22C55E;
+  --color-syntax-string: #A5D6A7;
+  --color-syntax-number: #F9A8D4;
+  --font-size-code: 13px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
 }
 
 *,
