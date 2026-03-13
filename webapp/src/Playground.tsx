@@ -96,6 +96,7 @@ export class Staking {
 };
 
 const DEFAULT_EXAMPLE = "Token";
+// Debounce delay for recompile-on-change (aligned with src/commands/compile.ts)
 const DEBOUNCE_MS = 300;
 
 function encodeSource(source: string): string {
