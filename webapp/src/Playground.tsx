@@ -15,7 +15,8 @@ function encodeSource(source: string): string {
 function decodeSource(encoded: string): string | null {
   try {
     return decodeURIComponent(atob(encoded));
-  } catch {
+  } catch (_ignored) {
+    /* Invalid base64 or URI encoding, return null */
     return null;
   }
 }
@@ -114,7 +115,8 @@ export default function Playground() {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (_ignored) {
+      /* Clipboard API not available, fall back to prompt */
       window.prompt("Copy this URL to share:", url);
     }
   };

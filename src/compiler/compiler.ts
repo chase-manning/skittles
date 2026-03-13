@@ -95,7 +95,7 @@ function loadCache(outputDir: string): CompilationCache {
       )
         return data;
     }
-  } catch {
+  } catch (_ignored) {
     // Corrupt cache, start fresh
   }
   return {
@@ -873,7 +873,7 @@ function generateOutput(
 function updateCache(cacheDir: string, newCache: CompilationCache): void {
   try {
     saveCache(cacheDir, newCache);
-  } catch {
+  } catch (_ignored) {
     // Non critical if cache save fails
   }
 }
