@@ -357,7 +357,7 @@ describe("integration: for...in enum loops", () => {
     expect(solidity).toContain(
       "for (uint256 __sk_i_status = 0; (__sk_i_status < 3); __sk_i_status++)"
     );
-    expect(solidity).toContain("Status status = Status(__sk_i_status);");
+    expect(solidity).not.toContain("Status status = Status(__sk_i_status);");
   });
 
   it("should compile for...in with enum body using the variable", () => {
@@ -381,8 +381,26 @@ describe("integration: for...in enum loops", () => {
     );
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("__sk_i_c");
-    expect(solidity).toContain("Color c = Color(__sk_i_c);");
+    expect(solidity).not.toContain("Color c = Color(__sk_i_c);");
     expect(solidity).toContain("count += 1;");
+  });
+
+  it("should include enum variable declaration when loop variable is used", () => {
+    const { errors, solidity } = compileTS(`
+      enum Priority { Low, Medium, High, Critical }
+
+      class Example {
+        public lastPriority: Priority = Priority.Low;
+
+        public iteratePriorities(): void {
+          for (const p in Priority) {
+            this.lastPriority = p;
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("Priority p = Priority(__sk_i_p);");
   });
 });
 

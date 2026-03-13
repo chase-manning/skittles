@@ -10,6 +10,7 @@ import {
   type SwitchCase,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
+import { walkStatements } from "./walker.ts";
 import {
   getSourceLine,
   setupStringTracking,
@@ -912,17 +913,32 @@ export function parseStatement(
         ctx.currentStringNames = previousStringNames;
       }
 
-      // Prepend: EnumType item = EnumType(_i);
-      const itemDecl: Statement = {
-        kind: "variable-declaration",
-        name: itemName,
-        type: { kind: SkittlesTypeKind.Enum, structName: enumName },
-        initializer: {
-          kind: "call",
-          callee: { kind: "identifier", name: enumName },
-          args: [{ kind: "identifier", name: indexName }],
+      // Check if the loop variable is actually referenced in the loop body
+      let itemUsed = false;
+      walkStatements(innerBody, {
+        visitExpression(expr) {
+          if (expr.kind === "identifier" && expr.name === itemName) {
+            itemUsed = true;
+          }
         },
-      };
+      });
+
+      // Only prepend: EnumType item = EnumType(_i); if the variable is used
+      const loopBody: Statement[] = itemUsed
+        ? [
+            {
+              kind: "variable-declaration",
+              name: itemName,
+              type: { kind: SkittlesTypeKind.Enum, structName: enumName },
+              initializer: {
+                kind: "call",
+                callee: { kind: "identifier", name: enumName },
+                args: [{ kind: "identifier", name: indexName }],
+              },
+            },
+            ...innerBody,
+          ]
+        : innerBody;
 
       return {
         kind: "for",
@@ -944,7 +960,7 @@ export function parseStatement(
           operand: { kind: "identifier", name: indexName },
           prefix: false,
         },
-        body: [itemDecl, ...innerBody],
+        body: loopBody,
         sourceLine: getSourceLine(node),
       };
     }
