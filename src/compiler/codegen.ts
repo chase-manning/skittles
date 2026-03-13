@@ -27,15 +27,9 @@ import {
   CHAR_0,
   ERR_START_OUT_OF_BOUNDS,
 } from "./constants.ts";
-
-// ============================================================
-// Helper function tracking
-// ============================================================
-
-let _neededHelpers = new Set<string>();
-let _currentNeededArrayHelpers: string[] = [];
-let _allKnownEnumNames = new Set<string>();
-let _allKnownInterfaceNames = new Set<string>();
+import { cctx } from "./codegen-context.ts";
+export type { CodegenContext } from "./codegen-context.ts";
+export { resetCodegenContext } from "./codegen-context.ts";
 
 // Registry of helper function names to their Solidity code lines.
 // Each entry maps a helper name to a thunk returning its code lines
@@ -830,12 +824,12 @@ export function generateSolidityFile(
     parts.push("");
   }
 
-  _allKnownEnumNames = new Set<string>();
-  _allKnownInterfaceNames = new Set<string>();
+  cctx.allKnownEnumNames = new Set<string>();
+  cctx.allKnownInterfaceNames = new Set<string>();
   for (const c of contracts) {
-    for (const en of c.enums ?? []) _allKnownEnumNames.add(en.name);
+    for (const en of c.enums ?? []) cctx.allKnownEnumNames.add(en.name);
     for (const iface of c.contractInterfaces ?? [])
-      _allKnownInterfaceNames.add(iface.name);
+      cctx.allKnownInterfaceNames.add(iface.name);
   }
 
   // Collect and deduplicate contract interfaces across all contracts
@@ -965,8 +959,8 @@ function generateContractBody(
   contractByName: Map<string, SkittlesContract> = new Map()
 ): string {
   const parts: string[] = [];
-  _neededHelpers = new Set<string>();
-  _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
+  cctx.helpers = new Set();
+  cctx.currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
     contract.inherits.length > 0 ? ` is ${contract.inherits.join(", ")}` : "";
@@ -1246,21 +1240,21 @@ function emitHelperFunctions(
 
   // Emit registered helpers using the table-driven registry
   for (const entry of HELPER_REGISTRY) {
-    if (needsHelper(entry.name, _neededHelpers.has(entry.name))) {
+    if (needsHelper(entry.name, cctx.helpers.has(entry.name))) {
       emitHelper(entry.name, entry.lines());
     }
   }
 
   // Emit array helper functions based on what methods are used,
   // skipping any already emitted by an ancestor contract in this file
-  for (const helperKey of _currentNeededArrayHelpers) {
+  for (const helperKey of cctx.currentNeededArrayHelpers) {
     const [method, ...typeParts] = helperKey.split("_");
     const suffix = typeParts.join("_");
     const solType = suffixToSolType(suffix);
     const isRefType =
       !SOLIDITY_VALUE_TYPES.has(solType) &&
-      !_allKnownEnumNames.has(solType) &&
-      !_allKnownInterfaceNames.has(solType);
+      !cctx.allKnownEnumNames.has(solType) &&
+      !cctx.allKnownInterfaceNames.has(solType);
     const useHashEq = solType === "string" || solType === "bytes";
     const memAnnotation = isRefType ? "memory " : "";
     const eqCheck = useHashEq
@@ -2382,17 +2376,17 @@ function tryGenerateBuiltinCall(expr: {
     case "bytes.concat":
       return `bytes.concat(${args})`;
     case "__sk_toString": {
-      _neededHelpers.add("__sk_toString");
+      cctx.helpers.add("__sk_toString");
       return `__sk_toString(${args})`;
     }
     case "Math.min": {
-      _neededHelpers.add("_min");
+      cctx.helpers.add("_min");
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
       return `_min(${a}, ${b})`;
     }
     case "Math.max": {
-      _neededHelpers.add("_max");
+      cctx.helpers.add("_max");
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
       return `_max(${a}, ${b})`;
@@ -2403,48 +2397,48 @@ function tryGenerateBuiltinCall(expr: {
       return `(${base} ** ${exp})`;
     }
     case "Math.sqrt": {
-      _neededHelpers.add("_sqrt");
+      cctx.helpers.add("_sqrt");
       const x = generateExpression(expr.args[0]);
       return `_sqrt(${x})`;
     }
     case "_charAt": {
-      _neededHelpers.add("_charAt");
+      cctx.helpers.add("_charAt");
       return `_charAt(${args})`;
     }
     case "_substring": {
-      _neededHelpers.add("_substring");
+      cctx.helpers.add("_substring");
       return `_substring(${args})`;
     }
     case "_toLowerCase": {
-      _neededHelpers.add("_toLowerCase");
+      cctx.helpers.add("_toLowerCase");
       return `_toLowerCase(${args})`;
     }
     case "_toUpperCase": {
-      _neededHelpers.add("_toUpperCase");
+      cctx.helpers.add("_toUpperCase");
       return `_toUpperCase(${args})`;
     }
     case "_startsWith": {
-      _neededHelpers.add("_startsWith");
+      cctx.helpers.add("_startsWith");
       return `_startsWith(${args})`;
     }
     case "_endsWith": {
-      _neededHelpers.add("_endsWith");
+      cctx.helpers.add("_endsWith");
       return `_endsWith(${args})`;
     }
     case "_trim": {
-      _neededHelpers.add("_trim");
+      cctx.helpers.add("_trim");
       return `_trim(${args})`;
     }
     case "_split": {
-      _neededHelpers.add("_split");
+      cctx.helpers.add("_split");
       return `_split(${args})`;
     }
     case "_replace": {
-      _neededHelpers.add("_replace");
+      cctx.helpers.add("_replace");
       return `_replace(${args})`;
     }
     case "_replaceAll": {
-      _neededHelpers.add("_replaceAll");
+      cctx.helpers.add("_replaceAll");
       return `_replaceAll(${args})`;
     }
     default:
