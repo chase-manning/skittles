@@ -10,6 +10,12 @@ export const defaultConfig: Required<SkittlesConfig> = {
   outputDir: "artifacts",
   cacheDir: "cache",
   consoleLog: false,
+  formatting: {
+    indent: 4,
+    bracketSpacing: true,
+    braceStyle: "same-line" as const,
+    formatOutput: false,
+  },
 };
 
 /**

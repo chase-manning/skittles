@@ -28,6 +28,7 @@ import {
   generateSolidityFile,
   buildSourceMap,
 } from "./codegen.ts";
+import { formatSolidity } from "./formatter.ts";
 import { analyzeFunction } from "./analysis.ts";
 import { MUTABILITY_RANK } from "./mutability.ts";
 import { walkStatements } from "./walker.ts";
@@ -368,6 +369,7 @@ function resolveCompilationOrder(
     JSON.stringify({
       consoleLog: config.consoleLog,
       solidity: config.solidity,
+      formatting: config.formatting,
     })
   );
 
@@ -762,14 +764,25 @@ function generateOutput(
         }
       }
 
-      const solidity =
+      const rawSolidity =
         contracts.length > 1
           ? generateSolidityFile(contracts, uniqueImports, config.solidity)
           : contracts.length === 1
             ? generateSolidity(contracts[0], uniqueImports, config.solidity)
             : "";
 
-      if (!solidity) continue;
+      if (!rawSolidity) continue;
+
+      const formatting = config.formatting ?? {
+        indent: 4,
+        bracketSpacing: true,
+        braceStyle: "same-line" as const,
+        formatOutput: false,
+      };
+      const solidity = formatSolidity(
+        rawSolidity,
+        formatting as Required<typeof formatting>
+      );
 
       // Build source map linking generated Solidity lines to TypeScript source
       const sourceMap = buildSourceMap(solidity, contracts, relativePath);

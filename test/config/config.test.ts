@@ -175,4 +175,108 @@ describe("loadConfig", () => {
     expect(config.solidity.version).toBe("^0.8.26");
     expect(config.solidity.license).toBe("MIT");
   });
+
+  it("should load formatting config", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { indent: 2, braceStyle: "next-line" } })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.formatting.indent).toBe(2);
+    expect(config.formatting.braceStyle).toBe("next-line");
+    expect(config.formatting.bracketSpacing).toBe(true);
+    expect(config.formatting.formatOutput).toBe(false);
+  });
+
+  it("should use default formatting config when not specified", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ typeCheck: false })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.formatting.indent).toBe(4);
+    expect(config.formatting.bracketSpacing).toBe(true);
+    expect(config.formatting.braceStyle).toBe("same-line");
+    expect(config.formatting.formatOutput).toBe(false);
+  });
+
+  it("should accept tab indentation", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { indent: "tab" } })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.formatting.indent).toBe("tab");
+  });
+
+  it("should throw when formatting is not an object", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: "pretty" })
+    );
+
+    await expect(loadConfig(TEST_DIR)).rejects.toThrow(
+      '"formatting" must be an object'
+    );
+  });
+
+  it("should throw when formatting.indent is invalid", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { indent: true } })
+    );
+
+    await expect(loadConfig(TEST_DIR)).rejects.toThrow(
+      '"formatting.indent" must be a number or "tab"'
+    );
+  });
+
+  it("should throw when formatting.bracketSpacing is not a boolean", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { bracketSpacing: "yes" } })
+    );
+
+    await expect(loadConfig(TEST_DIR)).rejects.toThrow(
+      '"formatting.bracketSpacing" must be a boolean'
+    );
+  });
+
+  it("should throw when formatting.braceStyle is invalid", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { braceStyle: "weird" } })
+    );
+
+    await expect(loadConfig(TEST_DIR)).rejects.toThrow(
+      '"formatting.braceStyle" must be "same-line" or "next-line"'
+    );
+  });
+
+  it("should throw when formatting.formatOutput is not a boolean", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { formatOutput: "yes" } })
+    );
+
+    await expect(loadConfig(TEST_DIR)).rejects.toThrow(
+      '"formatting.formatOutput" must be a boolean'
+    );
+  });
+
+  it("should merge partial formatting config with defaults", async () => {
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      JSON.stringify({ formatting: { indent: 2 } })
+    );
+
+    const config = await loadConfig(TEST_DIR);
+    expect(config.formatting.indent).toBe(2);
+    expect(config.formatting.bracketSpacing).toBe(true);
+    expect(config.formatting.braceStyle).toBe("same-line");
+    expect(config.formatting.formatOutput).toBe(false);
+  });
 });

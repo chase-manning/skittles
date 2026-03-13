@@ -14,4 +14,10 @@ export const DEFAULT_CONFIG: Required<SkittlesConfig> = {
     version: "^0.8.20",
     license: "MIT",
   },
+  formatting: {
+    indent: 4,
+    bracketSpacing: true,
+    braceStyle: "same-line",
+    formatOutput: false,
+  },
 };
