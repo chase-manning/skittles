@@ -40,9 +40,15 @@ export function preScanContracts(
   state: PreScanState,
   sourcesOut?: Map<string, string>
 ): void {
+  // Pass 1: collect types (structs, enums, interfaces) and class names from
+  // ALL files before parsing any functions. This ensures that imported
+  // enum/struct types are available when resolving function signatures
+  // regardless of file ordering.
+  const fileSources = new Map<string, string>();
   for (const filePath of files) {
     try {
       const source = readFile(filePath);
+      fileSources.set(filePath, source);
       if (sourcesOut) sourcesOut.set(filePath, source);
       const { structs, enums, contractInterfaces } = collectTypes(
         source,
@@ -61,21 +67,6 @@ export function preScanContracts(
         }
       }
 
-      // Seed the parser context with types collected so far (from this file
-      // and previously scanned files) so that standalone functions referencing
-      // imported enum/struct types can be parsed without spurious errors.
-      ctx.knownStructs = new Map(state.globalStructs);
-      ctx.knownEnums = new Map(state.globalEnums);
-
-      const { functions, constants } = collectFunctions(source, filePath);
-      for (const fn of functions) {
-        if (!state.globalFunctions.some((f) => f.name === fn.name)) {
-          state.globalFunctions.push(fn);
-        }
-      }
-      for (const [name, expr] of constants)
-        state.globalConstants.set(name, expr);
-
       const classNames = collectClassNames(source, filePath);
       for (const className of classNames) {
         const existingOrigin = state.contractOriginFile.get(className);
@@ -87,7 +78,33 @@ export function preScanContracts(
         state.preScanContractFiles.push(base);
       }
     } catch (err) {
-      // Pre-scan failed; will be re-reported during full compilation
+      logWarning(
+        `Pre-scan failed for ${filePath}: ${getErrorMessage(err, String(err))}`
+      );
+    }
+  }
+
+  // Seed the parser context with all collected types so that standalone
+  // functions referencing imported enum/struct types can be parsed without
+  // spurious errors.
+  ctx.knownStructs = new Map(state.globalStructs);
+  ctx.knownEnums = new Map(state.globalEnums);
+
+  // Pass 2: collect standalone functions and constants. All types from all
+  // files are now available in the parser context.
+  for (const filePath of files) {
+    const source = fileSources.get(filePath);
+    if (!source) continue;
+    try {
+      const { functions, constants } = collectFunctions(source, filePath);
+      for (const fn of functions) {
+        if (!state.globalFunctions.some((f) => f.name === fn.name)) {
+          state.globalFunctions.push(fn);
+        }
+      }
+      for (const [name, expr] of constants)
+        state.globalConstants.set(name, expr);
+    } catch (err) {
       logWarning(
         `Pre-scan failed for ${filePath}: ${getErrorMessage(err, String(err))}`
       );
