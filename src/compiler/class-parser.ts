@@ -214,7 +214,7 @@ export function parseClass(
   fileFunctions: SkittlesFunction[] = [],
   fileConstants: Map<string, Expression> = new Map()
 ): SkittlesContract {
-  const name = node.name?.text ?? "Unknown";
+  const name = getNodeName(node);
   const isAbstract = hasModifier(node.modifiers, ts.SyntaxKind.AbstractKeyword);
   const variables: SkittlesVariable[] = [];
   const functions: SkittlesFunction[] = [];
@@ -767,8 +767,7 @@ export function tryParseEvent(
     : "";
   if (typeName !== "SkittlesEvent" && typeName !== "Event") return null;
 
-  const name =
-    node.name && ts.isIdentifier(node.name) ? node.name.text : "Unknown";
+  const name = getNodeName(node);
 
   const natspec = parseNatSpec(node);
 
@@ -828,8 +827,7 @@ export function tryParseError(
     : "";
   if (typeName !== "SkittlesError") return null;
 
-  const name =
-    node.name && ts.isIdentifier(node.name) ? node.name.text : "Unknown";
+  const name = getNodeName(node);
 
   if (!node.type.typeArguments || node.type.typeArguments.length === 0) {
     return { name, parameters: [] };

@@ -1,25 +1,20 @@
 #!/usr/bin/env node
 
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
 import { cleanCommand } from "./commands/clean.ts";
 import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { initCommand } from "./commands/init.ts";
-import { logError,printLogo } from "./utils/console.ts";
+import { logError, printLogo } from "./utils/console.ts";
+import { getErrorMessage } from "./utils/error.ts";
+import { getPackageVersion } from "./utils/package.ts";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let packageVersion: string;
 try {
-  packageVersion = JSON.parse(
-    fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8")
-  ).version;
+  packageVersion = getPackageVersion();
 } catch (err) {
-  const message =
-    err instanceof Error ? err.message : "Unknown error occurred";
+  const message = getErrorMessage(err);
   logError(`Failed to read package.json: ${message}`);
   process.exit(1);
 }

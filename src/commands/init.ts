@@ -4,6 +4,7 @@ import path from "path";
 
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import { logError, logInfo, logSuccess, logWarning } from "../utils/console.ts";
+import { getErrorMessage } from "../utils/error.ts";
 import { ensureDirectory, writeFile } from "../utils/file.ts";
 
 const CONFIG_TEMPLATE = JSON.stringify(
@@ -250,7 +251,7 @@ function initPackageJson(projectRoot: string): void {
         logSuccess("Updated package.json");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = getErrorMessage(err);
       logWarning(
         `Could not update existing package.json (${message}), creating a new one`
       );
@@ -357,7 +358,7 @@ function installDependencies(
       });
       logSuccess("Dependencies installed");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = getErrorMessage(err);
       logError(`Failed to install dependencies: ${message}`);
       logInfo(`  You can install manually by running: ${pm} install`);
     }

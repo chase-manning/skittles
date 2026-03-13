@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { URLS } from "../constants.ts";
+import { EXAMPLES } from "../examples.ts";
 import { VersionContext } from "./VersionContext.tsx";
 import WindowDots from "./WindowDots.tsx";
 import SyntaxLine from "./SyntaxLine.tsx";
@@ -15,30 +16,7 @@ function HeroBadge() {
   );
 }
 
-const heroCode = [
-  'import { address, msg } from "skittles";',
-  "",
-  "export class Token {",
-  '  name: string = "MyToken";',
-  '  symbol: string = "MTK";',
-  "  totalSupply: number = 0;",
-  "  private balances: Record<address, number> = {};",
-  "",
-  "  constructor(initialSupply: number) {",
-  "    this.totalSupply = initialSupply;",
-  "    this.balances[msg.sender] = initialSupply;",
-  "  }",
-  "",
-  "  transfer(to: address, amount: number): boolean {",
-  "    if (this.balances[msg.sender] < amount) {",
-  '      throw new Error("Insufficient balance");',
-  "    }",
-  "    this.balances[msg.sender] -= amount;",
-  "    this.balances[to] += amount;",
-  "    return true;",
-  "  }",
-  "}",
-];
+const heroCode = EXAMPLES.Token.trimEnd().split("\n");
 
 function CodeWindow() {
   return (

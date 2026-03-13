@@ -875,9 +875,7 @@ export function parseExpression(node: ts.Expression): Expression {
   }
 
   if (ts.isNewExpression(node)) {
-    const callee = ts.isIdentifier(node.expression)
-      ? node.expression.text
-      : "Unknown";
+    const callee = getNodeName(node.expression);
     const args = node.arguments
       ? Array.from(node.arguments).map(parseExpression)
       : [];

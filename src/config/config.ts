@@ -4,6 +4,7 @@ import { pathToFileURL } from "url";
 
 import type { SkittlesConfig } from "../types/index.ts";
 import { DEFAULT_CONFIG } from "./defaults.ts";
+import { getErrorMessage } from "../utils/error.ts";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
 
@@ -125,7 +126,7 @@ export async function loadConfig(
         try {
           rawConfig = JSON.parse(raw);
         } catch (err) {
-          const message = err instanceof Error ? err.message : "Unknown error";
+          const message = getErrorMessage(err);
           throw new Error(
             `Failed to parse skittles.config.json: ${message}`
           );
@@ -145,7 +146,7 @@ export async function loadConfig(
       ) {
         throw err;
       }
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = getErrorMessage(err);
       throw new Error(`Failed to load config from ${filename}: ${message}`);
     }
   }

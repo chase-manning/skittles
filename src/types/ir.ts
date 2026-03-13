@@ -142,6 +142,21 @@ export interface SkittlesParameter {
 }
 
 // ============================================================
+// Parser result types
+// ============================================================
+
+export interface CollectedTypes {
+  structs: Map<string, SkittlesParameter[]>;
+  enums: Map<string, string[]>;
+  contractInterfaces: Map<string, SkittlesContractInterface>;
+}
+
+export interface CollectedFunctions {
+  functions: SkittlesFunction[];
+  constants: Map<string, Expression>;
+}
+
+// ============================================================
 // Statements
 // ============================================================
 

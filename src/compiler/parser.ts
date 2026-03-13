@@ -25,8 +25,9 @@ import {
 } from "./mutability.ts";
 import type { ParserContext } from "./parser-context.ts";
 import { ctx } from "./parser-context.ts";
+import { getEnumMemberName } from "./parser-utils.ts";
 import { parseStatement } from "./statement-parser.ts";
-import { inferType,parseType, parseTypeLiteralFields } from "./type-parser.ts";
+import { inferType, parseType, parseTypeLiteralFields } from "./type-parser.ts";
 
 // Re-export public API from sub-modules
 export { parseExpression } from "./expression-parser.ts";
@@ -54,9 +55,7 @@ function collectStructsAndEnums(
       structs.set(node.name.text, parseTypeLiteralFields(node.type));
     }
     if (ts.isEnumDeclaration(node) && node.name) {
-      const members = node.members.map((m) =>
-        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
-      );
+      const members = node.members.map((m) => getEnumMemberName(m));
       enums.set(node.name.text, members);
     }
   });
@@ -65,11 +64,7 @@ function collectStructsAndEnums(
 export function collectTypes(
   source: string,
   filePath: string
-): {
-  structs: Map<string, SkittlesParameter[]>;
-  enums: Map<string, string[]>;
-  contractInterfaces: Map<string, SkittlesContractInterface>;
-} {
+): CollectedTypes {
   const sourceFile = ts.createSourceFile(
     filePath,
     source,
@@ -399,10 +394,7 @@ export function parse(
 export function collectFunctions(
   source: string,
   filePath: string
-): {
-  functions: SkittlesFunction[];
-  constants: Map<string, Expression>;
-} {
+): CollectedFunctions {
   const sourceFile = ts.createSourceFile(
     filePath,
     source,

@@ -2,98 +2,7 @@ import { useState, useCallback, useRef, useEffect, type ChangeEvent } from "reac
 import { compileSource } from "./compiler.ts";
 import "./Playground.css";
 import { highlightTS, highlightSol } from "./syntax-highlight.ts";
-
-const EXAMPLES: Record<string, string> = {
-  Token: `import { address, msg } from "skittles";
-
-export class Token {
-  name: string = "MyToken";
-  symbol: string = "MTK";
-  totalSupply: number = 0;
-  private balances: Record<address, number> = {};
-
-  constructor(initialSupply: number) {
-    this.totalSupply = initialSupply;
-    this.balances[msg.sender] = initialSupply;
-  }
-
-  balanceOf(account: address): number {
-    return this.balances[account];
-  }
-
-  transfer(to: address, amount: number): boolean {
-    if (this.balances[msg.sender] < amount) {
-      throw new Error("Insufficient balance");
-    }
-    this.balances[msg.sender] -= amount;
-    this.balances[to] += amount;
-    return true;
-  }
-}
-`,
-  Counter: `export class Counter {
-  count: number = 0;
-
-  increment(): void {
-    this.count += 1;
-  }
-
-  decrement(): void {
-    if (this.count <= 0) {
-      throw new Error("Counter cannot go below zero");
-    }
-    this.count -= 1;
-  }
-
-  getCount(): number {
-    return this.count;
-  }
-}
-`,
-  Ownable: `import { address, msg } from "skittles";
-
-export class Ownable {
-  owner: address = msg.sender;
-
-  transferOwnership(newOwner: address): void {
-    if (msg.sender !== this.owner) {
-      throw new Error("Not the owner");
-    }
-    this.owner = newOwner;
-  }
-}
-`,
-  Staking: `import { address, msg, block } from "skittles";
-
-export class Staking {
-  private stakes: Record<address, number> = {};
-  private stakedAt: Record<address, number> = {};
-  totalStaked: number = 0;
-
-  stake(amount: number): void {
-    if (amount <= 0) {
-      throw new Error("Amount must be positive");
-    }
-    this.stakes[msg.sender] += amount;
-    this.stakedAt[msg.sender] = block.timestamp;
-    this.totalStaked += amount;
-  }
-
-  withdraw(): void {
-    const staked = this.stakes[msg.sender];
-    if (staked <= 0) {
-      throw new Error("Nothing staked");
-    }
-    this.stakes[msg.sender] = 0;
-    this.totalStaked -= staked;
-  }
-
-  stakeOf(account: address): number {
-    return this.stakes[account];
-  }
-}
-`,
-};
+import { EXAMPLES } from "./examples.ts";
 
 const DEFAULT_EXAMPLE = "Token";
 // Debounce delay for recompile-on-change (aligned with src/commands/compile.ts)
@@ -106,7 +15,8 @@ function encodeSource(source: string): string {
 function decodeSource(encoded: string): string | null {
   try {
     return decodeURIComponent(atob(encoded));
-  } catch {
+  } catch (_ignored) {
+    /* Invalid base64 or URI encoding, return null */
     return null;
   }
 }
@@ -205,7 +115,8 @@ export default function Playground() {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
+    } catch (_ignored) {
+      /* Clipboard API not available, fall back to prompt */
       window.prompt("Copy this URL to share:", url);
     }
   };

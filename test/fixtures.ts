@@ -1,23 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { afterEach,beforeEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 
-import type { SkittlesConfig } from "../src/types";
+import { DEFAULT_CONFIG } from "../src/config/defaults";
 
-export const defaultConfig: Required<SkittlesConfig> = {
-  typeCheck: true,
-  optimizer: { enabled: false, runs: 200 },
-  contractsDir: "contracts",
-  outputDir: "artifacts",
-  cacheDir: "cache",
-  consoleLog: false,
-  formatting: {
-    indent: 4,
-    bracketSpacing: true,
-    braceStyle: "same-line" as const,
-    formatOutput: false,
-  },
-};
+export const defaultConfig = DEFAULT_CONFIG;
 
 /**
  * Register beforeEach/afterEach hooks that create and clean up a temporary

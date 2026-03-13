@@ -128,3 +128,53 @@ export function walkStatements(
 
   stmts.forEach(walkStmt);
 }
+
+/**
+ * Recursively filter a statement list, removing any statements for which the
+ * predicate returns `true`. The predicate is tested against statements nested
+ * inside control-flow structures (if/for/while/do-while/switch/try-catch) so
+ * that matching nodes deep in the tree are also removed.
+ */
+export function filterStatements(
+  stmts: Statement[],
+  shouldRemove: (stmt: Statement) => boolean
+): Statement[] {
+  return stmts.reduce<Statement[]>((acc, stmt) => {
+    if (shouldRemove(stmt)) return acc;
+    if (stmt.kind === "if") {
+      acc.push({
+        ...stmt,
+        thenBody: filterStatements(stmt.thenBody, shouldRemove),
+        elseBody: stmt.elseBody
+          ? filterStatements(stmt.elseBody, shouldRemove)
+          : undefined,
+      });
+    } else if (
+      stmt.kind === "for" ||
+      stmt.kind === "while" ||
+      stmt.kind === "do-while"
+    ) {
+      acc.push({
+        ...stmt,
+        body: filterStatements(stmt.body, shouldRemove),
+      });
+    } else if (stmt.kind === "switch") {
+      acc.push({
+        ...stmt,
+        cases: stmt.cases.map((c) => ({
+          ...c,
+          body: filterStatements(c.body, shouldRemove),
+        })),
+      });
+    } else if (stmt.kind === "try-catch") {
+      acc.push({
+        ...stmt,
+        successBody: filterStatements(stmt.successBody, shouldRemove),
+        catchBody: filterStatements(stmt.catchBody, shouldRemove),
+      });
+    } else {
+      acc.push(stmt);
+    }
+    return acc;
+  }, []);
+}

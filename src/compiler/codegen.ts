@@ -794,6 +794,31 @@ function suffixToSolType(suffix: string): string {
 // ============================================================
 
 /**
+ * Compute the transitive set of ancestor contract names for the given contract
+ * using a BFS traversal over `inherits`.
+ */
+function computeAncestors(
+  contract: SkittlesContract,
+  contractByName: Map<string, SkittlesContract>
+): Set<string> {
+  const ancestors = new Set<string>();
+  const queue = [...contract.inherits.filter((n) => contractByName.has(n))];
+  let queueIndex = 0;
+  while (queueIndex < queue.length) {
+    const name = queue[queueIndex++]!;
+    if (ancestors.has(name)) continue;
+    ancestors.add(name);
+    const parent = contractByName.get(name);
+    if (parent) {
+      for (const gp of parent.inherits) {
+        if (contractByName.has(gp)) queue.push(gp);
+      }
+    }
+  }
+  return ancestors;
+}
+
+/**
  * Generate a Solidity file containing multiple contracts.
  * Used when a single source file defines multiple classes (e.g., for inheritance).
  */
@@ -871,7 +896,7 @@ export function generateSolidityFile(
       for (const s of contract.structs ?? []) {
         if (hoistedStructs.has(s.name) && !emittedFileScopeTypes.has(s.name)) {
           emittedFileScopeTypes.add(s.name);
-          parts.push(generateFileScopeStructDecl(s));
+          parts.push(generateStructDecl(s, ""));
           parts.push("");
         }
       }
@@ -888,21 +913,7 @@ export function generateSolidityFile(
   const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
   const ancestorsMap = new Map<string, Set<string>>();
   for (const contract of contracts) {
-    const ancestors = new Set<string>();
-    const queue = [...contract.inherits.filter((n) => contractByName.has(n))];
-    let queueIndex = 0;
-    while (queueIndex < queue.length) {
-      const name = queue[queueIndex++]!;
-      if (ancestors.has(name)) continue;
-      ancestors.add(name);
-      const parent = contractByName.get(name);
-      if (parent) {
-        for (const gp of parent.inherits) {
-          if (contractByName.has(gp)) queue.push(gp);
-        }
-      }
-    }
-    ancestorsMap.set(contract.name, ancestors);
+    ancestorsMap.set(contract.name, computeAncestors(contract, contractByName));
   }
 
   // Track all contracts that emitted each definition / function so child
@@ -1445,29 +1456,19 @@ function emitHelperFunctions(
 // Contract elements
 // ============================================================
 
-function generateStructDecl(s: {
-  name: string;
-  fields: SkittlesParameter[];
-}): string {
+function generateStructDecl(
+  s: {
+    name: string;
+    fields: SkittlesParameter[];
+  },
+  indent: string = "    "
+): string {
   const lines: string[] = [];
-  lines.push(`    struct ${s.name} {`);
+  lines.push(`${indent}struct ${s.name} {`);
   for (const f of s.fields) {
-    lines.push(`        ${generateType(f.type)} ${f.name};`);
+    lines.push(`${indent}    ${generateType(f.type)} ${f.name};`);
   }
-  lines.push("    }");
-  return lines.join("\n");
-}
-
-function generateFileScopeStructDecl(s: {
-  name: string;
-  fields: SkittlesParameter[];
-}): string {
-  const lines: string[] = [];
-  lines.push(`struct ${s.name} {`);
-  for (const f of s.fields) {
-    lines.push(`    ${generateType(f.type)} ${f.name};`);
-  }
-  lines.push("}");
+  lines.push(`${indent}}`);
   return lines.join("\n");
 }
 
@@ -2541,30 +2542,13 @@ function tryGenerateBuiltinCall(expr: {
 // ============================================================
 
 function statementsUseConsoleLog(stmts: Statement[]): boolean {
-  for (const stmt of stmts) {
-    if (stmt.kind === "console-log") return true;
-    if (stmt.kind === "if") {
-      if (statementsUseConsoleLog(stmt.thenBody)) return true;
-      if (stmt.elseBody && statementsUseConsoleLog(stmt.elseBody)) return true;
-    }
-    if (
-      stmt.kind === "for" ||
-      stmt.kind === "while" ||
-      stmt.kind === "do-while"
-    ) {
-      if (statementsUseConsoleLog(stmt.body)) return true;
-    }
-    if (stmt.kind === "switch") {
-      for (const c of stmt.cases) {
-        if (statementsUseConsoleLog(c.body)) return true;
-      }
-    }
-    if (stmt.kind === "try-catch") {
-      if (statementsUseConsoleLog(stmt.successBody)) return true;
-      if (statementsUseConsoleLog(stmt.catchBody)) return true;
-    }
-  }
-  return false;
+  let found = false;
+  walkStatements(stmts, {
+    visitStatement(stmt) {
+      if (stmt.kind === "console-log") found = true;
+    },
+  });
+  return found;
 }
 
 function contractUsesConsoleLog(contract: SkittlesContract): boolean {
@@ -2680,21 +2664,7 @@ export function buildSourceMap(
   const contractByName = new Map(contracts.map((c) => [c.name, c] as const));
   const smAncestorsMap = new Map<string, Set<string>>();
   for (const c of contracts) {
-    const ancestors = new Set<string>();
-    const queue = [...c.inherits.filter((n) => contractByName.has(n))];
-    let qi = 0;
-    while (qi < queue.length) {
-      const name = queue[qi++]!;
-      if (ancestors.has(name)) continue;
-      ancestors.add(name);
-      const parent = contractByName.get(name);
-      if (parent) {
-        for (const gp of parent.inherits) {
-          if (contractByName.has(gp)) queue.push(gp);
-        }
-      }
-    }
-    smAncestorsMap.set(c.name, ancestors);
+    smAncestorsMap.set(c.name, computeAncestors(c, contractByName));
   }
   const smFunctionOrigins = new Map<string, Set<string>>();
 

@@ -2,6 +2,7 @@ import solc from "solc";
 
 import type { AbiItem,SkittlesConfig } from "../types/index.ts";
 import { BATCH_SOURCE_FILENAME } from "./constants.ts";
+import { getErrorMessage } from "../utils/error.ts";
 
 export interface SolcResult {
   abi: AbiItem[];
@@ -57,7 +58,7 @@ function runSolc(
   try {
     output = JSON.parse(solc.compile(JSON.stringify(input)));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = getErrorMessage(err, String(err));
     return {
       output: undefined,
       errors: [`Solc compilation failed: ${msg}`],

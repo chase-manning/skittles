@@ -39,3 +39,10 @@ export const BATCH_SOURCE_FILENAME = "Contracts.sol";
  *   "5" – current format.
  */
 export const CACHE_VERSION = "5";
+
+/**
+ * Number of hex characters to keep from the SHA-256 digest when hashing
+ * cache keys.  16 hex chars = 64 bits – enough to avoid collisions in
+ * practice while keeping keys short.
+ */
+export const CACHE_HASH_LENGTH = 16;

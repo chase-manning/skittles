@@ -1,8 +1,8 @@
-import { describe, expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { ASTVisitor } from "../../src/compiler/walker";
-import { walkExpression,walkStatements } from "../../src/compiler/walker";
-import type { Expression,Statement } from "../../src/types/index";
+import { filterStatements, walkExpression, walkStatements } from "../../src/compiler/walker";
+import type { Expression, Statement } from "../../src/types/index";
 
 // ============================================================
 // walkExpression
@@ -377,5 +377,136 @@ describe("walkStatements", () => {
       },
     });
     expect(identifiers).toEqual(new Set(["a", "b", "flag", "x"]));
+  });
+});
+
+// ============================================================
+// filterStatements
+// ============================================================
+
+describe("filterStatements", () => {
+  it("should remove top-level statements matching the predicate", () => {
+    const stmts: Statement[] = [
+      { kind: "console-log", args: [{ kind: "string-literal", value: "hi" }] },
+      { kind: "break" },
+      { kind: "console-log", args: [] },
+      { kind: "continue" },
+    ];
+    const result = filterStatements(stmts, (s) => s.kind === "console-log");
+    expect(result.map((s) => s.kind)).toEqual(["break", "continue"]);
+  });
+
+  it("should remove statements nested inside if/else bodies", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "if",
+        condition: { kind: "boolean-literal", value: true },
+        thenBody: [
+          { kind: "console-log", args: [] },
+          { kind: "break" },
+        ],
+        elseBody: [
+          { kind: "continue" },
+          { kind: "console-log", args: [] },
+        ],
+      },
+    ];
+    const result = filterStatements(stmts, (s) => s.kind === "console-log");
+    expect(result.length).toBe(1);
+    const ifStmt = result[0];
+    if (ifStmt.kind !== "if") throw new Error("expected if");
+    expect(ifStmt.thenBody.map((s) => s.kind)).toEqual(["break"]);
+    expect(ifStmt.elseBody?.map((s) => s.kind)).toEqual(["continue"]);
+  });
+
+  it("should remove statements nested inside for/while/do-while bodies", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "for",
+        initializer: undefined,
+        condition: undefined,
+        incrementor: undefined,
+        body: [
+          { kind: "console-log", args: [] },
+          { kind: "break" },
+        ],
+      },
+      {
+        kind: "while",
+        condition: { kind: "boolean-literal", value: true },
+        body: [
+          { kind: "console-log", args: [] },
+          { kind: "continue" },
+        ],
+      },
+      {
+        kind: "do-while",
+        condition: { kind: "boolean-literal", value: false },
+        body: [
+          { kind: "console-log", args: [] },
+          { kind: "break" },
+        ],
+      },
+    ];
+    const result = filterStatements(stmts, (s) => s.kind === "console-log");
+    expect(result.length).toBe(3);
+    for (const stmt of result) {
+      if (stmt.kind === "for" || stmt.kind === "while" || stmt.kind === "do-while") {
+        expect(stmt.body.every((s) => s.kind !== "console-log")).toBe(true);
+        expect(stmt.body.length).toBe(1);
+      }
+    }
+  });
+
+  it("should remove statements nested inside switch cases", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "switch",
+        discriminant: { kind: "identifier", name: "x" },
+        cases: [
+          {
+            value: { kind: "number-literal", value: "1" },
+            body: [
+              { kind: "console-log", args: [] },
+              { kind: "break" },
+            ],
+          },
+        ],
+      },
+    ];
+    const result = filterStatements(stmts, (s) => s.kind === "console-log");
+    if (result[0].kind !== "switch") throw new Error("expected switch");
+    expect(result[0].cases[0].body.map((s) => s.kind)).toEqual(["break"]);
+  });
+
+  it("should remove statements nested inside try-catch bodies", () => {
+    const stmts: Statement[] = [
+      {
+        kind: "try-catch",
+        call: { kind: "call", callee: { kind: "identifier", name: "foo" }, args: [] },
+        successBody: [
+          { kind: "console-log", args: [] },
+          { kind: "break" },
+        ],
+        catchBody: [
+          { kind: "console-log", args: [] },
+          { kind: "continue" },
+        ],
+        catchParamName: "e",
+      },
+    ];
+    const result = filterStatements(stmts, (s) => s.kind === "console-log");
+    if (result[0].kind !== "try-catch") throw new Error("expected try-catch");
+    expect(result[0].successBody.map((s) => s.kind)).toEqual(["break"]);
+    expect(result[0].catchBody.map((s) => s.kind)).toEqual(["continue"]);
+  });
+
+  it("should return all statements when none match the predicate", () => {
+    const stmts: Statement[] = [
+      { kind: "break" },
+      { kind: "continue" },
+    ];
+    const result = filterStatements(stmts, (s) => s.kind === "console-log");
+    expect(result.map((s) => s.kind)).toEqual(["break", "continue"]);
   });
 });

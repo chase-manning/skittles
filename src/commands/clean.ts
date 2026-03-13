@@ -1,7 +1,8 @@
 import path from "path";
 
 import { loadConfig } from "../config/config.ts";
-import { logError,logInfo, logSuccess } from "../utils/console.ts";
+import { logError, logInfo, logSuccess } from "../utils/console.ts";
+import { getErrorMessage } from "../utils/error.ts";
 import { removeDirectory } from "../utils/file.ts";
 
 export async function cleanCommand(projectRoot: string): Promise<void> {
@@ -15,8 +16,7 @@ export async function cleanCommand(projectRoot: string): Promise<void> {
     removeDirectory(cacheDir);
     logSuccess("Build artifacts cleaned");
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unknown error occurred";
+    const message = getErrorMessage(err);
     logError(message);
     process.exit(1);
   }
