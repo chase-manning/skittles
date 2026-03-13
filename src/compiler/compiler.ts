@@ -773,9 +773,15 @@ function generateOutput(
 
       if (!rawSolidity) continue;
 
+      const formatting = config.formatting ?? {
+        indent: 4,
+        bracketSpacing: true,
+        braceStyle: "same-line" as const,
+        formatOutput: false,
+      };
       const solidity = formatSolidity(
         rawSolidity,
-        config.formatting as Required<typeof config.formatting>
+        formatting as Required<typeof formatting>
       );
 
       // Build source map linking generated Solidity lines to TypeScript source
