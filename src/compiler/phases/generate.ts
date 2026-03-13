@@ -96,6 +96,10 @@ export function generateOutput(
   for (const { filePath, relativePath, cached } of cachedFiles) {
     logInfo(`${relativePath} unchanged, using cache`);
     const cachedBaseName = baseName(filePath);
+    // For multi-contract files, all entries in cached.contracts share the same
+    // solidity (the combined output from generateSolidityFile), so we write
+    // the file once using [0]. The loop below iterates all contracts only to
+    // collect individual artifact entries and log each contract name.
     writeFile(
       path.join(outputDir, "solidity", `${cachedBaseName}.sol`),
       cached.contracts[0].solidity
