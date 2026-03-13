@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import type {
   SkittlesConfig,
+  FormattingConfig,
   SkittlesContract,
   BuildArtifact,
   SkittlesParameter,
@@ -17,6 +18,7 @@ import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { findExtendsReferences } from "../utils/regex.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { getErrorMessage } from "../utils/error.ts";
+import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import {
   parse,
   collectTypes,
@@ -808,15 +810,10 @@ function generateOutput(
 
       if (!rawSolidity) continue;
 
-      const formatting = config.formatting ?? {
-        indent: 4,
-        bracketSpacing: true,
-        braceStyle: "same-line" as const,
-        formatOutput: false,
-      };
+      const formatting = config.formatting ?? DEFAULT_CONFIG.formatting;
       const solidity = formatSolidity(
         rawSolidity,
-        formatting as Required<typeof formatting>
+        formatting as Required<FormattingConfig>
       );
 
       // Build source map linking generated Solidity lines to TypeScript source
