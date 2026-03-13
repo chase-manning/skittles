@@ -71,6 +71,7 @@
     "@types/node": "^25.2.3",
     "@types/yargs": "^17.0.35",
     "eslint": "^9.39.4",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
     "ethers": "^6.16.0",
     "globals": "^17.4.0",
     "hardhat": "^3.1.8",

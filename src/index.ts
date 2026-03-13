@@ -5,10 +5,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { compileCommand, watchCompile } from "./commands/compile.ts";
+
 import { cleanCommand } from "./commands/clean.ts";
+import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { initCommand } from "./commands/init.ts";
-import { printLogo, logError } from "./utils/console.ts";
+import { logError,printLogo } from "./utils/console.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let packageVersion: string;

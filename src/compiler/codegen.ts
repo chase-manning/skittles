@@ -1,34 +1,34 @@
-import {
-  ADDRESS_LITERAL_RE,
-  SkittlesTypeKind,
-  type SkittlesContract,
-  type SkittlesVariable,
-  type SkittlesFunction,
-  type SkittlesConstructor,
-  type SkittlesEvent,
-  type SkittlesType,
-  type SkittlesContractInterface,
-  type Statement,
-  type Expression,
-  type IfStatement,
-  type RevertStatement,
-  type Visibility,
-  type SkittlesParameter,
-  type SourceMapping,
-  type SolidityConfig,
-  type NatSpec,
-} from "../types/index.ts";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import {
-  CHAR_A,
-  CHAR_Z,
-  CHAR_a,
-  CHAR_z,
-  CHAR_SPACE,
+  ADDRESS_LITERAL_RE,
+  type Expression,
+  type IfStatement,
+  type NatSpec,
+  type RevertStatement,
+  type SkittlesConstructor,
+  type SkittlesContract,
+  type SkittlesContractInterface,
+  type SkittlesEvent,
+  type SkittlesFunction,
+  type SkittlesParameter,
+  type SkittlesType,
+  SkittlesTypeKind,
+  type SkittlesVariable,
+  type SolidityConfig,
+  type SourceMapping,
+  type Statement,
+  type Visibility,
+} from "../types/index.ts";
+import { cctx } from "./codegen-context.ts";
+import {
   CHAR_0,
+  CHAR_A,
+  CHAR_a,
+  CHAR_SPACE,
+  CHAR_Z,
+  CHAR_z,
   ERR_START_OUT_OF_BOUNDS,
 } from "./constants.ts";
-import { cctx } from "./codegen-context.ts";
 export type { CodegenContext } from "./codegen-context.ts";
 export { resetCodegenContext } from "./codegen-context.ts";
 

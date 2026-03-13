@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { compile } from "../../src/compiler/compiler";
-import type { SkittlesConfig } from "../../src/types";
 import * as parserModule from "../../src/compiler/parser";
+import type { SkittlesConfig } from "../../src/types";
 import { defaultConfig as baseDefaultConfig } from "../fixtures.js";
 
 const pkgJson = JSON.parse(

@@ -64,23 +64,23 @@ export type Indexed<T> = T;
 export type View<T> = T;
 
 // Compiler API (parser + codegen)
-export {
-  parse,
-  collectTypes,
-  collectFunctions,
-  collectClassNames,
-} from "./compiler/parser.ts";
 export { generateSolidity, generateSolidityFile } from "./compiler/codegen.ts";
+export {
+  collectClassNames,
+  collectFunctions,
+  collectTypes,
+  parse,
+} from "./compiler/parser.ts";
 
 // Contract IR types (for advanced users / plugins)
 export type {
+  BuildArtifact,
   SkittlesContract,
-  SkittlesVariable,
-  SkittlesFunction,
   SkittlesEvent as SkittlesEventDef,
+  SkittlesFunction,
   SkittlesType,
   SkittlesTypeKind,
-  BuildArtifact,
+  SkittlesVariable,
   SourceMapping,
 } from "./types/index.ts";
 

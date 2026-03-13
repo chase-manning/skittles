@@ -1,14 +1,15 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { ethers } from "ethers";
+import { afterAll,beforeAll, describe, expect, it } from "vitest";
+
+import { BEHAVIORAL_TIMEOUT,INITIAL_SUPPLY } from "../constants";
 import {
-  createTestEnv,
   compileAndDeploy,
   connectAs,
+  createTestEnv,
+  DeployedContract,
   getEventFromReceipt,
   TestEnv,
-  DeployedContract,
 } from "./helpers";
-import { ethers } from "ethers";
-import { INITIAL_SUPPLY, BEHAVIORAL_TIMEOUT } from "../constants";
 
 // ============================================================
 // ERC20 TypeScript source (the contract under test)

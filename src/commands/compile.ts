@@ -1,9 +1,10 @@
 import fs from "fs";
-import path from "path";
 import ora from "ora";
-import { loadConfig } from "../config/config.ts";
+import path from "path";
+
 import { compile } from "../compiler/compiler.ts";
-import { logSuccess, logError, logInfo } from "../utils/console.ts";
+import { loadConfig } from "../config/config.ts";
+import { logError, logInfo,logSuccess } from "../utils/console.ts";
 
 // Debounce delay for file-watch recompilation (aligned with webapp/src/Playground.tsx)
 const DEBOUNCE_MS = 300;

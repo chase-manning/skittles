@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import path from "path";
+import { describe, expect, it, vi } from "vitest";
+
 import { compileCommand, watchCompile } from "../../src/commands/compile";
 import { useTempDir } from "../fixtures";
 

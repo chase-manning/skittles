@@ -1,20 +1,21 @@
 import ts from "typescript";
+
 import {
-  SkittlesTypeKind,
+  type Expression,
+  type SkittlesContract,
+  type SkittlesContractInterface,
+  type SkittlesFunction,
   type SkittlesParameter,
   type SkittlesType,
-  type SkittlesFunction,
-  type SkittlesContractInterface,
-  type SkittlesContract,
-  type StateMutability,
+  SkittlesTypeKind,
   type Statement,
-  type Expression,
+  type StateMutability,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import { inferType } from "./type-parser.ts";
 import { walkStatements as walkStatementsShared } from "./walker.ts";
-export { walkStatements, walkExpression } from "./walker.ts";
 export type { ASTVisitor } from "./walker.ts";
+export { walkExpression,walkStatements } from "./walker.ts";
 
 /**
  * Propagate state mutability across call chains.

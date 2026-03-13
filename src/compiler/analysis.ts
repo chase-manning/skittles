@@ -1,8 +1,8 @@
 import type {
-  Statement,
   Expression,
-  SkittlesFunction,
   SkittlesConstructor,
+  SkittlesFunction,
+  Statement,
 } from "../types/index.ts";
 import { walkStatements } from "./walker.ts";
 

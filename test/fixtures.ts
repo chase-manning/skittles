@@ -1,6 +1,7 @@
-import { beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
+import { afterEach,beforeEach } from "vitest";
+
 import type { SkittlesConfig } from "../src/types";
 
 export const defaultConfig: Required<SkittlesConfig> = {

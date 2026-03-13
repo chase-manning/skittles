@@ -1,11 +1,12 @@
+import ts from "typescript";
+
 import type {
-  SkittlesParameter,
-  SkittlesType,
+  Expression,
   SkittlesContractInterface,
   SkittlesFunction,
-  Expression,
+  SkittlesParameter,
+  SkittlesType,
 } from "../types/index.ts";
-import ts from "typescript";
 
 export interface ParserContext {
   // Module-level registries, populated during parse()

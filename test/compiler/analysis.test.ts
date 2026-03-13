@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
+
 import { analyzeFunction } from "../../src/compiler/analysis";
-import { SkittlesTypeKind } from "../../src/types/index";
 import type { SkittlesFunction, Statement } from "../../src/types/index";
+import { SkittlesTypeKind } from "../../src/types/index";
 
 function makeFunction(
   name: string,

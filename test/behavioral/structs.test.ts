@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import {
-  createTestEnv,
-  compileAndDeploy,
-  type TestEnv,
-  type DeployedContract,
-} from "./helpers";
+import { afterAll,beforeAll, describe, expect, it } from "vitest";
+
 import { BEHAVIORAL_TIMEOUT } from "../constants";
+import {
+  compileAndDeploy,
+  createTestEnv,
+  type DeployedContract,
+  type TestEnv,
+} from "./helpers";
 
 const SOURCE = `
 type UserInfo = {

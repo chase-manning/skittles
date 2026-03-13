@@ -1,19 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
+
 import {
+  generateExpression,
   generateSolidity,
   generateSolidityFile,
-  generateType,
-  generateExpression,
   generateStatement,
+  generateType,
   resolveShadowedLocals,
 } from "../../src/compiler/codegen";
-import { SkittlesTypeKind } from "../../src/types";
 import type {
+  Expression,
   SkittlesContract,
   SkittlesType,
-  Expression,
   Statement,
 } from "../../src/types";
+import { SkittlesTypeKind } from "../../src/types";
 
 function emptyContract(
   overrides: Partial<SkittlesContract> = {}

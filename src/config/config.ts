@@ -1,6 +1,7 @@
-import path from "path";
 import fs from "fs";
+import path from "path";
 import { pathToFileURL } from "url";
+
 import type { SkittlesConfig } from "../types/index.ts";
 import { DEFAULT_CONFIG } from "./defaults.ts";
 

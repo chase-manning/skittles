@@ -2,42 +2,43 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+
+import {
+  getStdlibClassNames,
+  getStdlibContractsDir,
+  resolveStdlibFiles,
+} from "../stdlib/resolver.ts";
 import type {
-  SkittlesConfig,
-  SkittlesContract,
   BuildArtifact,
-  SkittlesParameter,
-  SkittlesFunction,
-  SkittlesConstructor,
-  SkittlesContractInterface,
   Expression,
+  SkittlesConfig,
+  SkittlesConstructor,
+  SkittlesContract,
+  SkittlesContractInterface,
+  SkittlesFunction,
+  SkittlesParameter,
   Statement,
   StateMutability,
 } from "../types/index.ts";
+import { logError, logInfo, logSuccess, logWarning } from "../utils/console.ts";
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { findExtendsReferences } from "../utils/regex.ts";
-import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
+import { analyzeFunction } from "./analysis.ts";
 import {
-  parse,
-  collectTypes,
-  collectFunctions,
-  collectClassNames,
-} from "./parser.ts";
-import { ctx } from "./parser-context.ts";
-import {
+  buildSourceMap,
   generateSolidity,
   generateSolidityFile,
-  buildSourceMap,
 } from "./codegen.ts";
 import { formatSolidity } from "./formatter.ts";
-import { analyzeFunction } from "./analysis.ts";
 import { MUTABILITY_RANK } from "./mutability.ts";
-import { walkStatements } from "./walker.ts";
 import {
-  getStdlibClassNames,
-  resolveStdlibFiles,
-  getStdlibContractsDir,
-} from "../stdlib/resolver.ts";
+  collectClassNames,
+  collectFunctions,
+  collectTypes,
+  parse,
+} from "./parser.ts";
+import { ctx } from "./parser-context.ts";
+import { walkStatements } from "./walker.ts";
 
 export interface CompilationResult {
   success: boolean;

@@ -1,17 +1,18 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { ethers } from "ethers";
+import { afterAll,beforeAll, describe, expect, it } from "vitest";
+
+import { generateSolidityFile } from "../../src/compiler/codegen";
+import { parse } from "../../src/compiler/parser";
+import { compileSolidity } from "../../src/compiler/solc";
+import { BEHAVIORAL_TIMEOUT } from "../constants";
+import { defaultConfig } from "../fixtures";
 import {
-  createTestEnv,
   compileAndDeploy,
   connectAs,
-  type TestEnv,
+  createTestEnv,
   type DeployedContract,
+  type TestEnv,
 } from "./helpers";
-import { parse } from "../../src/compiler/parser";
-import { generateSolidityFile } from "../../src/compiler/codegen";
-import { BEHAVIORAL_TIMEOUT } from "../constants";
-import { compileSolidity } from "../../src/compiler/solc";
-import { defaultConfig } from "../fixtures";
-import { ethers } from "ethers";
 
 const ENUM_SOURCE = `
 enum Status { Pending, Active, Closed }

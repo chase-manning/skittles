@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { parse } from "../../src/compiler/parser";
+import { describe, expect,it } from "vitest";
+
 import {
+  buildSourceMap,
   generateSolidity,
   generateSolidityFile,
-  buildSourceMap,
 } from "../../src/compiler/codegen";
+import { parse } from "../../src/compiler/parser";
 
 // ============================================================
 // Parser: source line capture
