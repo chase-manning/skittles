@@ -1,18 +1,19 @@
 import path from "path";
-import type {
-  SkittlesParameter,
-  SkittlesFunction,
-  SkittlesContractInterface,
-  SkittlesContract,
-  Expression,
-} from "../../types/index.ts";
-import { readFile } from "../../utils/file.ts";
-import { logInfo, logError } from "../../utils/console.ts";
-import { getErrorMessage } from "../../utils/error.ts";
-import { parse } from "../parser.ts";
+
 import { getStdlibContractsDir } from "../../stdlib/resolver.ts";
+import type {
+  Expression,
+  SkittlesContract,
+  SkittlesContractInterface,
+  SkittlesFunction,
+  SkittlesParameter,
+} from "../../types/index.ts";
+import { logError,logInfo } from "../../utils/console.ts";
+import { getErrorMessage } from "../../utils/error.ts";
+import { readFile } from "../../utils/file.ts";
+import { parse } from "../parser.ts";
 import type { CacheEntry, CompilationCache } from "./cache.ts";
-import { hashString, baseName } from "./cache.ts";
+import { baseName,hashString } from "./cache.ts";
 
 export interface ParsedFile {
   filePath: string;

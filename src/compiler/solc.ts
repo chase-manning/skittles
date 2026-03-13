@@ -1,8 +1,8 @@
 import solc from "solc";
 
 import type { AbiItem,SkittlesConfig } from "../types/index.ts";
-import { BATCH_SOURCE_FILENAME } from "./constants.ts";
 import { getErrorMessage } from "../utils/error.ts";
+import { BATCH_SOURCE_FILENAME } from "./constants.ts";
 
 export interface SolcResult {
   abi: AbiItem[];

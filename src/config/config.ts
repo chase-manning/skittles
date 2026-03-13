@@ -3,8 +3,8 @@ import path from "path";
 import { pathToFileURL } from "url";
 
 import type { SkittlesConfig } from "../types/index.ts";
-import { DEFAULT_CONFIG } from "./defaults.ts";
 import { getErrorMessage } from "../utils/error.ts";
+import { DEFAULT_CONFIG } from "./defaults.ts";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
 

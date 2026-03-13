@@ -78,6 +78,8 @@ export { getErrorMessage } from "./utils/error.ts";
 // Contract IR types (for advanced users / plugins)
 export type {
   BuildArtifact,
+  CollectedFunctions,
+  CollectedTypes,
   SkittlesContract,
   SkittlesEvent as SkittlesEventDef,
   SkittlesFunction,
@@ -85,8 +87,6 @@ export type {
   SkittlesTypeKind,
   SkittlesVariable,
   SourceMapping,
-  CollectedTypes,
-  CollectedFunctions,
 } from "./types/index.ts";
 
 // Global objects for use in contract files.

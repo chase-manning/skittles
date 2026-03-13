@@ -1,9 +1,9 @@
-import { findTypeScriptFiles } from "../../utils/file.ts";
-import { findExtendsReferences } from "../../utils/regex.ts";
 import {
   getStdlibClassNames,
   resolveStdlibFiles,
 } from "../../stdlib/resolver.ts";
+import { findTypeScriptFiles } from "../../utils/file.ts";
+import { findExtendsReferences } from "../../utils/regex.ts";
 import type { PreScanState } from "./prescan.ts";
 import { preScanContracts } from "./prescan.ts";
 

@@ -1,25 +1,26 @@
 import path from "path";
+
+import { DEFAULT_CONFIG } from "../../config/defaults.ts";
 import type {
-  SkittlesConfig,
-  FormattingConfig,
-  SkittlesContractInterface,
   BuildArtifact,
+  FormattingConfig,
+  SkittlesConfig,
+  SkittlesContractInterface,
   Statement,
 } from "../../types/index.ts";
-import { writeFile } from "../../utils/file.ts";
-import { logInfo, logSuccess, logError } from "../../utils/console.ts";
+import { logError,logInfo, logSuccess } from "../../utils/console.ts";
 import { getErrorMessage } from "../../utils/error.ts";
-import { DEFAULT_CONFIG } from "../../config/defaults.ts";
+import { writeFile } from "../../utils/file.ts";
 import {
+  buildSourceMap,
   generateSolidity,
   generateSolidityFile,
-  buildSourceMap,
 } from "../codegen.ts";
 import { formatSolidity } from "../formatter.ts";
 import { filterStatements } from "../walker.ts";
 import type { CacheEntry, CompilationCache } from "./cache.ts";
 import { baseName } from "./cache.ts";
-import type { ParsedFile, CachedFile } from "./parse-phase.ts";
+import type { CachedFile,ParsedFile } from "./parse-phase.ts";
 
 /**
  * Recursively remove console-log statements from an IR statement list.

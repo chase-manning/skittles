@@ -1,15 +1,15 @@
 import type {
+  SkittlesConstructor,
   SkittlesContract,
   SkittlesFunction,
-  SkittlesConstructor,
-  StateMutability,
   Statement,
+  StateMutability,
 } from "../../types/index.ts";
 import { logWarning } from "../../utils/console.ts";
 import { analyzeFunction } from "../analysis.ts";
 import { MUTABILITY_RANK } from "../mutability.ts";
 import { walkStatements } from "../walker.ts";
-import type { ParsedFile, CachedFile } from "./parse-phase.ts";
+import type { CachedFile,ParsedFile } from "./parse-phase.ts";
 
 /**
  * Collect all `this.foo()` and `super.foo()` call names from a statement tree
