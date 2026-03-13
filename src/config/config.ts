@@ -62,6 +62,33 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
     }
   }
 
+  if ("formatting" in obj) {
+    if (typeof obj.formatting !== "object" || obj.formatting === null) {
+      throw new Error('Config "formatting" must be an object');
+    }
+    const fmt = obj.formatting as Record<string, unknown>;
+    if ("indent" in fmt) {
+      if (fmt.indent !== "tab" && typeof fmt.indent !== "number") {
+        throw new Error(
+          'Config "formatting.indent" must be a number or "tab"'
+        );
+      }
+    }
+    if ("bracketSpacing" in fmt && typeof fmt.bracketSpacing !== "boolean") {
+      throw new Error('Config "formatting.bracketSpacing" must be a boolean');
+    }
+    if ("braceStyle" in fmt) {
+      if (fmt.braceStyle !== "same-line" && fmt.braceStyle !== "next-line") {
+        throw new Error(
+          'Config "formatting.braceStyle" must be "same-line" or "next-line"'
+        );
+      }
+    }
+    if ("formatOutput" in fmt && typeof fmt.formatOutput !== "boolean") {
+      throw new Error('Config "formatting.formatOutput" must be a boolean');
+    }
+  }
+
   return config as Partial<SkittlesConfig>;
 }
 
@@ -133,6 +160,19 @@ function mergeConfig(
     solidity: {
       version: userConfig.solidity?.version ?? DEFAULT_CONFIG.solidity.version,
       license: userConfig.solidity?.license ?? DEFAULT_CONFIG.solidity.license,
+    },
+    formatting: {
+      indent:
+        userConfig.formatting?.indent ?? DEFAULT_CONFIG.formatting.indent,
+      bracketSpacing:
+        userConfig.formatting?.bracketSpacing ??
+        DEFAULT_CONFIG.formatting.bracketSpacing,
+      braceStyle:
+        userConfig.formatting?.braceStyle ??
+        DEFAULT_CONFIG.formatting.braceStyle,
+      formatOutput:
+        userConfig.formatting?.formatOutput ??
+        DEFAULT_CONFIG.formatting.formatOutput,
     },
   };
 }
