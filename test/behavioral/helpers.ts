@@ -1,9 +1,6 @@
 import { ethers } from "ethers";
 
-import {
-  generateSolidityForContracts,
-} from "../../src/compiler/codegen";
-import { parse } from "../../src/compiler/parser";
+import { compileToSolidity } from "../../src/compiler/pipeline";
 import { compileSolidity } from "../../src/compiler/solc";
 import { defaultConfig } from "../fixtures";
 
@@ -59,12 +56,10 @@ export async function compileAndDeploy(
   contractName: string,
   constructorArgs: unknown[] = []
 ): Promise<DeployedContract> {
-  const contracts = parse(source, "test.ts");
+  const { contracts, solidity } = compileToSolidity(source, "test.ts");
   if (contracts.length === 0) {
     throw new Error("No contracts found in source");
   }
-
-  const solidity = generateSolidityForContracts(contracts);
 
   const compiled = compileSolidity(contractName, solidity, defaultConfig);
   if (compiled.errors.length > 0) {
