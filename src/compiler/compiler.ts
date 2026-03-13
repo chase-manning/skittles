@@ -82,6 +82,10 @@ function hashString(input: string): string {
   return crypto.createHash("sha256").update(input).digest("hex").slice(0, 16);
 }
 
+function baseName(filePath: string): string {
+  return path.basename(filePath, path.extname(filePath));
+}
+
 function loadCache(outputDir: string): CompilationCache {
   const cachePath = path.join(outputDir, ".skittles-cache.json");
   try {
@@ -211,16 +215,16 @@ function preScanContracts(
         source,
         filePath
       );
-      const baseName = path.basename(filePath, path.extname(filePath));
+      const base = baseName(filePath);
       for (const [name, fields] of structs)
         state.globalStructs.set(name, fields);
       for (const [name, members] of enums)
         state.globalEnums.set(name, members);
       for (const [name, iface] of contractInterfaces) {
         const existingOrigin = state.interfaceOriginFile.get(name);
-        if (!existingOrigin || baseName < existingOrigin) {
+        if (!existingOrigin || base < existingOrigin) {
           state.globalContractInterfaces.set(name, iface);
-          state.interfaceOriginFile.set(name, baseName);
+          state.interfaceOriginFile.set(name, base);
         }
       }
 
@@ -242,12 +246,12 @@ function preScanContracts(
       const classNames = collectClassNames(source, filePath);
       for (const className of classNames) {
         const existingOrigin = state.contractOriginFile.get(className);
-        if (!existingOrigin || baseName < existingOrigin) {
-          state.contractOriginFile.set(className, baseName);
+        if (!existingOrigin || base < existingOrigin) {
+          state.contractOriginFile.set(className, base);
         }
       }
       if (classNames.length > 0) {
-        state.preScanContractFiles.push(baseName);
+        state.preScanContractFiles.push(base);
       }
     } catch (err) {
       // Pre-scan failed; will be re-reported during full compilation
@@ -292,15 +296,15 @@ function resolveCompilationOrder(
   const fileExtendsParents = new Map<string, string[]>();
 
   for (const filePath of sourceFiles) {
-    const baseName = path.basename(filePath, path.extname(filePath));
-    baseNameToFilePath.set(baseName, filePath);
+    const base = baseName(filePath);
+    baseNameToFilePath.set(base, filePath);
     const source = userSources.get(filePath) ?? readFile(filePath);
     allSourceHashes.set(filePath, hashString(source));
 
     const parents: string[] = [];
     for (const name of findExtendsReferences(source)) {
       const parentBase = state.contractOriginFile.get(name);
-      if (parentBase && parentBase !== baseName) {
+      if (parentBase && parentBase !== base) {
         parents.push(name);
       }
     }
@@ -446,9 +450,7 @@ function parseContracts(
       ) {
         cachedFiles.push({ filePath, relativePath, cached });
         if (cached.contracts.length > 0) {
-          filesWithContracts.add(
-            path.basename(filePath, path.extname(filePath))
-          );
+          filesWithContracts.add(baseName(filePath));
         }
         continue;
       }
@@ -461,7 +463,7 @@ function parseContracts(
         externalFunctions
       );
       if (contracts.length > 0) {
-        filesWithContracts.add(path.basename(filePath, path.extname(filePath)));
+        filesWithContracts.add(baseName(filePath));
       }
       parsedFiles.push({
         filePath,
@@ -692,7 +694,7 @@ function generateOutput(
   // Emit cached files
   for (const { filePath, relativePath, cached } of cachedFiles) {
     logInfo(`${relativePath} unchanged, using cache`);
-    const cachedBaseName = path.basename(filePath, path.extname(filePath));
+    const cachedBaseName = baseName(filePath);
     writeFile(
       path.join(outputDir, "solidity", `${cachedBaseName}.sol`),
       cached.contracts[0].solidity
@@ -713,7 +715,7 @@ function generateOutput(
     contracts,
   } of parsedFiles) {
     try {
-      const baseName = path.basename(filePath, path.extname(filePath));
+      const base = baseName(filePath);
 
       // Determine which interfaces should be imported from other .sol files
       const imports: string[] = [];
@@ -723,7 +725,7 @@ function generateOutput(
           const originBase = interfaceOriginFile.get(iface.name);
           if (
             originBase &&
-            originBase !== baseName &&
+            originBase !== base &&
             filesWithContracts.has(originBase)
           ) {
             if (!importedIfaceNames.has(iface.name)) {
@@ -738,7 +740,7 @@ function generateOutput(
           const originBase = contractOriginFile.get(parentName);
           if (
             originBase &&
-            originBase !== baseName &&
+            originBase !== base &&
             filesWithContracts.has(originBase)
           ) {
             imports.push(`./${originBase}.sol`);
@@ -823,7 +825,7 @@ function generateOutput(
       // Build source map linking generated Solidity lines to TypeScript source
       const sourceMap = buildSourceMap(solidity, contracts, relativePath);
       writeFile(
-        path.join(outputDir, "solidity", `${baseName}.sol.map`),
+        path.join(outputDir, "solidity", `${base}.sol.map`),
         JSON.stringify(sourceMap, null, 2)
       );
 
@@ -846,7 +848,7 @@ function generateOutput(
         contractFunctions: contractFns,
         contractInherits: contractInheritsMap,
       };
-      writeFile(path.join(outputDir, "solidity", `${baseName}.sol`), solidity);
+      writeFile(path.join(outputDir, "solidity", `${base}.sol`), solidity);
 
       for (const contract of contracts) {
         artifacts.push({ contractName: contract.name, solidity, sourceMap });
