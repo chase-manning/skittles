@@ -4,7 +4,7 @@ import { afterEach, beforeEach } from "vitest";
 
 import { DEFAULT_CONFIG } from "../src/config/defaults";
 
-export const defaultConfig = DEFAULT_CONFIG;
+export const defaultConfig = { ...DEFAULT_CONFIG, consoleLog: false };
 
 /**
  * Register beforeEach/afterEach hooks that create and clean up a temporary
