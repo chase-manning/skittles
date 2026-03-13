@@ -1,4 +1,5 @@
 import type { Expression, Statement } from "../../types/index.ts";
+import { walkStatements } from "../walker.ts";
 
 // ============================================================
 // Shadowed local variable renaming
@@ -6,39 +7,21 @@ import type { Expression, Statement } from "../../types/index.ts";
 
 export function collectLocalVarNames(stmts: Statement[]): Set<string> {
   const names = new Set<string>();
-  for (const s of stmts) {
-    switch (s.kind) {
-      case "variable-declaration":
-        names.add(s.name);
-        break;
-      case "tuple-destructuring":
-        for (const n of s.names) if (n !== null) names.add(n);
-        break;
-      case "if":
-        for (const n of collectLocalVarNames(s.thenBody)) names.add(n);
-        if (s.elseBody)
-          for (const n of collectLocalVarNames(s.elseBody)) names.add(n);
-        break;
-      case "for":
-        if (s.initializer?.kind === "variable-declaration")
-          names.add(s.initializer.name);
-        for (const n of collectLocalVarNames(s.body)) names.add(n);
-        break;
-      case "while":
-      case "do-while":
-        for (const n of collectLocalVarNames(s.body)) names.add(n);
-        break;
-      case "switch":
-        for (const c of s.cases)
-          for (const n of collectLocalVarNames(c.body)) names.add(n);
-        break;
-      case "try-catch":
-        if (s.returnVarName) names.add(s.returnVarName);
-        for (const n of collectLocalVarNames(s.successBody)) names.add(n);
-        for (const n of collectLocalVarNames(s.catchBody)) names.add(n);
-        break;
-    }
-  }
+  walkStatements(stmts, {
+    visitStatement(stmt) {
+      switch (stmt.kind) {
+        case "variable-declaration":
+          names.add(stmt.name);
+          break;
+        case "tuple-destructuring":
+          for (const n of stmt.names) if (n !== null) names.add(n);
+          break;
+        case "try-catch":
+          if (stmt.returnVarName) names.add(stmt.returnVarName);
+          break;
+      }
+    },
+  });
   return names;
 }
 
