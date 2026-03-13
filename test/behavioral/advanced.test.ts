@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import {
   createTestEnv,
   compileAndDeploy,
+  connectAs,
   type TestEnv,
   type DeployedContract,
 } from "./helpers";
@@ -187,16 +188,16 @@ describe("behavioral: enums", () => {
     contract = await compileAndDeploy(env, ENUM_SOURCE, "Proposal");
   });
 
-  it("should default to first enum value (0)", async () => {
+  it("defaults to first enum value (0)", async () => {
     expect(await contract.contract.getStatus()).toBe(0n);
   });
 
-  it("should set enum to Active (1)", async () => {
+  it("sets enum to Active (1)", async () => {
     await contract.contract.activate();
     expect(await contract.contract.getStatus()).toBe(1n);
   });
 
-  it("should set enum to Closed (2)", async () => {
+  it("sets enum to Closed (2)", async () => {
     await contract.contract.close();
     expect(await contract.contract.getStatus()).toBe(2n);
   });
@@ -209,12 +210,12 @@ describe("behavioral: custom errors", () => {
     contract = await compileAndDeploy(env, CUSTOM_ERROR_SOURCE, "Guarded");
   });
 
-  it("should allow owner to call onlyOwnerAction", async () => {
+  it("allows owner to call onlyOwnerAction", async () => {
     expect(await contract.contract.onlyOwnerAction()).toBe(42n);
   });
 
-  it("should revert with custom error for non-owner", async () => {
-    const nonOwner = contract.contract.connect(env.accounts[1]) as ethers.Contract;
+  it("reverts with custom error for non-owner", async () => {
+    const nonOwner = connectAs(contract, env.accounts[1]);
     await expect(nonOwner.onlyOwnerAction()).rejects.toThrow();
   });
 });
@@ -226,11 +227,11 @@ describe("behavioral: constants and immutables", () => {
     contract = await compileAndDeploy(env, CONSTANT_SOURCE, "Constants");
   });
 
-  it("should return constant MAX", async () => {
+  it("returns constant MAX", async () => {
     expect(await contract.contract.getMax()).toBe(1000n);
   });
 
-  it("should return immutable deployer", async () => {
+  it("returns immutable deployer", async () => {
     const deployer = await env.accounts[0].getAddress();
     expect(await contract.contract.getDeployer()).toBe(deployer);
   });
@@ -243,7 +244,7 @@ describe("behavioral: indexed events", () => {
     contract = await compileAndDeploy(env, INDEXED_EVENT_SOURCE, "EventToken", [1000]);
   });
 
-  it("should emit Transfer event with indexed parameters", async () => {
+  it("emits Transfer event with indexed parameters", async () => {
     const receiver = await env.accounts[1].getAddress();
     const tx = await contract.contract.transfer(receiver, 100);
     const receipt = await tx.wait();
@@ -264,7 +265,7 @@ describe("behavioral: receive function", () => {
     contract = await compileAndDeploy(env, RECEIVE_SOURCE, "Vault");
   });
 
-  it("should accept ETH via receive", async () => {
+  it("accepts ETH via receive", async () => {
     const signer = env.accounts[0];
     const amount = ethers.parseEther("1.0");
     await signer.sendTransaction({
@@ -276,7 +277,7 @@ describe("behavioral: receive function", () => {
     expect(deposit).toBe(amount);
   });
 
-  it("should track total deposits", async () => {
+  it("tracks total deposits", async () => {
     const total = await contract.contract.getTotal();
     expect(total).toBe(ethers.parseEther("1.0"));
   });
@@ -289,24 +290,22 @@ describe("behavioral: ETH transfers", () => {
     contract = await compileAndDeploy(env, TRANSFER_ETH_SOURCE, "PaymentSplitter");
   });
 
-  it("should transfer ETH to a recipient", async () => {
+  it("transfers ETH to a recipient", async () => {
     const recipient = env.accounts[2];
     const recipientAddr = await recipient.getAddress();
     const sendAmount = ethers.parseEther("2.0");
 
     // Fund the contract
     const owner = env.accounts[0];
-    const fundTx = await owner.sendTransaction({
+    await (await owner.sendTransaction({
       to: contract.address,
       value: sendAmount,
-    });
-    await fundTx.wait();
+    })).wait();
 
     const balanceBefore = BigInt(await env.provider.send('eth_getBalance', [recipientAddr, 'latest']));
 
     // Send payment
-    const tx = await contract.contract.sendPayment(recipientAddr, ethers.parseEther("1.0"));
-    await tx.wait();
+    await (await contract.contract.sendPayment(recipientAddr, ethers.parseEther("1.0"))).wait();
 
     const balanceAfter = BigInt(await env.provider.send('eth_getBalance', [recipientAddr, 'latest']));
     expect(balanceAfter - balanceBefore).toBe(ethers.parseEther("1.0"));
@@ -339,17 +338,17 @@ describe("behavioral: inheritance with override", () => {
     };
   });
 
-  it("should use overridden getX (x + 1)", async () => {
+  it("uses overridden getX (x + 1)", async () => {
     await contract.contract.setX(10);
     expect(await contract.contract.getX()).toBe(11n);
   });
 
-  it("should use parent setX", async () => {
+  it("uses parent setX", async () => {
     await contract.contract.setX(50);
     expect(await contract.contract.getX()).toBe(51n);
   });
 
-  it("should use child setY", async () => {
+  it("uses child setY", async () => {
     await contract.contract.setY(99);
     expect(await contract.contract.y()).toBe(99n);
   });
@@ -434,7 +433,7 @@ describe("behavioral: constructor with default parameters", () => {
     contract = await compileAndDeploy(env, DEFAULT_PARAM_SOURCE, "DefaultToken");
   });
 
-  it("should use default supply value", async () => {
+  it("uses default supply value", async () => {
     expect(await contract.contract.getSupply()).toBe(1000000n);
   });
 });
@@ -446,11 +445,11 @@ describe("behavioral: constructor with mixed default and required parameters", (
     contract = await compileAndDeploy(env, MIXED_PARAM_SOURCE, "MixedToken", ["MyToken"]);
   });
 
-  it("should accept required parameter", async () => {
+  it("accepts required parameter", async () => {
     expect(await contract.contract.getName()).toBe("MyToken");
   });
 
-  it("should use default supply value", async () => {
+  it("uses default supply value", async () => {
     expect(await contract.contract.getSupply()).toBe(500n);
   });
 });
@@ -462,11 +461,11 @@ describe("behavioral: function with default parameter", () => {
     contract = await compileAndDeploy(env, FUNCTION_DEFAULT_PARAM_SOURCE, "DefaultFunc");
   });
 
-  it("should use default value when called without argument", async () => {
+  it("uses default value when called without argument", async () => {
     expect(await contract.contract["defaultParam()"]()).toBe(10n);
   });
 
-  it("should use provided value when called with argument", async () => {
+  it("uses provided value when called with argument", async () => {
     expect(await contract.contract["defaultParam(uint256)"](42)).toBe(42n);
   });
 });
@@ -478,15 +477,15 @@ describe("behavioral: function with mixed default and required parameters", () =
     contract = await compileAndDeploy(env, FUNCTION_MIXED_DEFAULT_PARAM_SOURCE, "MixedDefaultFunc");
   });
 
-  it("should use all defaults when called with only required param", async () => {
+  it("uses all defaults when called with only required param", async () => {
     expect(await contract.contract["mixedParams(uint256)"](100)).toBe(115n);
   });
 
-  it("should use last default when called with required + first optional", async () => {
+  it("uses last default when called with required + first optional", async () => {
     expect(await contract.contract["mixedParams(uint256,uint256)"](100, 20)).toBe(130n);
   });
 
-  it("should use all provided values when called with all params", async () => {
+  it("uses all provided values when called with all params", async () => {
     expect(await contract.contract["mixedParams(uint256,uint256,uint256)"](100, 20, 30)).toBe(150n);
   });
 });
@@ -498,15 +497,15 @@ describe("behavioral: exponentiation", () => {
     contract = await compileAndDeploy(env, EXPONENTIATION_SOURCE, "MathPow");
   });
 
-  it("should compute base ** exp (2 ** 10 = 1024)", async () => {
+  it("computes base ** exp (2 ** 10 = 1024)", async () => {
     expect(await contract.contract.power(2, 10)).toBe(1024n);
   });
 
-  it("should compute 10 ** decimals for token scaling", async () => {
+  it("computes 10 ** decimals for token scaling", async () => {
     expect(await contract.contract.scale(18)).toBe(10n ** 18n);
   });
 
-  it("should desugar **= and update state (2 **= 3 = 8)", async () => {
+  it("desugars **= and updates state (2 **= 3 = 8)", async () => {
     expect(await contract.contract.getValue()).toBe(2n);
     await contract.contract.powerAssign(3);
     expect(await contract.contract.getValue()).toBe(8n);
@@ -521,14 +520,14 @@ describe("behavioral: readonly arrays", () => {
     contract = await compileAndDeploy(env, READONLY_ARRAY_SOURCE, "AdminRegistry", [deployer]);
   });
 
-  it("should return readonly array via getter", async () => {
+  it("returns readonly array via getter", async () => {
     const deployer = await env.accounts[0].getAddress();
     const admins = await contract.contract.getAdmins();
     expect(admins).toHaveLength(1);
     expect(admins[0]).toBe(deployer);
   });
 
-  it("should return admin count", async () => {
+  it("returns admin count", async () => {
     expect(await contract.contract.getAdminCount()).toBe(1n);
   });
 });
