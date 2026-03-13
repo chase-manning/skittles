@@ -29,6 +29,7 @@ import {
   ERR_START_OUT_OF_BOUNDS,
 } from "./constants.ts";
 import { cctx } from "./codegen-context.ts";
+import { walkStatements } from "./walker.ts";
 export type { CodegenContext } from "./codegen-context.ts";
 export { resetCodegenContext } from "./codegen-context.ts";
 
@@ -2542,30 +2543,13 @@ function tryGenerateBuiltinCall(expr: {
 // ============================================================
 
 function statementsUseConsoleLog(stmts: Statement[]): boolean {
-  for (const stmt of stmts) {
-    if (stmt.kind === "console-log") return true;
-    if (stmt.kind === "if") {
-      if (statementsUseConsoleLog(stmt.thenBody)) return true;
-      if (stmt.elseBody && statementsUseConsoleLog(stmt.elseBody)) return true;
-    }
-    if (
-      stmt.kind === "for" ||
-      stmt.kind === "while" ||
-      stmt.kind === "do-while"
-    ) {
-      if (statementsUseConsoleLog(stmt.body)) return true;
-    }
-    if (stmt.kind === "switch") {
-      for (const c of stmt.cases) {
-        if (statementsUseConsoleLog(c.body)) return true;
-      }
-    }
-    if (stmt.kind === "try-catch") {
-      if (statementsUseConsoleLog(stmt.successBody)) return true;
-      if (statementsUseConsoleLog(stmt.catchBody)) return true;
-    }
-  }
-  return false;
+  let found = false;
+  walkStatements(stmts, {
+    visitStatement(stmt) {
+      if (stmt.kind === "console-log") found = true;
+    },
+  });
+  return found;
 }
 
 function contractUsesConsoleLog(contract: SkittlesContract): boolean {

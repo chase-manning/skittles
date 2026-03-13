@@ -32,7 +32,7 @@ import {
 import { formatSolidity } from "./formatter.ts";
 import { analyzeFunction } from "./analysis.ts";
 import { MUTABILITY_RANK } from "./mutability.ts";
-import { walkStatements } from "./walker.ts";
+import { walkStatements, filterStatements } from "./walker.ts";
 import {
   getStdlibClassNames,
   resolveStdlibFiles,
@@ -1024,42 +1024,9 @@ function collectThisCallNames(stmts: Statement[]): {
 
 /**
  * Recursively remove console-log statements from an IR statement list.
+ * Uses the shared filterStatements walker from walker.ts.
  * Used when the consoleLog config option is disabled (production builds).
  */
 function stripConsoleLogStatements(stmts: Statement[]): Statement[] {
-  return stmts.reduce<Statement[]>((acc, stmt) => {
-    if (stmt.kind === "console-log") return acc;
-    if (stmt.kind === "if") {
-      acc.push({
-        ...stmt,
-        thenBody: stripConsoleLogStatements(stmt.thenBody),
-        elseBody: stmt.elseBody
-          ? stripConsoleLogStatements(stmt.elseBody)
-          : undefined,
-      });
-    } else if (
-      stmt.kind === "for" ||
-      stmt.kind === "while" ||
-      stmt.kind === "do-while"
-    ) {
-      acc.push({ ...stmt, body: stripConsoleLogStatements(stmt.body) });
-    } else if (stmt.kind === "switch") {
-      acc.push({
-        ...stmt,
-        cases: stmt.cases.map((c) => ({
-          ...c,
-          body: stripConsoleLogStatements(c.body),
-        })),
-      });
-    } else if (stmt.kind === "try-catch") {
-      acc.push({
-        ...stmt,
-        successBody: stripConsoleLogStatements(stmt.successBody),
-        catchBody: stripConsoleLogStatements(stmt.catchBody),
-      });
-    } else {
-      acc.push(stmt);
-    }
-    return acc;
-  }, []);
+  return filterStatements(stmts, (stmt) => stmt.kind === "console-log");
 }
