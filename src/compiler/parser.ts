@@ -7,6 +7,8 @@ import type {
   SkittlesTypeKind,
   SkittlesContractInterface,
   Expression,
+  CollectedTypes,
+  CollectedFunctions,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import type { ParserContext } from "./parser-context.ts";
@@ -63,11 +65,7 @@ function collectStructsAndEnums(
 export function collectTypes(
   source: string,
   filePath: string
-): {
-  structs: Map<string, SkittlesParameter[]>;
-  enums: Map<string, string[]>;
-  contractInterfaces: Map<string, SkittlesContractInterface>;
-} {
+): CollectedTypes {
   const sourceFile = ts.createSourceFile(
     filePath,
     source,
@@ -397,10 +395,7 @@ export function parse(
 export function collectFunctions(
   source: string,
   filePath: string
-): {
-  functions: SkittlesFunction[];
-  constants: Map<string, Expression>;
-} {
+): CollectedFunctions {
   const sourceFile = ts.createSourceFile(
     filePath,
     source,

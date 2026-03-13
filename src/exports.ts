@@ -85,6 +85,8 @@ export type {
   SkittlesTypeKind,
   BuildArtifact,
   SourceMapping,
+  CollectedTypes,
+  CollectedFunctions,
 } from "./types/index.ts";
 
 // Global objects for use in contract files.
