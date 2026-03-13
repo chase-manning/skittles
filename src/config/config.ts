@@ -7,6 +7,65 @@ import { DEFAULT_CONFIG } from "./defaults.ts";
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
 
 /**
+ * Validate that a loaded config has the expected shape and types.
+ */
+function validateConfig(config: unknown): Partial<SkittlesConfig> {
+  if (typeof config !== "object" || config === null || Array.isArray(config)) {
+    throw new Error("Config must be an object");
+  }
+
+  const obj = config as Record<string, unknown>;
+
+  if ("typeCheck" in obj && typeof obj.typeCheck !== "boolean") {
+    throw new Error('Config "typeCheck" must be a boolean');
+  }
+
+  if ("optimizer" in obj) {
+    if (typeof obj.optimizer !== "object" || obj.optimizer === null) {
+      throw new Error('Config "optimizer" must be an object');
+    }
+    const opt = obj.optimizer as Record<string, unknown>;
+    if ("enabled" in opt && typeof opt.enabled !== "boolean") {
+      throw new Error('Config "optimizer.enabled" must be a boolean');
+    }
+    if ("runs" in opt && typeof opt.runs !== "number") {
+      throw new Error('Config "optimizer.runs" must be a number');
+    }
+  }
+
+  if ("contractsDir" in obj && typeof obj.contractsDir !== "string") {
+    throw new Error('Config "contractsDir" must be a string');
+  }
+
+  if ("outputDir" in obj && typeof obj.outputDir !== "string") {
+    throw new Error('Config "outputDir" must be a string');
+  }
+
+  if ("cacheDir" in obj && typeof obj.cacheDir !== "string") {
+    throw new Error('Config "cacheDir" must be a string');
+  }
+
+  if ("consoleLog" in obj && typeof obj.consoleLog !== "boolean") {
+    throw new Error('Config "consoleLog" must be a boolean');
+  }
+
+  if ("solidity" in obj) {
+    if (typeof obj.solidity !== "object" || obj.solidity === null) {
+      throw new Error('Config "solidity" must be an object');
+    }
+    const sol = obj.solidity as Record<string, unknown>;
+    if ("version" in sol && typeof sol.version !== "string") {
+      throw new Error('Config "solidity.version" must be a string');
+    }
+    if ("license" in sol && typeof sol.license !== "string") {
+      throw new Error('Config "solidity.license" must be a string');
+    }
+  }
+
+  return config as Partial<SkittlesConfig>;
+}
+
+/**
  * Load the skittles config from the project root.
  * Looks for skittles.config.json or skittles.config.js.
  * Falls back to defaults if no config file is found.
@@ -22,19 +81,33 @@ export async function loadConfig(
     }
 
     try {
-      let userConfig: SkittlesConfig;
+      let rawConfig: unknown;
 
       if (filename.endsWith(".json")) {
         const raw = fs.readFileSync(configPath, "utf-8");
-        userConfig = JSON.parse(raw);
+        try {
+          rawConfig = JSON.parse(raw);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Unknown error";
+          throw new Error(
+            `Failed to parse skittles.config.json: ${message}`
+          );
+        }
       } else {
         const configUrl = pathToFileURL(configPath).href;
         const configModule = await import(configUrl);
-        userConfig = configModule.default || configModule;
+        rawConfig = configModule.default || configModule;
       }
 
+      const userConfig = validateConfig(rawConfig);
       return mergeConfig(userConfig);
     } catch (err) {
+      if (
+        err instanceof Error &&
+        err.message.startsWith("Failed to parse skittles.config.json")
+      ) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : "Unknown error";
       throw new Error(`Failed to load config from ${filename}: ${message}`);
     }
@@ -43,7 +116,9 @@ export async function loadConfig(
   return DEFAULT_CONFIG;
 }
 
-function mergeConfig(userConfig: SkittlesConfig): Required<SkittlesConfig> {
+function mergeConfig(
+  userConfig: Partial<SkittlesConfig>
+): Required<SkittlesConfig> {
   return {
     typeCheck: userConfig.typeCheck ?? DEFAULT_CONFIG.typeCheck,
     optimizer: {
