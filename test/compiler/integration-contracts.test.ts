@@ -1154,6 +1154,101 @@ describe("integration: external contract calls", () => {
     const result = compileSolidity("Helper", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should compile interface method with View<T> return type as view", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): View<number>;
+        transfer(to: address, amount: number): boolean;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(
+      interfaceSrc,
+      "IToken.ts"
+    );
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    // balanceOf should be view due to View<> wrapper
+    const balanceOfMethod = contractInterfaces
+      .get("IToken")!
+      .functions.find((f) => f.name === "balanceOf");
+    expect(balanceOfMethod?.stateMutability).toBe("view");
+
+    // transfer should remain unannotated (no View<> wrapper)
+    const transferMethod = contractInterfaces
+      .get("IToken")!
+      .functions.find((f) => f.name === "transfer");
+    expect(transferMethod?.stateMutability).toBeUndefined();
+
+    const contractSrc = `
+      class TokenVault {
+        private _token: IToken;
+
+        constructor(tokenAddress: address) {
+          this._token = Contract<IToken>(tokenAddress);
+        }
+
+        public getTokenBalance(account: address): number {
+          return this._token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "TokenVault.ts", externalTypes);
+    const solidity = generateSolidity(contracts[0]);
+
+    // balanceOf should be compiled as view in the interface
+    expect(solidity).toContain(
+      "function balanceOf(address account) external view returns (uint256);"
+    );
+    // transfer should remain without view
+    expect(solidity).toContain(
+      "function transfer(address to, uint256 amount) external returns (bool);"
+    );
+    // getTokenBalance should be view since it only calls a view method
+    expect(solidity).toMatch(/function getTokenBalance\(.*\) public view\b/);
+
+    const result = compileSolidity("TokenVault", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should propagate View<T> mutability from interface to caller function", () => {
+    const interfaceSrc = `
+      interface IToken {
+        balanceOf(account: address): View<number>;
+      }
+    `;
+    const { structs, enums, contractInterfaces } = collectTypes(
+      interfaceSrc,
+      "IToken.ts"
+    );
+    const externalTypes = { structs, enums, contractInterfaces };
+
+    const contractSrc = `
+      class Checker {
+        public checkBalance(tokenAddress: address, account: address): number {
+          let token: IToken = Contract<IToken>(tokenAddress);
+          return token.balanceOf(account);
+        }
+      }
+    `;
+
+    const contracts = parse(contractSrc, "Checker.ts", externalTypes);
+    const checkBalanceFn = contracts[0].functions.find(
+      (f) => f.name === "checkBalance"
+    );
+    expect(checkBalanceFn).toBeDefined();
+    // balanceOf is annotated as view via View<>, so checkBalance should be view
+    expect(checkBalanceFn!.stateMutability).toBe("view");
+
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain(
+      "function balanceOf(address account) external view returns (uint256);"
+    );
+
+    const result = compileSolidity("Checker", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 describe("integration: ETH transfers", () => {
