@@ -8,12 +8,12 @@ import type {
   SkittlesFunction,
   SkittlesParameter,
 } from "../../types/index.ts";
-import { logError,logInfo } from "../../utils/console.ts";
+import { logError, logInfo } from "../../utils/console.ts";
 import { getErrorMessage } from "../../utils/error.ts";
 import { readFile } from "../../utils/file.ts";
 import { parse } from "../parser.ts";
 import type { CacheEntry, CompilationCache } from "./cache.ts";
-import { baseName,hashString } from "./cache.ts";
+import { baseName, hashString } from "./cache.ts";
 
 export interface ParsedFile {
   filePath: string;

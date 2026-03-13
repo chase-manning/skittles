@@ -50,7 +50,7 @@ import {
   wrapStringTruthiness,
 } from "./parser-utils.ts";
 import { parseStatement, parseStatements } from "./statement-parser.ts";
-import { inferType,parseType } from "./type-parser.ts";
+import { inferType, parseType } from "./type-parser.ts";
 
 export function parseExpression(node: ts.Expression): Expression {
   if (ts.isNumericLiteral(node)) {

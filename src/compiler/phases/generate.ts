@@ -8,7 +8,7 @@ import type {
   SkittlesContractInterface,
   Statement,
 } from "../../types/index.ts";
-import { logError,logInfo, logSuccess } from "../../utils/console.ts";
+import { logError, logInfo, logSuccess } from "../../utils/console.ts";
 import { getErrorMessage } from "../../utils/error.ts";
 import { writeFile } from "../../utils/file.ts";
 import {

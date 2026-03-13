@@ -36,7 +36,7 @@ export { parseExpression } from "./expression-parser.ts";
 export { inferStateMutability } from "./mutability.ts";
 export type { ParserContext } from "./parser-context.ts";
 export { parseStatement } from "./statement-parser.ts";
-export { inferType,parseType } from "./type-parser.ts";
+export { inferType, parseType } from "./type-parser.ts";
 
 /**
  * Scan a source file for struct (type alias with type literal) and enum declarations,

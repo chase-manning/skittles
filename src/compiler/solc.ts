@@ -1,6 +1,6 @@
 import solc from "solc";
 
-import type { AbiItem,SkittlesConfig } from "../types/index.ts";
+import type { AbiItem, SkittlesConfig } from "../types/index.ts";
 import { getErrorMessage } from "../utils/error.ts";
 import { BATCH_SOURCE_FILENAME } from "./constants.ts";
 
