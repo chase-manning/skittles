@@ -656,6 +656,21 @@ describe("integration: string methods", () => {
     );
   });
 
+  it("should not shadow state variable 'count' in _split helper", () => {
+    const { errors, solidity } = compileTS(`
+      class PrimitiveTypes {
+        public count: number = 0;
+        public tokenize(csv: string): string[] {
+          return csv.split(",");
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain("uint256 public count");
+    expect(solidity).not.toMatch(/\buint256 count\b/);
+    expect(solidity).toContain("__sk_count");
+  });
+
   it("should compile replace on parameter", () => {
     const { errors, solidity } = compileTS(`
       class StringMethods {
