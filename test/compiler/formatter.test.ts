@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect,it } from "vitest";
+
 import { formatSolidity } from "../../src/compiler/formatter";
 import type { FormattingConfig } from "../../src/types";
 

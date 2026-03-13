@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach,describe, expect, it } from "vitest";
+
 import {
-  getStdlibClassNames,
   clearStdlibRegistryCache,
+  getStdlibClassNames,
 } from "../../src/stdlib/resolver";
 
 describe("stdlib resolver cache", () => {

@@ -2,10 +2,11 @@
 
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { compileCommand, watchCompile } from "./commands/compile.ts";
+
 import { cleanCommand } from "./commands/clean.ts";
+import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { initCommand } from "./commands/init.ts";
-import { printLogo, logError } from "./utils/console.ts";
+import { logError, printLogo } from "./utils/console.ts";
 import { getErrorMessage } from "./utils/error.ts";
 import { getPackageVersion } from "./utils/package.ts";
 

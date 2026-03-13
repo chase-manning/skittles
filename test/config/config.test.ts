@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import { loadConfig, DEFAULT_CONFIG } from "../../src/config/config";
+import { describe, expect,it } from "vitest";
+
+import { DEFAULT_CONFIG,loadConfig } from "../../src/config/config";
 import { useTempDir } from "../fixtures";
 
 const TEST_DIR = useTempDir(__dirname, "__test_tmp_config__");

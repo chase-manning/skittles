@@ -1,41 +1,42 @@
 import ts from "typescript";
+
 import type {
+  CollectedFunctions,
+  CollectedTypes,
+  Expression,
   SkittlesContract,
+  SkittlesContractInterface,
   SkittlesFunction,
   SkittlesParameter,
   SkittlesType,
   SkittlesTypeKind,
-  SkittlesContractInterface,
-  Expression,
-  CollectedTypes,
-  CollectedFunctions,
 } from "../types/index.ts";
-import { ctx } from "./parser-context.ts";
-import type { ParserContext } from "./parser-context.ts";
-import { parseTypeLiteralFields, parseType, inferType } from "./type-parser.ts";
+import {
+  extendsError,
+  parseClass,
+  parseErrorClass,
+  parseInterfaceAsContractInterface,
+  parseStandaloneArrowFunction,
+  parseStandaloneFunction,
+} from "./class-parser.ts";
 import { parseExpression } from "./expression-parser.ts";
-import { parseStatement } from "./statement-parser.ts";
 import {
   inferStateMutability,
   MUTABILITY_RANK,
   propagateMutability,
 } from "./mutability.ts";
-import {
-  parseStandaloneFunction,
-  parseStandaloneArrowFunction,
-  extendsError,
-  parseErrorClass,
-  parseInterfaceAsContractInterface,
-  parseClass,
-} from "./class-parser.ts";
+import type { ParserContext } from "./parser-context.ts";
+import { ctx } from "./parser-context.ts";
 import { getEnumMemberName } from "./parser-utils.ts";
+import { parseStatement } from "./statement-parser.ts";
+import { inferType, parseType, parseTypeLiteralFields } from "./type-parser.ts";
 
 // Re-export public API from sub-modules
-export type { ParserContext } from "./parser-context.ts";
-export { parseType, inferType } from "./type-parser.ts";
 export { parseExpression } from "./expression-parser.ts";
-export { parseStatement } from "./statement-parser.ts";
 export { inferStateMutability } from "./mutability.ts";
+export type { ParserContext } from "./parser-context.ts";
+export { parseStatement } from "./statement-parser.ts";
+export { inferType,parseType } from "./type-parser.ts";
 
 /**
  * Scan a source file for struct (type alias with type literal) and enum declarations,

@@ -1,28 +1,29 @@
 import ts from "typescript";
+
 import {
-  SkittlesTypeKind,
-  type SkittlesType,
-  type SkittlesParameter,
-  type Statement,
-  type Expression,
-  type EmitStatement,
   type ConsoleLogStatement,
+  type EmitStatement,
+  type Expression,
+  type SkittlesParameter,
+  type SkittlesType,
+  SkittlesTypeKind,
+  type Statement,
   type SwitchCase,
 } from "../types/index.ts";
-import { ctx } from "./parser-context.ts";
-import { walkStatements } from "./walker.ts";
-import {
-  getSourceLine,
-  setupStringTracking,
-  wrapStringTruthiness,
-  validateReservedName,
-  validateReservedVarName,
-  findEnclosingClass,
-  findMethodReturnType,
-} from "./parser-utils.ts";
-import { parseType, inferType, typesEqual } from "./type-parser.ts";
 import { parseExpression } from "./expression-parser.ts";
 import { isMappingLikeReceiver } from "./expression-parser.ts";
+import { ctx } from "./parser-context.ts";
+import {
+  findEnclosingClass,
+  findMethodReturnType,
+  getSourceLine,
+  setupStringTracking,
+  validateReservedName,
+  validateReservedVarName,
+  wrapStringTruthiness,
+} from "./parser-utils.ts";
+import { inferType, parseType, typesEqual } from "./type-parser.ts";
+import { walkStatements } from "./walker.ts";
 
 const UNSUPPORTED_OBJECT_DESTRUCTURING_MSG =
   "Unsupported object destructuring pattern in variable declaration. " +

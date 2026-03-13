@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { compile } from "../../src/compiler/compiler";
 import * as parserModule from "../../src/compiler/parser";
 import { defaultConfig } from "../fixtures.js";

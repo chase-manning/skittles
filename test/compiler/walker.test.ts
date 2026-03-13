@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { walkStatements, walkExpression, filterStatements } from "../../src/compiler/walker";
+import { describe, expect, it } from "vitest";
+
 import type { ASTVisitor } from "../../src/compiler/walker";
-import type { Statement, Expression } from "../../src/types/index";
+import { filterStatements, walkExpression, walkStatements } from "../../src/compiler/walker";
+import type { Expression, Statement } from "../../src/types/index";
 
 // ============================================================
 // walkExpression

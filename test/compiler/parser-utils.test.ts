@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { getEnumMemberName, getNodeName } from "../../src/compiler/parser-utils";
 import ts from "typescript";
+import { describe, expect,it } from "vitest";
+
+import { getEnumMemberName, getNodeName } from "../../src/compiler/parser-utils";
 
 function makeEnumMember(code: string): ts.EnumMember {
   const src = ts.createSourceFile(

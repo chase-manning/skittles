@@ -1,4 +1,5 @@
 import { execSync } from "child_process";
+
 import type { FormattingConfig } from "../types/index.ts";
 
 /**

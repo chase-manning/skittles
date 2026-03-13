@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { type TestEnv, createTestEnv, compileAndDeploy } from "./helpers";
-import { MAX_UINT256, BEHAVIORAL_TIMEOUT } from "../constants";
+import { afterAll,beforeAll, describe, expect, it } from "vitest";
+
+import { BEHAVIORAL_TIMEOUT,MAX_UINT256 } from "../constants";
+import { compileAndDeploy,createTestEnv, type TestEnv } from "./helpers";
 
 describe("Array Methods (behavioral)", () => {
   let env: TestEnv;

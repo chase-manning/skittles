@@ -1,12 +1,13 @@
-import { describe, it, expect } from "vitest";
-import {
-  parse,
-  parseType,
-  parseExpression,
-  inferStateMutability,
-} from "../../src/compiler/parser";
-import type { ReturnStatement, CallExpression } from "../../src/types";
 import ts from "typescript";
+import { describe, expect,it } from "vitest";
+
+import {
+  inferStateMutability,
+  parse,
+  parseExpression,
+  parseType,
+} from "../../src/compiler/parser";
+import type { CallExpression,ReturnStatement } from "../../src/types";
 
 function makeTypeNode(code: string): ts.TypeNode {
   const src = ts.createSourceFile(

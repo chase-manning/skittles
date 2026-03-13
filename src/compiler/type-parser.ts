@@ -1,10 +1,11 @@
 import ts from "typescript";
+
 import {
   ADDRESS_LITERAL_RE,
-  SkittlesTypeKind,
+  type Expression,
   type SkittlesParameter,
   type SkittlesType,
-  type Expression,
+  SkittlesTypeKind,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import { STRING_RETURNING_HELPERS } from "./parser-utils.ts";

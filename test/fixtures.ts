@@ -1,6 +1,7 @@
-import { beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
+import { afterEach, beforeEach } from "vitest";
+
 import { DEFAULT_CONFIG } from "../src/config/defaults";
 
 export const defaultConfig = DEFAULT_CONFIG;

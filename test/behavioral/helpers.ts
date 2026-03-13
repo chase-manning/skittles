@@ -1,9 +1,10 @@
 import { ethers } from "ethers";
-import { parse } from "../../src/compiler/parser";
+
 import {
   generateSolidity,
   generateSolidityFile,
 } from "../../src/compiler/codegen";
+import { parse } from "../../src/compiler/parser";
 import { compileSolidity } from "../../src/compiler/solc";
 import { defaultConfig } from "../fixtures";
 

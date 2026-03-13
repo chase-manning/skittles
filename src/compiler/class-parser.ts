@@ -1,47 +1,48 @@
 import ts from "typescript";
+
 import {
-  SkittlesTypeKind,
-  type SkittlesContract,
-  type SkittlesVariable,
-  type SkittlesFunction,
-  type SkittlesConstructor,
-  type SkittlesEvent,
-  type SkittlesParameter,
-  type SkittlesType,
-  type SkittlesContractInterface,
-  type SkittlesInterfaceFunction,
-  type StateMutability,
-  type Statement,
   type Expression,
   type NatSpec,
+  type SkittlesConstructor,
+  type SkittlesContract,
+  type SkittlesContractInterface,
+  type SkittlesEvent,
+  type SkittlesFunction,
+  type SkittlesInterfaceFunction,
+  type SkittlesParameter,
+  type SkittlesType,
+  SkittlesTypeKind,
+  type SkittlesVariable,
+  type Statement,
+  type StateMutability,
 } from "../types/index.ts";
+import { parseExpression } from "./expression-parser.ts";
+import {
+  collectBodyContractInterfaceRefs,
+  collectContractInterfaceTypeRefs,
+  collectExternalInterfaceCalls,
+  inferAbstractStateMutability,
+  inferStateMutability,
+  propagateStateMutability,
+  rewriteInterfacePropertyGetters,
+  walkStatements,
+} from "./mutability.ts";
 import { ctx } from "./parser-context.ts";
 import {
+  getNodeName,
   getSourceLine,
+  getVisibility,
+  hasModifier,
   setupStringTracking,
   validateReservedName,
   validateReservedVarName,
-  getVisibility,
-  hasModifier,
-  getNodeName,
 } from "./parser-utils.ts";
-import { parseType, inferType, parseTypeLiteralFields } from "./type-parser.ts";
-import { parseExpression } from "./expression-parser.ts";
 import {
-  parseStatement,
   parseBlock,
+  parseStatement,
   parseStatements,
 } from "./statement-parser.ts";
-import {
-  propagateStateMutability,
-  walkStatements,
-  collectExternalInterfaceCalls,
-  inferAbstractStateMutability,
-  rewriteInterfacePropertyGetters,
-  inferStateMutability,
-  collectContractInterfaceTypeRefs,
-  collectBodyContractInterfaceRefs,
-} from "./mutability.ts";
+import { inferType, parseType, parseTypeLiteralFields } from "./type-parser.ts";
 
 export function parseStandaloneFunction(
   node: ts.FunctionDeclaration,

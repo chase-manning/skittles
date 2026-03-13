@@ -1,16 +1,16 @@
 import type {
-  SkittlesParameter,
-  SkittlesFunction,
-  SkittlesContractInterface,
   Expression,
+  SkittlesContractInterface,
+  SkittlesFunction,
+  SkittlesParameter,
 } from "../../types/index.ts";
-import { readFile } from "../../utils/file.ts";
 import { logWarning } from "../../utils/console.ts";
 import { getErrorMessage } from "../../utils/error.ts";
+import { readFile } from "../../utils/file.ts";
 import {
-  collectTypes,
-  collectFunctions,
   collectClassNames,
+  collectFunctions,
+  collectTypes,
 } from "../parser.ts";
 import { ctx } from "../parser-context.ts";
 import { baseName } from "./cache.ts";

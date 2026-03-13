@@ -1,18 +1,19 @@
-import { describe, it, expect } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import {
-  parse,
-  collectTypes,
-  collectFunctions,
-} from "../../src/compiler/parser";
+import { describe, expect,it } from "vitest";
+
 import {
   generateSolidity,
   generateSolidityFile,
 } from "../../src/compiler/codegen";
-import { compileSolidity } from "../../src/compiler/solc";
 import { compile } from "../../src/compiler/compiler";
+import {
+  collectFunctions,
+  collectTypes,
+  parse,
+} from "../../src/compiler/parser";
+import { compileSolidity } from "../../src/compiler/solc";
 import { defaultConfig } from "../fixtures";
 
 function compileTS(source: string): {

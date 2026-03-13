@@ -1,13 +1,14 @@
 import path from "path";
-import type { SkittlesConfig, BuildArtifact } from "../types/index.ts";
+
+import type { BuildArtifact, SkittlesConfig } from "../types/index.ts";
 import { logInfo } from "../utils/console.ts";
-import { loadCache, createNewCache, updateCache } from "./phases/cache.ts";
-import type { PreScanState } from "./phases/prescan.ts";
-import { discoverFiles } from "./phases/discover.ts";
-import { resolveCompilationOrder } from "./phases/resolve-order.ts";
-import { parseContracts } from "./phases/parse-phase.ts";
 import { analyzeContracts } from "./phases/analyze.ts";
+import { createNewCache, loadCache, updateCache } from "./phases/cache.ts";
+import { discoverFiles } from "./phases/discover.ts";
 import { generateOutput } from "./phases/generate.ts";
+import { parseContracts } from "./phases/parse-phase.ts";
+import type { PreScanState } from "./phases/prescan.ts";
+import { resolveCompilationOrder } from "./phases/resolve-order.ts";
 
 export interface CompilationResult {
   success: boolean;

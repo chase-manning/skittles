@@ -1,8 +1,9 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { CACHE_HASH_LENGTH, CACHE_VERSION } from "../constants.ts";
+
 import { getPackageVersion } from "../../utils/package.ts";
+import { CACHE_HASH_LENGTH, CACHE_VERSION } from "../constants.ts";
 
 const PACKAGE_VERSION: string = getPackageVersion();
 

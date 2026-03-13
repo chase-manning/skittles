@@ -1,8 +1,9 @@
 import path from "path";
-import { removeDirectory } from "../utils/file.ts";
-import { logSuccess, logInfo, logError } from "../utils/console.ts";
-import { getErrorMessage } from "../utils/error.ts";
+
 import { loadConfig } from "../config/config.ts";
+import { logError, logInfo, logSuccess } from "../utils/console.ts";
+import { getErrorMessage } from "../utils/error.ts";
+import { removeDirectory } from "../utils/file.ts";
 
 export async function cleanCommand(projectRoot: string): Promise<void> {
   try {
