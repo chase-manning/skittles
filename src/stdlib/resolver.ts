@@ -89,8 +89,18 @@ export function resolveStdlibFiles(referencedClasses: Set<string>): string[] {
     for (const match of source.matchAll(/from\s+["'](\.[^"']+)["']/g)) {
       const importPath = match[1];
       const resolved = path.resolve(path.dirname(entry.filePath), importPath);
-      if (resolved.startsWith(STDLIB_CONTRACTS_DIR) && !needed.has(resolved)) {
-        needed.add(resolved);
+      // Try the literal resolved path first, then fall back to appending .ts
+      // for extensionless imports (e.g. `from "./ERC20"` → `./ERC20.ts`).
+      const candidates = [resolved, resolved + ".ts"];
+      for (const candidate of candidates) {
+        if (
+          candidate.startsWith(STDLIB_CONTRACTS_DIR) &&
+          !needed.has(candidate) &&
+          fs.existsSync(candidate)
+        ) {
+          needed.add(candidate);
+          break;
+        }
       }
     }
   }
