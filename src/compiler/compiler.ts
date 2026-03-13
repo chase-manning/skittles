@@ -18,6 +18,7 @@ import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { findExtendsReferences } from "../utils/regex.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
 import { getErrorMessage } from "../utils/error.ts";
+import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import {
   parse,
   collectTypes,
@@ -809,7 +810,7 @@ function generateOutput(
 
       if (!rawSolidity) continue;
 
-      const formatting = config.formatting;
+      const formatting = config.formatting ?? DEFAULT_CONFIG.formatting;
       const solidity = formatSolidity(
         rawSolidity,
         formatting as Required<FormattingConfig>
