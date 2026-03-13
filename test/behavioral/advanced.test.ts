@@ -175,7 +175,7 @@ let env: TestEnv;
 
 beforeAll(async () => {
   env = await createTestEnv();
-}, 30000);
+}, 30_000);
 
 afterAll(async () => {
   await env.server.close();

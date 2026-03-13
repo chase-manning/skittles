@@ -10,8 +10,13 @@ import {
 import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
-
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+import {
+  ZERO_ADDRESS,
+  INITIAL_SUPPLY,
+  MINTER_ROLE,
+  DEFAULT_ADMIN_ROLE,
+  BEHAVIORAL_TIMEOUT,
+} from "../constants";
 
 function readStdlib(name: string): string {
   const subdirs: Record<string, string> = {
@@ -46,8 +51,6 @@ describe("stdlib ERC20", () => {
   let deployerAddr: string;
   let aliceAddr: string;
   let bobAddr: string;
-
-  const INITIAL_SUPPLY = 1_000_000n;
 
   const ERC20_BASE = readStdlib("ERC20");
 
@@ -87,7 +90,7 @@ class MyToken extends ERC20 {
     token = await compileAndDeploy(env, TOKEN_SOURCE, "MyToken", [
       INITIAL_SUPPLY,
     ]);
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();
@@ -271,7 +274,7 @@ class OwnableToken extends Ownable {
     deployerAddr = await deployer.getAddress();
     aliceAddr = await alice.getAddress();
     contract = await compileAndDeploy(env, OWNABLE_SOURCE, "OwnableToken");
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();
@@ -340,12 +343,6 @@ describe("stdlib AccessControl", () => {
 
   const AC_BASE = readStdlib("AccessControl");
 
-  // keccak256("MINTER_ROLE")
-  const MINTER_ROLE =
-    "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6";
-  const DEFAULT_ADMIN_ROLE =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
-
   const AC_SOURCE = `
 ${AC_BASE}
 
@@ -374,7 +371,7 @@ class RoleToken extends AccessControl {
     aliceAddr = await alice.getAddress();
     bobAddr = await bob.getAddress();
     contract = await compileAndDeploy(env, AC_SOURCE, "RoleToken");
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();
@@ -509,7 +506,7 @@ class MyNFT extends ERC721 {
     aliceAddr = await alice.getAddress();
     bobAddr = await bob.getAddress();
     nft = await compileAndDeploy(env, NFT_SOURCE, "MyNFT");
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();
@@ -658,7 +655,7 @@ class PausableVault extends Pausable {
     env = await createTestEnv();
     deployer = env.accounts[0];
     contract = await compileAndDeploy(env, PAUSABLE_SOURCE, "PausableVault");
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();
@@ -733,7 +730,7 @@ class GuardedVault extends ReentrancyGuard {
   beforeAll(async () => {
     env = await createTestEnv();
     contract = await compileAndDeploy(env, GUARD_SOURCE, "GuardedVault");
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();
@@ -760,8 +757,6 @@ describe("stdlib ERC20Permit", () => {
   let alice: ethers.Signer;
   let deployerAddr: string;
   let aliceAddr: string;
-
-  const INITIAL_SUPPLY = 1_000_000n;
 
   const ERC20_BASE = readStdlib("ERC20");
   const PERMIT_BASE = readStdlib("ERC20Permit");
@@ -935,8 +930,6 @@ describe("stdlib ERC20Votes", () => {
   let aliceAddr: string;
   let bobAddr: string;
 
-  const INITIAL_SUPPLY = 1_000_000n;
-
   const ERC20_BASE = readStdlib("ERC20");
   const VOTES_BASE = readStdlib("ERC20Votes");
 
@@ -1055,7 +1048,7 @@ describe("stdlib compiler integration", () => {
 
   beforeAll(async () => {
     env = await createTestEnv();
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env?.server.close();

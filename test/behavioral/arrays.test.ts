@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { type TestEnv, createTestEnv, compileAndDeploy } from "./helpers";
+import { MAX_UINT256, BEHAVIORAL_TIMEOUT } from "../constants";
 
 describe("Array Methods (behavioral)", () => {
   let env: TestEnv;
 
   beforeAll(async () => {
     env = await createTestEnv();
-  }, 30_000);
+  }, BEHAVIORAL_TIMEOUT);
 
   afterAll(async () => {
     await env.server.close();
@@ -111,7 +112,6 @@ describe("Array Methods (behavioral)", () => {
     expect(await contract.findItem(200)).toBe(1n);
     // Not found returns type(uint256).max
     const notFound = await contract.findItem(999);
-    const MAX_UINT256 = (1n << 256n) - 1n;
     expect(notFound).toBe(MAX_UINT256);
   });
 
@@ -434,7 +434,6 @@ describe("Array Methods (behavioral)", () => {
     await (await contract.addValue(5)).wait();
     await (await contract.addValue(15)).wait();
     const result = await contract.findLargeIndex();
-    const MAX_UINT256 = (1n << 256n) - 1n;
     expect(result).toBe(MAX_UINT256);
   });
 

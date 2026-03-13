@@ -84,7 +84,7 @@ let contract: DeployedContract;
 beforeAll(async () => {
   env = await createTestEnv();
   contract = await compileAndDeploy(env, SOURCE, "ControlFlow");
-}, 30000);
+}, 30_000);
 
 afterAll(async () => {
   await env.server.close();
