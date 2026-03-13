@@ -47,6 +47,22 @@ export type SkittlesError<
  */
 export type Indexed<T> = T;
 
+/**
+ * Wrapper type to mark an interface method return type as `view`.
+ * View methods only read state and do not modify it. When called via
+ * ethers.js, view functions return the value directly instead of a
+ * transaction response.
+ *
+ * Usage:
+ * ```typescript
+ * interface IToken {
+ *   balanceOf(account: address): View<number>;
+ *   transfer(to: address, amount: number): boolean;
+ * }
+ * ```
+ */
+export type View<T> = T;
+
 // Compiler API (parser + codegen)
 export {
   parse,

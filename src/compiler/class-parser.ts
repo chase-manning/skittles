@@ -10,6 +10,7 @@ import {
   type SkittlesType,
   type SkittlesContractInterface,
   type SkittlesInterfaceFunction,
+  type StateMutability,
   type Statement,
   type Expression,
   type NatSpec,
@@ -172,10 +173,26 @@ export function parseInterfaceAsContractInterface(
     ) {
       const methodName = member.name.text;
       const parameters = member.parameters.map(parseParameter);
-      const returnType: SkittlesType | null = member.type
-        ? parseType(member.type)
+
+      // Detect View<T> wrapper on return type to mark as view
+      let stateMutability: StateMutability | undefined;
+      let typeNode = member.type;
+      if (
+        typeNode &&
+        ts.isTypeReferenceNode(typeNode) &&
+        ts.isIdentifier(typeNode.typeName) &&
+        typeNode.typeName.text === "View" &&
+        typeNode.typeArguments &&
+        typeNode.typeArguments.length === 1
+      ) {
+        stateMutability = "view";
+        typeNode = typeNode.typeArguments[0];
+      }
+
+      const returnType: SkittlesType | null = typeNode
+        ? parseType(typeNode)
         : null;
-      functions.push({ name: methodName, parameters, returnType });
+      functions.push({ name: methodName, parameters, returnType, stateMutability });
     }
   }
 
