@@ -5,6 +5,7 @@ import {
   type TestEnv,
   type DeployedContract,
 } from "./helpers";
+import { BEHAVIORAL_TIMEOUT } from "../constants";
 
 const SOURCE = `
 type UserInfo = {
@@ -58,7 +59,7 @@ let contract: DeployedContract;
 beforeAll(async () => {
   env = await createTestEnv();
   contract = await compileAndDeploy(env, SIMPLE_SOURCE, "PairStore");
-}, 30_000);
+}, BEHAVIORAL_TIMEOUT);
 
 afterAll(async () => {
   await env.server.close();

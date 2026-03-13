@@ -16,6 +16,7 @@ import {
   MINTER_ROLE,
   DEFAULT_ADMIN_ROLE,
   BEHAVIORAL_TIMEOUT,
+  BEHAVIORAL_TIMEOUT_LONG,
 } from "../constants";
 
 function readStdlib(name: string): string {
@@ -783,7 +784,7 @@ class MyPermitToken extends ERC20Permit {
     token = await compileAndDeploy(env, PERMIT_SOURCE, "MyPermitToken", [
       INITIAL_SUPPLY,
     ]);
-  }, 60_000);
+  }, BEHAVIORAL_TIMEOUT_LONG);
 
   afterAll(async () => {
     await env?.server.close();
@@ -957,7 +958,7 @@ class MyVotesToken extends ERC20Votes {
     token = await compileAndDeploy(env, VOTES_SOURCE, "MyVotesToken", [
       INITIAL_SUPPLY,
     ]);
-  }, 60_000);
+  }, BEHAVIORAL_TIMEOUT_LONG);
 
   afterAll(async () => {
     await env?.server.close();
