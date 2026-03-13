@@ -526,6 +526,51 @@ describe("integration: try/catch", () => {
     const result = compileSolidity("Checker", solidity, defaultConfig);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("should infer return type from interface when no explicit type annotation", () => {
+    const source = `
+      interface IToken {
+        balanceOf(account: address): number;
+      }
+
+      class SafeReader {
+        private token: IToken;
+        private lastBalance: number = 0;
+        private failed: boolean = false;
+
+        constructor(tokenAddr: address) {
+          this.token = IToken(tokenAddr);
+        }
+
+        public getBalanceWithFallback(account: address): number {
+          try {
+            const balance = this.token.balanceOf(account);
+            this.lastBalance = balance;
+            return balance;
+          } catch (e) {
+            this.failed = true;
+            this.lastBalance = 0;
+            return 0;
+          }
+        }
+      }
+    `;
+    const contracts = parse(source, "test.ts");
+    expect(contracts).toHaveLength(1);
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain(
+      "try token.balanceOf(account) returns (uint256 balance) {"
+    );
+    expect(solidity).toContain("lastBalance = balance;");
+    expect(solidity).toContain("return balance;");
+    expect(solidity).toContain("} catch {");
+    expect(solidity).toContain("failed = true;");
+    expect(solidity).toContain("lastBalance = 0;");
+    expect(solidity).toContain("return 0;");
+
+    const result = compileSolidity("SafeReader", solidity, defaultConfig);
+    expect(result.errors).toHaveLength(0);
+  });
 });
 
 // ============================================================
