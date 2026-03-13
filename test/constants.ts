@@ -1,4 +1,4 @@
-export const ZERO_ADDRESS = "0x" + "0".repeat(40);
+export { ZERO_ADDRESS } from "../stdlib/contracts/constants.ts";
 export const MAX_UINT256 = (1n << 256n) - 1n;
 export const INITIAL_SUPPLY = 1_000_000n;
 export const BEHAVIORAL_TIMEOUT = 30_000;
