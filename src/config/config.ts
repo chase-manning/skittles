@@ -8,48 +8,28 @@ import { DEFAULT_CONFIG } from "./defaults.ts";
 
 const CONFIG_FILENAMES = ["skittles.config.json", "skittles.config.js"];
 
-function requireString(
+function validateKey(
   obj: Record<string, unknown>,
   key: string,
-  prefix?: string
+  expectedType: string,
+  configPath?: string
 ): void {
-  if (key in obj && typeof obj[key] !== "string") {
-    const label = prefix ? `${prefix}.${key}` : key;
-    throw new Error(`Config "${label}" must be a string`);
+  if (key in obj && typeof obj[key] !== expectedType) {
+    const label = configPath ? `${configPath}.${key}` : key;
+    throw new Error(`Config "${label}" must be a ${expectedType}`);
   }
 }
 
-function requireBoolean(
+function validateNested(
   obj: Record<string, unknown>,
   key: string,
-  prefix?: string
+  validator: (nested: Record<string, unknown>) => void
 ): void {
-  if (key in obj && typeof obj[key] !== "boolean") {
-    const label = prefix ? `${prefix}.${key}` : key;
-    throw new Error(`Config "${label}" must be a boolean`);
-  }
-}
-
-function requireNumber(
-  obj: Record<string, unknown>,
-  key: string,
-  prefix?: string
-): void {
-  if (key in obj && typeof obj[key] !== "number") {
-    const label = prefix ? `${prefix}.${key}` : key;
-    throw new Error(`Config "${label}" must be a number`);
-  }
-}
-
-function requireObject(
-  obj: Record<string, unknown>,
-  key: string
-): Record<string, unknown> | undefined {
-  if (!(key in obj)) return undefined;
+  if (!(key in obj)) return;
   if (typeof obj[key] !== "object" || obj[key] === null) {
     throw new Error(`Config "${key}" must be an object`);
   }
-  return obj[key] as Record<string, unknown>;
+  validator(obj[key] as Record<string, unknown>);
 }
 
 /**
@@ -62,26 +42,23 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
 
   const obj = config as Record<string, unknown>;
 
-  requireBoolean(obj, "typeCheck");
-  requireString(obj, "contractsDir");
-  requireString(obj, "outputDir");
-  requireString(obj, "cacheDir");
-  requireBoolean(obj, "consoleLog");
+  validateKey(obj, "typeCheck", "boolean");
+  validateKey(obj, "contractsDir", "string");
+  validateKey(obj, "outputDir", "string");
+  validateKey(obj, "cacheDir", "string");
+  validateKey(obj, "consoleLog", "boolean");
 
-  const opt = requireObject(obj, "optimizer");
-  if (opt) {
-    requireBoolean(opt, "enabled", "optimizer");
-    requireNumber(opt, "runs", "optimizer");
-  }
+  validateNested(obj, "optimizer", (opt) => {
+    validateKey(opt, "enabled", "boolean", "optimizer");
+    validateKey(opt, "runs", "number", "optimizer");
+  });
 
-  const sol = requireObject(obj, "solidity");
-  if (sol) {
-    requireString(sol, "version", "solidity");
-    requireString(sol, "license", "solidity");
-  }
+  validateNested(obj, "solidity", (sol) => {
+    validateKey(sol, "version", "string", "solidity");
+    validateKey(sol, "license", "string", "solidity");
+  });
 
-  const fmt = requireObject(obj, "formatting");
-  if (fmt) {
+  validateNested(obj, "formatting", (fmt) => {
     if ("indent" in fmt) {
       if (fmt.indent !== "tab" && typeof fmt.indent !== "number") {
         throw new Error(
@@ -89,7 +66,7 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
         );
       }
     }
-    requireBoolean(fmt, "bracketSpacing", "formatting");
+    validateKey(fmt, "bracketSpacing", "boolean", "formatting");
     if ("braceStyle" in fmt) {
       if (fmt.braceStyle !== "same-line" && fmt.braceStyle !== "next-line") {
         throw new Error(
@@ -97,8 +74,8 @@ function validateConfig(config: unknown): Partial<SkittlesConfig> {
         );
       }
     }
-    requireBoolean(fmt, "formatOutput", "formatting");
-  }
+    validateKey(fmt, "formatOutput", "boolean", "formatting");
+  });
 
   return config as Partial<SkittlesConfig>;
 }
