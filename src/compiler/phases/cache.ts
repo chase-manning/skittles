@@ -46,8 +46,8 @@ export function loadCache(outputDir: string): CompilationCache {
       )
         return data;
     }
-  } catch (_ignored) {
-    // Corrupt cache, start fresh
+  } catch (_err) {
+    // Intentionally ignored – corrupt cache, start fresh
   }
   return {
     version: CACHE_VERSION,
@@ -68,8 +68,8 @@ export function saveCache(outputDir: string, cache: CompilationCache): void {
 export function updateCache(cacheDir: string, newCache: CompilationCache): void {
   try {
     saveCache(cacheDir, newCache);
-  } catch (_ignored) {
-    // Non critical if cache save fails
+  } catch (_err) {
+    // Intentionally ignored – non-critical if cache save fails
   }
 }
 
