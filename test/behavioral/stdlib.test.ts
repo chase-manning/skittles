@@ -1136,4 +1136,65 @@ export class MyToken extends ERC20 {
 
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  it("compiles a user contract extending ERC20Votes with mint() not marked as view", async () => {
+    const { compile } = await import("../../src/compiler/compiler");
+    const fs = await import("fs");
+    const path = await import("path");
+    const os = await import("os");
+
+    const tmpDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "skittles-votes-mint-test-")
+    );
+    const contractsDir = path.join(tmpDir, "contracts");
+    fs.mkdirSync(contractsDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(contractsDir, "GovToken.ts"),
+      `import { address, msg } from "skittles";
+import { ERC20Votes } from "skittles/contracts";
+
+export class GovToken extends ERC20Votes {
+  private _owner: address;
+
+  constructor() {
+    super("GovToken", "GOV");
+    this._owner = msg.sender;
+    this._mint(msg.sender, 1000000);
+  }
+
+  public mint(to: address, amount: number): void {
+    if (msg.sender != this._owner) {
+      throw new Error("Not owner");
+    }
+    this._mint(to, amount);
+  }
+}
+`
+    );
+
+    const result = await compile(tmpDir, {
+      typeCheck: false,
+      consoleLog: false,
+      contractsDir: "contracts",
+      outputDir: "artifacts",
+      cacheDir: "cache",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.errors).toHaveLength(0);
+
+    const solDir = path.join(tmpDir, "artifacts", "solidity");
+    const govTokenSol = fs.readFileSync(
+      path.join(solDir, "GovToken.sol"),
+      "utf-8"
+    );
+
+    // The mint function should NOT be marked as view since it calls _mint()
+    // which modifies state (this was the bug in issue #322)
+    expect(govTokenSol).not.toMatch(/function mint\([^)]*\)\s+public\s+view/);
+    expect(govTokenSol).toMatch(/function mint\([^)]*\)\s+public\s+virtual/);
+
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 });
