@@ -5,7 +5,8 @@ import { loadConfig } from "../config/config.ts";
 import { compile } from "../compiler/compiler.ts";
 import { logSuccess, logError, logInfo } from "../utils/console.ts";
 
-const DEBOUNCE_MS = 200;
+// Debounce delay for file-watch recompilation (aligned with webapp/src/Playground.tsx)
+const DEBOUNCE_MS = 300;
 
 async function executeCompilation(
   projectRoot: string,
