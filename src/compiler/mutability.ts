@@ -12,6 +12,9 @@ import {
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import { inferType } from "./type-parser.ts";
+import { walkStatements as walkStatementsShared } from "./walker.ts";
+export { walkStatements, walkExpression } from "./walker.ts";
+export type { ASTVisitor } from "./walker.ts";
 
 /**
  * Propagate state mutability across call chains.
@@ -50,134 +53,21 @@ export function propagateStateMutability(functions: SkittlesFunction[]): void {
   }
 }
 
-/**
- * Generic AST walker. Calls onExpr for every expression and onStmt for every
- * statement in the tree. Both callbacks are optional.
- */
-export function walkStatements(
-  stmts: Statement[],
-  onExpr?: (expr: Expression) => void,
-  onStmt?: (stmt: Statement) => void
-): void {
-  function walkExpr(expr: Expression): void {
-    if (onExpr) onExpr(expr);
-    switch (expr.kind) {
-      case "binary":
-        walkExpr(expr.left);
-        walkExpr(expr.right);
-        break;
-      case "unary":
-        walkExpr(expr.operand);
-        break;
-      case "assignment":
-        walkExpr(expr.target);
-        walkExpr(expr.value);
-        break;
-      case "call":
-        walkExpr(expr.callee);
-        expr.args.forEach(walkExpr);
-        break;
-      case "property-access":
-        walkExpr(expr.object);
-        break;
-      case "element-access":
-        walkExpr(expr.object);
-        walkExpr(expr.index);
-        break;
-      case "conditional":
-        walkExpr(expr.condition);
-        walkExpr(expr.whenTrue);
-        walkExpr(expr.whenFalse);
-        break;
-      case "new":
-        expr.args.forEach(walkExpr);
-        break;
-      case "object-literal":
-        expr.properties.forEach((p) => walkExpr(p.value));
-        break;
-      case "tuple-literal":
-        expr.elements.forEach(walkExpr);
-        break;
-    }
-  }
-
-  function walkStmt(stmt: Statement): void {
-    if (onStmt) onStmt(stmt);
-    switch (stmt.kind) {
-      case "return":
-        if (stmt.value) walkExpr(stmt.value);
-        break;
-      case "variable-declaration":
-        if (stmt.initializer) walkExpr(stmt.initializer);
-        break;
-      case "tuple-destructuring":
-        walkExpr(stmt.initializer);
-        break;
-      case "expression":
-        walkExpr(stmt.expression);
-        break;
-      case "if":
-        walkExpr(stmt.condition);
-        stmt.thenBody.forEach(walkStmt);
-        stmt.elseBody?.forEach(walkStmt);
-        break;
-      case "for":
-        if (stmt.initializer) walkStmt(stmt.initializer);
-        if (stmt.condition) walkExpr(stmt.condition);
-        if (stmt.incrementor) walkExpr(stmt.incrementor);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "while":
-        walkExpr(stmt.condition);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "revert":
-        if (stmt.message) walkExpr(stmt.message);
-        if (stmt.customErrorArgs) stmt.customErrorArgs.forEach(walkExpr);
-        break;
-      case "do-while":
-        walkExpr(stmt.condition);
-        stmt.body.forEach(walkStmt);
-        break;
-      case "emit":
-        stmt.args.forEach(walkExpr);
-        break;
-      case "switch":
-        walkExpr(stmt.discriminant);
-        for (const c of stmt.cases) {
-          if (c.value) walkExpr(c.value);
-          c.body.forEach(walkStmt);
-        }
-        break;
-      case "delete":
-        walkExpr(stmt.target);
-        break;
-      case "try-catch":
-        walkExpr(stmt.call);
-        stmt.successBody.forEach(walkStmt);
-        stmt.catchBody.forEach(walkStmt);
-        break;
-      case "console-log":
-        stmt.args.forEach(walkExpr);
-        break;
-    }
-  }
-
-  stmts.forEach(walkStmt);
-}
 
 export function collectThisCalls(stmts: Statement[]): string[] {
   const names: string[] = [];
-  walkStatements(stmts, (expr) => {
-    if (
-      expr.kind === "call" &&
-      expr.callee.kind === "property-access" &&
-      expr.callee.object.kind === "identifier" &&
-      (expr.callee.object.name === "this" ||
-        expr.callee.object.name === "super")
-    ) {
-      names.push(expr.callee.property);
-    }
+  walkStatementsShared(stmts, {
+    visitExpression(expr) {
+      if (
+        expr.kind === "call" &&
+        expr.callee.kind === "property-access" &&
+        expr.callee.object.kind === "identifier" &&
+        (expr.callee.object.name === "this" ||
+          expr.callee.object.name === "super")
+      ) {
+        names.push(expr.callee.property);
+      }
+    },
   });
   return names;
 }
@@ -194,9 +84,8 @@ export function collectExternalInterfaceCalls(
   const calls: { ifaceName: string; methodName: string }[] = [];
   // Track local variable types for detecting external contract calls on locals
   const localVarTypes = new Map<string, SkittlesType>(allVarTypes);
-  walkStatements(
-    stmts,
-    (expr) => {
+  walkStatementsShared(stmts, {
+    visitExpression(expr) {
       if (expr.kind !== "call" || expr.callee.kind !== "property-access")
         return;
       const methodName = expr.callee.property;
@@ -230,7 +119,7 @@ export function collectExternalInterfaceCalls(
         }
       }
     },
-    (stmt) => {
+    visitStatement(stmt) {
       // Track local variable declarations of contract-interface types
       if (
         stmt.kind === "variable-declaration" &&
@@ -240,8 +129,8 @@ export function collectExternalInterfaceCalls(
       ) {
         localVarTypes.set(stmt.name, stmt.type);
       }
-    }
-  );
+    },
+  });
   return calls;
 }
 
@@ -517,9 +406,8 @@ export function inferStateMutability(
     combinedVarTypes.set(key, value);
   });
 
-  walkStatements(
-    body,
-    (expr) => {
+  walkStatementsShared(body, {
+    visitExpression(expr) {
       if (
         expr.kind === "call" &&
         expr.callee.kind === "property-access" &&
@@ -657,7 +545,7 @@ export function inferStateMutability(
         }
       }
     },
-    (stmt) => {
+    visitStatement(stmt) {
       if (stmt.kind === "emit") {
         writesState = true;
       }
@@ -685,8 +573,8 @@ export function inferStateMutability(
           combinedVarTypes.set(stmt.name, stmt.type);
         }
       }
-    }
-  );
+    },
+  });
 
   if (usesMsgValue) return "payable";
   if (writesState) return "nonpayable";

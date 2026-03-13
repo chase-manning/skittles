@@ -17,7 +17,6 @@ import {
   inferStateMutability,
   MUTABILITY_RANK,
   propagateMutability,
-  walkStatements,
 } from "./mutability.ts";
 import {
   parseStandaloneFunction,
