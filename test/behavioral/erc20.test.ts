@@ -289,7 +289,7 @@ describe("ERC20 behavioral tests", () => {
       ).rejects.toThrow();
     });
 
-    it("should revert when sender has insufficient balance", async () => {
+    it("reverts when sender has insufficient balance", async () => {
       // Alice has some tokens from earlier transfers, but not much
       // Give alice a big allowance from bob, but bob has limited tokens
       const bobToken = connectAs(token, bob);
@@ -303,7 +303,7 @@ describe("ERC20 behavioral tests", () => {
       ).rejects.toThrow();
     });
 
-    it("should emit Transfer event on transferFrom", async () => {
+    it("emits Transfer event on transferFrom", async () => {
       const amount = 10n;
       await (await token.contract.approve(aliceAddr, amount)).wait();
 
@@ -334,7 +334,7 @@ describe("ERC20 behavioral tests", () => {
   // ----------------------------------------------------------
 
   describe("invariants", () => {
-    it("total supply should never change from transfers", async () => {
+    it("total supply never changes from transfers", async () => {
       const supply = await token.contract.totalSupply();
       expect(supply).toBe(INITIAL_SUPPLY);
     });
