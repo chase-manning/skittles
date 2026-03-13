@@ -414,6 +414,36 @@ describe("integration: cross file enum in standalone function parameter", () => 
   });
 });
 
+describe("integration: cross file enum in type guard function parameter", () => {
+  it("should not throw when collectFunctions parses a type guard with an imported enum", () => {
+    const typesSource = `
+      enum VaultStatus { Active, Paused, Stopped }
+    `;
+    const functionSource = `
+      function isActive(s: VaultStatus): s is VaultStatus {
+        return s == 0;
+      }
+    `;
+
+    // Collect enum types from the types file first
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+
+    // Seed the parser context with the collected enums (simulating pre-scan)
+    ctx.knownEnums = new Map(enums);
+    ctx.knownStructs = new Map(structs);
+
+    // collectFunctions should not throw for the imported enum type in a type guard
+    expect(() => {
+      collectFunctions(functionSource, "utils.ts");
+    }).not.toThrow();
+
+    const { functions } = collectFunctions(functionSource, "utils.ts");
+    expect(functions).toHaveLength(1);
+    expect(functions[0].name).toBe("isActive");
+    expect(functions[0].returnType).toEqual({ kind: "bool" });
+  });
+});
+
 // ============================================================
 // Cross file constant imports
 // ============================================================
