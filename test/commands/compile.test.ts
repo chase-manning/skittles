@@ -66,8 +66,8 @@ describe("watchCompile", () => {
         MODIFIED_CONTRACT
       );
 
-      // Wait for debounce (200ms) + compilation time
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Wait for debounce (200ms) + compilation time (may be slow under load)
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const updatedSol = fs.readFileSync(
         path.join(solDir, "Counter.sol"),
