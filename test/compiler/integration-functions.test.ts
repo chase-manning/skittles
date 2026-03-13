@@ -304,6 +304,21 @@ describe("integration: getter/setter accessors", () => {
     expect(solidity).toContain("function value(uint256 val) public virtual {");
   });
 
+  it("should rename parameter that shadows a state variable", () => {
+    const { errors, solidity } = compileTS(`
+      class StringTest {
+        public name: string = "hello";
+        public getInitial(name: string): string {
+          return name.charAt(0);
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    // The parameter "name" in getInitial(string name) shadows the state variable name.
+    expect(solidity).not.toMatch(/function getInitial\(string memory name\)/);
+    expect(solidity).toMatch(/function getInitial\(string memory _name\)/);
+  });
+
   it("should rename parameter that shadows a regular function name", () => {
     const { errors, solidity } = compileTS(`
       class Contract {

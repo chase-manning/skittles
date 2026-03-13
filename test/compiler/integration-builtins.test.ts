@@ -1202,7 +1202,7 @@ describe("integration: template literals", () => {
     `);
     expect(errors).toHaveLength(0);
     expect(solidity).not.toContain("__sk_toString");
-    expect(solidity).toContain('string.concat("Value: ", count)');
+    expect(solidity).toContain('string.concat("Value: ", _count)');
   });
 
   it("should convert ternary expression in template literals", () => {

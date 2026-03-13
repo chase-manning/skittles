@@ -489,7 +489,7 @@ function generateContractFunctions(
   for (let i = 0; i < expandedFunctions.length; i++) {
     let f = expandedFunctions[i];
 
-    // Rename parameters that shadow sibling function names.
+    // Rename parameters that shadow sibling function names or state variables.
     const paramRenames = new Map<string, string>();
     const taken = new Set([
       ...stateVarNames,
@@ -498,7 +498,10 @@ function generateContractFunctions(
       ...collectLocalVarNames(f.body),
     ]);
     for (const p of f.parameters) {
-      if (allFunctionNames.has(p.name) && p.name !== f.name) {
+      if (
+        (allFunctionNames.has(p.name) && p.name !== f.name) ||
+        stateVarNames.has(p.name)
+      ) {
         const newName = pickNewName(p.name, taken);
         paramRenames.set(p.name, newName);
         taken.add(newName);
