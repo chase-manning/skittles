@@ -378,14 +378,16 @@ export function parseClass(
   const fileFnNames = new Set(fileFunctions.map((f) => f.name));
   const usedFileFnNames = new Set<string>();
   const collectFnCalls = (stmts: Statement[]) => {
-    walkStatements(stmts, (expr) => {
-      if (
-        expr.kind === "call" &&
-        expr.callee.kind === "identifier" &&
-        fileFnNames.has(expr.callee.name)
-      ) {
-        usedFileFnNames.add(expr.callee.name);
-      }
+    walkStatements(stmts, {
+      visitExpression(expr) {
+        if (
+          expr.kind === "call" &&
+          expr.callee.kind === "identifier" &&
+          fileFnNames.has(expr.callee.name)
+        ) {
+          usedFileFnNames.add(expr.callee.name);
+        }
+      },
     });
   };
   for (const f of functions) collectFnCalls(f.body);
@@ -394,14 +396,16 @@ export function parseClass(
     if (v.initialValue) {
       walkStatements(
         [{ kind: "expression", expression: v.initialValue }],
-        (expr) => {
-          if (
-            expr.kind === "call" &&
-            expr.callee.kind === "identifier" &&
-            fileFnNames.has(expr.callee.name)
-          ) {
-            usedFileFnNames.add(expr.callee.name);
-          }
+        {
+          visitExpression(expr) {
+            if (
+              expr.kind === "call" &&
+              expr.callee.kind === "identifier" &&
+              fileFnNames.has(expr.callee.name)
+            ) {
+              usedFileFnNames.add(expr.callee.name);
+            }
+          },
         }
       );
     }
@@ -412,16 +416,18 @@ export function parseClass(
     fnChanged = false;
     for (const fn of fileFunctions) {
       if (!usedFileFnNames.has(fn.name)) continue;
-      walkStatements(fn.body, (expr) => {
-        if (
-          expr.kind === "call" &&
-          expr.callee.kind === "identifier" &&
-          fileFnNames.has(expr.callee.name) &&
-          !usedFileFnNames.has(expr.callee.name)
-        ) {
-          usedFileFnNames.add(expr.callee.name);
-          fnChanged = true;
-        }
+      walkStatements(fn.body, {
+        visitExpression(expr) {
+          if (
+            expr.kind === "call" &&
+            expr.callee.kind === "identifier" &&
+            fileFnNames.has(expr.callee.name) &&
+            !usedFileFnNames.has(expr.callee.name)
+          ) {
+            usedFileFnNames.add(expr.callee.name);
+            fnChanged = true;
+          }
+        },
       });
     }
   }
@@ -470,9 +476,8 @@ export function parseClass(
       for (const f of type.structFields) collectTypeRef(f.type);
   };
   const collectBodyTypeRefs = (stmts: Statement[]) => {
-    walkStatements(
-      stmts,
-      (expr) => {
+    walkStatements(stmts, {
+      visitExpression(expr) {
         // Enum member access: Color.Red
         if (
           expr.kind === "property-access" &&
@@ -486,13 +491,13 @@ export function parseClass(
           for (const t of expr.typeArgs) collectTypeRef(t);
         }
       },
-      (stmt) => {
+      visitStatement(stmt) {
         if (stmt.kind === "variable-declaration" && stmt.type)
           collectTypeRef(stmt.type);
         if (stmt.kind === "try-catch" && stmt.returnType)
           collectTypeRef(stmt.returnType);
-      }
-    );
+      },
+    });
   };
   for (const v of variables) {
     collectTypeRef(v.type);
