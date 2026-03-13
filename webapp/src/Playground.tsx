@@ -121,21 +121,9 @@ function getInitialSource(): string {
   return EXAMPLES[DEFAULT_EXAMPLE];
 }
 
-function SolLine({ line }: { line: string }) {
+function CodeLine({ line, lang }: { line: string; lang: 'ts' | 'sol' }) {
   if (!line.trim()) return <div className="pg-code-line">{"\u00A0"}</div>;
-  const tokens = highlightSol(line);
-  return (
-    <div className="pg-code-line">
-      {tokens.map((t, i) => (
-        <span key={`${i}-${t.type}`} className={`tok-${t.type}`}>{t.text}</span>
-      ))}
-    </div>
-  );
-}
-
-function TSLine({ line }: { line: string }) {
-  if (!line.trim()) return <div className="pg-code-line">{"\u00A0"}</div>;
-  const tokens = highlightTS(line);
+  const tokens = lang === 'ts' ? highlightTS(line) : highlightSol(line);
   return (
     <div className="pg-code-line">
       {tokens.map((t, i) => (
@@ -272,7 +260,7 @@ export default function Playground() {
               aria-hidden="true"
             >
               {source.split("\n").map((line, i) => (
-                <TSLine key={`${i}-${line}`} line={line} />
+                <CodeLine key={`${i}-${line}`} line={line} lang="ts" />
               ))}
             </pre>
             <textarea
@@ -321,7 +309,7 @@ export default function Playground() {
             {error ? (
               <div className="pg-error">{error}</div>
             ) : (
-              solLines.map((line, i) => <SolLine key={`${i}-${line}`} line={line} />)
+              solLines.map((line, i) => <CodeLine key={`${i}-${line}`} line={line} lang="sol" />)
             )}
           </div>
         </div>
