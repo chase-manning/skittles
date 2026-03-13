@@ -317,6 +317,7 @@ describe("integration: built-in functions", () => {
     expect(solidity).toContain(
       "function _sqrt(uint256 x) internal pure returns (uint256)"
     );
+    expect(solidity).toContain("uint256 z = (x + 1) / 2;");
   });
 
   it("should wrap ecrecover v argument in uint8() cast", () => {
