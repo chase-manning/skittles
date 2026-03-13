@@ -42,11 +42,15 @@ export { inferType,parseType } from "./type-parser.ts";
  * Scan a source file for struct (type alias with type literal) and enum declarations,
  * populating the provided maps in-place so that parseType can resolve references
  * as they are discovered during the traversal.
+ *
+ * When `interfaceNames` is provided, interface declaration names are also collected
+ * in the same traversal, eliminating a separate AST pass.
  */
 function collectStructsAndEnums(
   sourceFile: ts.SourceFile,
   structs: Map<string, SkittlesParameter[]>,
-  enums: Map<string, string[]>
+  enums: Map<string, string[]>,
+  interfaceNames?: Set<string>
 ): void {
   ts.forEachChild(sourceFile, (node) => {
     if (
@@ -59,6 +63,9 @@ function collectStructsAndEnums(
     if (ts.isEnumDeclaration(node) && node.name) {
       const members = node.members.map((m) => getEnumMemberName(m));
       enums.set(node.name.text, members);
+    }
+    if (interfaceNames && ts.isInterfaceDeclaration(node) && node.name) {
+      interfaceNames.add(node.name.text);
     }
   });
 }
@@ -90,18 +97,15 @@ export function collectTypes(
   ctx.knownContractInterfaces = new Set();
   ctx.knownContractInterfaceMap = new Map();
 
-  // Pass 1: collect structs and enums first so parseType can resolve forward references
-  collectStructsAndEnums(sourceFile, structs, enums);
+  // ── Pass dependencies for collectTypes ──
+  // Pass 1: structs, enums, interface names (no dependencies; collected together)
+  // Pass 2: parse interfaces (depends on Pass 1: needs structs/enums for parseType,
+  //          needs interface names for forward references between interfaces)
 
-  // Pass 2: pre-scan interface names so parseType can resolve forward references
-  // between interfaces (e.g. an interface method that returns another interface type)
-  ts.forEachChild(sourceFile, (node) => {
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      ctx.knownContractInterfaces.add(node.name.text);
-    }
-  });
+  // Pass 1: collect structs, enums, and interface names in a single traversal
+  collectStructsAndEnums(sourceFile, structs, enums, ctx.knownContractInterfaces);
 
-  // Pass 3: parse interfaces (which may reference structs/enums/other interfaces via parseType)
+  // Pass 2: parse interfaces (which may reference structs/enums/other interfaces via parseType)
   ts.forEachChild(sourceFile, (node) => {
     if (ts.isInterfaceDeclaration(node) && node.name) {
       const iface = parseInterfaceAsContractInterface(node);
@@ -170,37 +174,23 @@ export function parse(
     }
   }
 
-  // First pass: collect structs and enums so they are available when parsing interfaces
-  collectStructsAndEnums(sourceFile, structs, enums);
+  // ── Pass dependencies for parse() ──
+  // Pass 1: structs, enums, interface names (no dependencies; collected together)
+  // Pass 2: parse interfaces + collect constants + collect function/class nodes
+  //          (interfaces depend on Pass 1 for type resolution;
+  //           constants and node collection have no dependencies)
+  // Between passes: set ctx.fileConstants, then process collected function nodes
+  // Pass 3: parse classes (depends on all above: types, interfaces, constants, functions)
+
+  // Pass 1: collect structs, enums, and interface names in a single traversal
+  ctx.knownContractInterfaces = new Set(contractInterfaces.keys());
+  collectStructsAndEnums(sourceFile, structs, enums, ctx.knownContractInterfaces);
 
   ctx.knownStructs = structs;
   ctx.knownEnums = new Map(enums);
-
-  // Second pass: pre-scan interface names so parseType can resolve forward references
-  // between interfaces. External interface names are already in contractInterfaces (seeded above);
-  // this also adds locally declared interface names from the source file.
-  ctx.knownContractInterfaces = new Set(contractInterfaces.keys());
-  ts.forEachChild(sourceFile, (node) => {
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      ctx.knownContractInterfaces.add(node.name.text);
-    }
-  });
   ctx.knownContractInterfaceMap = new Map(contractInterfaces);
-
-  // Third pass: parse interfaces (may reference struct/enum types and other interfaces)
-  ts.forEachChild(sourceFile, (node) => {
-    if (ts.isInterfaceDeclaration(node) && node.name) {
-      const iface = parseInterfaceAsContractInterface(node);
-      contractInterfaces.set(node.name.text, iface);
-    }
-  });
 
   const customErrors: Map<string, SkittlesParameter[]> = new Map();
-
-  ctx.knownContractInterfaces = new Set(contractInterfaces.keys());
-  ctx.knownContractInterfaceMap = new Map(contractInterfaces);
-  ctx.knownCustomErrors = new Set();
-  ctx.fileConstants = new Map();
 
   // Collect file level constants (const declarations outside classes)
   const fileConstants: Map<string, Expression> = new Map();
@@ -220,71 +210,94 @@ export function parse(
   const emptyVarTypes = new Map<string, SkittlesType>();
   const emptyEventNames = new Set<string>();
 
-  // First pass: collect file level constants so parseExpression can inline them
-  // when parsing standalone functions in the second pass
+  // Pass 2: parse interfaces, collect constants, and collect function/class nodes
+  // in a single traversal. Interfaces are parsed immediately (they depend on Pass 1
+  // types only). Constants and function/class nodes are collected for processing
+  // after the traversal.
+  const collectedFunctionDecls: ts.FunctionDeclaration[] = [];
+  const collectedArrowFuncDecls: ts.VariableDeclaration[] = [];
+  const collectedClassDecls: ts.ClassDeclaration[] = [];
+
+  // Reset context registries before Pass 2 so parseExpression doesn't see
+  // stale constants/errors from a previously parsed file.
+  ctx.fileConstants = new Map();
+  ctx.knownCustomErrors = new Set();
+
   ts.forEachChild(sourceFile, (node) => {
+    // Parse interfaces (depends on structs/enums from Pass 1)
+    if (ts.isInterfaceDeclaration(node) && node.name) {
+      const iface = parseInterfaceAsContractInterface(node);
+      contractInterfaces.set(node.name.text, iface);
+    }
+
+    // Collect file-level constants and function/arrow-function nodes
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (
-          ts.isIdentifier(decl.name) &&
-          decl.initializer &&
-          !ts.isArrowFunction(decl.initializer)
-        ) {
-          fileConstants.set(decl.name.text, parseExpression(decl.initializer));
+        if (ts.isIdentifier(decl.name) && decl.initializer) {
+          if (ts.isArrowFunction(decl.initializer)) {
+            collectedArrowFuncDecls.push(decl);
+          } else {
+            fileConstants.set(
+              decl.name.text,
+              parseExpression(decl.initializer)
+            );
+          }
         }
       }
     }
+
+    // Collect function declarations
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      collectedFunctionDecls.push(node);
+    }
+
+    // Collect class declarations
+    if (ts.isClassDeclaration(node) && node.name) {
+      collectedClassDecls.push(node);
+    }
   });
+
+  // Update context registries after Pass 2
+  ctx.knownContractInterfaces = new Set(contractInterfaces.keys());
+  ctx.knownContractInterfaceMap = new Map(contractInterfaces);
+  ctx.knownCustomErrors = new Set();
 
   // Set module level constant registry so parseExpression can inline them
   ctx.fileConstants = fileConstants;
 
-  // Second pass: collect file level standalone functions (with access to constants)
-  ts.forEachChild(sourceFile, (node) => {
-    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      fileFunctions.push(
-        parseStandaloneFunction(node, emptyVarTypes, emptyEventNames)
+  // Process collected function nodes (depends on fileConstants being set)
+  for (const node of collectedFunctionDecls) {
+    fileFunctions.push(
+      parseStandaloneFunction(node, emptyVarTypes, emptyEventNames)
+    );
+  }
+  for (const decl of collectedArrowFuncDecls) {
+    fileFunctions.push(
+      parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames)
+    );
+  }
+
+  // Pass 3: parse classes (depends on types, interfaces, constants, and functions)
+  for (const node of collectedClassDecls) {
+    if (extendsError(node)) {
+      const params = parseErrorClass(node);
+      customErrors.set(node.name!.text, params);
+      ctx.knownCustomErrors.add(node.name!.text);
+    } else {
+      contracts.push(
+        parseClass(
+          node,
+          filePath,
+          structs,
+          enums,
+          contractInterfaces,
+          customErrors,
+          fileFunctions,
+          fileConstants
+        )
       );
     }
-
-    if (ts.isVariableStatement(node)) {
-      for (const decl of node.declarationList.declarations) {
-        if (
-          ts.isIdentifier(decl.name) &&
-          decl.initializer &&
-          ts.isArrowFunction(decl.initializer)
-        ) {
-          fileFunctions.push(
-            parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames)
-          );
-        }
-      }
-    }
-  });
-
-  // Third: parse classes (with access to file constants and functions)
-  ts.forEachChild(sourceFile, (node) => {
-    if (ts.isClassDeclaration(node) && node.name) {
-      if (extendsError(node)) {
-        const params = parseErrorClass(node);
-        customErrors.set(node.name.text, params);
-        ctx.knownCustomErrors.add(node.name.text);
-      } else {
-        contracts.push(
-          parseClass(
-            node,
-            filePath,
-            structs,
-            enums,
-            contractInterfaces,
-            customErrors,
-            fileFunctions,
-            fileConstants
-          )
-        );
-      }
-    }
-  });
+  }
 
   // Post-process: infer overrides for abstract method implementations
   const abstractMethodsByContract = new Map<string, Set<string>>();
@@ -427,17 +440,29 @@ export function collectFunctions(
     collectStructsAndEnums(sourceFile, localStructs, localEnums);
   }
 
-  // First pass: collect file level constants so parseExpression can inline them
-  // when parsing standalone functions in the second pass
+  // ── Pass dependencies for collectFunctions ──
+  // Single pass: collect constants + collect function/arrow-function nodes
+  //              (no dependencies between them during collection)
+  // After pass: set ctx.fileConstants, then process collected function nodes
+  //             (function parsing depends on constants for expression inlining)
+
+  // Single pass: collect constants and function/arrow-function nodes together
+  const collectedFunctionDecls: ts.FunctionDeclaration[] = [];
+  const collectedArrowFuncDecls: ts.VariableDeclaration[] = [];
+
   ts.forEachChild(sourceFile, (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      collectedFunctionDecls.push(node);
+    }
+
     if (ts.isVariableStatement(node)) {
       for (const decl of node.declarationList.declarations) {
-        if (
-          ts.isIdentifier(decl.name) &&
-          decl.initializer &&
-          !ts.isArrowFunction(decl.initializer)
-        ) {
-          constants.set(decl.name.text, parseExpression(decl.initializer));
+        if (ts.isIdentifier(decl.name) && decl.initializer) {
+          if (ts.isArrowFunction(decl.initializer)) {
+            collectedArrowFuncDecls.push(decl);
+          } else {
+            constants.set(decl.name.text, parseExpression(decl.initializer));
+          }
         }
       }
     }
@@ -446,28 +471,17 @@ export function collectFunctions(
   // Set module level constant registry so parseExpression can inline them
   ctx.fileConstants = constants;
 
-  // Second pass: collect file level standalone functions (with access to constants)
-  ts.forEachChild(sourceFile, (node) => {
-    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-      functions.push(
-        parseStandaloneFunction(node, emptyVarTypes, emptyEventNames)
-      );
-    }
-
-    if (ts.isVariableStatement(node)) {
-      for (const decl of node.declarationList.declarations) {
-        if (
-          ts.isIdentifier(decl.name) &&
-          decl.initializer &&
-          ts.isArrowFunction(decl.initializer)
-        ) {
-          functions.push(
-            parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames)
-          );
-        }
-      }
-    }
-  });
+  // Process collected function nodes (depends on fileConstants being set)
+  for (const node of collectedFunctionDecls) {
+    functions.push(
+      parseStandaloneFunction(node, emptyVarTypes, emptyEventNames)
+    );
+  }
+  for (const decl of collectedArrowFuncDecls) {
+    functions.push(
+      parseStandaloneArrowFunction(decl, emptyVarTypes, emptyEventNames)
+    );
+  }
 
   ctx.knownStructs = prevStructs;
   ctx.knownEnums = prevEnums;
