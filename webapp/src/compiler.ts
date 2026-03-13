@@ -1,4 +1,4 @@
-import { parse, collectTypes, collectFunctions, generateSolidity, generateSolidityFile } from "skittles";
+import { parse, collectTypes, collectFunctions, generateSolidity, generateSolidityFile, getErrorMessage } from "skittles";
 
 export interface CompileResult {
   solidity: string;
@@ -29,7 +29,7 @@ export function compileSource(source: string): CompileResult {
 
     return { solidity, error: null };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown compilation error";
+    const message = getErrorMessage(err, "Unknown compilation error");
     return { solidity: "", error: message };
   }
 }

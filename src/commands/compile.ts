@@ -4,6 +4,7 @@ import ora from "ora";
 import { loadConfig } from "../config/config.ts";
 import { compile } from "../compiler/compiler.ts";
 import { logSuccess, logError, logInfo } from "../utils/console.ts";
+import { getErrorMessage } from "../utils/error.ts";
 
 // Debounce delay for file-watch recompilation (aligned with webapp/src/Playground.tsx)
 const DEBOUNCE_MS = 300;
@@ -48,8 +49,7 @@ async function executeCompilation(
     }
   } catch (err) {
     spinner.fail("Compilation failed");
-    const message =
-      err instanceof Error ? err.message : "Unknown error occurred";
+    const message = getErrorMessage(err);
     logError(message);
     if (options?.exitOnError) {
       process.exit(1);

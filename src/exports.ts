@@ -72,6 +72,9 @@ export {
 } from "./compiler/parser.ts";
 export { generateSolidity, generateSolidityFile } from "./compiler/codegen.ts";
 
+// Utility functions
+export { getErrorMessage } from "./utils/error.ts";
+
 // Contract IR types (for advanced users / plugins)
 export type {
   SkittlesContract,

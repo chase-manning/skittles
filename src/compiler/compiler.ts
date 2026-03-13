@@ -17,6 +17,7 @@ import type {
 import { findTypeScriptFiles, readFile, writeFile } from "../utils/file.ts";
 import { findExtendsReferences } from "../utils/regex.ts";
 import { logInfo, logSuccess, logError, logWarning } from "../utils/console.ts";
+import { getErrorMessage } from "../utils/error.ts";
 import {
   parse,
   collectTypes,
@@ -256,7 +257,7 @@ function preScanContracts(
     } catch (err) {
       // Pre-scan failed; will be re-reported during full compilation
       logWarning(
-        `Pre-scan failed for ${filePath}: ${err instanceof Error ? err.message : String(err)}`
+        `Pre-scan failed for ${filePath}: ${getErrorMessage(err, String(err))}`
       );
     }
   }
@@ -474,8 +475,7 @@ function parseContracts(
         contracts,
       });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error occurred";
+      const message = getErrorMessage(err);
       errors.push(`${relativePath}: ${message}`);
       failedFiles.add(relativePath);
       logError(`${relativePath}: ${message}`);
@@ -858,8 +858,7 @@ function generateOutput(
 
       newCache.files[relativePath] = cacheEntry;
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error occurred";
+      const message = getErrorMessage(err);
       errors.push(`${relativePath}: ${message}`);
       failedFiles.add(relativePath);
       logError(`${relativePath}: ${message}`);
