@@ -3,6 +3,7 @@ import fs from "fs";
 import { execSync } from "child_process";
 import { writeFile, ensureDirectory } from "../utils/file.ts";
 import { logSuccess, logError, logInfo, logWarning } from "../utils/console.ts";
+import { getErrorMessage } from "../utils/error.ts";
 
 const CONFIG_TEMPLATE = JSON.stringify(
   {
@@ -248,7 +249,7 @@ function initPackageJson(projectRoot: string): void {
         logSuccess("Updated package.json");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = getErrorMessage(err);
       logWarning(
         `Could not update existing package.json (${message}), creating a new one`
       );
@@ -355,7 +356,7 @@ function installDependencies(
       });
       logSuccess("Dependencies installed");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+      const message = getErrorMessage(err);
       logError(`Failed to install dependencies: ${message}`);
       logInfo(`  You can install manually by running: ${pm} install`);
     }

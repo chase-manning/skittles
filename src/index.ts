@@ -9,6 +9,7 @@ import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { cleanCommand } from "./commands/clean.ts";
 import { initCommand } from "./commands/init.ts";
 import { printLogo, logError } from "./utils/console.ts";
+import { getErrorMessage } from "./utils/error.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let packageVersion: string;
@@ -17,8 +18,7 @@ try {
     fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8")
   ).version;
 } catch (err) {
-  const message =
-    err instanceof Error ? err.message : "Unknown error occurred";
+  const message = getErrorMessage(err);
   logError(`Failed to read package.json: ${message}`);
   process.exit(1);
 }
