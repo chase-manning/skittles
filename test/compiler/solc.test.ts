@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compileSolidity } from "../../src/compiler/solc";
+import { compileSolidity, compileSolidityBatch } from "../../src/compiler/solc";
 import type { SkittlesConfig } from "../../src/types";
 import { defaultConfig } from "../fixtures";
 
