@@ -144,6 +144,9 @@ export function inferAbstractStateMutability(): StateMutability {
  *
  * Example:  `this.token.name`  →  `this.token.name()`
  *
+ * Also converts property accesses on parent getter methods into calls:
+ * Example:  `this.name` (where name is a parent method, not a state var)  →  `this.name()`
+ *
  * This ensures codegen emits the required `()` in Solidity (interface
  * property getters are functions) and that mutability inference recognises
  * these as external contract calls.
@@ -199,6 +202,27 @@ export function rewriteInterfacePropertyGetters(
     return false;
   }
 
+  /**
+   * Detect `this.<prop>` where `<prop>` is NOT a state variable of the
+   * current contract or any parent contract.  In Solidity, such a name
+   * resolves to a function reference; the caller must append `()` to
+   * invoke it and obtain the return value.
+   */
+  function isParentGetterAccess(expr: Expression): boolean {
+    if (expr.kind !== "property-access") return false;
+    if (expr.object.kind !== "identifier" || expr.object.name !== "this")
+      return false;
+    // Current contract's own state variable – direct access is fine.
+    if (ctx.stateVarTypes.has(expr.property)) return false;
+    // Parent's inherited state variable – direct access is fine.
+    if (ctx.parentStateVarNames.has(expr.property)) return false;
+    // Only apply when the contract has parents; otherwise there is no
+    // inherited getter to call.
+    if (ctx.parentStateVarNames.size === 0 && ctx.contractParentNames.size === 0)
+      return false;
+    return true;
+  }
+
   function transformExpr(expr: Expression, isCallCallee: boolean): Expression {
     switch (expr.kind) {
       case "call": {
@@ -222,6 +246,12 @@ export function rewriteInterfacePropertyGetters(
           object: transformExpr(expr.object, false),
         };
         if (!isCallCallee && isInterfacePropAccess(newExpr)) {
+          return { kind: "call", callee: newExpr, args: [] } as Expression;
+        }
+        // Convert `this.<parentGetter>` to `this.<parentGetter>()` when
+        // the property is not a state variable (i.e. it is an inherited
+        // getter/method that must be called to obtain its return value).
+        if (!isCallCallee && isParentGetterAccess(newExpr)) {
           return { kind: "call", callee: newExpr, args: [] } as Expression;
         }
         return newExpr;

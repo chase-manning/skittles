@@ -36,6 +36,18 @@ export interface ParserContext {
 
   // Counter for generating unique struct destructuring temp variable names
   destructureCounter: number;
+
+  // Registry of state variable names per contract (populated during pre-scan).
+  // Used for resolving `this.<prop>` across inheritance chains so that
+  // property accesses on parent getter methods emit the required `()`.
+  contractStateVarNames: Map<string, Set<string>>;
+
+  // Registry of parent class names per contract (populated during pre-scan).
+  contractParentNames: Map<string, string[]>;
+
+  // Set of state variable names inherited from parent contracts.
+  // Set per-class during parsing; used by the getter rewrite pass.
+  parentStateVarNames: Set<string>;
 }
 
 export function createParserContext(): ParserContext {
@@ -56,6 +68,9 @@ export function createParserContext(): ParserContext {
     neededArrayHelpers: new Set(),
     currentParamTypes: new Map(),
     destructureCounter: 0,
+    contractStateVarNames: new Map(),
+    contractParentNames: new Map(),
+    parentStateVarNames: new Set(),
   };
 }
 

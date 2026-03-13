@@ -295,6 +295,31 @@ export function parseClass(
   // Snapshot the state-variable-only map before any initializers/locals/params are parsed.
   ctx.stateVarTypes = new Map(varTypes);
 
+  // Build set of all inherited state variable names by traversing the full
+  // inheritance chain.  Used by the getter rewrite pass so that `this.<prop>`
+  // on a parent's state variable emits `prop` (direct access) while
+  // `this.<getter>` on a parent's method emits `getter()` (function call).
+  ctx.parentStateVarNames = new Set<string>();
+  {
+    const visited = new Set<string>();
+    const queue = [...inherits];
+    while (queue.length > 0) {
+      const parentName = queue.pop()!;
+      if (visited.has(parentName)) continue;
+      visited.add(parentName);
+      const parentVars = ctx.contractStateVarNames.get(parentName);
+      if (parentVars) {
+        for (const v of parentVars) ctx.parentStateVarNames.add(v);
+      }
+      const grandparents = ctx.contractParentNames.get(parentName);
+      if (grandparents) {
+        for (const gp of grandparents) {
+          if (!visited.has(gp)) queue.push(gp);
+        }
+      }
+    }
+  }
+
   // Reset string-tracking caches so that property initializers are parsed
   // with a clean, contract-appropriate scope (no stale params/locals from
   // previously parsed standalone functions).
