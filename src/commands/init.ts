@@ -3,13 +3,14 @@ import fs from "fs";
 import { execSync } from "child_process";
 import { writeFile, ensureDirectory } from "../utils/file.ts";
 import { logSuccess, logError, logInfo, logWarning } from "../utils/console.ts";
+import { DEFAULT_CONFIG } from "../config/defaults.ts";
 
 const CONFIG_TEMPLATE = JSON.stringify(
   {
-    typeCheck: true,
+    typeCheck: DEFAULT_CONFIG.typeCheck,
     consoleLog: true,
-    contractsDir: "contracts",
-    outputDir: "artifacts",
+    contractsDir: DEFAULT_CONFIG.contractsDir,
+    outputDir: DEFAULT_CONFIG.outputDir,
   },
   null,
   2
