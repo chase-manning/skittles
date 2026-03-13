@@ -135,6 +135,30 @@ describe("Token", function () {
 `;
 
 /**
+ * Shared dependency and script definitions used by both buildPackageJson
+ * and the existing package.json merge logic.
+ */
+const DEFAULT_SCRIPTS: Record<string, string> = {
+  compile: "skittles compile",
+  build: "skittles compile && hardhat build",
+  clean: "skittles clean",
+  test: "skittles compile && hardhat test",
+};
+
+const REQUIRED_DEV_DEPS: Record<string, string> = {
+  "@nomicfoundation/hardhat-ethers": "^4.0.0",
+  "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.0",
+  "@nomicfoundation/hardhat-mocha": "^3.0.0",
+  "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
+  "@nomicfoundation/hardhat-typechain": "^3.0.0",
+  chai: "^5.1.2",
+  ethers: "^6.16.0",
+  hardhat: "^3.0.0",
+  mocha: "^11.0.0",
+  "@types/mocha": "^10.0.0",
+};
+
+/**
  * Detect which package manager is in use based on lock files.
  */
 function detectPackageManager(projectRoot: string): "npm" | "yarn" | "pnpm" {
@@ -153,27 +177,11 @@ function buildPackageJson(projectName: string): string {
       version: "1.0.0",
       private: true,
       type: "module",
-      scripts: {
-        compile: "skittles compile",
-        build: "skittles compile && hardhat build",
-        clean: "skittles clean",
-        test: "skittles compile && hardhat test",
-      },
+      scripts: { ...DEFAULT_SCRIPTS },
       dependencies: {
         skittles: "latest",
       },
-      devDependencies: {
-        "@nomicfoundation/hardhat-ethers": "^4.0.0",
-        "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.0",
-        "@nomicfoundation/hardhat-mocha": "^3.0.0",
-        "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
-        "@nomicfoundation/hardhat-typechain": "^3.0.0",
-        chai: "^5.1.2",
-        ethers: "^6.16.0",
-        hardhat: "^3.0.0",
-        mocha: "^11.0.0",
-        "@types/mocha": "^10.0.0",
-      },
+      devDependencies: { ...REQUIRED_DEV_DEPS },
       engines: {
         node: ">=22.0.0",
       },
@@ -183,21 +191,31 @@ function buildPackageJson(projectName: string): string {
   );
 }
 
-export interface InitOptions {
-  install?: boolean;
+/**
+ * Write a file if it does not already exist, logging the result.
+ * If the file exists, a warning is logged. Otherwise the file is written
+ * and a success message is logged.
+ */
+function writeIfNotExists(
+  filePath: string,
+  content: string,
+  description: string
+): void {
+  if (fs.existsSync(filePath)) {
+    logWarning(`${description} already exists, skipping`);
+  } else {
+    writeFile(filePath, content);
+    logSuccess(`Created ${description}`);
+  }
 }
 
-export async function initCommand(
-  projectRoot: string,
-  options: InitOptions = {}
-): Promise<void> {
-  const { install = true } = options;
-  logInfo("Initializing new Skittles project...");
-
+/**
+ * Create or update package.json with required dependencies and scripts.
+ */
+function initPackageJson(projectRoot: string): void {
   const projectName = path.basename(projectRoot);
-
-  // Create package.json (or update existing)
   const packageJsonPath = path.join(projectRoot, "package.json");
+
   if (fs.existsSync(packageJsonPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
@@ -207,19 +225,7 @@ export async function initCommand(
         updated = true;
       }
       if (!pkg.devDependencies) pkg.devDependencies = {};
-      const requiredDevDeps: Record<string, string> = {
-        "@nomicfoundation/hardhat-ethers": "^4.0.0",
-        "@nomicfoundation/hardhat-ethers-chai-matchers": "^3.0.0",
-        "@nomicfoundation/hardhat-mocha": "^3.0.0",
-        "@nomicfoundation/hardhat-network-helpers": "^3.0.0",
-        "@nomicfoundation/hardhat-typechain": "^3.0.0",
-        chai: "^5.1.2",
-        ethers: "^6.16.0",
-        hardhat: "^3.0.0",
-        mocha: "^11.0.0",
-        "@types/mocha": "^10.0.0",
-      };
-      for (const [dep, version] of Object.entries(requiredDevDeps)) {
+      for (const [dep, version] of Object.entries(REQUIRED_DEV_DEPS)) {
         if (!pkg.devDependencies[dep] && !pkg.dependencies?.[dep]) {
           pkg.devDependencies[dep] = version;
           updated = true;
@@ -231,13 +237,7 @@ export async function initCommand(
         updated = true;
       }
       if (!pkg.scripts) pkg.scripts = {};
-      const defaultScripts: Record<string, string> = {
-        compile: "skittles compile",
-        build: "skittles compile && hardhat build",
-        clean: "skittles clean",
-        test: "skittles compile && hardhat test",
-      };
-      for (const [name, cmd] of Object.entries(defaultScripts)) {
+      for (const [name, cmd] of Object.entries(DEFAULT_SCRIPTS)) {
         if (!pkg.scripts[name]) {
           pkg.scripts[name] = cmd;
           updated = true;
@@ -247,8 +247,11 @@ export async function initCommand(
         writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + "\n");
         logSuccess("Updated package.json");
       }
-    } catch {
-      logWarning("Could not update existing package.json, creating a new one");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      logWarning(
+        `Could not update existing package.json (${message}), creating a new one`
+      );
       writeFile(packageJsonPath, buildPackageJson(projectName) + "\n");
       logSuccess("Created package.json");
     }
@@ -256,61 +259,48 @@ export async function initCommand(
     writeFile(packageJsonPath, buildPackageJson(projectName) + "\n");
     logSuccess("Created package.json");
   }
+}
 
-  // Create contracts directory
+/**
+ * Create project directories and scaffold example files.
+ */
+function initProjectFiles(projectRoot: string): void {
+  // Create directories
   const contractsDir = path.join(projectRoot, "contracts");
   ensureDirectory(contractsDir);
   logSuccess("Created contracts/ directory");
 
-  // Create test directory
   const testDir = path.join(projectRoot, "test");
   ensureDirectory(testDir);
   logSuccess("Created test/ directory");
 
-  // Write config file
-  const configPath = path.join(projectRoot, "skittles.config.json");
-  if (fs.existsSync(configPath)) {
-    logWarning("skittles.config.json already exists, skipping");
-  } else {
-    writeFile(configPath, CONFIG_TEMPLATE + "\n");
-    logSuccess("Created skittles.config.json");
-  }
-
   // Write example contract
-  const examplePath = path.join(contractsDir, "Token.ts");
-  if (fs.existsSync(examplePath)) {
-    logWarning("contracts/Token.ts already exists, skipping");
-  } else {
-    writeFile(examplePath, EXAMPLE_CONTRACT);
-    logSuccess("Created contracts/Token.ts");
-  }
+  writeIfNotExists(
+    path.join(contractsDir, "Token.ts"),
+    EXAMPLE_CONTRACT,
+    "contracts/Token.ts"
+  );
 
   // Write example test
-  const exampleTestPath = path.join(testDir, "Token.test.ts");
-  if (fs.existsSync(exampleTestPath)) {
-    logWarning("test/Token.test.ts already exists, skipping");
-  } else {
-    writeFile(exampleTestPath, EXAMPLE_TEST);
-    logSuccess("Created test/Token.test.ts");
-  }
+  writeIfNotExists(
+    path.join(testDir, "Token.test.ts"),
+    EXAMPLE_TEST,
+    "test/Token.test.ts"
+  );
 
   // Write tsconfig.json
-  const tsconfigPath = path.join(projectRoot, "tsconfig.json");
-  if (fs.existsSync(tsconfigPath)) {
-    logWarning("tsconfig.json already exists, skipping");
-  } else {
-    writeFile(tsconfigPath, TSCONFIG_TEMPLATE + "\n");
-    logSuccess("Created tsconfig.json");
-  }
+  writeIfNotExists(
+    path.join(projectRoot, "tsconfig.json"),
+    TSCONFIG_TEMPLATE + "\n",
+    "tsconfig.json"
+  );
 
   // Write hardhat.config.ts
-  const hardhatConfigPath = path.join(projectRoot, "hardhat.config.ts");
-  if (fs.existsSync(hardhatConfigPath)) {
-    logWarning("hardhat.config.ts already exists, skipping");
-  } else {
-    writeFile(hardhatConfigPath, HARDHAT_CONFIG_TEMPLATE);
-    logSuccess("Created hardhat.config.ts");
-  }
+  writeIfNotExists(
+    path.join(projectRoot, "hardhat.config.ts"),
+    HARDHAT_CONFIG_TEMPLATE,
+    "hardhat.config.ts"
+  );
 
   // Update .gitignore
   const gitignorePath = path.join(projectRoot, ".gitignore");
@@ -335,8 +325,26 @@ export async function initCommand(
     writeFile(gitignorePath, gitignoreEntries.join("\n") + "\n");
     logSuccess("Created .gitignore");
   }
+}
 
-  // Install dependencies
+/**
+ * Write the skittles.config.json file.
+ */
+function initConfig(projectRoot: string): void {
+  writeIfNotExists(
+    path.join(projectRoot, "skittles.config.json"),
+    CONFIG_TEMPLATE + "\n",
+    "skittles.config.json"
+  );
+}
+
+/**
+ * Install project dependencies using the detected package manager.
+ */
+function installDependencies(
+  projectRoot: string,
+  install: boolean
+): void {
   const pm = detectPackageManager(projectRoot);
   if (install) {
     logInfo(`Installing dependencies with ${pm}...`);
@@ -356,6 +364,23 @@ export async function initCommand(
       `Skipping dependency installation. Run \`${pm} install\` manually.`
     );
   }
+}
+
+export interface InitOptions {
+  install?: boolean;
+}
+
+export async function initCommand(
+  projectRoot: string,
+  options: InitOptions = {}
+): Promise<void> {
+  const { install = true } = options;
+  logInfo("Initializing new Skittles project...");
+
+  initPackageJson(projectRoot);
+  initProjectFiles(projectRoot);
+  initConfig(projectRoot);
+  installDependencies(projectRoot, install);
 
   logSuccess("Skittles project initialized!");
   logInfo("");
