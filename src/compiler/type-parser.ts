@@ -246,6 +246,27 @@ export function inferType(
           };
         }
       }
+      // Interface method call: obj.method(...) where obj is a contract interface
+      if (expr.callee.kind === "property-access") {
+        const objType = inferType(expr.callee.object, varTypes);
+        if (
+          objType?.kind === SkittlesTypeKind.ContractInterface &&
+          objType.structName
+        ) {
+          const iface = ctx.knownContractInterfaceMap.get(objType.structName);
+          if (iface) {
+            const method = iface.functions.find(
+              (f) =>
+                f.name ===
+                (expr.callee as Extract<Expression, { kind: "property-access" }>)
+                  .property
+            );
+            if (method?.returnType) {
+              return method.returnType;
+            }
+          }
+        }
+      }
       return undefined;
     default:
       return undefined;
