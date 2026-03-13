@@ -18,6 +18,15 @@ import {
   type SolidityConfig,
 } from "../types/index.ts";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
+import {
+  CHAR_A,
+  CHAR_Z,
+  CHAR_a,
+  CHAR_z,
+  CHAR_SPACE,
+  CHAR_0,
+  ERR_START_OUT_OF_BOUNDS,
+} from "./constants.ts";
 
 // ============================================================
 // Helper function tracking
@@ -1011,8 +1020,8 @@ function generateContractBody(
       "        bytes memory result = new bytes(strBytes.length);",
       "        for (uint256 i = 0; i < strBytes.length; i++) {",
       "            uint8 c = uint8(strBytes[i]);",
-      "            if (c >= 65 && c <= 90) {",
-      "                result[i] = bytes1(c + 32);",
+      `            if (c >= ${CHAR_A} && c <= ${CHAR_Z}) {`,
+      `                result[i] = bytes1(c + ${CHAR_SPACE});`,
       "            } else {",
       "                result[i] = strBytes[i];",
       "            }",
@@ -1029,8 +1038,8 @@ function generateContractBody(
       "        bytes memory result = new bytes(strBytes.length);",
       "        for (uint256 i = 0; i < strBytes.length; i++) {",
       "            uint8 c = uint8(strBytes[i]);",
-      "            if (c >= 97 && c <= 122) {",
-      "                result[i] = bytes1(c - 32);",
+      `            if (c >= ${CHAR_a} && c <= ${CHAR_z}) {`,
+      `                result[i] = bytes1(c - ${CHAR_SPACE});`,
       "            } else {",
       "                result[i] = strBytes[i];",
       "            }",
@@ -1075,8 +1084,8 @@ function generateContractBody(
       "        bytes memory strBytes = bytes(str);",
       "        uint256 start = 0;",
       "        uint256 end = strBytes.length;",
-      "        while (start < end && uint8(strBytes[start]) == 32) { start++; }",
-      "        while (end > start && uint8(strBytes[end - 1]) == 32) { end--; }",
+      `        while (start < end && uint8(strBytes[start]) == ${CHAR_SPACE}) { start++; }`,
+      `        while (end > start && uint8(strBytes[end - 1]) == ${CHAR_SPACE}) { end--; }`,
       "        bytes memory result = new bytes(end - start);",
       "        for (uint256 i = start; i < end; i++) {",
       "            result[i - start] = strBytes[i];",
@@ -1134,7 +1143,7 @@ function generateContractBody(
       "        bytes memory buffer = new bytes(digits);",
       "        while (value != 0) {",
       "            digits--;",
-      "            buffer[digits] = bytes1(uint8(48 + (value % 10)));",
+      `            buffer[digits] = bytes1(uint8(${CHAR_0} + (value % 10)));`,
       "            value /= 10;",
       "        }",
       "        return string(buffer);",
@@ -1289,7 +1298,7 @@ function generateContractBody(
     if (method === "splice" && needsHelper(`_arrSplice_${suffix}`, true)) {
       emitHelper(`_arrSplice_${suffix}`, [
         `    function _arrSplice_${suffix}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
-        `        require(start < arr.length, "start out of bounds");`,
+        `        require(start < arr.length, "${ERR_START_OUT_OF_BOUNDS}");`,
         `        uint256 end = start + deleteCount;`,
         `        if (end > arr.length) end = arr.length;`,
         `        uint256 removed = end - start;`,

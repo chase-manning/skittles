@@ -21,12 +21,7 @@ import { inferType } from "./type-parser.ts";
  */
 export function propagateStateMutability(functions: SkittlesFunction[]): void {
   type Mut = "pure" | "view" | "nonpayable" | "payable";
-  const rank: Record<Mut, number> = {
-    pure: 0,
-    view: 1,
-    nonpayable: 2,
-    payable: 3,
-  };
+  const rank: Record<Mut, number> = MUTABILITY_RANK;
 
   const mutMap = new Map<string, Mut>();
   for (const f of functions) {

@@ -29,6 +29,7 @@ import {
   buildSourceMap,
 } from "./codegen.ts";
 import { analyzeFunction } from "./analysis.ts";
+import { MUTABILITY_RANK } from "./mutability.ts";
 import {
   getStdlibClassNames,
   resolveStdlibFiles,
@@ -46,7 +47,7 @@ export interface CompilationResult {
 // Incremental compilation cache
 // ============================================================
 
-const CACHE_VERSION = "5";
+import { CACHE_VERSION } from "./constants.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_VERSION: string = JSON.parse(
@@ -486,12 +487,7 @@ export async function compile(
       ]);
 
       let changed = true;
-      const rank: Record<string, number> = {
-        pure: 0,
-        view: 1,
-        nonpayable: 2,
-        payable: 3,
-      };
+      const rank: Record<string, number> = MUTABILITY_RANK;
       while (changed) {
         changed = false;
         for (const fn of contract.functions) {
