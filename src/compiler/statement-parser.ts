@@ -29,6 +29,10 @@ const UNSUPPORTED_OBJECT_DESTRUCTURING_MSG =
   "Only simple bindings are allowed, e.g. `{ a }` or `{ prop: name }` " +
   "with no default values, rest elements, computed property names, or nested patterns.";
 
+const UNSUPPORTED_ARRAY_DESTRUCTURING_BINDING_MSG =
+  "Unsupported array destructuring binding element in variable declaration. " +
+  "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns).";
+
 function validateArrayLiteralElements(
   elements: ts.NodeArray<ts.Expression>
 ): void {
@@ -71,10 +75,7 @@ export function parseArrayDestructuring(
         !!elem.dotDotDotToken ||
         !!elem.propertyName
       ) {
-        throw new Error(
-          "Unsupported array destructuring binding element in variable declaration. " +
-            "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
-        );
+        throw new Error(UNSUPPORTED_ARRAY_DESTRUCTURING_BINDING_MSG);
       }
       const name = elem.name.text;
       validateReservedVarName(name);
@@ -135,10 +136,7 @@ export function parseArrayDestructuring(
         !!elem.dotDotDotToken ||
         !!elem.propertyName
       ) {
-        throw new Error(
-          "Unsupported array destructuring binding element in variable declaration. " +
-            "Only simple identifier bindings are allowed (no default values, rest elements, renames, or nested patterns)."
-        );
+        throw new Error(UNSUPPORTED_ARRAY_DESTRUCTURING_BINDING_MSG);
       }
       const name = elem.name.text;
       validateReservedVarName(name);
