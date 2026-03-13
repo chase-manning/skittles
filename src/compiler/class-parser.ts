@@ -29,6 +29,7 @@ import {
 } from "./mutability.ts";
 import { ctx } from "./parser-context.ts";
 import {
+  getNodeName,
   getSourceLine,
   getVisibility,
   hasModifier,

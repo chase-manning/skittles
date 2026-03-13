@@ -1,6 +1,8 @@
 import ts from "typescript";
 
 import type {
+  CollectedFunctions,
+  CollectedTypes,
   Expression,
   SkittlesContract,
   SkittlesContractInterface,

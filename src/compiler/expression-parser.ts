@@ -17,6 +17,7 @@ import {
   defaultValueForType,
   describeExpectedArgs,
   findEnclosingClass,
+  getNodeName,
   findMethodReturnType,
   getArrayHelperSuffix,
   getBinaryOperator,

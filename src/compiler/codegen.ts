@@ -29,6 +29,7 @@ import {
   CHAR_z,
   ERR_START_OUT_OF_BOUNDS,
 } from "./constants.ts";
+import { walkStatements } from "./walker.ts";
 export type { CodegenContext } from "./codegen-context.ts";
 export { resetCodegenContext } from "./codegen-context.ts";
 
