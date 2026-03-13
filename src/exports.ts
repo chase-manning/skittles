@@ -71,6 +71,8 @@ export {
   collectClassNames,
 } from "./compiler/parser.ts";
 export { generateSolidity, generateSolidityFile } from "./compiler/codegen.ts";
+export { compile } from "./compiler/compiler.ts";
+export { loadConfig } from "./config/config.ts";
 
 // Utility functions
 export { getErrorMessage } from "./utils/error.ts";
@@ -85,7 +87,12 @@ export type {
   SkittlesTypeKind,
   BuildArtifact,
   SourceMapping,
+  CollectedTypes,
+  CollectedFunctions,
 } from "./types/index.ts";
+
+// Compiler result type
+export type { CompilationResult } from "./compiler/compiler.ts";
 
 // Global objects for use in contract files.
 // These provide type information for IDE support.

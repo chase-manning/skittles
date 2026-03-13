@@ -35,7 +35,7 @@ export function getSourceLine(node: ts.Node): number | undefined {
 export function setupStringTracking(
   parameters: SkittlesParameter[],
   varTypes: Map<string, SkittlesType>
-) {
+): void {
   ctx.currentVarTypes = varTypes;
   ctx.currentStringNames = new Set();
   ctx.currentParamTypes = new Map();
