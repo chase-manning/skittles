@@ -26,7 +26,7 @@ import {
   propagateMutability,
 } from "./mutability.ts";
 import type { ParserContext } from "./parser-context.ts";
-import { ctx } from "./parser-context.ts";
+import { ctx, resetContextForParse } from "./parser-context.ts";
 import { getEnumMemberName } from "./parser-utils.ts";
 import { parseStatement } from "./statement-parser.ts";
 import { inferType, parseType, parseTypeLiteralFields } from "./type-parser.ts";
@@ -74,12 +74,7 @@ export function collectTypes(
     true
   );
 
-  // Reset per-run caches to avoid leaking state from prior parse() calls.
-  ctx.stateVarTypes = new Map();
-  ctx.currentVarTypes = new Map();
-  ctx.currentStringNames = new Set();
-  ctx.currentParamTypes = new Map();
-  ctx.currentEventNames = new Set();
+  resetContextForParse();
 
   const structs: Map<string, SkittlesParameter[]> = new Map();
   const enums: Map<string, string[]> = new Map();
@@ -148,13 +143,7 @@ export function parse(
 
   ctx.currentSourceFile = sourceFile;
   ctx.arrayMethodCounter = 0;
-  ctx.stateVarTypes = new Map();
-  ctx.destructureCounter = 0;
-  // Reset per-parse caches to avoid leaking state between parse() calls.
-  ctx.currentVarTypes = new Map();
-  ctx.currentStringNames = new Set();
-  ctx.currentParamTypes = new Map();
-  ctx.currentEventNames = new Set();
+  resetContextForParse();
   ctx.contractStateVarNames = new Map();
   ctx.contractParentNames = new Map();
   ctx.parentStateVarNames = new Set();
@@ -404,13 +393,7 @@ export function collectFunctions(
     true
   );
 
-  // Reset per-run caches to avoid leaking state from prior parse() calls.
-  ctx.stateVarTypes = new Map();
-  ctx.currentVarTypes = new Map();
-  ctx.currentStringNames = new Set();
-  ctx.currentParamTypes = new Map();
-  ctx.currentEventNames = new Set();
-  ctx.destructureCounter = 0;
+  resetContextForParse();
 
   const functions: SkittlesFunction[] = [];
   const constants: Map<string, Expression> = new Map();

@@ -80,3 +80,16 @@ export let ctx: ParserContext = createParserContext();
 export function resetContext(): void {
   ctx = createParserContext();
 }
+
+/**
+ * Reset per-run caches to avoid leaking state from prior parse() calls.
+ * Called at the start of collectTypes, collectFunctions, and parse.
+ */
+export function resetContextForParse(): void {
+  ctx.stateVarTypes = new Map();
+  ctx.currentVarTypes = new Map();
+  ctx.currentStringNames = new Set();
+  ctx.currentParamTypes = new Map();
+  ctx.currentEventNames = new Set();
+  ctx.destructureCounter = 0;
+}
