@@ -10,6 +10,20 @@ import {
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 
+export function getEnumMemberName(member: ts.EnumMember): string {
+  return ts.isIdentifier(member.name) ? member.name.text : "Unknown";
+}
+
+export function getNodeName(node: ts.Node): string {
+  if (ts.isIdentifier(node)) return node.text;
+  const named = node as ts.NamedDeclaration;
+  if (named.name) {
+    if (ts.isIdentifier(named.name)) return named.name.text;
+    if ("text" in named.name) return (named.name as unknown as ts.Identifier).text;
+  }
+  return "Unknown";
+}
+
 export function getSourceLine(node: ts.Node): number | undefined {
   if (!ctx.currentSourceFile) return undefined;
   return (

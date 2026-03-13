@@ -26,6 +26,7 @@ import {
   parseInterfaceAsContractInterface,
   parseClass,
 } from "./class-parser.ts";
+import { getEnumMemberName } from "./parser-utils.ts";
 
 // Re-export public API from sub-modules
 export type { ParserContext } from "./parser-context.ts";
@@ -53,9 +54,7 @@ function collectStructsAndEnums(
       structs.set(node.name.text, parseTypeLiteralFields(node.type));
     }
     if (ts.isEnumDeclaration(node) && node.name) {
-      const members = node.members.map((m) =>
-        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
-      );
+      const members = node.members.map((m) => getEnumMemberName(m));
       enums.set(node.name.text, members);
     }
   });
