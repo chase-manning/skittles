@@ -1871,8 +1871,10 @@ export function generateType(type: SkittlesType): string {
       return `(${(type.tupleTypes ?? []).map(generateType).join(", ")})`;
     case SkittlesTypeKind.Void:
       return "";
-    default:
-      return "uint256";
+    default: {
+      const _exhaustive: never = type.kind;
+      throw new Error(`Unhandled type kind: ${_exhaustive}`);
+    }
   }
 }
 
@@ -1988,8 +1990,10 @@ export function generateExpression(expr: Expression): string {
     }
     case "tuple-literal":
       return `(${expr.elements.map(generateExpression).join(", ")})`;
-    default:
-      return "/* unsupported */";
+    default: {
+      const _exhaustive: never = expr;
+      throw new Error(`Unhandled expression kind: ${(_exhaustive as Expression).kind}`);
+    }
   }
 }
 
@@ -2213,8 +2217,10 @@ export function generateStatement(stmt: Statement, indent: string): string {
     case "console-log":
       return `${indent}console.log(${stmt.args.map(generateExpression).join(", ")});`;
 
-    default:
-      return `${indent}// unsupported statement`;
+    default: {
+      const _exhaustive: never = stmt;
+      throw new Error(`Unhandled statement kind: ${(_exhaustive as Statement).kind}`);
+    }
   }
 }
 
