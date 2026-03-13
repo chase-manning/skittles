@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import type {
   SkittlesConfig,
+  FormattingConfig,
   SkittlesContract,
   BuildArtifact,
   SkittlesParameter,
@@ -808,15 +809,10 @@ function generateOutput(
 
       if (!rawSolidity) continue;
 
-      const formatting = config.formatting ?? {
-        indent: 4,
-        bracketSpacing: true,
-        braceStyle: "same-line" as const,
-        formatOutput: false,
-      };
+      const formatting = config.formatting;
       const solidity = formatSolidity(
         rawSolidity,
-        formatting as Required<typeof formatting>
+        formatting as Required<FormattingConfig>
       );
 
       // Build source map linking generated Solidity lines to TypeScript source
