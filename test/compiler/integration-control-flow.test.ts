@@ -357,7 +357,7 @@ describe("integration: for...in enum loops", () => {
     expect(solidity).toContain(
       "for (uint256 __sk_i_status = 0; (__sk_i_status < 3); __sk_i_status++)"
     );
-    expect(solidity).toContain("Status status = Status(__sk_i_status);");
+    expect(solidity).not.toContain("Status status = Status(__sk_i_status);");
   });
 
   it("should compile for...in with enum body using the variable", () => {
@@ -381,8 +381,50 @@ describe("integration: for...in enum loops", () => {
     );
     const solidity = generateSolidity(contracts[0]);
     expect(solidity).toContain("__sk_i_c");
-    expect(solidity).toContain("Color c = Color(__sk_i_c);");
+    expect(solidity).not.toContain("Color c = Color(__sk_i_c);");
     expect(solidity).toContain("count += 1;");
+  });
+
+  it("should include enum cast variable when loop variable is used in body", () => {
+    const { errors, solidity } = compileTS(`
+      enum Priority { Low, Medium, High, Critical }
+
+      class Example {
+        public priorities: Priority[] = [];
+
+        public collectPriorities(): void {
+          for (const p in Priority) {
+            this.priorities.push(p);
+          }
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain(
+      "for (uint256 __sk_i_p = 0; (__sk_i_p < 4); __sk_i_p++)"
+    );
+    expect(solidity).toContain("Priority p = Priority(__sk_i_p);");
+  });
+
+  it("should omit enum cast variable when loop variable is unused", () => {
+    const { errors, solidity } = compileTS(`
+      enum Priority { Low, Medium, High, Critical }
+
+      class Example {
+        public countEnumMembers(): number {
+          let enumCount: number = 0;
+          for (const p in Priority) {
+            enumCount++;
+          }
+          return enumCount;
+        }
+      }
+    `);
+    expect(errors).toHaveLength(0);
+    expect(solidity).toContain(
+      "for (uint256 __sk_i_p = 0; (__sk_i_p < 4); __sk_i_p++)"
+    );
+    expect(solidity).not.toContain("Priority p = Priority(__sk_i_p);");
   });
 });
 
