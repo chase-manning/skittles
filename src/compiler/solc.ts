@@ -1,5 +1,6 @@
 import solc from "solc";
 import type { SkittlesConfig, AbiItem } from "../types/index.ts";
+import { BATCH_SOURCE_FILENAME } from "./constants.ts";
 
 export interface SolcResult {
   abi: AbiItem[];
@@ -105,7 +106,7 @@ export function compileSolidityBatch(
   contractNames: string[],
   config: Required<SkittlesConfig>
 ): SolcBatchResult {
-  const sourceFileName = "Contracts.sol";
+  const sourceFileName = BATCH_SOURCE_FILENAME;
 
   const input = {
     language: "Solidity",
