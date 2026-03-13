@@ -3,6 +3,7 @@ import {
   createTestEnv,
   compileAndDeploy,
   connectAs,
+  getEventFromReceipt,
   TestEnv,
   DeployedContract,
 } from "./helpers";
@@ -165,16 +166,7 @@ describe("ERC20 behavioral tests", () => {
       const tx = await token.contract.transfer(aliceAddr, amount);
       const receipt = await tx.wait();
 
-      const iface = new ethers.Interface(token.abi);
-      const transferEvent = receipt.logs
-        .map((log: ethers.Log) => {
-          try {
-            return iface.parseLog(log);
-          } catch {
-            return null;
-          }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "Transfer");
+      const transferEvent = getEventFromReceipt(receipt, token.abi, "Transfer");
 
       expect(transferEvent).toBeDefined();
       expect(transferEvent!.args[0]).toBe(deployerAddr);
@@ -208,16 +200,7 @@ describe("ERC20 behavioral tests", () => {
       const tx = await token.contract.approve(bobAddr, amount);
       const receipt = await tx.wait();
 
-      const iface = new ethers.Interface(token.abi);
-      const approvalEvent = receipt.logs
-        .map((log: ethers.Log) => {
-          try {
-            return iface.parseLog(log);
-          } catch {
-            return null;
-          }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "Approval");
+      const approvalEvent = getEventFromReceipt(receipt, token.abi, "Approval");
 
       expect(approvalEvent).toBeDefined();
       expect(approvalEvent!.args[0]).toBe(deployerAddr);
@@ -311,16 +294,7 @@ describe("ERC20 behavioral tests", () => {
       const tx = await aliceToken.transferFrom(deployerAddr, bobAddr, amount);
       const receipt = await tx.wait();
 
-      const iface = new ethers.Interface(token.abi);
-      const transferEvent = receipt.logs
-        .map((log: ethers.Log) => {
-          try {
-            return iface.parseLog(log);
-          } catch {
-            return null;
-          }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "Transfer");
+      const transferEvent = getEventFromReceipt(receipt, token.abi, "Transfer");
 
       expect(transferEvent).toBeDefined();
       expect(transferEvent!.args[0]).toBe(deployerAddr);

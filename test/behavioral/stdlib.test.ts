@@ -3,6 +3,7 @@ import {
   createTestEnv,
   compileAndDeploy,
   connectAs,
+  getEventFromReceipt,
   TestEnv,
   DeployedContract,
 } from "./helpers";
@@ -134,16 +135,7 @@ class MyToken extends ERC20 {
       const amount = 50n;
       const tx = await token.contract.transfer(aliceAddr, amount);
       const receipt = await tx.wait();
-      const iface = new ethers.Interface(token.abi);
-      const log = receipt.logs
-        .map((l: ethers.Log) => {
-          try {
-            return iface.parseLog(l);
-          } catch {
-            return null;
-          }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "Transfer");
+      const log = getEventFromReceipt(receipt, token.abi, "Transfer");
       expect(log).toBeDefined();
       expect(log!.args[0]).toBe(deployerAddr);
       expect(log!.args[1]).toBe(aliceAddr);
@@ -172,16 +164,7 @@ class MyToken extends ERC20 {
     it("emits Approval event", async () => {
       const tx = await token.contract.approve(bobAddr, 200n);
       const receipt = await tx.wait();
-      const iface = new ethers.Interface(token.abi);
-      const log = receipt.logs
-        .map((l: ethers.Log) => {
-          try {
-            return iface.parseLog(l);
-          } catch {
-            return null;
-          }
-        })
-        .find((e: ethers.LogDescription | null) => e?.name === "Approval");
+      const log = getEventFromReceipt(receipt, token.abi, "Approval");
       expect(log).toBeDefined();
     });
 
