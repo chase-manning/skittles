@@ -32,23 +32,275 @@ import {
 // Helper function tracking
 // ============================================================
 
-let _needsMinHelper = false;
-let _needsMaxHelper = false;
-let _needsSqrtHelper = false;
-let _needsCharAtHelper = false;
-let _needsSubstringHelper = false;
-let _needsToLowerCaseHelper = false;
-let _needsToUpperCaseHelper = false;
-let _needsStartsWithHelper = false;
-let _needsEndsWithHelper = false;
-let _needsTrimHelper = false;
-let _needsSplitHelper = false;
-let _needsToStringHelper = false;
-let _needsReplaceHelper = false;
-let _needsReplaceAllHelper = false;
+let _neededHelpers = new Set<string>();
 let _currentNeededArrayHelpers: string[] = [];
 let _allKnownEnumNames = new Set<string>();
 let _allKnownInterfaceNames = new Set<string>();
+
+// Registry of helper function names to their Solidity code lines.
+// Each entry maps a helper name to a thunk returning its code lines
+// (thunks are used so that constant references are evaluated at call time).
+const HELPER_REGISTRY: Array<{ name: string; lines: () => string[] }> = [
+  {
+    name: "_min",
+    lines: () => [
+      "    function _min(uint256 a, uint256 b) internal pure returns (uint256) {",
+      "        return a < b ? a : b;",
+      "    }",
+    ],
+  },
+  {
+    name: "_max",
+    lines: () => [
+      "    function _max(uint256 a, uint256 b) internal pure returns (uint256) {",
+      "        return a > b ? a : b;",
+      "    }",
+    ],
+  },
+  {
+    name: "_sqrt",
+    lines: () => [
+      "    function _sqrt(uint256 x) internal pure returns (uint256) {",
+      "        if (x == 0) return 0;",
+      "        uint256 z = (x >> 1) + 1;",
+      "        uint256 y = x;",
+      "        while (z < y) {",
+      "            y = z;",
+      "            z = (x / z + z) / 2;",
+      "        }",
+      "        return y;",
+      "    }",
+    ],
+  },
+  {
+    name: "_charAt",
+    lines: () => [
+      "    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        require(index < strBytes.length);",
+      "        bytes memory result = new bytes(1);",
+      "        result[0] = strBytes[index];",
+      "        return string(result);",
+      "    }",
+    ],
+  },
+  {
+    name: "_substring",
+    lines: () => [
+      "    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        require(start <= end && end <= strBytes.length);",
+      "        bytes memory result = new bytes(end - start);",
+      "        for (uint256 i = start; i < end; i++) {",
+      "            result[i - start] = strBytes[i];",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ],
+  },
+  {
+    name: "_toLowerCase",
+    lines: () => [
+      "    function _toLowerCase(string memory str) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory result = new bytes(strBytes.length);",
+      "        for (uint256 i = 0; i < strBytes.length; i++) {",
+      "            uint8 c = uint8(strBytes[i]);",
+      `            if (c >= ${CHAR_A} && c <= ${CHAR_Z}) {`,
+      `                result[i] = bytes1(c + ${CHAR_SPACE});`,
+      "            } else {",
+      "                result[i] = strBytes[i];",
+      "            }",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ],
+  },
+  {
+    name: "_toUpperCase",
+    lines: () => [
+      "    function _toUpperCase(string memory str) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory result = new bytes(strBytes.length);",
+      "        for (uint256 i = 0; i < strBytes.length; i++) {",
+      "            uint8 c = uint8(strBytes[i]);",
+      `            if (c >= ${CHAR_a} && c <= ${CHAR_z}) {`,
+      `                result[i] = bytes1(c - ${CHAR_SPACE});`,
+      "            } else {",
+      "                result[i] = strBytes[i];",
+      "            }",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ],
+  },
+  {
+    name: "_startsWith",
+    lines: () => [
+      "    function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory prefixBytes = bytes(prefix);",
+      "        if (prefixBytes.length > strBytes.length) return false;",
+      "        for (uint256 i = 0; i < prefixBytes.length; i++) {",
+      "            if (strBytes[i] != prefixBytes[i]) return false;",
+      "        }",
+      "        return true;",
+      "    }",
+    ],
+  },
+  {
+    name: "_endsWith",
+    lines: () => [
+      "    function _endsWith(string memory str, string memory suffix) internal pure returns (bool) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory suffixBytes = bytes(suffix);",
+      "        if (suffixBytes.length > strBytes.length) return false;",
+      "        uint256 offset = strBytes.length - suffixBytes.length;",
+      "        for (uint256 i = 0; i < suffixBytes.length; i++) {",
+      "            if (strBytes[offset + i] != suffixBytes[i]) return false;",
+      "        }",
+      "        return true;",
+      "    }",
+    ],
+  },
+  {
+    name: "_trim",
+    lines: () => [
+      "    function _trim(string memory str) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        uint256 start = 0;",
+      "        uint256 end = strBytes.length;",
+      `        while (start < end && uint8(strBytes[start]) == ${CHAR_SPACE}) { start++; }`,
+      `        while (end > start && uint8(strBytes[end - 1]) == ${CHAR_SPACE}) { end--; }`,
+      "        bytes memory result = new bytes(end - start);",
+      "        for (uint256 i = start; i < end; i++) {",
+      "            result[i - start] = strBytes[i];",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ],
+  },
+  {
+    name: "_split",
+    lines: () => [
+      "    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory delimBytes = bytes(delimiter);",
+      "        require(delimBytes.length > 0);",
+      "        uint256 count = 1;",
+      "        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < delimBytes.length; j++) {",
+      "                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) { count++; i += delimBytes.length - 1; }",
+      "        }",
+      "        string[] memory parts = new string[](count);",
+      "        uint256 partIndex = 0;",
+      "        uint256 start = 0;",
+      "        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < delimBytes.length; j++) {",
+      "                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) {",
+      "                bytes memory part = new bytes(i - start);",
+      "                for (uint256 k = start; k < i; k++) { part[k - start] = strBytes[k]; }",
+      "                parts[partIndex++] = string(part);",
+      "                start = i + delimBytes.length;",
+      "                i += delimBytes.length - 1;",
+      "            }",
+      "        }",
+      "        bytes memory lastPart = new bytes(strBytes.length - start);",
+      "        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }",
+      "        parts[partIndex] = string(lastPart);",
+      "        return parts;",
+      "    }",
+    ],
+  },
+  {
+    name: "__sk_toString",
+    lines: () => [
+      "    function __sk_toString(uint256 value) internal pure returns (string memory) {",
+      '        if (value == 0) return "0";',
+      "        uint256 temp = value;",
+      "        uint256 digits;",
+      "        while (temp != 0) { digits++; temp /= 10; }",
+      "        bytes memory buffer = new bytes(digits);",
+      "        while (value != 0) {",
+      "            digits--;",
+      `            buffer[digits] = bytes1(uint8(${CHAR_0} + (value % 10)));`,
+      "            value /= 10;",
+      "        }",
+      "        return string(buffer);",
+      "    }",
+    ],
+  },
+  {
+    name: "_replace",
+    lines: () => [
+      "    function _replace(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory searchBytes = bytes(search);",
+      "        bytes memory replBytes = bytes(replacement);",
+      "        require(searchBytes.length > 0);",
+      "        for (uint256 i = 0; i + searchBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < searchBytes.length; j++) {",
+      "                if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) {",
+      "                bytes memory result = new bytes(strBytes.length - searchBytes.length + replBytes.length);",
+      "                for (uint256 k = 0; k < i; k++) { result[k] = strBytes[k]; }",
+      "                for (uint256 k = 0; k < replBytes.length; k++) { result[i + k] = replBytes[k]; }",
+      "                for (uint256 k = i + searchBytes.length; k < strBytes.length; k++) { result[k - searchBytes.length + replBytes.length] = strBytes[k]; }",
+      "                return string(result);",
+      "            }",
+      "        }",
+      "        return str;",
+      "    }",
+    ],
+  },
+  {
+    name: "_replaceAll",
+    lines: () => [
+      "    function _replaceAll(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
+      "        bytes memory strBytes = bytes(str);",
+      "        bytes memory searchBytes = bytes(search);",
+      "        bytes memory replBytes = bytes(replacement);",
+      "        require(searchBytes.length > 0);",
+      "        uint256 count = 0;",
+      "        for (uint256 i = 0; i + searchBytes.length <= strBytes.length; i++) {",
+      "            bool found = true;",
+      "            for (uint256 j = 0; j < searchBytes.length; j++) {",
+      "                if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
+      "            }",
+      "            if (found) { count++; i += searchBytes.length - 1; }",
+      "        }",
+      "        if (count == 0) return str;",
+      "        bytes memory result = new bytes(strBytes.length - (count * searchBytes.length) + (count * replBytes.length));",
+      "        uint256 idx = 0;",
+      "        for (uint256 i = 0; i < strBytes.length; ) {",
+      "            bool found = false;",
+      "            if (i + searchBytes.length <= strBytes.length) {",
+      "                found = true;",
+      "                for (uint256 j = 0; j < searchBytes.length; j++) {",
+      "                    if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
+      "                }",
+      "            }",
+      "            if (found) {",
+      "                for (uint256 k = 0; k < replBytes.length; k++) { result[idx++] = replBytes[k]; }",
+      "                i += searchBytes.length;",
+      "            } else {",
+      "                result[idx++] = strBytes[i];",
+      "                i++;",
+      "            }",
+      "        }",
+      "        return string(result);",
+      "    }",
+    ],
+  },
+];
 
 const SOLIDITY_VALUE_TYPES = new Set([
   "uint256",
@@ -713,20 +965,7 @@ function generateContractBody(
   contractByName: Map<string, SkittlesContract> = new Map()
 ): string {
   const parts: string[] = [];
-  _needsMinHelper = false;
-  _needsMaxHelper = false;
-  _needsSqrtHelper = false;
-  _needsCharAtHelper = false;
-  _needsSubstringHelper = false;
-  _needsToLowerCaseHelper = false;
-  _needsToUpperCaseHelper = false;
-  _needsStartsWithHelper = false;
-  _needsEndsWithHelper = false;
-  _needsTrimHelper = false;
-  _needsSplitHelper = false;
-  _needsToStringHelper = false;
-  _needsReplaceHelper = false;
-  _needsReplaceAllHelper = false;
+  _neededHelpers = new Set<string>();
   _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
@@ -781,6 +1020,33 @@ function generateContractBody(
     parts.push("");
   }
 
+  const { stateVarNames, readonlyArrayVars, functionsToEmit } =
+    generateStateVariables(parts, contract, ancestors, contractByName, functionOrigins, addOrigin);
+
+  generateContractFunctions(
+    parts, contract, stateVarNames, readonlyArrayVars, functionsToEmit,
+    ancestors, contractByName
+  );
+
+  emitHelperFunctions(parts, addOrigin, functionOrigins, ancestors);
+
+  parts.push("}");
+
+  return parts.join("\n");
+}
+
+function generateStateVariables(
+  parts: string[],
+  contract: SkittlesContract,
+  ancestors: Set<string>,
+  contractByName: Map<string, SkittlesContract>,
+  functionOrigins: Map<string, Set<string>>,
+  addOrigin: (map: Map<string, Set<string>>, key: string) => void
+): {
+  stateVarNames: Set<string>;
+  readonlyArrayVars: SkittlesVariable[];
+  functionsToEmit: SkittlesFunction[];
+} {
   for (const v of contract.variables) {
     parts.push(`    ${generateVariable(v)}`);
   }
@@ -822,6 +1088,18 @@ function generateContractBody(
     parts.push("");
   }
 
+  return { stateVarNames, readonlyArrayVars, functionsToEmit };
+}
+
+function generateContractFunctions(
+  parts: string[],
+  contract: SkittlesContract,
+  stateVarNames: Set<string>,
+  readonlyArrayVars: SkittlesVariable[],
+  functionsToEmit: SkittlesFunction[],
+  ancestors: Set<string>,
+  contractByName: Map<string, SkittlesContract>
+): void {
   if (contract.ctor) {
     // Rename default constructor parameters that shadow state variables.
     // Default params become local variable declarations in generateConstructor,
@@ -949,8 +1227,14 @@ function generateContractBody(
       parts.push("");
     }
   }
+}
 
-  // Emit helper functions, skipping any already emitted by an ancestor contract
+function emitHelperFunctions(
+  parts: string[],
+  addOrigin: (map: Map<string, Set<string>>, key: string) => void,
+  functionOrigins: Map<string, Set<string>>,
+  ancestors: Set<string>
+): void {
   const needsHelper = (name: string, flag: boolean): boolean =>
     flag && !hasAncestorOrigin(functionOrigins.get(name), ancestors);
 
@@ -960,263 +1244,11 @@ function generateContractBody(
     for (const line of lines) parts.push(line);
   };
 
-  if (needsHelper("_min", _needsMinHelper)) {
-    emitHelper("_min", [
-      "    function _min(uint256 a, uint256 b) internal pure returns (uint256) {",
-      "        return a < b ? a : b;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_max", _needsMaxHelper)) {
-    emitHelper("_max", [
-      "    function _max(uint256 a, uint256 b) internal pure returns (uint256) {",
-      "        return a > b ? a : b;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_sqrt", _needsSqrtHelper)) {
-    emitHelper("_sqrt", [
-      "    function _sqrt(uint256 x) internal pure returns (uint256) {",
-      "        if (x == 0) return 0;",
-      "        uint256 z = (x >> 1) + 1;",
-      "        uint256 y = x;",
-      "        while (z < y) {",
-      "            y = z;",
-      "            z = (x / z + z) / 2;",
-      "        }",
-      "        return y;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_charAt", _needsCharAtHelper)) {
-    emitHelper("_charAt", [
-      "    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        require(index < strBytes.length);",
-      "        bytes memory result = new bytes(1);",
-      "        result[0] = strBytes[index];",
-      "        return string(result);",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_substring", _needsSubstringHelper)) {
-    emitHelper("_substring", [
-      "    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        require(start <= end && end <= strBytes.length);",
-      "        bytes memory result = new bytes(end - start);",
-      "        for (uint256 i = start; i < end; i++) {",
-      "            result[i - start] = strBytes[i];",
-      "        }",
-      "        return string(result);",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_toLowerCase", _needsToLowerCaseHelper)) {
-    emitHelper("_toLowerCase", [
-      "    function _toLowerCase(string memory str) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory result = new bytes(strBytes.length);",
-      "        for (uint256 i = 0; i < strBytes.length; i++) {",
-      "            uint8 c = uint8(strBytes[i]);",
-      `            if (c >= ${CHAR_A} && c <= ${CHAR_Z}) {`,
-      `                result[i] = bytes1(c + ${CHAR_SPACE});`,
-      "            } else {",
-      "                result[i] = strBytes[i];",
-      "            }",
-      "        }",
-      "        return string(result);",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_toUpperCase", _needsToUpperCaseHelper)) {
-    emitHelper("_toUpperCase", [
-      "    function _toUpperCase(string memory str) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory result = new bytes(strBytes.length);",
-      "        for (uint256 i = 0; i < strBytes.length; i++) {",
-      "            uint8 c = uint8(strBytes[i]);",
-      `            if (c >= ${CHAR_a} && c <= ${CHAR_z}) {`,
-      `                result[i] = bytes1(c - ${CHAR_SPACE});`,
-      "            } else {",
-      "                result[i] = strBytes[i];",
-      "            }",
-      "        }",
-      "        return string(result);",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_startsWith", _needsStartsWithHelper)) {
-    emitHelper("_startsWith", [
-      "    function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory prefixBytes = bytes(prefix);",
-      "        if (prefixBytes.length > strBytes.length) return false;",
-      "        for (uint256 i = 0; i < prefixBytes.length; i++) {",
-      "            if (strBytes[i] != prefixBytes[i]) return false;",
-      "        }",
-      "        return true;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_endsWith", _needsEndsWithHelper)) {
-    emitHelper("_endsWith", [
-      "    function _endsWith(string memory str, string memory suffix) internal pure returns (bool) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory suffixBytes = bytes(suffix);",
-      "        if (suffixBytes.length > strBytes.length) return false;",
-      "        uint256 offset = strBytes.length - suffixBytes.length;",
-      "        for (uint256 i = 0; i < suffixBytes.length; i++) {",
-      "            if (strBytes[offset + i] != suffixBytes[i]) return false;",
-      "        }",
-      "        return true;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_trim", _needsTrimHelper)) {
-    emitHelper("_trim", [
-      "    function _trim(string memory str) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        uint256 start = 0;",
-      "        uint256 end = strBytes.length;",
-      `        while (start < end && uint8(strBytes[start]) == ${CHAR_SPACE}) { start++; }`,
-      `        while (end > start && uint8(strBytes[end - 1]) == ${CHAR_SPACE}) { end--; }`,
-      "        bytes memory result = new bytes(end - start);",
-      "        for (uint256 i = start; i < end; i++) {",
-      "            result[i - start] = strBytes[i];",
-      "        }",
-      "        return string(result);",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_split", _needsSplitHelper)) {
-    emitHelper("_split", [
-      "    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory delimBytes = bytes(delimiter);",
-      "        require(delimBytes.length > 0);",
-      "        uint256 count = 1;",
-      "        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {",
-      "            bool found = true;",
-      "            for (uint256 j = 0; j < delimBytes.length; j++) {",
-      "                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }",
-      "            }",
-      "            if (found) { count++; i += delimBytes.length - 1; }",
-      "        }",
-      "        string[] memory parts = new string[](count);",
-      "        uint256 partIndex = 0;",
-      "        uint256 start = 0;",
-      "        for (uint256 i = 0; i + delimBytes.length <= strBytes.length; i++) {",
-      "            bool found = true;",
-      "            for (uint256 j = 0; j < delimBytes.length; j++) {",
-      "                if (strBytes[i + j] != delimBytes[j]) { found = false; break; }",
-      "            }",
-      "            if (found) {",
-      "                bytes memory part = new bytes(i - start);",
-      "                for (uint256 k = start; k < i; k++) { part[k - start] = strBytes[k]; }",
-      "                parts[partIndex++] = string(part);",
-      "                start = i + delimBytes.length;",
-      "                i += delimBytes.length - 1;",
-      "            }",
-      "        }",
-      "        bytes memory lastPart = new bytes(strBytes.length - start);",
-      "        for (uint256 k = start; k < strBytes.length; k++) { lastPart[k - start] = strBytes[k]; }",
-      "        parts[partIndex] = string(lastPart);",
-      "        return parts;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("__sk_toString", _needsToStringHelper)) {
-    emitHelper("__sk_toString", [
-      "    function __sk_toString(uint256 value) internal pure returns (string memory) {",
-      '        if (value == 0) return "0";',
-      "        uint256 temp = value;",
-      "        uint256 digits;",
-      "        while (temp != 0) { digits++; temp /= 10; }",
-      "        bytes memory buffer = new bytes(digits);",
-      "        while (value != 0) {",
-      "            digits--;",
-      `            buffer[digits] = bytes1(uint8(${CHAR_0} + (value % 10)));`,
-      "            value /= 10;",
-      "        }",
-      "        return string(buffer);",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_replace", _needsReplaceHelper)) {
-    emitHelper("_replace", [
-      "    function _replace(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory searchBytes = bytes(search);",
-      "        bytes memory replBytes = bytes(replacement);",
-      "        require(searchBytes.length > 0);",
-      "        for (uint256 i = 0; i + searchBytes.length <= strBytes.length; i++) {",
-      "            bool found = true;",
-      "            for (uint256 j = 0; j < searchBytes.length; j++) {",
-      "                if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
-      "            }",
-      "            if (found) {",
-      "                bytes memory result = new bytes(strBytes.length - searchBytes.length + replBytes.length);",
-      "                for (uint256 k = 0; k < i; k++) { result[k] = strBytes[k]; }",
-      "                for (uint256 k = 0; k < replBytes.length; k++) { result[i + k] = replBytes[k]; }",
-      "                for (uint256 k = i + searchBytes.length; k < strBytes.length; k++) { result[k - searchBytes.length + replBytes.length] = strBytes[k]; }",
-      "                return string(result);",
-      "            }",
-      "        }",
-      "        return str;",
-      "    }",
-    ]);
-  }
-
-  if (needsHelper("_replaceAll", _needsReplaceAllHelper)) {
-    emitHelper("_replaceAll", [
-      "    function _replaceAll(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
-      "        bytes memory strBytes = bytes(str);",
-      "        bytes memory searchBytes = bytes(search);",
-      "        bytes memory replBytes = bytes(replacement);",
-      "        require(searchBytes.length > 0);",
-      "        uint256 count = 0;",
-      "        for (uint256 i = 0; i + searchBytes.length <= strBytes.length; i++) {",
-      "            bool found = true;",
-      "            for (uint256 j = 0; j < searchBytes.length; j++) {",
-      "                if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
-      "            }",
-      "            if (found) { count++; i += searchBytes.length - 1; }",
-      "        }",
-      "        if (count == 0) return str;",
-      "        bytes memory result = new bytes(strBytes.length - (count * searchBytes.length) + (count * replBytes.length));",
-      "        uint256 idx = 0;",
-      "        for (uint256 i = 0; i < strBytes.length; ) {",
-      "            bool found = false;",
-      "            if (i + searchBytes.length <= strBytes.length) {",
-      "                found = true;",
-      "                for (uint256 j = 0; j < searchBytes.length; j++) {",
-      "                    if (strBytes[i + j] != searchBytes[j]) { found = false; break; }",
-      "                }",
-      "            }",
-      "            if (found) {",
-      "                for (uint256 k = 0; k < replBytes.length; k++) { result[idx++] = replBytes[k]; }",
-      "                i += searchBytes.length;",
-      "            } else {",
-      "                result[idx++] = strBytes[i];",
-      "                i++;",
-      "            }",
-      "        }",
-      "        return string(result);",
-      "    }",
-    ]);
+  // Emit registered helpers using the table-driven registry
+  for (const entry of HELPER_REGISTRY) {
+    if (needsHelper(entry.name, _neededHelpers.has(entry.name))) {
+      emitHelper(entry.name, entry.lines());
+    }
   }
 
   // Emit array helper functions based on what methods are used,
@@ -1360,10 +1392,6 @@ function generateContractBody(
       ]);
     }
   }
-
-  parts.push("}");
-
-  return parts.join("\n");
 }
 
 // ============================================================
@@ -2354,17 +2382,17 @@ function tryGenerateBuiltinCall(expr: {
     case "bytes.concat":
       return `bytes.concat(${args})`;
     case "__sk_toString": {
-      _needsToStringHelper = true;
+      _neededHelpers.add("__sk_toString");
       return `__sk_toString(${args})`;
     }
     case "Math.min": {
-      _needsMinHelper = true;
+      _neededHelpers.add("_min");
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
       return `_min(${a}, ${b})`;
     }
     case "Math.max": {
-      _needsMaxHelper = true;
+      _neededHelpers.add("_max");
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
       return `_max(${a}, ${b})`;
@@ -2375,48 +2403,48 @@ function tryGenerateBuiltinCall(expr: {
       return `(${base} ** ${exp})`;
     }
     case "Math.sqrt": {
-      _needsSqrtHelper = true;
+      _neededHelpers.add("_sqrt");
       const x = generateExpression(expr.args[0]);
       return `_sqrt(${x})`;
     }
     case "_charAt": {
-      _needsCharAtHelper = true;
+      _neededHelpers.add("_charAt");
       return `_charAt(${args})`;
     }
     case "_substring": {
-      _needsSubstringHelper = true;
+      _neededHelpers.add("_substring");
       return `_substring(${args})`;
     }
     case "_toLowerCase": {
-      _needsToLowerCaseHelper = true;
+      _neededHelpers.add("_toLowerCase");
       return `_toLowerCase(${args})`;
     }
     case "_toUpperCase": {
-      _needsToUpperCaseHelper = true;
+      _neededHelpers.add("_toUpperCase");
       return `_toUpperCase(${args})`;
     }
     case "_startsWith": {
-      _needsStartsWithHelper = true;
+      _neededHelpers.add("_startsWith");
       return `_startsWith(${args})`;
     }
     case "_endsWith": {
-      _needsEndsWithHelper = true;
+      _neededHelpers.add("_endsWith");
       return `_endsWith(${args})`;
     }
     case "_trim": {
-      _needsTrimHelper = true;
+      _neededHelpers.add("_trim");
       return `_trim(${args})`;
     }
     case "_split": {
-      _needsSplitHelper = true;
+      _neededHelpers.add("_split");
       return `_split(${args})`;
     }
     case "_replace": {
-      _needsReplaceHelper = true;
+      _neededHelpers.add("_replace");
       return `_replace(${args})`;
     }
     case "_replaceAll": {
-      _needsReplaceAllHelper = true;
+      _neededHelpers.add("_replaceAll");
       return `_replaceAll(${args})`;
     }
     default:
