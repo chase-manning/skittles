@@ -1261,7 +1261,7 @@ function emitHelperFunctions(
       ? `keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(value))`
       : `arr[i] == value`;
 
-    if (method === "includes" && notFromAncestor(`_arrIncludes_${suffix}`)) {
+    if (method === "includes" && needsHelper(`_arrIncludes_${suffix}`, true)) {
       emitHelper(`_arrIncludes_${suffix}`, [
         `    function _arrIncludes_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (bool) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
@@ -1272,7 +1272,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "indexOf" && notFromAncestor(`_arrIndexOf_${suffix}`)) {
+    if (method === "indexOf" && needsHelper(`_arrIndexOf_${suffix}`, true)) {
       emitHelper(`_arrIndexOf_${suffix}`, [
         `    function _arrIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
@@ -1285,7 +1285,7 @@ function emitHelperFunctions(
 
     if (
       method === "lastIndexOf" &&
-      notFromAncestor(`_arrLastIndexOf_${suffix}`)
+      needsHelper(`_arrLastIndexOf_${suffix}`, true)
     ) {
       emitHelper(`_arrLastIndexOf_${suffix}`, [
         `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
@@ -1297,7 +1297,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "remove" && notFromAncestor(`_arrRemove_${suffix}`)) {
+    if (method === "remove" && needsHelper(`_arrRemove_${suffix}`, true)) {
       emitHelper(`_arrRemove_${suffix}`, [
         `    function _arrRemove_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal returns (bool) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
@@ -1312,7 +1312,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "reverse" && notFromAncestor(`_arrReverse_${suffix}`)) {
+    if (method === "reverse" && needsHelper(`_arrReverse_${suffix}`, true)) {
       emitHelper(`_arrReverse_${suffix}`, [
         `    function _arrReverse_${suffix}(${solType}[] storage arr) internal {`,
         `        uint256 len = arr.length;`,
@@ -1325,7 +1325,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "splice" && notFromAncestor(`_arrSplice_${suffix}`)) {
+    if (method === "splice" && needsHelper(`_arrSplice_${suffix}`, true)) {
       emitHelper(`_arrSplice_${suffix}`, [
         `    function _arrSplice_${suffix}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
         `        require(start < arr.length, "${ERR_START_OUT_OF_BOUNDS}");`,
@@ -1342,7 +1342,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "slice" && notFromAncestor(`_arrSlice_${suffix}`)) {
+    if (method === "slice" && needsHelper(`_arrSlice_${suffix}`, true)) {
       emitHelper(`_arrSlice_${suffix}`, [
         `    function _arrSlice_${suffix}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
         `        if (end > arr.length) end = arr.length;`,
@@ -1356,7 +1356,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "concat" && notFromAncestor(`_arrConcat_${suffix}`)) {
+    if (method === "concat" && needsHelper(`_arrConcat_${suffix}`, true)) {
       emitHelper(`_arrConcat_${suffix}`, [
         `    function _arrConcat_${suffix}(${solType}[] storage arr, ${solType}[] memory other) internal view returns (${solType}[] memory) {`,
         `        ${solType}[] memory result = new ${solType}[](arr.length + other.length);`,
@@ -1371,7 +1371,7 @@ function emitHelperFunctions(
       ]);
     }
 
-    if (method === "spread" && notFromAncestor(`_arrSpread_${suffix}`)) {
+    if (method === "spread" && needsHelper(`_arrSpread_${suffix}`, true)) {
       emitHelper(`_arrSpread_${suffix}`, [
         `    function _arrSpread_${suffix}(${solType}[] memory a, ${solType}[] memory b) internal pure returns (${solType}[] memory) {`,
         `        ${solType}[] memory result = new ${solType}[](a.length + b.length);`,
