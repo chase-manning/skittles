@@ -57,7 +57,7 @@ const HELPER_REGISTRY: Array<{ name: string; lines: () => string[] }> = [
     lines: () => [
       "    function _sqrt(uint256 x) internal pure returns (uint256) {",
       "        if (x == 0) return 0;",
-      "        uint256 z = (x >> 1) + 1;",
+      "        uint256 z = (x + 1) / 2;",
       "        uint256 y = x;",
       "        while (z < y) {",
       "            y = z;",
