@@ -4,6 +4,7 @@ import {
   collectTypes,
   collectFunctions,
 } from "../../src/compiler/parser";
+import { ctx } from "../../src/compiler/parser-context";
 import {
   generateSolidity,
 } from "../../src/compiler/codegen";
@@ -376,6 +377,39 @@ describe("integration: cross file function imports", () => {
     );
     expect(solidity).toContain("return add(x, y);");
     expect(solidity).toContain("return multiply(x, y);");
+  });
+});
+
+// ============================================================
+// Standalone functions referencing imported enum types
+// ============================================================
+
+describe("integration: cross file enum in standalone function parameter", () => {
+  it("should not throw when collectFunctions parses a function with an imported enum parameter", () => {
+    const typesSource = `
+      enum VaultStatus { Active, Paused, Stopped }
+    `;
+    const functionSource = `
+      function isActive(s: VaultStatus): boolean {
+        return s == 0;
+      }
+    `;
+
+    // Collect enum types from the types file first
+    const { structs, enums } = collectTypes(typesSource, "types.ts");
+
+    // Seed the parser context with the collected enums (simulating pre-scan)
+    ctx.knownEnums = new Map(enums);
+    ctx.knownStructs = new Map(structs);
+
+    // collectFunctions should not throw for the imported enum type
+    expect(() => {
+      collectFunctions(functionSource, "utils.ts");
+    }).not.toThrow();
+
+    const { functions } = collectFunctions(functionSource, "utils.ts");
+    expect(functions).toHaveLength(1);
+    expect(functions[0].name).toBe("isActive");
   });
 });
 

@@ -23,6 +23,7 @@ import {
   collectFunctions,
   collectClassNames,
 } from "./parser.ts";
+import { ctx } from "./parser-context.ts";
 import {
   generateSolidity,
   generateSolidityFile,
@@ -222,6 +223,12 @@ function preScanContracts(
           state.interfaceOriginFile.set(name, baseName);
         }
       }
+
+      // Seed the parser context with types collected so far (from this file
+      // and previously scanned files) so that standalone functions referencing
+      // imported enum/struct types can be parsed without spurious errors.
+      ctx.knownStructs = new Map(state.globalStructs);
+      ctx.knownEnums = new Map(state.globalEnums);
 
       const { functions, constants } = collectFunctions(source, filePath);
       for (const fn of functions) {
