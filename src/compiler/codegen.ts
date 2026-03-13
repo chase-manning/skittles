@@ -871,7 +871,7 @@ export function generateSolidityFile(
       for (const s of contract.structs ?? []) {
         if (hoistedStructs.has(s.name) && !emittedFileScopeTypes.has(s.name)) {
           emittedFileScopeTypes.add(s.name);
-          parts.push(generateFileScopeStructDecl(s));
+          parts.push(generateStructDecl(s, ""));
           parts.push("");
         }
       }
@@ -1445,29 +1445,19 @@ function emitHelperFunctions(
 // Contract elements
 // ============================================================
 
-function generateStructDecl(s: {
-  name: string;
-  fields: SkittlesParameter[];
-}): string {
+function generateStructDecl(
+  s: {
+    name: string;
+    fields: SkittlesParameter[];
+  },
+  indent: string = "    "
+): string {
   const lines: string[] = [];
-  lines.push(`    struct ${s.name} {`);
+  lines.push(`${indent}struct ${s.name} {`);
   for (const f of s.fields) {
-    lines.push(`        ${generateType(f.type)} ${f.name};`);
+    lines.push(`${indent}    ${generateType(f.type)} ${f.name};`);
   }
-  lines.push("    }");
-  return lines.join("\n");
-}
-
-function generateFileScopeStructDecl(s: {
-  name: string;
-  fields: SkittlesParameter[];
-}): string {
-  const lines: string[] = [];
-  lines.push(`struct ${s.name} {`);
-  for (const f of s.fields) {
-    lines.push(`    ${generateType(f.type)} ${f.name};`);
-  }
-  lines.push("}");
+  lines.push(`${indent}}`);
   return lines.join("\n");
 }
 
