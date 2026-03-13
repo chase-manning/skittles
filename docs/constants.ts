@@ -1,1 +1,1 @@
-export { URLS } from "../constants/urls";
+export { URLS } from "../constants/urls.ts";
