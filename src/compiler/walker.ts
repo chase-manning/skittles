@@ -1,4 +1,4 @@
-import type { Expression,Statement } from "../types/index.ts";
+import type { Expression, Statement } from "../types/index.ts";
 
 /**
  * Visitor interface for walking AST nodes. Both callbacks are optional;

@@ -7,7 +7,7 @@ import type {
 } from "../../types/index.ts";
 import { readFile } from "../../utils/file.ts";
 import { findExtendsReferences } from "../../utils/regex.ts";
-import { baseName,hashString } from "./cache.ts";
+import { baseName, hashString } from "./cache.ts";
 import type { PreScanState } from "./prescan.ts";
 
 /**

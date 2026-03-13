@@ -15,7 +15,7 @@ import { ctx } from "./parser-context.ts";
 import { inferType } from "./type-parser.ts";
 import { walkStatements as walkStatementsShared } from "./walker.ts";
 export type { ASTVisitor } from "./walker.ts";
-export { walkExpression,walkStatements } from "./walker.ts";
+export { walkExpression, walkStatements } from "./walker.ts";
 
 /**
  * Propagate state mutability across call chains.
