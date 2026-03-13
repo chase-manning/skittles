@@ -34,6 +34,33 @@ export { parseExpression } from "./expression-parser.ts";
 export { parseStatement } from "./statement-parser.ts";
 export { inferStateMutability } from "./mutability.ts";
 
+/**
+ * Scan a source file for struct (type alias with type literal) and enum declarations,
+ * populating the provided maps in-place so that parseType can resolve references
+ * as they are discovered during the traversal.
+ */
+function collectStructsAndEnums(
+  sourceFile: ts.SourceFile,
+  structs: Map<string, SkittlesParameter[]>,
+  enums: Map<string, string[]>
+): void {
+  ts.forEachChild(sourceFile, (node) => {
+    if (
+      ts.isTypeAliasDeclaration(node) &&
+      node.name &&
+      ts.isTypeLiteralNode(node.type)
+    ) {
+      structs.set(node.name.text, parseTypeLiteralFields(node.type));
+    }
+    if (ts.isEnumDeclaration(node) && node.name) {
+      const members = node.members.map((m) =>
+        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
+      );
+      enums.set(node.name.text, members);
+    }
+  });
+}
+
 export function collectTypes(
   source: string,
   filePath: string
@@ -71,22 +98,7 @@ export function collectTypes(
   ctx.knownContractInterfaceMap = new Map();
 
   // Pass 1: collect structs and enums first so parseType can resolve forward references
-  ts.forEachChild(sourceFile, (node) => {
-    if (
-      ts.isTypeAliasDeclaration(node) &&
-      node.name &&
-      ts.isTypeLiteralNode(node.type)
-    ) {
-      const fields = parseTypeLiteralFields(node.type);
-      structs.set(node.name.text, fields);
-    }
-    if (ts.isEnumDeclaration(node) && node.name) {
-      const members = node.members.map((m) =>
-        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
-      );
-      enums.set(node.name.text, members);
-    }
-  });
+  collectStructsAndEnums(sourceFile, structs, enums);
 
   // Pass 2: pre-scan interface names so parseType can resolve forward references
   // between interfaces (e.g. an interface method that returns another interface type)
@@ -172,22 +184,7 @@ export function parse(
   }
 
   // First pass: collect structs and enums so they are available when parsing interfaces
-  ts.forEachChild(sourceFile, (node) => {
-    if (
-      ts.isTypeAliasDeclaration(node) &&
-      node.name &&
-      ts.isTypeLiteralNode(node.type)
-    ) {
-      const fields = parseTypeLiteralFields(node.type);
-      structs.set(node.name.text, fields);
-    }
-    if (ts.isEnumDeclaration(node) && node.name) {
-      const members = node.members.map((m) =>
-        ts.isIdentifier(m.name) ? m.name.text : "Unknown"
-      );
-      enums.set(node.name.text, members);
-    }
-  });
+  collectStructsAndEnums(sourceFile, structs, enums);
 
   ctx.knownStructs = structs;
   ctx.knownEnums = new Map(enums);
@@ -449,21 +446,7 @@ export function collectFunctions(
     ctx.knownContractInterfaces = new Set();
     ctx.knownContractInterfaceMap = new Map();
 
-    ts.forEachChild(sourceFile, (node) => {
-      if (
-        ts.isTypeAliasDeclaration(node) &&
-        node.name &&
-        ts.isTypeLiteralNode(node.type)
-      ) {
-        localStructs.set(node.name.text, parseTypeLiteralFields(node.type));
-      }
-      if (ts.isEnumDeclaration(node) && node.name) {
-        const members = node.members.map((m) =>
-          ts.isIdentifier(m.name) ? m.name.text : "Unknown"
-        );
-        localEnums.set(node.name.text, members);
-      }
-    });
+    collectStructsAndEnums(sourceFile, localStructs, localEnums);
   }
 
   // First pass: collect file level constants so parseExpression can inline them
