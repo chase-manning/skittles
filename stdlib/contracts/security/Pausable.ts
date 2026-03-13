@@ -1,4 +1,4 @@
-import { address, msg, SkittlesEvent, SkittlesError } from "skittles";
+import { address, Indexed, msg, SkittlesEvent, SkittlesError } from "skittles";
 
 /**
  * Contract module that allows children to implement an emergency stop
@@ -10,8 +10,8 @@ import { address, msg, SkittlesEvent, SkittlesError } from "skittles";
  * of functions that need the check.
  */
 export class Pausable {
-  Paused: SkittlesEvent<{ account: address }>;
-  Unpaused: SkittlesEvent<{ account: address }>;
+  Paused: SkittlesEvent<{ account: Indexed<address> }>;
+  Unpaused: SkittlesEvent<{ account: Indexed<address> }>;
 
   EnforcedPause: SkittlesError<{}>;
   ExpectedPause: SkittlesError<{}>;
