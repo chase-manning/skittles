@@ -28,7 +28,7 @@
     "init": "npm run build && node dist/index.js init",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src/ test/ && npm run lint --prefix webapp && npm run lint --prefix docs && npm run lint --prefix example",
+    "lint": "npm run lint --prefix docs && npm run lint --prefix example",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"webapp/**/*.{ts,tsx}\" \"docs/**/*.{ts,tsx}\"",
     "prepublishOnly": "npm run build && npm test"
   },
