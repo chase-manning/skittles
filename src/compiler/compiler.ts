@@ -369,6 +369,7 @@ function resolveCompilationOrder(
     JSON.stringify({
       consoleLog: config.consoleLog,
       solidity: config.solidity,
+      formatting: config.formatting,
     })
   );
 
