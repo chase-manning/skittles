@@ -86,6 +86,15 @@ export function resolveStdlibFiles(referencedClasses: Set<string>): string[] {
       const parentEntry = registry.find((e) => e.className === parent);
       if (parentEntry && !needed.has(parentEntry.filePath)) queue.push(parent);
     }
+
+    // Also follow relative import statements to other stdlib files
+    for (const match of source.matchAll(/from\s+["'](\.[^"']+)["']/g)) {
+      const importPath = match[1];
+      const resolved = path.resolve(path.dirname(entry.filePath), importPath);
+      if (resolved.startsWith(STDLIB_CONTRACTS_DIR) && !needed.has(resolved)) {
+        needed.add(resolved);
+      }
+    }
   }
 
   return [...needed];

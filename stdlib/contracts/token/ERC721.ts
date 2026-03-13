@@ -1,4 +1,5 @@
 import { address, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
+import { ZERO_ADDRESS } from "../constants.ts";
 
 /**
  * Implementation of the ERC-721 non-fungible token standard.
@@ -61,9 +62,9 @@ export class ERC721 {
   }
 
   public balanceOf(owner: address): number {
-    if (owner == "0x0000000000000000000000000000000000000000") {
+    if (owner == ZERO_ADDRESS) {
       throw this.ERC721InvalidOwner(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     return this._balances[owner];
@@ -95,9 +96,9 @@ export class ERC721 {
     to: address,
     tokenId: number
   ): void {
-    if (to == "0x0000000000000000000000000000000000000000") {
+    if (to == ZERO_ADDRESS) {
       throw this.ERC721InvalidReceiver(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     let previousOwner: address = this._update(to, tokenId, msg.sender);
@@ -119,7 +120,7 @@ export class ERC721 {
     spender: address,
     tokenId: number
   ): boolean {
-    if (spender == "0x0000000000000000000000000000000000000000") {
+    if (spender == ZERO_ADDRESS) {
       return false;
     }
     if (owner == spender) {
@@ -140,7 +141,7 @@ export class ERC721 {
     tokenId: number
   ): void {
     if (!this._isAuthorized(owner, spender, tokenId)) {
-      if (owner == "0x0000000000000000000000000000000000000000") {
+      if (owner == ZERO_ADDRESS) {
         throw this.ERC721NonexistentToken(tokenId);
       }
       throw this.ERC721InsufficientApproval(spender, tokenId);
@@ -154,20 +155,20 @@ export class ERC721 {
   ): address {
     let from: address = this._ownerOf(tokenId);
 
-    if (auth != "0x0000000000000000000000000000000000000000") {
+    if (auth != ZERO_ADDRESS) {
       this._checkAuthorized(from, auth, tokenId);
     }
 
-    if (from != "0x0000000000000000000000000000000000000000") {
+    if (from != ZERO_ADDRESS) {
       this._approve(
-        "0x0000000000000000000000000000000000000000",
+        ZERO_ADDRESS,
         tokenId,
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
       this._balances[from] -= 1;
     }
 
-    if (to != "0x0000000000000000000000000000000000000000") {
+    if (to != ZERO_ADDRESS) {
       this._balances[to] += 1;
     }
 
@@ -179,30 +180,30 @@ export class ERC721 {
   }
 
   protected _mint(to: address, tokenId: number): void {
-    if (to == "0x0000000000000000000000000000000000000000") {
+    if (to == ZERO_ADDRESS) {
       throw this.ERC721InvalidReceiver(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     let previousOwner: address = this._update(
       to,
       tokenId,
-      "0x0000000000000000000000000000000000000000"
+      ZERO_ADDRESS
     );
-    if (previousOwner != "0x0000000000000000000000000000000000000000") {
+    if (previousOwner != ZERO_ADDRESS) {
       throw this.ERC721InvalidSender(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
   }
 
   protected _burn(tokenId: number): void {
     let previousOwner: address = this._update(
-      "0x0000000000000000000000000000000000000000",
+      ZERO_ADDRESS,
       tokenId,
-      "0x0000000000000000000000000000000000000000"
+      ZERO_ADDRESS
     );
-    if (previousOwner == "0x0000000000000000000000000000000000000000") {
+    if (previousOwner == ZERO_ADDRESS) {
       throw this.ERC721NonexistentToken(tokenId);
     }
   }
@@ -212,17 +213,17 @@ export class ERC721 {
     to: address,
     tokenId: number
   ): void {
-    if (to == "0x0000000000000000000000000000000000000000") {
+    if (to == ZERO_ADDRESS) {
       throw this.ERC721InvalidReceiver(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     let previousOwner: address = this._update(
       to,
       tokenId,
-      "0x0000000000000000000000000000000000000000"
+      ZERO_ADDRESS
     );
-    if (previousOwner == "0x0000000000000000000000000000000000000000") {
+    if (previousOwner == ZERO_ADDRESS) {
       throw this.ERC721NonexistentToken(tokenId);
     }
     if (previousOwner != from) {
@@ -236,10 +237,10 @@ export class ERC721 {
     auth: address
   ): void {
     let tokenOwner: address = this._ownerOf(tokenId);
-    if (tokenOwner == "0x0000000000000000000000000000000000000000") {
+    if (tokenOwner == ZERO_ADDRESS) {
       throw this.ERC721NonexistentToken(tokenId);
     }
-    if (auth != "0x0000000000000000000000000000000000000000") {
+    if (auth != ZERO_ADDRESS) {
       if (
         auth != tokenOwner &&
         !this.isApprovedForAll(tokenOwner, auth)
@@ -256,9 +257,9 @@ export class ERC721 {
     operator: address,
     approved: boolean
   ): void {
-    if (operator == "0x0000000000000000000000000000000000000000") {
+    if (operator == ZERO_ADDRESS) {
       throw this.ERC721InvalidOperator(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     this._operatorApprovals[owner][operator] = approved;
@@ -267,7 +268,7 @@ export class ERC721 {
 
   protected _requireOwned(tokenId: number): address {
     let tokenOwner: address = this._ownerOf(tokenId);
-    if (tokenOwner == "0x0000000000000000000000000000000000000000") {
+    if (tokenOwner == ZERO_ADDRESS) {
       throw this.ERC721NonexistentToken(tokenId);
     }
     return tokenOwner;

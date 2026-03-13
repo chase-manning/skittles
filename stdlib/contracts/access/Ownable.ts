@@ -1,4 +1,5 @@
 import { address, msg, SkittlesEvent, SkittlesError, Indexed } from "skittles";
+import { ZERO_ADDRESS } from "../constants.ts";
 
 /**
  * Contract module providing a basic access control mechanism where an
@@ -24,9 +25,9 @@ export class Ownable {
   private _owner: address;
 
   constructor(initialOwner: address) {
-    if (initialOwner == "0x0000000000000000000000000000000000000000") {
+    if (initialOwner == ZERO_ADDRESS) {
       throw this.OwnableInvalidOwner(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     this._transferOwnership(initialOwner);
@@ -45,15 +46,15 @@ export class Ownable {
   public renounceOwnership(): void {
     this._checkOwner();
     this._transferOwnership(
-      "0x0000000000000000000000000000000000000000"
+      ZERO_ADDRESS
     );
   }
 
   public transferOwnership(newOwner: address): void {
     this._checkOwner();
-    if (newOwner == "0x0000000000000000000000000000000000000000") {
+    if (newOwner == ZERO_ADDRESS) {
       throw this.OwnableInvalidOwner(
-        "0x0000000000000000000000000000000000000000"
+        ZERO_ADDRESS
       );
     }
     this._transferOwnership(newOwner);

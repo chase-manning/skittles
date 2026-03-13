@@ -15,6 +15,9 @@
  * ```
  */
 
+// Constants
+export { ZERO_ADDRESS } from "./constants.ts";
+
 // Token standards
 export { ERC20 } from "./token/ERC20.ts";
 export { ERC20Permit } from "./token/ERC20Permit.ts";

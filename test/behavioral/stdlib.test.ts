@@ -19,6 +19,15 @@ import {
   BEHAVIORAL_TIMEOUT_LONG,
 } from "../constants";
 
+function readStdlibConstants(): string {
+  const filePath = path.resolve(
+    __dirname,
+    "../../stdlib/contracts/constants.ts"
+  );
+  const raw = fs.readFileSync(filePath, "utf-8");
+  return raw.replace(/^import\s+.*from\s+["'].*["'];?\s*$/gm, "").trim();
+}
+
 function readStdlib(name: string): string {
   const subdirs: Record<string, string> = {
     ERC20: "token",
@@ -53,9 +62,12 @@ describe("stdlib ERC20", () => {
   let aliceAddr: string;
   let bobAddr: string;
 
+  const CONSTANTS_BASE = readStdlibConstants();
   const ERC20_BASE = readStdlib("ERC20");
 
   const TOKEN_SOURCE = `
+${CONSTANTS_BASE}
+
 ${ERC20_BASE}
 
 class MyToken extends ERC20 {
@@ -249,9 +261,12 @@ describe("stdlib Ownable", () => {
   let deployerAddr: string;
   let aliceAddr: string;
 
+  const OWNABLE_CONSTANTS = readStdlibConstants();
   const OWNABLE_BASE = readStdlib("Ownable");
 
   const OWNABLE_SOURCE = `
+${OWNABLE_CONSTANTS}
+
 ${OWNABLE_BASE}
 
 class OwnableToken extends Ownable {
@@ -473,9 +488,12 @@ describe("stdlib ERC721", () => {
   let aliceAddr: string;
   let bobAddr: string;
 
+  const ERC721_CONSTANTS = readStdlibConstants();
   const ERC721_BASE = readStdlib("ERC721");
 
   const NFT_SOURCE = `
+${ERC721_CONSTANTS}
+
 ${ERC721_BASE}
 
 class MyNFT extends ERC721 {
@@ -759,10 +777,13 @@ describe("stdlib ERC20Permit", () => {
   let deployerAddr: string;
   let aliceAddr: string;
 
+  const PERMIT_CONSTANTS = readStdlibConstants();
   const ERC20_BASE = readStdlib("ERC20");
   const PERMIT_BASE = readStdlib("ERC20Permit");
 
   const PERMIT_SOURCE = `
+${PERMIT_CONSTANTS}
+
 ${ERC20_BASE}
 
 ${PERMIT_BASE}
@@ -931,10 +952,13 @@ describe("stdlib ERC20Votes", () => {
   let aliceAddr: string;
   let bobAddr: string;
 
+  const VOTES_CONSTANTS = readStdlibConstants();
   const ERC20_BASE = readStdlib("ERC20");
   const VOTES_BASE = readStdlib("ERC20Votes");
 
   const VOTES_SOURCE = `
+${VOTES_CONSTANTS}
+
 ${ERC20_BASE}
 
 ${VOTES_BASE}

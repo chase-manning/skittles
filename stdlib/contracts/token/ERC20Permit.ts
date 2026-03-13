@@ -1,5 +1,6 @@
 import { address, bytes32, block, SkittlesError, keccak256, ecrecover, abi, self } from "skittles";
 import { ERC20 } from "./ERC20.ts";
+import { ZERO_ADDRESS } from "../constants.ts";
 
 /**
  * Extension of ERC-20 to support EIP-2612 permit (gasless approvals).
@@ -51,7 +52,7 @@ export class ERC20Permit extends ERC20 {
     );
     let hash: bytes32 = keccak256("\x19\x01", this.DOMAIN_SEPARATOR(), structHash);
     let signer: address = ecrecover(hash, v, r, s);
-    if (signer == "0x0000000000000000000000000000000000000000") {
+    if (signer == ZERO_ADDRESS) {
       throw this.ECDSAInvalidSignature();
     }
     if (signer != owner) {

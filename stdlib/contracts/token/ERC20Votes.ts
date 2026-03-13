@@ -1,5 +1,6 @@
 import { address, msg, SkittlesEvent, Indexed } from "skittles";
 import { ERC20 } from "./ERC20.ts";
+import { ZERO_ADDRESS } from "../constants.ts";
 
 /**
  * Extension of ERC-20 to support token-based voting and delegation.
@@ -61,13 +62,13 @@ export class ERC20Votes extends ERC20 {
     amount: number
   ): void {
     if (amount > 0 && from != to) {
-      if (from != "0x0000000000000000000000000000000000000000") {
+      if (from != ZERO_ADDRESS) {
         let oldValue: number = this._votingPower[from];
         let newValue: number = oldValue - amount;
         this._votingPower[from] = newValue;
         this.DelegateVotesChanged.emit(from, oldValue, newValue);
       }
-      if (to != "0x0000000000000000000000000000000000000000") {
+      if (to != ZERO_ADDRESS) {
         let oldValue: number = this._votingPower[to];
         let newValue: number = oldValue + amount;
         this._votingPower[to] = newValue;
