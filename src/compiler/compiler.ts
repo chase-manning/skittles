@@ -1,7 +1,10 @@
-import path from "path";
-
 import type { BuildArtifact, SkittlesConfig } from "../types/index.ts";
 import { logInfo } from "../utils/console.ts";
+import {
+  cacheDir as resolveCacheDir,
+  contractsDir as resolveContractsDir,
+  outputDir as resolveOutputDir,
+} from "../utils/paths.ts";
 import { analyzeContracts } from "./phases/analyze.ts";
 import { createNewCache, loadCache, updateCache } from "./phases/cache.ts";
 import { discoverFiles } from "./phases/discover.ts";
@@ -29,9 +32,9 @@ export async function compile(
   projectRoot: string,
   config: Required<SkittlesConfig>
 ): Promise<CompilationResult> {
-  const contractsDir = path.join(projectRoot, config.contractsDir);
-  const outputDir = path.join(projectRoot, config.outputDir);
-  const cacheDir = path.join(projectRoot, config.cacheDir);
+  const contractsDir = resolveContractsDir(projectRoot, config);
+  const outputDir = resolveOutputDir(projectRoot, config);
+  const cacheDir = resolveCacheDir(projectRoot, config);
 
   const artifacts: BuildArtifact[] = [];
   const errors: string[] = [];

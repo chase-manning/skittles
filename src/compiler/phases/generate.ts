@@ -1,5 +1,3 @@
-import path from "path";
-
 import { DEFAULT_CONFIG } from "../../config/defaults.ts";
 import type {
   BuildArtifact,
@@ -11,6 +9,7 @@ import type {
 import { logError, logInfo, logSuccess } from "../../utils/console.ts";
 import { getErrorMessage } from "../../utils/error.ts";
 import { writeFile } from "../../utils/file.ts";
+import { solidityOutputPath } from "../../utils/paths.ts";
 import {
   buildSourceMap,
   generateSolidity,
@@ -101,7 +100,7 @@ export function generateOutput(
     // the file once using [0]. The loop below iterates all contracts only to
     // collect individual artifact entries and log each contract name.
     writeFile(
-      path.join(outputDir, "solidity", `${cachedBaseName}.sol`),
+      solidityOutputPath(outputDir, `${cachedBaseName}.sol`),
       cached.contracts[0].solidity
     );
     for (const c of cached.contracts) {
@@ -225,7 +224,7 @@ export function generateOutput(
       // Build source map linking generated Solidity lines to TypeScript source
       const sourceMap = buildSourceMap(solidity, contracts, relativePath);
       writeFile(
-        path.join(outputDir, "solidity", `${base}.sol.map`),
+        solidityOutputPath(outputDir, `${base}.sol.map`),
         JSON.stringify(sourceMap, null, 2)
       );
 
@@ -248,7 +247,7 @@ export function generateOutput(
         contractFunctions: contractFns,
         contractInherits: contractInheritsMap,
       };
-      writeFile(path.join(outputDir, "solidity", `${base}.sol`), solidity);
+      writeFile(solidityOutputPath(outputDir, `${base}.sol`), solidity);
 
       for (const contract of contracts) {
         artifacts.push({ contractName: contract.name, solidity, sourceMap });

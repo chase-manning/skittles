@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 
 import { getPackageVersion } from "../../utils/package.ts";
+import { cachePath } from "../../utils/paths.ts";
 import { CACHE_HASH_LENGTH, CACHE_VERSION } from "../constants.ts";
 
 const PACKAGE_VERSION: string = getPackageVersion();
@@ -36,10 +37,10 @@ export function baseName(filePath: string): string {
 }
 
 export function loadCache(outputDir: string): CompilationCache {
-  const cachePath = path.join(outputDir, ".skittles-cache.json");
+  const cacheFile = cachePath(outputDir);
   try {
-    if (fs.existsSync(cachePath)) {
-      const data = JSON.parse(fs.readFileSync(cachePath, "utf-8"));
+    if (fs.existsSync(cacheFile)) {
+      const data = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
       if (
         data.version === CACHE_VERSION &&
         data.skittlesVersion === PACKAGE_VERSION
@@ -57,9 +58,9 @@ export function loadCache(outputDir: string): CompilationCache {
 }
 
 export function saveCache(outputDir: string, cache: CompilationCache): void {
-  const cachePath = path.join(outputDir, ".skittles-cache.json");
+  const cacheFile = cachePath(outputDir);
   fs.mkdirSync(outputDir, { recursive: true });
-  fs.writeFileSync(cachePath, JSON.stringify(cache), "utf-8");
+  fs.writeFileSync(cacheFile, JSON.stringify(cache), "utf-8");
 }
 
 /**

@@ -1,12 +1,12 @@
 import fs from "fs";
 import ora from "ora";
-import path from "path";
 
 import { compile } from "../compiler/compiler.ts";
 import { loadConfig } from "../config/config.ts";
+import { DEBOUNCE_MS } from "../constants/debounce.ts";
 import { logError, logInfo, logSuccess } from "../utils/console.ts";
 import { getErrorMessage } from "../utils/error.ts";
-import { DEBOUNCE_MS } from "../constants/debounce.ts";
+import { contractsDir as resolveContractsDir } from "../utils/paths.ts";
 
 async function executeCompilation(
   projectRoot: string,
@@ -63,7 +63,7 @@ export async function compileCommand(projectRoot: string): Promise<void> {
 
 export async function watchCompile(projectRoot: string): Promise<() => void> {
   const config = await loadConfig(projectRoot);
-  const contractsDir = path.join(projectRoot, config.contractsDir);
+  const contractsDir = resolveContractsDir(projectRoot, config);
 
   // Run initial compilation
   await executeCompilation(projectRoot);
