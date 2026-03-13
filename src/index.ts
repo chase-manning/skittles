@@ -8,12 +8,20 @@ import { hideBin } from "yargs/helpers";
 import { compileCommand, watchCompile } from "./commands/compile.ts";
 import { cleanCommand } from "./commands/clean.ts";
 import { initCommand } from "./commands/init.ts";
-import { printLogo } from "./utils/console.ts";
+import { printLogo, logError } from "./utils/console.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const packageVersion: string = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8")
-).version;
+let packageVersion: string;
+try {
+  packageVersion = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8")
+  ).version;
+} catch (err) {
+  const message =
+    err instanceof Error ? err.message : "Unknown error occurred";
+  logError(`Failed to read package.json: ${message}`);
+  process.exit(1);
+}
 
 printLogo();
 

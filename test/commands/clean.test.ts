@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import { cleanCommand } from "../../src/commands/clean";
@@ -39,5 +39,28 @@ describe("cleanCommand", () => {
     await cleanCommand(TEST_DIR);
 
     expect(fs.existsSync(customDir)).toBe(false);
+  });
+
+  it("should log error and exit when config loading fails", async () => {
+    const exitSpy = vi
+      .spyOn(process, "exit")
+      .mockImplementation(() => undefined as never);
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Write invalid JSON config to trigger loadConfig failure
+    fs.writeFileSync(
+      path.join(TEST_DIR, "skittles.config.json"),
+      "invalid json"
+    );
+
+    await cleanCommand(TEST_DIR);
+
+    expect(errorSpy).toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(1);
+
+    exitSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });
