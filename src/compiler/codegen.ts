@@ -16,6 +16,7 @@ import {
   type SkittlesParameter,
   type SourceMapping,
   type SolidityConfig,
+  type NatSpec,
 } from "../types/index.ts";
 import { DEFAULT_CONFIG } from "../config/defaults.ts";
 import {
@@ -944,6 +945,43 @@ const getFunctionKey = (f: SkittlesFunction): string => {
   return `${f.name}(${paramTypes})`;
 };
 
+function emitNatSpecTag(
+  lines: string[],
+  indent: string,
+  tag: string,
+  text: string
+): void {
+  const textLines = text.split("\n");
+  lines.push(`${indent}/// @${tag} ${textLines[0]}`);
+  for (let i = 1; i < textLines.length; i++) {
+    const trimmed = textLines[i].trim();
+    if (trimmed) {
+      lines.push(`${indent}/// ${trimmed}`);
+    } else {
+      lines.push(`${indent}///`);
+    }
+  }
+}
+
+function generateNatSpecLines(
+  natspec: NatSpec | undefined,
+  indent: string = ""
+): string[] {
+  if (!natspec) return [];
+  const lines: string[] = [];
+  if (natspec.title) emitNatSpecTag(lines, indent, "title", natspec.title);
+  if (natspec.author) emitNatSpecTag(lines, indent, "author", natspec.author);
+  if (natspec.notice) emitNatSpecTag(lines, indent, "notice", natspec.notice);
+  if (natspec.dev) emitNatSpecTag(lines, indent, "dev", natspec.dev);
+  if (natspec.params) {
+    for (const p of natspec.params) {
+      emitNatSpecTag(lines, indent, `param ${p.name}`, p.description);
+    }
+  }
+  if (natspec.returns) emitNatSpecTag(lines, indent, "return", natspec.returns);
+  return lines;
+}
+
 const hasAncestorOrigin = (
   origins: Set<string> | undefined,
   ancestors: Set<string>
@@ -965,6 +1003,8 @@ function generateContractBody(
   const inheritance =
     contract.inherits.length > 0 ? ` is ${contract.inherits.join(", ")}` : "";
   const abstractPrefix = contract.isAbstract ? "abstract " : "";
+  const contractNatSpec = generateNatSpecLines(contract.natspec);
+  for (const line of contractNatSpec) parts.push(line);
   parts.push(`${abstractPrefix}contract ${contract.name}${inheritance} {`);
 
   const addOrigin = (map: Map<string, Set<string>>, key: string): void => {
@@ -988,6 +1028,8 @@ function generateContractBody(
   for (const ce of contract.customErrors ?? []) {
     if (hasAncestorOrigin(definitionOrigins.get(ce.name), ancestors)) continue;
     addOrigin(definitionOrigins, ce.name);
+    const errorNatSpec = generateNatSpecLines(ce.natspec, "    ");
+    for (const line of errorNatSpec) parts.push(line);
     const params = ce.parameters
       .map((p) => `${generateType(p.type)} ${p.name}`)
       .join(", ");
@@ -1007,6 +1049,8 @@ function generateContractBody(
   }
 
   for (const e of contract.events) {
+    const eventNatSpec = generateNatSpecLines(e.natspec, "    ");
+    for (const line of eventNatSpec) parts.push(line);
     parts.push(`    ${generateEventDecl(e)}`);
   }
 
@@ -1042,6 +1086,8 @@ function generateStateVariables(
   functionsToEmit: SkittlesFunction[];
 } {
   for (const v of contract.variables) {
+    const varNatSpec = generateNatSpecLines(v.natspec, "    ");
+    for (const line of varNatSpec) parts.push(line);
     parts.push(`    ${generateVariable(v)}`);
   }
 
@@ -1737,8 +1783,10 @@ function expandDefaultParamOverloads(f: SkittlesFunction): SkittlesFunction[] {
 }
 
 function generateFunction(f: SkittlesFunction): string {
+  const natspecLines = generateNatSpecLines(f.natspec, "    ");
+
   if (f.name === "receive") {
-    const lines: string[] = [];
+    const lines: string[] = [...natspecLines];
     lines.push("    receive() external payable {");
     for (const s of f.body) {
       lines.push(generateStatement(s, "        "));
@@ -1748,7 +1796,7 @@ function generateFunction(f: SkittlesFunction): string {
   }
 
   if (f.name === "fallback") {
-    const lines: string[] = [];
+    const lines: string[] = [...natspecLines];
     lines.push("    fallback() external payable {");
     for (const s of f.body) {
       lines.push(generateStatement(s, "        "));
@@ -1787,7 +1835,7 @@ function generateFunction(f: SkittlesFunction): string {
     }
   }
 
-  const lines: string[] = [];
+  const lines: string[] = [...natspecLines];
   if (f.isAbstract) {
     lines.push(
       `    function ${f.name}(${params}) ${vis}${mut}${virtOverride}${returns};`

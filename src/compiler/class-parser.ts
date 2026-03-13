@@ -12,6 +12,7 @@ import {
   type SkittlesInterfaceFunction,
   type Statement,
   type Expression,
+  type NatSpec,
 } from "../types/index.ts";
 import { ctx } from "./parser-context.ts";
 import {
@@ -60,6 +61,7 @@ export function parseStandaloneFunction(
     ? parseBlock(node.body, localVarTypes, eventNames)
     : [];
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
+  const natspec = parseNatSpec(node);
 
   return {
     name,
@@ -71,6 +73,7 @@ export function parseStandaloneFunction(
     isOverride: false,
     body,
     sourceLine: getSourceLine(node),
+    natspec,
   };
 }
 
@@ -689,6 +692,8 @@ export function parseClass(
     contractCustomErrors.push({ name: ie.name, parameters: ie.parameters });
   }
 
+  const natspec = parseNatSpec(node);
+
   return {
     name,
     sourcePath: filePath,
@@ -705,6 +710,7 @@ export function parseClass(
     sourceLine: getSourceLine(node),
     neededArrayHelpers:
       ctx.neededArrayHelpers.size > 0 ? [...ctx.neededArrayHelpers] : undefined,
+    natspec,
   };
 }
 
@@ -721,13 +727,15 @@ export function tryParseEvent(
   const name =
     node.name && ts.isIdentifier(node.name) ? node.name.text : "Unknown";
 
+  const natspec = parseNatSpec(node);
+
   if (!node.type.typeArguments || node.type.typeArguments.length === 0) {
-    return { name, parameters: [], sourceLine: getSourceLine(node) };
+    return { name, parameters: [], sourceLine: getSourceLine(node), natspec };
   }
 
   const typeArg = node.type.typeArguments[0];
   if (!ts.isTypeLiteralNode(typeArg)) {
-    return { name, parameters: [], sourceLine: getSourceLine(node) };
+    return { name, parameters: [], sourceLine: getSourceLine(node), natspec };
   }
 
   const parameters: SkittlesParameter[] = [];
@@ -760,7 +768,7 @@ export function tryParseEvent(
     }
   }
 
-  return { name, parameters, sourceLine: getSourceLine(node) };
+  return { name, parameters, sourceLine: getSourceLine(node), natspec };
 }
 
 // ============================================================
@@ -840,6 +848,8 @@ export function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     }
   }
 
+  const natspec = parseNatSpec(node);
+
   return {
     name,
     type,
@@ -848,6 +858,7 @@ export function parseProperty(node: ts.PropertyDeclaration): SkittlesVariable {
     constant,
     initialValue,
     sourceLine: getSourceLine(node),
+    natspec,
   };
 }
 
@@ -887,6 +898,7 @@ export function parseMethod(
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
+  const natspec = parseNatSpec(node);
 
   return {
     name,
@@ -899,6 +911,7 @@ export function parseMethod(
     isAbstract: isAbstractMethod ? true : undefined,
     body,
     sourceLine: getSourceLine(node),
+    natspec,
   };
 }
 
@@ -1071,6 +1084,7 @@ export function parseGetAccessor(
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
+  const natspec = parseNatSpec(node);
 
   return {
     name,
@@ -1082,6 +1096,7 @@ export function parseGetAccessor(
     isOverride,
     body,
     sourceLine: getSourceLine(node),
+    natspec,
   };
 }
 
@@ -1113,6 +1128,7 @@ export function parseSetAccessor(
 
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
+  const natspec = parseNatSpec(node);
 
   return {
     name,
@@ -1124,6 +1140,7 @@ export function parseSetAccessor(
     isOverride,
     body,
     sourceLine: getSourceLine(node),
+    natspec,
   };
 }
 
@@ -1169,6 +1186,7 @@ export function parseArrowProperty(
   const stateMutability = inferStateMutability(body, localVarTypes, parameters);
   const isOverride = hasModifier(node.modifiers, ts.SyntaxKind.OverrideKeyword);
   const isVirtual = !isOverride;
+  const natspec = parseNatSpec(node);
 
   return {
     name,
@@ -1180,6 +1198,7 @@ export function parseArrowProperty(
     isOverride,
     body,
     sourceLine: getSourceLine(node),
+    natspec,
   };
 }
 
@@ -1216,6 +1235,100 @@ export function parseParameter(
     param.defaultValue = parseExpression(node.initializer);
   }
   return param;
+}
+
+// ============================================================
+// JSDoc → NatSpec extraction
+// ============================================================
+
+export function parseNatSpec(node: ts.Node): NatSpec | undefined {
+  const jsDocs = (node as { jsDoc?: ts.JSDoc[] }).jsDoc;
+  if (!jsDocs || jsDocs.length === 0) return undefined;
+
+  const natspec: NatSpec = {};
+  let hasContent = false;
+
+  for (const doc of jsDocs) {
+    // Extract the main comment text as @notice if no explicit @notice tag exists
+    if (doc.comment) {
+      const commentText =
+        typeof doc.comment === "string"
+          ? doc.comment
+          : doc.comment
+              .map((part: ts.JSDocComment) =>
+                ts.isJSDocLink(part) || ts.isJSDocLinkCode(part) || ts.isJSDocLinkPlain(part)
+                  ? part.text
+                  : part.text
+              )
+              .join("");
+      if (commentText.trim()) {
+        // Only use main comment as notice if no explicit @notice tag
+        const hasNoticeTag = doc.tags?.some(
+          (tag) => tag.tagName.text === "notice"
+        );
+        if (!hasNoticeTag) {
+          natspec.notice = commentText.trim();
+          hasContent = true;
+        }
+      }
+    }
+
+    if (doc.tags) {
+      for (const tag of doc.tags) {
+        const tagName = tag.tagName.text;
+        const tagComment = tag.comment
+          ? typeof tag.comment === "string"
+            ? tag.comment
+            : tag.comment
+                .map((part: ts.JSDocComment) =>
+                  ts.isJSDocLink(part) || ts.isJSDocLinkCode(part) || ts.isJSDocLinkPlain(part)
+                    ? part.text
+                    : part.text
+                )
+                .join("")
+          : "";
+
+        switch (tagName) {
+          case "title":
+            natspec.title = tagComment.trim();
+            hasContent = true;
+            break;
+          case "author":
+            natspec.author = tagComment.trim();
+            hasContent = true;
+            break;
+          case "notice":
+            natspec.notice = tagComment.trim();
+            hasContent = true;
+            break;
+          case "dev":
+            natspec.dev = tagComment.trim();
+            hasContent = true;
+            break;
+          case "param":
+            if (ts.isJSDocParameterTag(tag) && tag.name) {
+              const paramName = ts.isIdentifier(tag.name)
+                ? tag.name.text
+                : tag.name.getText();
+              if (!natspec.params) natspec.params = [];
+              natspec.params.push({
+                name: paramName,
+                description: tagComment.trim(),
+              });
+              hasContent = true;
+            }
+            break;
+          case "returns":
+          case "return":
+            natspec.returns = tagComment.trim();
+            hasContent = true;
+            break;
+        }
+      }
+    }
+  }
+
+  return hasContent ? natspec : undefined;
 }
 
 // ============================================================
