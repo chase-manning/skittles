@@ -27,28 +27,9 @@ import {
   CHAR_0,
   ERR_START_OUT_OF_BOUNDS,
 } from "./constants.ts";
-
-// ============================================================
-// Helper function tracking
-// ============================================================
-
-let _needsMinHelper = false;
-let _needsMaxHelper = false;
-let _needsSqrtHelper = false;
-let _needsCharAtHelper = false;
-let _needsSubstringHelper = false;
-let _needsToLowerCaseHelper = false;
-let _needsToUpperCaseHelper = false;
-let _needsStartsWithHelper = false;
-let _needsEndsWithHelper = false;
-let _needsTrimHelper = false;
-let _needsSplitHelper = false;
-let _needsToStringHelper = false;
-let _needsReplaceHelper = false;
-let _needsReplaceAllHelper = false;
-let _currentNeededArrayHelpers: string[] = [];
-let _allKnownEnumNames = new Set<string>();
-let _allKnownInterfaceNames = new Set<string>();
+import { cctx } from "./codegen-context.ts";
+export type { CodegenContext } from "./codegen-context.ts";
+export { resetCodegenContext } from "./codegen-context.ts";
 
 const SOLIDITY_VALUE_TYPES = new Set([
   "uint256",
@@ -578,12 +559,12 @@ export function generateSolidityFile(
     parts.push("");
   }
 
-  _allKnownEnumNames = new Set<string>();
-  _allKnownInterfaceNames = new Set<string>();
+  cctx.allKnownEnumNames = new Set<string>();
+  cctx.allKnownInterfaceNames = new Set<string>();
   for (const c of contracts) {
-    for (const en of c.enums ?? []) _allKnownEnumNames.add(en.name);
+    for (const en of c.enums ?? []) cctx.allKnownEnumNames.add(en.name);
     for (const iface of c.contractInterfaces ?? [])
-      _allKnownInterfaceNames.add(iface.name);
+      cctx.allKnownInterfaceNames.add(iface.name);
   }
 
   // Collect and deduplicate contract interfaces across all contracts
@@ -713,21 +694,8 @@ function generateContractBody(
   contractByName: Map<string, SkittlesContract> = new Map()
 ): string {
   const parts: string[] = [];
-  _needsMinHelper = false;
-  _needsMaxHelper = false;
-  _needsSqrtHelper = false;
-  _needsCharAtHelper = false;
-  _needsSubstringHelper = false;
-  _needsToLowerCaseHelper = false;
-  _needsToUpperCaseHelper = false;
-  _needsStartsWithHelper = false;
-  _needsEndsWithHelper = false;
-  _needsTrimHelper = false;
-  _needsSplitHelper = false;
-  _needsToStringHelper = false;
-  _needsReplaceHelper = false;
-  _needsReplaceAllHelper = false;
-  _currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
+  cctx.helpers = new Set();
+  cctx.currentNeededArrayHelpers = contract.neededArrayHelpers ?? [];
 
   const inheritance =
     contract.inherits.length > 0 ? ` is ${contract.inherits.join(", ")}` : "";
@@ -951,8 +919,11 @@ function generateContractBody(
   }
 
   // Emit helper functions, skipping any already emitted by an ancestor contract
-  const needsHelper = (name: string, flag: boolean): boolean =>
-    flag && !hasAncestorOrigin(functionOrigins.get(name), ancestors);
+  const notFromAncestor = (name: string): boolean =>
+    !hasAncestorOrigin(functionOrigins.get(name), ancestors);
+
+  const needsHelper = (name: string): boolean =>
+    cctx.helpers.has(name) && notFromAncestor(name);
 
   const emitHelper = (name: string, lines: string[]): void => {
     addOrigin(functionOrigins, name);
@@ -960,7 +931,7 @@ function generateContractBody(
     for (const line of lines) parts.push(line);
   };
 
-  if (needsHelper("_min", _needsMinHelper)) {
+  if (needsHelper("_min")) {
     emitHelper("_min", [
       "    function _min(uint256 a, uint256 b) internal pure returns (uint256) {",
       "        return a < b ? a : b;",
@@ -968,7 +939,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_max", _needsMaxHelper)) {
+  if (needsHelper("_max")) {
     emitHelper("_max", [
       "    function _max(uint256 a, uint256 b) internal pure returns (uint256) {",
       "        return a > b ? a : b;",
@@ -976,7 +947,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_sqrt", _needsSqrtHelper)) {
+  if (needsHelper("_sqrt")) {
     emitHelper("_sqrt", [
       "    function _sqrt(uint256 x) internal pure returns (uint256) {",
       "        if (x == 0) return 0;",
@@ -991,7 +962,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_charAt", _needsCharAtHelper)) {
+  if (needsHelper("_charAt")) {
     emitHelper("_charAt", [
       "    function _charAt(string memory str, uint256 index) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1003,7 +974,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_substring", _needsSubstringHelper)) {
+  if (needsHelper("_substring")) {
     emitHelper("_substring", [
       "    function _substring(string memory str, uint256 start, uint256 end) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1017,7 +988,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_toLowerCase", _needsToLowerCaseHelper)) {
+  if (needsHelper("_toLowerCase")) {
     emitHelper("_toLowerCase", [
       "    function _toLowerCase(string memory str) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1035,7 +1006,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_toUpperCase", _needsToUpperCaseHelper)) {
+  if (needsHelper("_toUpperCase")) {
     emitHelper("_toUpperCase", [
       "    function _toUpperCase(string memory str) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1053,7 +1024,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_startsWith", _needsStartsWithHelper)) {
+  if (needsHelper("_startsWith")) {
     emitHelper("_startsWith", [
       "    function _startsWith(string memory str, string memory prefix) internal pure returns (bool) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1067,7 +1038,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_endsWith", _needsEndsWithHelper)) {
+  if (needsHelper("_endsWith")) {
     emitHelper("_endsWith", [
       "    function _endsWith(string memory str, string memory suffix) internal pure returns (bool) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1082,7 +1053,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_trim", _needsTrimHelper)) {
+  if (needsHelper("_trim")) {
     emitHelper("_trim", [
       "    function _trim(string memory str) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1099,7 +1070,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_split", _needsSplitHelper)) {
+  if (needsHelper("_split")) {
     emitHelper("_split", [
       "    function _split(string memory str, string memory delimiter) internal pure returns (string[] memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1137,7 +1108,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("__sk_toString", _needsToStringHelper)) {
+  if (needsHelper("__sk_toString")) {
     emitHelper("__sk_toString", [
       "    function __sk_toString(uint256 value) internal pure returns (string memory) {",
       '        if (value == 0) return "0";',
@@ -1155,7 +1126,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_replace", _needsReplaceHelper)) {
+  if (needsHelper("_replace")) {
     emitHelper("_replace", [
       "    function _replace(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1180,7 +1151,7 @@ function generateContractBody(
     ]);
   }
 
-  if (needsHelper("_replaceAll", _needsReplaceAllHelper)) {
+  if (needsHelper("_replaceAll")) {
     emitHelper("_replaceAll", [
       "    function _replaceAll(string memory str, string memory search, string memory replacement) internal pure returns (string memory) {",
       "        bytes memory strBytes = bytes(str);",
@@ -1221,21 +1192,21 @@ function generateContractBody(
 
   // Emit array helper functions based on what methods are used,
   // skipping any already emitted by an ancestor contract in this file
-  for (const helperKey of _currentNeededArrayHelpers) {
+  for (const helperKey of cctx.currentNeededArrayHelpers) {
     const [method, ...typeParts] = helperKey.split("_");
     const suffix = typeParts.join("_");
     const solType = suffixToSolType(suffix);
     const isRefType =
       !SOLIDITY_VALUE_TYPES.has(solType) &&
-      !_allKnownEnumNames.has(solType) &&
-      !_allKnownInterfaceNames.has(solType);
+      !cctx.allKnownEnumNames.has(solType) &&
+      !cctx.allKnownInterfaceNames.has(solType);
     const useHashEq = solType === "string" || solType === "bytes";
     const memAnnotation = isRefType ? "memory " : "";
     const eqCheck = useHashEq
       ? `keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(value))`
       : `arr[i] == value`;
 
-    if (method === "includes" && needsHelper(`_arrIncludes_${suffix}`, true)) {
+    if (method === "includes" && notFromAncestor(`_arrIncludes_${suffix}`)) {
       emitHelper(`_arrIncludes_${suffix}`, [
         `    function _arrIncludes_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (bool) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
@@ -1246,7 +1217,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "indexOf" && needsHelper(`_arrIndexOf_${suffix}`, true)) {
+    if (method === "indexOf" && notFromAncestor(`_arrIndexOf_${suffix}`)) {
       emitHelper(`_arrIndexOf_${suffix}`, [
         `    function _arrIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
@@ -1259,7 +1230,7 @@ function generateContractBody(
 
     if (
       method === "lastIndexOf" &&
-      needsHelper(`_arrLastIndexOf_${suffix}`, true)
+      notFromAncestor(`_arrLastIndexOf_${suffix}`)
     ) {
       emitHelper(`_arrLastIndexOf_${suffix}`, [
         `    function _arrLastIndexOf_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal view returns (uint256) {`,
@@ -1271,7 +1242,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "remove" && needsHelper(`_arrRemove_${suffix}`, true)) {
+    if (method === "remove" && notFromAncestor(`_arrRemove_${suffix}`)) {
       emitHelper(`_arrRemove_${suffix}`, [
         `    function _arrRemove_${suffix}(${solType}[] storage arr, ${solType} ${memAnnotation}value) internal returns (bool) {`,
         `        for (uint256 i = 0; i < arr.length; i++) {`,
@@ -1286,7 +1257,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "reverse" && needsHelper(`_arrReverse_${suffix}`, true)) {
+    if (method === "reverse" && notFromAncestor(`_arrReverse_${suffix}`)) {
       emitHelper(`_arrReverse_${suffix}`, [
         `    function _arrReverse_${suffix}(${solType}[] storage arr) internal {`,
         `        uint256 len = arr.length;`,
@@ -1299,7 +1270,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "splice" && needsHelper(`_arrSplice_${suffix}`, true)) {
+    if (method === "splice" && notFromAncestor(`_arrSplice_${suffix}`)) {
       emitHelper(`_arrSplice_${suffix}`, [
         `    function _arrSplice_${suffix}(${solType}[] storage arr, uint256 start, uint256 deleteCount) internal {`,
         `        require(start < arr.length, "${ERR_START_OUT_OF_BOUNDS}");`,
@@ -1316,7 +1287,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "slice" && needsHelper(`_arrSlice_${suffix}`, true)) {
+    if (method === "slice" && notFromAncestor(`_arrSlice_${suffix}`)) {
       emitHelper(`_arrSlice_${suffix}`, [
         `    function _arrSlice_${suffix}(${solType}[] storage arr, uint256 start, uint256 end) internal view returns (${solType}[] memory) {`,
         `        if (end > arr.length) end = arr.length;`,
@@ -1330,7 +1301,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "concat" && needsHelper(`_arrConcat_${suffix}`, true)) {
+    if (method === "concat" && notFromAncestor(`_arrConcat_${suffix}`)) {
       emitHelper(`_arrConcat_${suffix}`, [
         `    function _arrConcat_${suffix}(${solType}[] storage arr, ${solType}[] memory other) internal view returns (${solType}[] memory) {`,
         `        ${solType}[] memory result = new ${solType}[](arr.length + other.length);`,
@@ -1345,7 +1316,7 @@ function generateContractBody(
       ]);
     }
 
-    if (method === "spread" && needsHelper(`_arrSpread_${suffix}`, true)) {
+    if (method === "spread" && notFromAncestor(`_arrSpread_${suffix}`)) {
       emitHelper(`_arrSpread_${suffix}`, [
         `    function _arrSpread_${suffix}(${solType}[] memory a, ${solType}[] memory b) internal pure returns (${solType}[] memory) {`,
         `        ${solType}[] memory result = new ${solType}[](a.length + b.length);`,
@@ -2354,17 +2325,17 @@ function tryGenerateBuiltinCall(expr: {
     case "bytes.concat":
       return `bytes.concat(${args})`;
     case "__sk_toString": {
-      _needsToStringHelper = true;
+      cctx.helpers.add("__sk_toString");
       return `__sk_toString(${args})`;
     }
     case "Math.min": {
-      _needsMinHelper = true;
+      cctx.helpers.add("_min");
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
       return `_min(${a}, ${b})`;
     }
     case "Math.max": {
-      _needsMaxHelper = true;
+      cctx.helpers.add("_max");
       const a = generateExpression(expr.args[0]);
       const b = generateExpression(expr.args[1]);
       return `_max(${a}, ${b})`;
@@ -2375,48 +2346,48 @@ function tryGenerateBuiltinCall(expr: {
       return `(${base} ** ${exp})`;
     }
     case "Math.sqrt": {
-      _needsSqrtHelper = true;
+      cctx.helpers.add("_sqrt");
       const x = generateExpression(expr.args[0]);
       return `_sqrt(${x})`;
     }
     case "_charAt": {
-      _needsCharAtHelper = true;
+      cctx.helpers.add("_charAt");
       return `_charAt(${args})`;
     }
     case "_substring": {
-      _needsSubstringHelper = true;
+      cctx.helpers.add("_substring");
       return `_substring(${args})`;
     }
     case "_toLowerCase": {
-      _needsToLowerCaseHelper = true;
+      cctx.helpers.add("_toLowerCase");
       return `_toLowerCase(${args})`;
     }
     case "_toUpperCase": {
-      _needsToUpperCaseHelper = true;
+      cctx.helpers.add("_toUpperCase");
       return `_toUpperCase(${args})`;
     }
     case "_startsWith": {
-      _needsStartsWithHelper = true;
+      cctx.helpers.add("_startsWith");
       return `_startsWith(${args})`;
     }
     case "_endsWith": {
-      _needsEndsWithHelper = true;
+      cctx.helpers.add("_endsWith");
       return `_endsWith(${args})`;
     }
     case "_trim": {
-      _needsTrimHelper = true;
+      cctx.helpers.add("_trim");
       return `_trim(${args})`;
     }
     case "_split": {
-      _needsSplitHelper = true;
+      cctx.helpers.add("_split");
       return `_split(${args})`;
     }
     case "_replace": {
-      _needsReplaceHelper = true;
+      cctx.helpers.add("_replace");
       return `_replace(${args})`;
     }
     case "_replaceAll": {
-      _needsReplaceAllHelper = true;
+      cctx.helpers.add("_replaceAll");
       return `_replaceAll(${args})`;
     }
     default:
