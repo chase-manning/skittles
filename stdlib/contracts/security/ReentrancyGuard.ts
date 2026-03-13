@@ -9,22 +9,25 @@ import { SkittlesError } from "skittles";
  * `this._nonReentrantAfter()` at the end.
  */
 export class ReentrancyGuard {
+  static readonly NOT_ENTERED: number = 1;
+  static readonly ENTERED: number = 2;
+
   ReentrancyGuardReentrantCall: SkittlesError<{}>;
 
-  private _status: number = 1;
+  private _status: number = ReentrancyGuard.NOT_ENTERED;
 
   protected _nonReentrantBefore(): void {
-    if (this._status == 2) {
+    if (this._status == ReentrancyGuard.ENTERED) {
       throw this.ReentrancyGuardReentrantCall();
     }
-    this._status = 2;
+    this._status = ReentrancyGuard.ENTERED;
   }
 
   protected _nonReentrantAfter(): void {
-    this._status = 1;
+    this._status = ReentrancyGuard.NOT_ENTERED;
   }
 
   protected _reentrancyGuardEntered(): boolean {
-    return this._status == 2;
+    return this._status == ReentrancyGuard.ENTERED;
   }
 }
