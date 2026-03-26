@@ -1213,7 +1213,7 @@ export function parseExpression(node: ts.Expression): Expression {
 }
 
 // Methods that return a new array (used for chaining detection)
-const ARRAY_RETURNING_METHODS = new Set(["filter", "map", "slice", "concat"]);
+const ARRAY_RETURNING_METHODS = new Set(["filter", "map", "slice", "concat", "sort", "reverse"]);
 
 function isArrayLikeReceiver(node: ts.Expression): boolean {
   if (
