@@ -21,7 +21,7 @@ function Header() {
         <a href={URLS.npm} target="_blank" rel="noopener noreferrer" className="nav-link">
           npm
         </a>
-        <a href="#get-started" className="header-cta">
+        <a href={URLS.quickStart} className="header-cta">
           <span>Get Started</span>
           <span>&rarr;</span>
         </a>
