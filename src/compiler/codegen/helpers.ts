@@ -469,5 +469,89 @@ export function emitHelperFunctions(
         `    }`,
       ]);
     }
+
+    // Memory-based variants for chained array operations (intermediate results are memory arrays)
+
+    const memEqCheck = useHashEq
+      ? `keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(value))`
+      : `arr[i] == value`;
+
+    if (method === "memIncludes" && needsHelper(`_arrMemIncludes_${suffix}`, true)) {
+      emitHelper(`_arrMemIncludes_${suffix}`, [
+        `    function _arrMemIncludes_${suffix}(${solType}[] memory arr, ${solType} ${memAnnotation}value) internal pure returns (bool) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${memEqCheck}) return true;`,
+        `        }`,
+        `        return false;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "memIndexOf" && needsHelper(`_arrMemIndexOf_${suffix}`, true)) {
+      emitHelper(`_arrMemIndexOf_${suffix}`, [
+        `    function _arrMemIndexOf_${suffix}(${solType}[] memory arr, ${solType} ${memAnnotation}value) internal pure returns (uint256) {`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            if (${memEqCheck}) return i;`,
+        `        }`,
+        `        return type(uint256).max;`,
+        `    }`,
+      ]);
+    }
+
+    if (
+      method === "memLastIndexOf" &&
+      needsHelper(`_arrMemLastIndexOf_${suffix}`, true)
+    ) {
+      emitHelper(`_arrMemLastIndexOf_${suffix}`, [
+        `    function _arrMemLastIndexOf_${suffix}(${solType}[] memory arr, ${solType} ${memAnnotation}value) internal pure returns (uint256) {`,
+        `        for (uint256 i = arr.length; i > 0; i--) {`,
+        `            if (${memEqCheck.replace(/arr\[i\]/g, "arr[i - 1]")}) return i - 1;`,
+        `        }`,
+        `        return type(uint256).max;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "memReverse" && needsHelper(`_arrMemReverse_${suffix}`, true)) {
+      emitHelper(`_arrMemReverse_${suffix}`, [
+        `    function _arrMemReverse_${suffix}(${solType}[] memory arr) internal pure {`,
+        `        uint256 len = arr.length;`,
+        `        for (uint256 i = 0; i < len / 2; i++) {`,
+        `            ${solType} ${memAnnotation}temp = arr[i];`,
+        `            arr[i] = arr[len - 1 - i];`,
+        `            arr[len - 1 - i] = temp;`,
+        `        }`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "memSlice" && needsHelper(`_arrMemSlice_${suffix}`, true)) {
+      emitHelper(`_arrMemSlice_${suffix}`, [
+        `    function _arrMemSlice_${suffix}(${solType}[] memory arr, uint256 start, uint256 end) internal pure returns (${solType}[] memory) {`,
+        `        if (end > arr.length) end = arr.length;`,
+        `        require(start <= end, "invalid slice range");`,
+        `        ${solType}[] memory result = new ${solType}[](end - start);`,
+        `        for (uint256 i = start; i < end; i++) {`,
+        `            result[i - start] = arr[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
+
+    if (method === "memConcat" && needsHelper(`_arrMemConcat_${suffix}`, true)) {
+      emitHelper(`_arrMemConcat_${suffix}`, [
+        `    function _arrMemConcat_${suffix}(${solType}[] memory arr, ${solType}[] memory other) internal pure returns (${solType}[] memory) {`,
+        `        ${solType}[] memory result = new ${solType}[](arr.length + other.length);`,
+        `        for (uint256 i = 0; i < arr.length; i++) {`,
+        `            result[i] = arr[i];`,
+        `        }`,
+        `        for (uint256 i = 0; i < other.length; i++) {`,
+        `            result[arr.length + i] = other[i];`,
+        `        }`,
+        `        return result;`,
+        `    }`,
+      ]);
+    }
   }
 }

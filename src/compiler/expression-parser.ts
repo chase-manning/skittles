@@ -280,15 +280,34 @@ export function parseExpression(node: ts.Expression): Expression {
       };
     }
 
-    // Array method calls on storage arrays
+    // Array method calls on storage arrays and chained array calls
     if (
       ts.isPropertyAccessExpression(node.expression) &&
       isArrayLikeReceiver(node.expression.expression)
     ) {
       const methodName = node.expression.name.text;
-      const elementType = resolveArrayElementType(node.expression.expression);
+      const isChainedCall = ts.isCallExpression(node.expression.expression);
+      // Parse receiver first so chained helpers are generated before we resolve types
       const receiverExpr = parseExpression(node.expression.expression);
+      let elementType = resolveArrayElementType(node.expression.expression);
+      if (elementType === undefined && isChainedCall) {
+        elementType = resolveChainedElementType(receiverExpr);
+      }
       const typeSuffix = getArrayHelperSuffix(elementType);
+
+      // For chained calls, cache the intermediate array result in a local variable
+      // to avoid re-executing the inner helper on every access.
+      let effectiveArrayExpr = receiverExpr;
+      let chainCacheStmts: Statement[] = [];
+      if (isChainedCall) {
+        const cacheName = "__sk_arr";
+        const arrType: SkittlesType = {
+          kind: SkittlesTypeKind.Array,
+          valueType: elementType ?? UINT256_TYPE,
+        };
+        chainCacheStmts = [mkVarDecl(cacheName, arrType, receiverExpr)];
+        effectiveArrayExpr = mkId(cacheName);
+      }
 
       const NON_COMPARABLE_KINDS = new Set([
         SkittlesTypeKind.Struct,
@@ -299,52 +318,58 @@ export function parseExpression(node: ts.Expression): Expression {
       const isNonComparable =
         elementType != null && NON_COMPARABLE_KINDS.has(elementType.kind);
 
-      // includes(value) → _arrIncludes_T(arr, value)
+      // includes(value) → _arrIncludes_T(arr, value) or _arrMemIncludes_T for chained calls
       if (methodName === "includes" && node.arguments.length === 1) {
         if (isNonComparable)
           throw new Error(
             `Unsupported: .includes() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .some() with a callback instead.`
           );
-        ctx.neededArrayHelpers.add(`includes_${typeSuffix}`);
+        const helperPrefix = isChainedCall ? "memIncludes" : "includes";
+        const helperName = isChainedCall ? `_arrMemIncludes_${typeSuffix}` : `_arrIncludes_${typeSuffix}`;
+        ctx.neededArrayHelpers.add(`${helperPrefix}_${typeSuffix}`);
         return {
           kind: "call" as const,
           callee: {
             kind: "identifier" as const,
-            name: `_arrIncludes_${typeSuffix}`,
+            name: helperName,
           },
           args: [receiverExpr, parseExpression(node.arguments[0])],
         };
       }
 
-      // indexOf(value) → _arrIndexOf_T(arr, value)
+      // indexOf(value) → _arrIndexOf_T(arr, value) or _arrMemIndexOf_T for chained calls
       if (methodName === "indexOf" && node.arguments.length === 1) {
         if (isNonComparable)
           throw new Error(
             `Unsupported: .indexOf() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity. Use .findIndex() with a callback instead.`
           );
-        ctx.neededArrayHelpers.add(`indexOf_${typeSuffix}`);
+        const helperPrefix = isChainedCall ? "memIndexOf" : "indexOf";
+        const helperName = isChainedCall ? `_arrMemIndexOf_${typeSuffix}` : `_arrIndexOf_${typeSuffix}`;
+        ctx.neededArrayHelpers.add(`${helperPrefix}_${typeSuffix}`);
         return {
           kind: "call" as const,
           callee: {
             kind: "identifier" as const,
-            name: `_arrIndexOf_${typeSuffix}`,
+            name: helperName,
           },
           args: [receiverExpr, parseExpression(node.arguments[0])],
         };
       }
 
-      // lastIndexOf(value) → _arrLastIndexOf_T(arr, value)
+      // lastIndexOf(value) → _arrLastIndexOf_T(arr, value) or _arrMemLastIndexOf_T for chained calls
       if (methodName === "lastIndexOf" && node.arguments.length === 1) {
         if (isNonComparable)
           throw new Error(
             `Unsupported: .lastIndexOf() on ${typeSuffix}[] arrays. Element type does not support equality in Solidity.`
           );
-        ctx.neededArrayHelpers.add(`lastIndexOf_${typeSuffix}`);
+        const helperPrefix = isChainedCall ? "memLastIndexOf" : "lastIndexOf";
+        const helperName = isChainedCall ? `_arrMemLastIndexOf_${typeSuffix}` : `_arrLastIndexOf_${typeSuffix}`;
+        ctx.neededArrayHelpers.add(`${helperPrefix}_${typeSuffix}`);
         return {
           kind: "call" as const,
           callee: {
             kind: "identifier" as const,
-            name: `_arrLastIndexOf_${typeSuffix}`,
+            name: helperName,
           },
           args: [receiverExpr, parseExpression(node.arguments[0])],
         };
@@ -377,7 +402,7 @@ export function parseExpression(node: ts.Expression): Expression {
         return mkElem(receiverExpr, parseExpression(indexArg));
       }
 
-      // slice(start?, end?) → _arrSlice_T(arr, start, end)
+      // slice(start?, end?) → _arrSlice_T(arr, start, end) or _arrMemSlice_T for chained calls
       if (methodName === "slice") {
         if (node.arguments.length > 2)
           throw new Error(
@@ -393,7 +418,9 @@ export function parseExpression(node: ts.Expression): Expression {
             );
           }
         }
-        ctx.neededArrayHelpers.add(`slice_${typeSuffix}`);
+        const sliceHelperPrefix = isChainedCall ? "memSlice" : "slice";
+        const sliceHelperName = isChainedCall ? `_arrMemSlice_${typeSuffix}` : `_arrSlice_${typeSuffix}`;
+        ctx.neededArrayHelpers.add(`${sliceHelperPrefix}_${typeSuffix}`);
         const startArg =
           node.arguments.length >= 1
             ? parseExpression(node.arguments[0])
@@ -406,16 +433,17 @@ export function parseExpression(node: ts.Expression): Expression {
           kind: "call" as const,
           callee: {
             kind: "identifier" as const,
-            name: `_arrSlice_${typeSuffix}`,
+            name: sliceHelperName,
           },
           args: [receiverExpr, startArg, endArg],
         };
       }
 
-      // concat(other) → _arrConcat_T(arr, other)
+      // concat(other) → _arrConcat_T(arr, other) or _arrMemConcat_T for chained calls
       if (methodName === "concat" && node.arguments.length === 1) {
         const otherArg = node.arguments[0];
         if (
+          !isChainedCall &&
           ts.isPropertyAccessExpression(otherArg) &&
           otherArg.expression.kind === ts.SyntaxKind.ThisKeyword
         ) {
@@ -427,12 +455,14 @@ export function parseExpression(node: ts.Expression): Expression {
             );
           }
         }
-        ctx.neededArrayHelpers.add(`concat_${typeSuffix}`);
+        const concatHelperPrefix = isChainedCall ? "memConcat" : "concat";
+        const concatHelperName = isChainedCall ? `_arrMemConcat_${typeSuffix}` : `_arrConcat_${typeSuffix}`;
+        ctx.neededArrayHelpers.add(`${concatHelperPrefix}_${typeSuffix}`);
         return {
           kind: "call" as const,
           callee: {
             kind: "identifier" as const,
-            name: `_arrConcat_${typeSuffix}`,
+            name: concatHelperName,
           },
           args: [receiverExpr, parseExpression(otherArg)],
         };
@@ -516,11 +546,15 @@ export function parseExpression(node: ts.Expression): Expression {
 
           if (methodName === "filter" && condExpr) {
             const helper = generateFilterHelper(
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               condExpr
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -531,12 +565,16 @@ export function parseExpression(node: ts.Expression): Expression {
               callbackEnv.set(callback.paramName, elementType);
             const resultType = inferType(condExpr, callbackEnv);
             const helper = generateMapHelper(
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               condExpr,
               resultType
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -544,11 +582,15 @@ export function parseExpression(node: ts.Expression): Expression {
           if (methodName === "some" && condExpr) {
             const helper = generateSomeEveryHelper(
               "some",
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               condExpr
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -556,33 +598,45 @@ export function parseExpression(node: ts.Expression): Expression {
           if (methodName === "every" && condExpr) {
             const helper = generateSomeEveryHelper(
               "every",
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               condExpr
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
 
           if (methodName === "find" && condExpr) {
             const helper = generateFindHelper(
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               condExpr
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
 
           if (methodName === "findIndex" && condExpr) {
             const helper = generateFindIndexHelper(
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               condExpr
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -599,7 +653,7 @@ export function parseExpression(node: ts.Expression): Expression {
             const initialValue = parseExpression(node.arguments[1]);
             const accType = inferType(initialValue, ctx.currentVarTypes);
             const helper = generateReduceHelper(
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               callback.secondParamName,
@@ -607,11 +661,15 @@ export function parseExpression(node: ts.Expression): Expression {
               initialValue,
               accType
             );
+            if (isChainedCall) {
+              helper.body = [...chainCacheStmts, ...helper.body];
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
 
-          // sort: in-place insertion sort using comparator (statement-only like reverse)
+          // sort: in-place insertion sort using comparator (statement-only for storage, returns array when chained)
           if (methodName === "sort" && condExpr) {
             if (!callback.secondParamName)
               throw new Error(
@@ -622,7 +680,8 @@ export function parseExpression(node: ts.Expression): Expression {
                 "Array .sort() callback parameters must have distinct names, e.g. (a, b) => expression. Using the same identifier for both parameters would generate invalid Solidity."
               );
             }
-            if (node.parent && !ts.isExpressionStatement(node.parent)) {
+            // Only enforce statement-only for non-chained (storage array) usage
+            if (!isChainedCall && node.parent && !ts.isExpressionStatement(node.parent)) {
               throw new Error(
                 "Array .sort() modifies the array in place and does not return a value. Use it as a standalone statement."
               );
@@ -670,12 +729,22 @@ export function parseExpression(node: ts.Expression): Expression {
               );
             }
             const helper = generateSortHelper(
-              receiverExpr,
+              effectiveArrayExpr,
               elementType,
               callback.paramName,
               callback.secondParamName,
               condExpr
             );
+            // For chained calls, cache the source array and return it after sorting
+            if (isChainedCall) {
+              const arrType: SkittlesType = {
+                kind: SkittlesTypeKind.Array,
+                valueType: elementType ?? UINT256_TYPE,
+              };
+              helper.body = [...chainCacheStmts, ...helper.body, mkReturn(mkId("__sk_arr"))];
+              helper.returnType = arrType;
+              helper.stateMutability = inferStateMutability(helper.body, ctx.currentVarTypes);
+            }
             ctx.generatedArrayFunctions.push(helper);
             return mkHelperCall(helper.name);
           }
@@ -688,7 +757,7 @@ export function parseExpression(node: ts.Expression): Expression {
               mkVarDecl(
                 callback.paramName,
                 elemType,
-                mkElem(receiverExpr, mkId("__sk_i"))
+                mkElem(effectiveArrayExpr, mkId("__sk_i"))
               ),
             ];
             if (callback.bodyExpr) {
@@ -697,7 +766,8 @@ export function parseExpression(node: ts.Expression): Expression {
               forBody.push(...callback.bodyStmts);
             }
             const body: Statement[] = [
-              mkForLoop("__sk_i", receiverExpr, forBody),
+              ...(isChainedCall ? chainCacheStmts : []),
+              mkForLoop("__sk_i", effectiveArrayExpr, forBody),
             ];
             const helperMutability = inferStateMutability(
               body,
@@ -738,10 +808,44 @@ export function parseExpression(node: ts.Expression): Expression {
 
       // reverse() → _arrReverse_T(arr)
       if (methodName === "reverse" && node.arguments.length === 0) {
-        if (node.parent && !ts.isExpressionStatement(node.parent)) {
+        // Only enforce statement-only for non-chained (storage array) usage
+        if (!isChainedCall && node.parent && !ts.isExpressionStatement(node.parent)) {
           throw new Error(
             "Array .reverse() modifies the array in place and does not return a value. Use it as a standalone statement."
           );
+        }
+        if (isChainedCall) {
+          // For chained calls, generate a helper that caches the array, reverses it, and returns it
+          const helperName = `_reverse_${ctx.arrayMethodCounter++}`;
+          const elemType = elementType ?? UINT256_TYPE;
+          const arrType: SkittlesType = { kind: SkittlesTypeKind.Array, valueType: elemType };
+          ctx.neededArrayHelpers.add(`memReverse_${typeSuffix}`);
+          const body: Statement[] = [
+            ...chainCacheStmts,
+            mkExprStmt({
+              kind: "call" as const,
+              callee: { kind: "identifier" as const, name: `_arrMemReverse_${typeSuffix}` },
+              args: [effectiveArrayExpr],
+            }),
+            mkReturn(effectiveArrayExpr),
+          ];
+          const helper: SkittlesFunction = {
+            name: helperName,
+            parameters: [],
+            returnType: arrType,
+            visibility: "private",
+            stateMutability: inferStateMutability(body, ctx.currentVarTypes),
+            isVirtual: false,
+            isOverride: false,
+            body,
+          };
+          ctx.generatedArrayFunctions.push(helper);
+          const mkHelperCall = (name: string): Expression => ({
+            kind: "call" as const,
+            callee: mkProp(mkId("this"), name),
+            args: [],
+          });
+          return mkHelperCall(helperName);
         }
         ctx.neededArrayHelpers.add(`reverse_${typeSuffix}`);
         return {
@@ -1108,6 +1212,9 @@ export function parseExpression(node: ts.Expression): Expression {
   throw new Error(`Unsupported expression: ${ts.SyntaxKind[node.kind]}`);
 }
 
+// Methods that return a new array (used for chaining detection)
+const ARRAY_RETURNING_METHODS = new Set(["filter", "map", "slice", "concat"]);
+
 function isArrayLikeReceiver(node: ts.Expression): boolean {
   if (
     ts.isPropertyAccessExpression(node) &&
@@ -1116,6 +1223,16 @@ function isArrayLikeReceiver(node: ts.Expression): boolean {
     const name = node.name.text;
     const type = ctx.currentVarTypes.get(name);
     return type?.kind === SkittlesTypeKind.Array;
+  }
+  // Chained array method call: e.g., this.values.filter(fn) or this.values.filter(fn).map(fn2)
+  if (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression)
+  ) {
+    const methodName = node.expression.name.text;
+    if (ARRAY_RETURNING_METHODS.has(methodName)) {
+      return isArrayLikeReceiver(node.expression.expression);
+    }
   }
   return false;
 }
@@ -1131,6 +1248,42 @@ function resolveArrayElementType(
     const type = ctx.currentVarTypes.get(name);
     if (type?.kind === SkittlesTypeKind.Array) {
       return type.valueType;
+    }
+  }
+  // Chained: filter/slice/concat preserve the element type from the inner array
+  if (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression)
+  ) {
+    const methodName = node.expression.name.text;
+    if (["filter", "slice", "concat"].includes(methodName)) {
+      return resolveArrayElementType(node.expression.expression);
+    }
+    // map: element type changes — resolved later via resolveChainedElementType
+  }
+  return undefined;
+}
+
+/**
+ * Resolve the element type of a chained array call from its generated helper function.
+ * This is used after parseExpression has processed the inner chain step,
+ * so the helper function is already registered in ctx.generatedArrayFunctions.
+ */
+function resolveChainedElementType(
+  expr: Expression
+): SkittlesType | undefined {
+  if (
+    expr.kind === "call" &&
+    expr.callee.kind === "property-access" &&
+    expr.callee.object.kind === "identifier" &&
+    expr.callee.object.name === "this"
+  ) {
+    const helperName = expr.callee.property;
+    const helper = ctx.generatedArrayFunctions.find(
+      (f) => f.name === helperName
+    );
+    if (helper?.returnType?.kind === SkittlesTypeKind.Array) {
+      return helper.returnType.valueType;
     }
   }
   return undefined;
