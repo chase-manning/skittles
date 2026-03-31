@@ -26,6 +26,7 @@ const sidebars: SidebarsConfig = {
         "guide/debugging",
         "guide/configuration",
         "guide/under-the-hood",
+        "guide/unsupported-solidity-features",
       ],
     },
     {
