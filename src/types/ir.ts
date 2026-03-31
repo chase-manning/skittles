@@ -392,6 +392,7 @@ export interface NewExpression {
 export interface ObjectLiteralExpression {
   kind: "object-literal";
   properties: { name: string; value: Expression }[];
+  structName?: string;
 }
 
 export interface TupleLiteralExpression {

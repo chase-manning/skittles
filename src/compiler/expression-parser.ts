@@ -180,11 +180,22 @@ export function parseExpression(node: ts.Expression): Expression {
     const operator = getBinaryOperator(opKind);
 
     if (isAssignmentOperator(opKind)) {
+      const target = parseExpression(node.left);
+      const value = parseExpression(node.right);
+
+      // Annotate object literal with struct name when assigning to a struct-typed target
+      if (value.kind === "object-literal" && !value.structName) {
+        const targetType = inferType(target, ctx.currentVarTypes);
+        if (targetType?.kind === SkittlesTypeKind.Struct && targetType.structName) {
+          value.structName = targetType.structName;
+        }
+      }
+
       return {
         kind: "assignment",
         operator,
-        target: parseExpression(node.left),
-        value: parseExpression(node.right),
+        target,
+        value,
       };
     }
 
@@ -961,6 +972,25 @@ export function parseExpression(node: ts.Expression): Expression {
       callee: parseExpression(node.expression),
       args: node.arguments.map(parseExpression),
     };
+
+    // Annotate object literal arguments with struct name for push calls
+    if (
+      callExpr.callee.kind === "property-access" &&
+      callExpr.callee.property === "push"
+    ) {
+      const arrayType = inferType(callExpr.callee.object, ctx.currentVarTypes);
+      if (
+        arrayType?.kind === SkittlesTypeKind.Array &&
+        arrayType.valueType?.kind === SkittlesTypeKind.Struct &&
+        arrayType.valueType.structName
+      ) {
+        for (const arg of callExpr.args) {
+          if (arg.kind === "object-literal" && !arg.structName) {
+            arg.structName = arrayType.valueType.structName;
+          }
+        }
+      }
+    }
 
     if (node.typeArguments && node.typeArguments.length > 0) {
       const firstTypeArg = node.typeArguments[0];

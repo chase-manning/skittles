@@ -155,6 +155,9 @@ export function generateExpression(expr: Expression): string {
       const values = expr.properties
         .map((p) => generateExpression(p.value))
         .join(", ");
+      if (expr.structName) {
+        return `${expr.structName}(${values})`;
+      }
       return values;
     }
     case "tuple-literal":
