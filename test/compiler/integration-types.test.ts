@@ -812,6 +812,21 @@ describe("integration: type casting", () => {
     expect(solidity).toContain("address(this)");
   });
 
+  it("should cast bytes32 to uint256 via Number()", () => {
+    const contracts = parse(
+      `
+      class Caster {
+        public toUint(x: bytes32): number {
+          return Number(x);
+        }
+      }
+    `,
+      "test.ts"
+    );
+    const solidity = generateSolidity(contracts[0]);
+    expect(solidity).toContain("uint256(x)");
+  });
+
   it("should handle angle bracket type assertions transparently", () => {
     const contracts = parse(
       `

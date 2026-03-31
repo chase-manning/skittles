@@ -223,6 +223,10 @@ export function inferType(
         if (expr.callee.name === "address") {
           return { kind: SkittlesTypeKind.Address };
         }
+        // Number(...) cast returns uint256 type
+        if (expr.callee.name === "Number") {
+          return { kind: SkittlesTypeKind.Uint256 };
+        }
         if (
           expr.callee.name === "keccak256" ||
           expr.callee.name === "sha256" ||
