@@ -228,6 +228,8 @@ export function tryGenerateBuiltinCall(expr: {
       throw new Error(
         "Contract<T>() requires a contract interface type argument, e.g. Contract<IToken>(address)"
       );
+    case "Number":
+      return `uint256(${args})`;
     case "string.concat":
       return `string.concat(${args})`;
     case "bytes.concat":
