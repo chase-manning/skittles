@@ -22,7 +22,7 @@ function Header() {
           npm
         </a>
         <a href={URLS.quickStart} className="header-cta">
-          <span>Get Started</span>
+          <span>Quick start</span>
           <span>&rarr;</span>
         </a>
       </nav>

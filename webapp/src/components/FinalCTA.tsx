@@ -6,14 +6,14 @@ function FinalCTA() {
       <h2 className="final-cta-title">
         Start writing smart contracts
         <br />
-        in the language you already know.
+        as TypeScript classes
       </h2>
       <p className="final-cta-sub">
-        MIT licensed. Node.js 22+. Works with every EVM toolchain.
+        MIT licensed. Node.js 22+. Works with Hardhat and Foundry.
       </p>
       <div className="final-cta-actions">
         <a href={URLS.docs} className="btn-primary btn-primary--lg">
-          <span>Read the Docs</span>
+          <span>Read the docs</span>
           <span>&rarr;</span>
         </a>
         <a href={URLS.github} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-secondary--lg">

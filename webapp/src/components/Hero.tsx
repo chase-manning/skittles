@@ -45,14 +45,14 @@ function Hero() {
           in TypeScript.
         </h1>
         <p className="hero-sub">
-          Write, test, and deploy EVM smart contracts in pure TypeScript.
+          Skittles compiles TypeScript classes into standard Solidity.
           <br />
-          The language you know. The blockchain you need.
+          Test and deploy with Hardhat or Foundry on EVM chains.
         </p>
       </div>
       <div className="hero-actions">
         <a href={URLS.docs} className="btn-primary">
-          <span>Read the Docs</span>
+          <span>Read the docs</span>
           <span>&rarr;</span>
         </a>
       </div>

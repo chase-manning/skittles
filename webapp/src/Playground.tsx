@@ -139,7 +139,7 @@ export default function Playground() {
             aria-label="Load example contract"
           >
             <option value="" disabled>
-              Load Example…
+              Load example...
             </option>
             {Object.keys(EXAMPLES).map((name) => (
               <option key={name} value={name}>
