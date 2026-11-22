@@ -70,7 +70,7 @@ function App() {
   return (
     <VersionContext.Provider value={version}>
       {isPlayground ? (
-        <Suspense fallback={<div className="pg-loading">Loading playground…</div>}>
+        <Suspense fallback={<div className="pg-loading">Loading playground...</div>}>
           <Playground />
         </Suspense>
       ) : (

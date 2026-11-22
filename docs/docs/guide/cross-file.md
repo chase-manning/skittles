@@ -5,11 +5,11 @@ title: Cross File Support
 
 # Cross File Support
 
-Skittles supports sharing types, functions, and constants across multiple contract files. Organize your project just like you would any TypeScript application — define types in one file and import them wherever you need them.
+Skittles supports sharing types, functions and constants across multiple contract files. Define types in one file and import them where you need them, just as you would in any TypeScript project.
 
 ## Shared Types
 
-Type aliases (structs), interfaces (contract interfaces), and enums defined in one file can be used in any other contract file:
+Type aliases (structs), interfaces (contract interfaces) and enums defined in one file can be used in any other contract file:
 
 ```typescript title="contracts/types.ts"
 import { address } from "skittles";
@@ -47,7 +47,7 @@ export class Staking {
 }
 ```
 
-Imports work just like standard TypeScript. Define your shared types in one file, import them in your contracts, and Skittles handles the rest.
+Imports follow standard TypeScript syntax. When a contract imports and uses a shared type, Skittles includes it in the generated Solidity.
 
 ## Shared Functions
 
@@ -95,7 +95,7 @@ export class Vault {
 
 ## How It Works
 
-Skittles automatically scans all files in your contracts directory and makes shared definitions available to any contract that uses them. Only the types, enums, functions, and constants that a contract actually references are included in its generated Solidity — unused definitions are excluded to keep the compiled output lean.
+Skittles scans all files in your contracts directory and makes shared definitions available to any contract that uses them. When generating Solidity for a contract, it only includes the types, enums, functions and constants that the contract actually references. Unused definitions are left out of the generated file.
 
 ## External Contract Calls
 
@@ -145,7 +145,7 @@ export class Vault {
 }
 ```
 
-Interface properties (like `name` and `totalSupply`) compile to `view` getter calls. You can access them with natural property syntax — no parentheses needed:
+Interface properties (such as `name` and `totalSupply`) compile to `view` getter functions in Solidity. Read them as normal properties without parentheses in your TypeScript code, and Skittles generates the getter calls in the output:
 
 ```solidity
 interface IToken {
@@ -188,4 +188,4 @@ public getBalance(token: IToken, account: address): number {
 
 ## Cache Invalidation
 
-If you change shared types, functions, or constants, all contracts that use them are automatically recompiled. See [Incremental Compilation](/guide/configuration#incremental-compilation) for details.
+If you change shared types, functions or constants, all contracts that use them are recompiled automatically. See [Incremental Compilation](/guide/configuration#incremental-compilation) for details.

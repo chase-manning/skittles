@@ -7,7 +7,7 @@ title: ERC20 Token
 
 ## Using the Standard Library (Recommended)
 
-The fastest way to create an ERC20 token is extending the built-in `ERC20` contract from the standard library:
+To create an ERC20 token, extend the built-in `ERC20` contract from the standard library:
 
 ```typescript title="contracts/Token.ts"
 import { address, msg } from "skittles";
@@ -35,11 +35,11 @@ export class Token extends ERC20 {
 }
 ```
 
-This gives you a complete ERC20 with name, symbol, decimals, totalSupply, balanceOf, transfer, approve, transferFrom, and allowance — all from a few lines of code. See the [Standard Library](/guide/standard-library) guide for details on all available contracts.
+Extending `ERC20` gives you name, symbol, decimals, totalSupply, balanceOf, transfer, approve, transferFrom and allowance without writing them yourself. In this example, the contract only adds an owner-only mint function and a burn function. See the [Standard Library](/guide/standard-library) guide for details on all available contracts.
 
 ## From Scratch
 
-You can also build an ERC20 from scratch for full control over the implementation.
+You can also write an ERC20 contract from scratch when you want direct control over the implementation.
 
 ### Interface
 
@@ -159,15 +159,15 @@ export class Token implements IToken {
 
 ## Key Patterns
 
-This example demonstrates several Skittles features:
+This example uses several Skittles features:
 
-- **`implements IToken`**: TypeScript interface enforcement for type safety in the IDE
-- **`SkittlesEvent<T>` with `Indexed<T>`**: Events with indexed parameters for efficient off chain filtering
-- **`SkittlesError<T>`**: Gas efficient custom errors with typed parameters
-- **Nested mappings**: `Record<address, Record<address, number>>` for the allowances mapping
-- **`Number.MAX_VALUE`**: Compiles to `type(uint256).max` for unlimited allowance patterns
-- **Private helper functions**: `_transfer` and `_approve` encapsulate reusable logic
-- **State mutability inference**: `balanceOf` and `allowance` are automatically `view`, `transfer` and `approve` are automatically nonpayable
+- **`implements IToken`**: TypeScript checks in your editor that the contract implements the interface.
+- **`SkittlesEvent<T>` with `Indexed<T>`**: Events with indexed parameters so logs can be filtered off-chain.
+- **`SkittlesError<T>`**: Typed custom errors with parameters.
+- **Nested mappings**: `Record<address, Record<address, number>>` represents the allowances mapping.
+- **`Number.MAX_VALUE`**: Compiles to `type(uint256).max` for unlimited allowance checks.
+- **Private helper functions**: `_transfer` and `_approve` hold shared logic reused across methods.
+- **State mutability inference**: `balanceOf` and `allowance` are inferred as `view`, while `transfer` and `approve` are inferred as nonpayable.
 
 ## Running This Example
 

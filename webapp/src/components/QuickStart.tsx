@@ -4,7 +4,7 @@ function QuickStart() {
   return (
     <section className="quick-start">
       <span className="section-label">QUICK START</span>
-      <h2 className="section-title">Two commands. Zero config.</h2>
+      <h2 className="section-title">Start a project in two commands</h2>
       <div className="terminal">
         <div className="terminal-header">
           <WindowDots />
@@ -16,7 +16,7 @@ function QuickStart() {
             <span className="terminal-cmd">npx skittles@latest init</span>
           </div>
           <div className="terminal-comment">
-            &nbsp; # Scaffold contract, tests, config, and install dependencies
+            &nbsp; # Create config, Token.ts and 4 tests, then install packages
           </div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-line">
@@ -24,7 +24,7 @@ function QuickStart() {
             <span className="terminal-cmd">npm run test</span>
           </div>
           <div className="terminal-comment">
-            &nbsp; # Compile contracts and run the test suite
+            &nbsp; # Compile with Skittles, then run the Hardhat tests
           </div>
           <div className="terminal-blank">&nbsp;</div>
           <div className="terminal-success">

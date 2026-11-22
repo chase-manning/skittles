@@ -5,11 +5,11 @@ title: Debugging
 
 # Debugging
 
-Skittles supports `console.log()` for debugging your contracts during development. This maps directly to [Hardhat's console.log](https://hardhat.org/hardhat-network/docs/reference#console.log), giving you a familiar TypeScript debugging experience.
+Skittles supports `console.log()` for debugging your contracts during development. It maps directly to [Hardhat's console.log](https://hardhat.org/hardhat-network/docs/reference#console.log).
 
 ## Setup
 
-Enable console.log support in your config:
+Enable console.log support in your config (projects scaffolded with Skittles have this enabled by default):
 
 ```json title="skittles.config.json"
 {
@@ -19,7 +19,7 @@ Enable console.log support in your config:
 
 ## Usage
 
-Use `console.log()` in your contracts just like you would in TypeScript:
+Use `console.log()` in your contracts just as you would in TypeScript:
 
 ```typescript title="contracts/Token.ts"
 class Token {
@@ -65,7 +65,7 @@ contract Token {
 
 ## Supported Arguments
 
-You can pass strings, numbers, booleans, and addresses to `console.log()`:
+You can pass strings, numbers, booleans and addresses to `console.log()`:
 
 ```typescript
 console.log("hello");
@@ -75,7 +75,7 @@ console.log("sender:", msg.sender);
 
 ## Production Builds
 
-The `consoleLog` option defaults to `false`. When disabled, any `console.log()` calls in your contracts are automatically stripped from the compiled Solidity output. This means you can leave debug logs in your source code during development and they will be removed in production builds.
+The `consoleLog` option defaults to `false`. When it is disabled, any `console.log()` calls in your contracts are removed from the compiled Solidity output. You can leave debug logs in your source code during development and they will be removed in production builds.
 
 To enable console.log output during development:
 
@@ -85,4 +85,4 @@ To enable console.log output during development:
 }
 ```
 
-When you're ready to deploy, simply set `consoleLog` to `false` (or remove it) and recompile — all `console.log()` calls will be stripped from the output.
+When you're ready to deploy, set `consoleLog` to `false` (or remove it) and recompile. All `console.log()` calls will be stripped from the compiled output.

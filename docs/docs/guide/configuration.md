@@ -5,7 +5,7 @@ title: Configuration
 
 # Configuration
 
-Skittles is configured via a `skittles.config.json` or `skittles.config.js` file in your project root.
+Skittles is configured with a `skittles.config.json` or `skittles.config.js` file in your project root.
 
 ## Config File
 
@@ -19,7 +19,7 @@ Create `skittles.config.json`:
 }
 ```
 
-Or use JavaScript for dynamic configuration:
+Or use JavaScript if you need dynamic configuration:
 
 ```javascript title="skittles.config.js"
 module.exports = {
@@ -31,21 +31,23 @@ module.exports = {
 
 ## Options
 
-| Option         | Type      | Default        | Description                                |
-| -------------- | --------- | -------------- | ------------------------------------------ |
-| `contractsDir` | `string`  | `"contracts"`  | Directory containing your TypeScript contract files |
-| `outputDir`    | `string`  | `"artifacts"`  | Directory where compiled output is written |
-| `cacheDir`     | `string`  | `"cache"`      | Directory where the compilation cache is stored |
-| `typeCheck`    | `boolean` | `true`         | Enable TypeScript type checking during compilation |
-| `consoleLog`   | `boolean` | `false`        | Enable `console.log()` support for debugging (compiles to Hardhat's `console.log`) |
-| `solidity`     | `object`  | See below      | Solidity output settings (pragma version and SPDX license) |
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `contractsDir` | `string` | `"contracts"` | Directory containing your TypeScript contract files |
+| `outputDir` | `string` | `"artifacts"` | Directory where compiled output is written |
+| `cacheDir` | `string` | `"cache"` | Directory where the compilation cache is stored |
+| `typeCheck` | `boolean` | `true` | Run TypeScript type checking during compilation |
+| `consoleLog` | `boolean` | `false` | Keep `console.log()` calls for debugging (compiles to Hardhat's `console.log`) |
+| `solidity` | `object` | See below | Solidity output settings (pragma version and SPDX licence) |
+
+When `consoleLog` is `false`, `console.log()` calls are removed from the generated Solidity. Running `skittles init` sets `consoleLog` to `true`.
 
 ### Solidity Options
 
-| Option              | Type     | Default      | Description                                    |
-| ------------------- | -------- | ------------ | ---------------------------------------------- |
-| `solidity.version`  | `string` | `"^0.8.20"`  | Solidity pragma version for generated files    |
-| `solidity.license`  | `string` | `"MIT"`      | SPDX license identifier for generated files    |
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `solidity.version` | `string` | `"^0.8.20"` | Solidity pragma version for generated files |
+| `solidity.license` | `string` | `"MIT"` | SPDX licence identifier for generated files |
 
 Example with custom Solidity settings:
 
@@ -60,7 +62,7 @@ Example with custom Solidity settings:
 
 ## Default Behavior
 
-If no config file is found, Skittles uses these defaults:
+If no config file is found, Skittles uses these defaults (with `cacheDir` set to `"cache"` and `consoleLog` set to `false`):
 
 ```json
 {
@@ -76,7 +78,7 @@ If no config file is found, Skittles uses these defaults:
 
 ## Hardhat Configuration
 
-Skittles compiles your contracts and outputs the result to the configured `outputDir`. To test and deploy, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at your output directory:
+Skittles compiles your TypeScript contracts and writes the generated Solidity to a solidity subfolder inside your configured `outputDir` (by default, artifacts/solidity/). To test and deploy those contracts, use Hardhat. Point `paths.sources` in `hardhat.config.ts` at that folder:
 
 ```typescript title="hardhat.config.ts"
 export default defineConfig({
@@ -90,24 +92,24 @@ export default defineConfig({
 
 ## Incremental Compilation
 
-Skittles uses SHA256 based incremental compilation. A cache file (`.skittles-cache.json`) is stored in the cache directory (default: `cache/`) and tracks:
+Skittles uses SHA-256 hashing for incremental compilation. It stores a cache file (`.skittles-cache.json`) in the cache directory (default: `cache/`) that tracks:
 
 - The hash of each source file
-- The hash of all shared definitions (types, functions, constants)
+- The hash of all shared definitions (types, functions and constants)
 
-On subsequent compilations:
+On later compilations:
 
-- If a file has not changed and no shared definitions have changed, the cached artifacts are reused
-- If a file changed, only that file is recompiled
-- If any shared definition changed (e.g., a struct in `types.ts`), all files that depend on shared definitions are recompiled
+- If a file has not changed and no shared definitions have changed, Skittles reuses the cached output
+- If a file has changed, only that file is recompiled
+- If a shared definition has changed (for example, a struct in `types.ts`), every file that depends on shared definitions is recompiled
 
-This keeps compilation fast even as your project grows. Use `skittles clean` to clear the cache and force a full recompilation.
+This avoids recompiling unchanged files as your project grows. Run `skittles clean` to clear the cache and force a full recompilation.
 
 ## TypeScript Configuration
 
-Skittles reads TypeScript files directly using the TypeScript compiler API. You do not need a special `tsconfig.json` for Skittles, but having one gives you IDE support.
+Skittles reads TypeScript files directly using the TypeScript compiler API. You don't need a special `tsconfig.json` for Skittles, though having one gives you IDE support.
 
-The `skittles init` command generates a `tsconfig.json` configured for contract development:
+The `skittles init` command generates a `tsconfig.json` set up for contract development:
 
 ```json title="tsconfig.json"
 {
@@ -132,6 +134,6 @@ The `skittles init` command generates a `tsconfig.json` configured for contract 
 
 Key settings:
 
-- `strictPropertyInitialization: false` is important because state variables are initialized on the blockchain, not in a constructor
+- `strictPropertyInitialization: false` is needed because state variables are initialised on the blockchain, not in a constructor
 - `include` should cover your contracts directory
-- `outDir` and `rootDir` are only relevant if you also run the TypeScript compiler directly (not required for Skittles)
+- `outDir` and `rootDir` only matter if you also run the TypeScript compiler directly (Skittles does not need them)

@@ -18,7 +18,7 @@ function Footer() {
           <p className="footer-tagline">
             Write smart contracts in TypeScript.
             <br />
-            The language you already know.
+            Compile them to standard Solidity.
           </p>
         </div>
         <div className="footer-cols">

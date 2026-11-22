@@ -5,7 +5,7 @@ title: Control Flow
 
 # Control Flow
 
-Skittles supports all standard TypeScript control flow patterns. Use them exactly as you would in any TypeScript project.
+Skittles supports standard TypeScript control flow patterns, using the same syntax as a regular TypeScript project.
 
 ## If / Else
 
@@ -49,7 +49,7 @@ for (const status in Status) {
 }
 ```
 
-The compiler desugars this into a standard indexed loop over the enum range.
+The compiler turns this into a standard indexed loop over the enum range.
 
 ## While Loops
 
@@ -69,7 +69,7 @@ do {
 
 ## Break and Continue
 
-Both `break` and `continue` are supported inside loops:
+You can use `break` and `continue` inside loops:
 
 ```typescript
 for (let i: number = 0; i < this.owners.length; i++) {
@@ -166,7 +166,7 @@ this.balances.delete(account);
 
 ## Try / Catch
 
-Use `try/catch` to gracefully handle failures from external contract calls. The first statement in the `try` block must be an external contract call:
+Use `try/catch` to handle failures from external contract calls. The first statement in the `try` block must be an external contract call:
 
 ```typescript
 try {
