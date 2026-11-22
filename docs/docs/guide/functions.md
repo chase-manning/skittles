@@ -5,9 +5,11 @@ title: Functions
 
 # Functions
 
-Class methods define the actions users can take on your contract. Skittles automatically handles optimization and access control.
+Class methods define the actions users and other contracts can call on your contract. Skittles infers state mutability from each method body and maps TypeScript visibility modifiers, overloads and parameter defaults to Solidity.
 
 ## Basic Functions
+
+Methods on a contract class can be pure calculations, read-only lookups or state-changing transactions:
 
 ```typescript
 class Token {
@@ -34,28 +36,28 @@ class Token {
 
 ## State Mutability Inference
 
-You never need to annotate how your functions interact with the blockchain. Skittles analyzes each function body to determine the behavior:
+You don't need to annotate how your functions interact with the blockchain. Skittles analyses each function body to infer its Solidity mutability:
 
-| Access Pattern       | Behavior                                             |
-| -------------------- | ---------------------------------------------------- |
-| No `this.*` or EVM global access  | Performs computation only, no blockchain data needed (free to call) |
-| Reads `this.*` only  | Can be called without a transaction (free)           |
-| Reads EVM globals (`msg.sender`, `block.*`, `tx.*`, `self`, `gasleft()`) | Can be called without a transaction (free) |
-| Writes `this.*`      | Requires a transaction (costs gas)                   |
-| Accesses `msg.value` | Can receive ETH payments                             |
+| Access Pattern | Behaviour |
+| --- | --- |
+| No `this.*` or EVM global access | Generates a pure function. Performs computation only, with no blockchain data needed (free to call) |
+| Reads `this.*` only | Generates a view function. Can be called without a transaction (free) |
+| Reads EVM globals (`msg.sender`, `block.*`, `tx.*`, `self`, `gasleft()`) | Generates a view function. Can be called without a transaction (free) |
+| Writes `this.*` | Generates a nonpayable function. Requires a transaction (costs gas) |
+| Accesses `msg.value` | Generates a payable function. Can receive ETH payments |
 
-The inference also propagates through call chains. If function `A` calls `this.B()`, and `B` writes state, then `A` is also marked as state modifying. This uses a fixpoint iteration to handle indirect call chains.
+Mutability inference also propagates through call chains. If function `A` calls `this.B()`, and `B` writes state, then `A` is also marked as state modifying. Skittles uses a fixpoint iteration to handle indirect call chains.
 
 ## Visibility
 
-Function visibility controls who can call your functions:
+Function visibility controls who can call a method. Both `private` and `protected` methods compile to Solidity internal functions so child contracts can use them, while `public` stays public:
 
-| TypeScript                | Behavior                                           |
-| ------------------------- | -------------------------------------------------- |
-| `public` (or no modifier) | Anyone can call this function                      |
-| `private`                 | Only callable from within this contract            |
-| `protected`               | Only callable from this contract and child contracts|
-| `static` methods          | Internal helpers (not callable externally)         |
+| TypeScript | Behaviour |
+| --- | --- |
+| `public` (or no modifier) | Generated as Solidity public. Anyone can call this function |
+| `private` | Generated as Solidity internal. Restricted to this contract in TypeScript |
+| `protected` | Generated as Solidity internal. Callable from this contract and child contracts |
+| `static` methods | Internal helpers (not callable externally) |
 
 ```typescript
 class Token {
@@ -93,7 +95,7 @@ class MyToken extends BaseToken {
 
 ## Function Overloading
 
-TypeScript supports function overloading through overload signatures, and Skittles compiles these into separate Solidity functions. This is commonly used in Solidity standards like ERC721's `safeTransferFrom`:
+TypeScript supports function overloading through overload signatures, and Skittles compiles these into separate Solidity functions. This is common in Solidity standards such as ERC721's `safeTransferFrom`:
 
 ```typescript
 class Token {
@@ -106,14 +108,14 @@ class Token {
 }
 ```
 
-The overload signatures (without bodies) define the public API, while the implementation signature (with the body) provides the logic. Skittles generates a separate Solidity function for each overload signature:
+The overload signatures (without bodies) define the public API, and the implementation signature (with the body) provides the logic. Skittles generates a separate Solidity function for each overload signature:
 
 - The overload with the most parameters gets the implementation body
-- Shorter overloads automatically forward to the longest overload with default values
+- Shorter overloads forward to the longest overload with default values
 
 ## Default Parameter Values
 
-Function parameters can have default values, just like in TypeScript. Skittles generates overloaded Solidity functions so callers can omit trailing arguments:
+Function parameters can have default values. Skittles generates overloaded Solidity functions so callers can omit trailing arguments:
 
 ```typescript
 class Auction {
@@ -126,10 +128,10 @@ class Auction {
 
 This generates two Solidity functions:
 
-- `bid(uint256 amount, uint256 maxGas)` — the full implementation
-- `bid(uint256 amount)` — a forwarding overload that calls `bid(amount, 100000)`
+- `bid(uint256 amount, uint256 maxGas)`: the full implementation
+- `bid(uint256 amount)`: a forwarding overload that calls `bid(amount, 100000)`
 
-Multiple default parameters work as expected. Each trailing default creates an additional overload:
+You can also set defaults on more than one parameter. Each trailing default creates an additional overload:
 
 ```typescript
 class Auction {
@@ -141,16 +143,16 @@ class Auction {
 
 This generates three Solidity functions:
 
-- `configure(uint256 a, uint256 b, uint256 c)` — full implementation
-- `configure(uint256 a, uint256 b)` — forwards to `configure(a, b, 10)`
-- `configure(uint256 a)` — forwards to `configure(a, 5, 10)`
+- `configure(uint256 a, uint256 b, uint256 c)`: full implementation
+- `configure(uint256 a, uint256 b)`: forwards to `configure(a, b, 10)`
+- `configure(uint256 a)`: forwards to `configure(a, 5, 10)`
 
 :::caution
-Default-valued parameters must be contiguous and trailing. Patterns that put a non-default parameter after a default (for example, `f(a: number = 1, b: number)`) are rejected by the compiler, even though they are valid TypeScript. Always list all required (non-default) parameters first, followed by all parameters with defaults.
+Default-valued parameters must be contiguous and trailing. Putting a non-default parameter after a default (for example, `f(a: number = 1, b: number)`) is rejected by the compiler, even though it is valid TypeScript. List all required (non-default) parameters first, followed by all parameters with defaults.
 :::
 
 :::info
-Constructor parameters also support default values, but use a different strategy: default parameters become local variable declarations inside the constructor body instead of generating overloads.
+Constructor parameters also support default values, but they compile differently: default parameters become local variable declarations inside the constructor body instead of generating overloads.
 :::
 
 ## Arrow Functions
@@ -167,7 +169,7 @@ class Token {
 
 ## Multiple Return Values
 
-Functions can return multiple values using TypeScript tuple types. This is common in Solidity for functions like `getReserves()`:
+Functions can return multiple values using TypeScript tuple types. This is common in Solidity for functions such as `getReserves()`:
 
 ```typescript
 class Pair {
@@ -204,7 +206,7 @@ This compiles to Solidity's native tuple destructuring: `(uint256 r0, uint256 r1
 
 ## Getters and Setters
 
-TypeScript `get` and `set` accessors work as you'd expect:
+You can use TypeScript `get` and `set` accessors on contract classes:
 
 ```typescript
 class Token {
@@ -222,7 +224,7 @@ class Token {
 
 ## Receive and Fallback
 
-Name a method `receive` to handle plain ETH transfers to your contract. This function is called when someone sends ETH to your contract:
+Name a method `receive` to handle plain ETH transfers when someone sends ETH directly to your contract:
 
 ```typescript
 class Staking {
@@ -232,11 +234,11 @@ class Staking {
 }
 ```
 
-Similarly, name a method `fallback` to handle calls to functions that don't exist on your contract.
+Name a method `fallback` to handle calls to functions that don't exist on your contract.
 
-## Require Optimization
+## Require Conversion
 
-Skittles automatically optimizes your error handling. When you write `if (condition) throw new Error(...)`, Skittles converts it into the most gas-efficient pattern:
+When you write `if (condition) throw new Error(...)`, Skittles converts it into a Solidity require statement with the condition negated:
 
 ```typescript
 // TypeScript
@@ -245,15 +247,15 @@ if (this.balances[msg.sender] < amount) {
 }
 ```
 
-The condition is automatically negated, and comparison operators are flipped (`<` becomes `>=`, `==` becomes `!=`, etc.) to produce the most efficient bytecode.
+Skittles flips comparison operators when negating the condition (`<` becomes `>=`, `==` becomes `!=` and so on) and passes the error message to Solidity's require statement.
 
 :::info
-This optimization only applies when the `if` block contains a single `throw new Error(...)` statement with no `else` branch. Custom errors (`SkittlesError`) use a different optimization pattern.
+This conversion only applies when the `if` block contains a single `throw new Error(...)` statement with no `else` branch. Custom errors (`SkittlesError`) are compiled differently.
 :::
 
 ## Standalone Functions
 
-Functions declared outside of classes (at file level) are compiled as internal helper functions available to all contracts in that file:
+Functions declared outside classes (at file level) are compiled as internal helper functions available to all contracts in that file:
 
 ```typescript title="contracts/utils.ts"
 function calculateFee(amount: number, bps: number): number {

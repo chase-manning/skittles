@@ -7,7 +7,7 @@ title: Events and Errors
 
 ## Events
 
-Events are like logs that your contract emits when something important happens. External applications (wallets, explorers, dApps) can listen for these events to track contract activity.
+Events are logs emitted by your contract. External applications (wallets, explorers and dApps) can listen for these events to track contract activity.
 
 Declare events using `SkittlesEvent<T>` as a class property:
 
@@ -25,7 +25,7 @@ class Token {
 
 ### Indexed Parameters
 
-Indexed parameters can be used to filter and search for specific events. For example, you can search for all Transfer events involving a specific address.
+Indexed parameters let you filter and search for specific events. For example, you can search for all Transfer events involving a specific address.
 
 Wrap parameter types with `Indexed<T>` to mark them as indexed in the event. Up to 3 parameters per event can be indexed.
 
@@ -67,7 +67,7 @@ class Token {
 
 ## Custom Errors
 
-Custom errors give clear, structured error messages when something goes wrong. They're more informative and cost less gas than simple string messages.
+Custom errors let a contract revert with a named error and typed parameters instead of a plain string message.
 
 There are two ways to declare them.
 
@@ -131,5 +131,7 @@ if (amount == 0) {
   throw new Error("Amount must be greater than zero");
 }
 ```
+
+When that throw is the only statement in an if block, Skittles generates a Solidity require statement with the negated condition.
 
 A bare `throw` stops execution immediately.

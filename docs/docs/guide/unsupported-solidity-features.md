@@ -5,15 +5,15 @@ title: Unsupported Solidity Features
 
 # Unsupported Solidity Features
 
-If you're coming from a Solidity background, this page covers Solidity features that Skittles does not currently support. If you're new to smart contracts and learning through Skittles, you can safely skip this page — it won't affect your ability to build contracts.
+If you're coming from Solidity, this page lists the Solidity features that Skittles doesn't currently support. If you're new to smart contracts and learning through Skittles, you can skip this page. None of these features are required to build contracts.
 
 :::note
-Skittles covers the most commonly used Solidity features. The items listed below are either advanced, niche, or have TypeScript-friendly alternatives built into Skittles.
+Skittles covers the most commonly used Solidity features. The items below are either advanced, niche or have TypeScript alternatives built into Skittles.
 :::
 
 ## Modifiers
 
-Solidity modifiers (e.g., `modifier onlyOwner()`) are not supported. In Skittles, you can achieve the same result using regular helper methods:
+Solidity modifiers (such as `modifier onlyOwner()`) are not supported. In Skittles, you can do the same thing with a regular helper method:
 
 ```typescript title="contracts/MyContract.ts"
 import { address, msg } from "skittles";
@@ -34,7 +34,7 @@ export class MyContract {
 }
 ```
 
-The standard library's [Ownable](/guide/standard-library#ownable) and [AccessControl](/guide/standard-library#accesscontrol) contracts also provide built-in access control without needing modifiers.
+The standard library's [Ownable](/guide/standard-library#ownable) and [AccessControl](/guide/standard-library#accesscontrol) contracts also provide built-in access control without modifiers.
 
 ## Proxy and Upgradeable Contracts
 
@@ -49,7 +49,7 @@ Contracts compiled with Skittles are not upgradeable. If you need upgradeability
 
 ## Inline Assembly (YUL)
 
-Solidity's `assembly { ... }` blocks for writing low-level EVM instructions in YUL are not supported. Skittles focuses on high-level TypeScript constructs and does not provide access to raw opcodes.
+Solidity's `assembly { ... }` blocks for writing low-level EVM instructions in YUL are not supported. Skittles compiles high-level TypeScript constructs and does not expose raw opcodes.
 
 ## Libraries
 
@@ -90,11 +90,11 @@ The `create2` opcode for deploying contracts to deterministic addresses is not s
 
 ## Selfdestruct
 
-The `selfdestruct()` function is not supported. Note that `selfdestruct` is also deprecated in Solidity itself as of [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049) and its behavior has changed after the Dencun upgrade.
+The `selfdestruct()` function is not supported. `selfdestruct` is also deprecated in Solidity itself as of [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049), and its behaviour changed after the Dencun upgrade.
 
 ## Unchecked Arithmetic
 
-Solidity's `unchecked { ... }` blocks for disabling overflow/underflow checks are not supported. All arithmetic in Skittles uses Solidity's default checked math.
+Solidity's `unchecked { ... }` blocks for disabling overflow and underflow checks are not supported. All arithmetic in Skittles uses Solidity's default checked arithmetic.
 
 ## Abstract Contracts
 
@@ -102,11 +102,11 @@ Solidity's `abstract contract` declarations are not directly supported. Use [int
 
 ## Custom NatSpec Tags
 
-While Skittles supports standard documentation comments (`@notice`, `@dev`, `@param`, `@return`), advanced or custom NatSpec tags beyond these are not supported.
+Skittles supports standard documentation comments (`@notice`, `@dev`, `@param`, `@return`), but other or custom NatSpec tags are not supported.
 
 ## Fixed-Point Numbers
 
-Solidity's fixed-point number types (`fixed` / `ufixed`) are not supported. Solidity itself has limited support for these types — they can be declared but not assigned to. Use `number` (`uint256`) with manual decimal scaling instead.
+Solidity's fixed-point number types (`fixed` and `ufixed`) are not supported. Solidity itself has limited support for these types, as they can be declared but not assigned to. Use `number` (`uint256`) with manual decimal scaling instead.
 
 ## User-Defined Value Types
 
@@ -118,21 +118,21 @@ Direct access to function selectors (`this.myFunction.selector`) and interface I
 
 ## Ternary Assignments in State
 
-While ternary expressions (`condition ? a : b`) work in local variables and return statements, they have limited support in certain complex contexts.
+Ternary expressions (`condition ? a : b`) work in local variables and return statements, but they have limited support in certain complex contexts.
 
 ## Summary
 
 | Solidity Feature | Supported | Alternative |
 | --- | --- | --- |
 | Modifiers | No | Use helper methods |
-| Proxy / Upgradeable contracts | No | — |
-| Inline assembly (YUL) | No | — |
+| Proxy / Upgradeable contracts | No | None |
+| Inline assembly (YUL) | No | None |
 | Libraries | No | Use exported functions or static methods |
 | `delegatecall` / low-level calls | No | Use `Contract<T>()` for external calls |
-| `create2` | No | — |
-| `selfdestruct` | No | — (deprecated in Solidity) |
-| `unchecked` blocks | No | — |
+| `create2` | No | None |
+| `selfdestruct` | No | None (deprecated in Solidity) |
+| `unchecked` blocks | No | None |
 | Abstract contracts | No | Use interfaces or base classes |
 | Fixed-point numbers | No | Use `number` with decimal scaling |
 | User-defined value types | No | Use type aliases |
-| Function selectors | No | — |
+| Function selectors | No | None |

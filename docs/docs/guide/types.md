@@ -5,15 +5,15 @@ title: Type System
 
 # Type System
 
-Skittles uses familiar TypeScript types for your smart contracts. Here's how to use them.
+Skittles uses standard TypeScript types for your smart contracts, along with Ethereum types for addresses and binary data.
 
 ## Primitive Types
 
-| TypeScript | Description                                                                                              |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| `number`   | Used for amounts, counters, timestamps — represents a whole number (unsigned, up to 256 bits)           |
-| `string`   | Used for names, symbols, text data — UTF-8 encoded strings                                               |
-| `boolean`  | Used for flags and conditions — `true` or `false`                                                        |
+| TypeScript | Description |
+| ---------- | ----------- |
+| `number` | Used for amounts, counters and timestamps. Represents an unsigned whole number of up to 256 bits. |
+| `string` | Used for names, symbols and text data. Represents UTF-8 encoded strings. |
+| `boolean` | Used for flags and conditions, with values `true` or `false`. |
 
 ```typescript
 class Example {
@@ -25,7 +25,7 @@ class Example {
 
 ### String Operations
 
-Strings support `.length`, comparison operators, and common methods with TypeScript-like syntax:
+Strings support `.length`, comparison operators and common methods with TypeScript-like syntax:
 
 ```typescript
 class Example {
@@ -45,7 +45,7 @@ class Example {
 }
 ```
 
-Under the hood, `str.length` compiles to `bytes(str).length` and string comparisons use `keccak256` hashing — but you don't need to worry about that. Just write natural TypeScript.
+In the generated Solidity, `str.length` compiles to `bytes(str).length` and string comparisons use `keccak256` hashing, so you can write standard TypeScript comparisons.
 
 ### String Methods
 
@@ -87,7 +87,7 @@ class StringExample {
 }
 ```
 
-Methods can be chained:
+Methods can also be chained together:
 
 ```typescript
 public getUpperInitial(name: string): string {
@@ -96,20 +96,20 @@ public getUpperInitial(name: string): string {
 ```
 
 | Method | Description | Return Type |
-|--------|-------------|-------------|
-| `str.charAt(index)` | Get character at index | `string` |
-| `str.substring(start, end)` | Extract part of string | `string` |
-| `str.toLowerCase()` | Convert to lowercase | `string` |
-| `str.toUpperCase()` | Convert to uppercase | `string` |
-| `str.startsWith(prefix)` | Check if string starts with prefix | `boolean` |
-| `str.endsWith(suffix)` | Check if string ends with suffix | `boolean` |
-| `str.trim()` | Remove leading/trailing spaces | `string` |
-| `str.split(delimiter)` | Split string by delimiter | `string[]` |
-| `str.replace(search, replacement)` | Replace first occurrence | `string` |
-| `str.replaceAll(search, replacement)` | Replace all occurrences | `string` |
+| ------ | ----------- | ----------- |
+| `str.charAt(index)` | Get the character at the given index | `string` |
+| `str.substring(start, end)` | Extract part of the string from start to end | `string` |
+| `str.toLowerCase()` | Convert the string to lowercase | `string` |
+| `str.toUpperCase()` | Convert the string to uppercase | `string` |
+| `str.startsWith(prefix)` | Check whether the string starts with the prefix | `boolean` |
+| `str.endsWith(suffix)` | Check whether the string ends with the suffix | `boolean` |
+| `str.trim()` | Remove leading and trailing spaces | `string` |
+| `str.split(delimiter)` | Split the string by the delimiter | `string[]` |
+| `str.replace(search, replacement)` | Replace the first occurrence of the search string | `string` |
+| `str.replaceAll(search, replacement)` | Replace all occurrences of the search string | `string` |
 
 :::note
-String methods compile to internal helper functions that operate on bytes and are **not** full JavaScript/TypeScript implementations:
+String methods compile to internal helper functions that operate on bytes and are **not** full JavaScript or TypeScript implementations:
 
 - They operate on ASCII bytes. Non-ASCII UTF-8 characters may behave unexpectedly (for example, `.length` counts bytes, not user-perceived characters).
 - `charAt(index)` and `substring(start, end)` require in-range indices. If an index is out of bounds, or `start > end`, the call reverts instead of clamping or returning `""`.
@@ -122,7 +122,7 @@ String methods compile to internal helper functions that operate on bytes and ar
 
 ### Template Literals
 
-Template literals (backtick strings) work just like in TypeScript:
+Template literals (backtick strings) work as they do in TypeScript for strings and numbers:
 
 ```typescript
 class Token {
@@ -146,11 +146,11 @@ class Token {
 }
 ```
 
-Numbers are automatically converted to their string representation. Under the hood, template literals compile to Solidity's `string.concat()` with a generated `__sk_toString(uint256)` helper for numeric values. Using non-string, non-numeric values (such as `address` or `bool`) in template literals is not supported and will fail Solidity compilation.
+Numbers are automatically converted to their string representation. Template literals compile to Solidity's `string.concat()`, with a generated `__sk_toString(uint256)` helper for numeric values. Using non-string, non-numeric values (such as `address` or `bool`) in template literals is not supported and will fail Solidity compilation.
 
 ## Ethereum Types
 
-Import `address`, `bytes`, and `bytes32` from `"skittles"`:
+Import `address`, `bytes` and `bytes32` from `"skittles"`:
 
 ```typescript
 import { address, bytes, bytes32 } from "skittles";
@@ -162,13 +162,13 @@ class Example {
 }
 ```
 
-| TypeScript | Description                                                   |
-| ---------- | ------------------------------------------------------------- |
-| `address`  | Represents wallet addresses and contract addresses (20 bytes) |
-| `bytes`    | Represents raw binary data                                    |
-| `bytes32`  | Fixed-size 32-byte value, used for hashes and storage keys    |
+| TypeScript | Description |
+| ---------- | ----------- |
+| `address` | Represents wallet addresses and contract addresses (20 bytes) |
+| `bytes` | Represents raw binary data |
+| `bytes32` | Fixed-size 32-byte value, used for hashes and storage keys |
 
-Address literals are 42 character hex strings starting with `0x`:
+Address literals are 42-character hex strings starting with `0x`:
 
 ```typescript
 const zero: address = "0x0000000000000000000000000000000000000000";
@@ -186,7 +186,7 @@ class Wallet {
 }
 ```
 
-This compiles to Solidity's `payable(to).transfer(amount)`, which sends the specified amount of wei and reverts if the transfer fails. The contract must have sufficient ETH balance (e.g. received via a `receive()` function).
+This compiles to Solidity's `payable(to).transfer(amount)`, which sends the specified amount of wei and reverts if the transfer fails. The contract must have sufficient ETH balance to cover the transfer (for example, ETH received via a `receive()` function).
 
 ## Mappings
 
@@ -202,11 +202,11 @@ class Token {
 }
 ```
 
-Both `Record` and `Map` compile to the same Solidity `mapping` type, so use whichever feels more natural. Nested types create nested mappings. This is perfect for storing balances, allowances, and other key-value data that needs persistent storage.
+Both `Record` and `Map` compile to the same Solidity `mapping` type, so you can use whichever you prefer. Nested types create nested mappings. Mappings are used for storing balances, allowances and other key-value data that needs persistent storage.
 
 ### Map Methods
 
-When using `Map<K, V>`, you can use standard Map methods for a more TypeScript-idiomatic experience:
+When using `Map<K, V>`, you can call standard Map methods:
 
 ```typescript
 class Token {
@@ -231,17 +231,17 @@ class Token {
 ```
 
 | Method | Description | Solidity Equivalent |
-|--------|-------------|-------------------|
-| `map.get(key)` | Get value | `mapping[key]` |
-| `map.set(key, value)` | Set value | `mapping[key] = value` |
-| `map.has(key)` | Check if key has non-default value | `mapping[key] != 0` / `!= false` / `!= address(0)` |
+| ------ | ----------- | ------------------- |
+| `map.get(key)` | Get the value stored for a key | `mapping[key]` |
+| `map.set(key, value)` | Set the value stored for a key | `mapping[key] = value` |
+| `map.has(key)` | Check whether a key has a non-default value | `mapping[key] != 0` / `!= false` / `!= address(0)` |
 | `map.delete(key)` | Delete a mapping entry | `delete mapping[key]` |
 
 :::note
-`map.has(key)` compares against the default value for the mapping's value type (`0` for numbers, `false` for booleans, `address(0)` for addresses). It is not supported for `string`, `bytes`, struct, or nested mapping value types — use an explicit comparison instead.
+`map.has(key)` compares the stored value against the default value for the mapping's value type (`0` for numbers, `false` for booleans and `address(0)` for addresses). It is not supported for `string`, `bytes`, struct or nested mapping value types. For those types, use an explicit comparison instead.
 :::
 
-You can also use bracket notation directly — both styles work:
+You can also use bracket notation directly on a `Map` or `Record`, as both styles work:
 
 ```typescript
 this.balances[addr] = amount;   // same as this.balances.set(addr, amount)
@@ -260,7 +260,7 @@ class Example {
 }
 ```
 
-Skittles supports a rich set of TypeScript array methods — far beyond what Solidity offers natively. Just write natural TypeScript and the compiler handles the rest.
+Skittles supports many TypeScript array methods that Solidity does not provide natively (along with a `remove(value)` helper), and generates the Solidity implementation at compile time.
 
 ### Adding & Removing Elements
 
@@ -284,7 +284,7 @@ this.values.at(0);               // element at index (supports negative: at(-1) 
 
 ### Iterating with Callbacks
 
-Use arrow functions just like in TypeScript:
+Use arrow functions for array callbacks:
 
 ```typescript
 // Check if any/all elements match a condition
@@ -319,7 +319,7 @@ const combined = this.values.concat(otherArray);
 
 ### Spread Operator
 
-Use the spread operator (`...`) to combine arrays — just like in TypeScript:
+Use the spread operator (`...`) to combine arrays:
 
 ```typescript
 class Example {
@@ -335,7 +335,7 @@ Spread works with any number of arrays:
 return [...arr1, ...arr2, ...arr3];
 ```
 
-You can also spread storage arrays (state variables). The compiler automatically copies them to memory:
+You can also spread storage arrays (state variables). The compiler copies them to memory:
 
 ```typescript
 class Example {
@@ -349,7 +349,7 @@ class Example {
 ```
 
 :::note
-- Only spread elements are supported: `[...a, ...b]`. Mixing spread and non-spread elements (e.g. `[...a, 42]`) is not currently supported.
+- Only spread elements are supported: `[...a, ...b]`. Mixing spread and non-spread elements (for example, `[...a, 42]`) is not currently supported.
 - Spread creates a new memory array, so it has O(n) gas cost where n is the total number of elements.
 :::
 
@@ -378,12 +378,12 @@ for (const owner of this.owners) {
 
 | Method | Returns | Mutates | Description |
 |--------|---------|---------|-------------|
-| `push(value)` | — | Yes | Append element |
-| `pop()` | — | Yes | Remove last element |
+| `push(value)` | None | Yes | Append element |
+| `pop()` | None | Yes | Remove last element |
 | `remove(value)` | `boolean` | Yes | Remove first occurrence (swap-and-pop) |
-| `splice(start, count)` | — | Yes | Remove elements at index |
-| `reverse()` | — | Yes | Reverse in place |
-| `sort(fn)` | — | Yes | Sort in place with comparator |
+| `splice(start, count)` | None | Yes | Remove elements at index |
+| `reverse()` | None | Yes | Reverse in place |
+| `sort(fn)` | None | Yes | Sort in place with comparator |
 | `includes(value)` | `boolean` | No | Check if value exists |
 | `indexOf(value)` | `number` | No | First index of value |
 | `lastIndexOf(value)` | `number` | No | Last index of value |
@@ -395,26 +395,26 @@ for (const owner of this.owners) {
 | `filter(fn)` | `T[]` | No | New array of matching elements |
 | `map(fn)` | `U[]` | No | New array with transformed elements |
 | `reduce(fn, init)` | `U` | No | Accumulate to single value |
-| `forEach(fn)` | — | Depends | Execute callback for each element |
+| `forEach(fn)` | None | Depends | Execute callback for each element |
 | `slice(start, end)` | `T[]` | No | Copy sub-array |
 | `concat(other)` | `T[]` | No | Combine two arrays |
 | `[...a, ...b]` | `T[]` | No | Combine arrays with spread |
 | `length` | `number` | No | Number of elements |
 
 :::note
-- `remove(value)` uses a **swap-and-pop** strategy for gas efficiency — the removed element is replaced with the last element, so array order is not preserved. If you need ordered removal, use `splice()` instead.
-- `indexOf`, `lastIndexOf`, and `findIndex` return `type(uint256).max` (a very large number) when no match is found, since Solidity uses unsigned integers.
-- `find()` **reverts** if no element matches the condition, since Solidity cannot return `undefined`.
-- `at(index)` **reverts** on out-of-bounds access (unlike JavaScript which returns `undefined`). Negative literal indices (e.g., `at(-1)`) are supported and desugared at compile time, but negative non-literal indices are not supported.
-- `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. Specifically, `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
-- `sort(fn)` uses **insertion sort** (O(n²) gas cost), is only supported on `number[]` (uint256) and `int256[]` arrays, and must be used as a standalone statement. For `number[]` arrays, comparator parameters are cast to `int256` internally so subtraction patterns like `(a, b) => a - b` work without reverting on underflow. This cast is safe for values in the range `0` to `2^255 - 1`; sorting arrays containing values `>= 2^255` will revert at the cast step. Best suited for small arrays.
-- Callback functions should only reference the callback parameter and literals or state variables. Referencing local variables from the enclosing function scope is not supported.
-- All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
+- `remove(value)` uses a **swap-and-pop** strategy to avoid shifting the remaining elements. It replaces the removed element with the last element, so array order is not preserved. If you need to keep the order, use `splice()` instead.
+- `indexOf`, `lastIndexOf` and `findIndex` return `type(uint256).max` (a very large number) when no match is found, because Solidity uses unsigned integers.
+- `find()` **reverts** if no element matches the condition, because Solidity cannot return `undefined`.
+- `at(index)` **reverts** on out-of-bounds access, unlike JavaScript which returns `undefined`. Negative literal indices (such as `at(-1)`) are supported and rewritten at compile time, but negative non-literal indices are not supported.
+- `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
+- `sort(fn)` uses **insertion sort** (O(n²) gas cost) and must be used as a standalone statement. It is only supported on `number[]` (uint256) and `int256[]` arrays. For `number[]` arrays, comparator parameters are cast to `int256` internally so subtraction patterns like `(a, b) => a - b` work without reverting on underflow. This cast is safe for values in the range `0` to `2^255 - 1`. Sorting an array that contains values `>= 2^255` reverts at the cast step. Because of its O(n²) gas cost, use it only on small arrays.
+- Callback functions can only reference the callback parameter, literals and state variables. Referencing local variables from the enclosing function scope is not supported.
+- All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost, so keep array sizes in mind.
 :::
 
 ### Readonly Arrays
 
-Use `readonly` on array properties to prevent modification after initialization. You can also use `ReadonlyArray<T>` or `readonly T[]` as the type:
+Use `readonly` on array properties to prevent modification after initialisation. You can also use `ReadonlyArray<T>` or `readonly T[]` as the type:
 
 ```typescript
 class Example {
@@ -423,7 +423,7 @@ class Example {
 }
 ```
 
-Readonly arrays compile to internal storage with an auto-generated public getter function (e.g., `getAdmins()`). See [State Variables](/guide/state-variables#readonly-arrays) for more details.
+Readonly arrays compile to internal storage with a generated public getter function (such as `getAdmins()`). See [State Variables](/guide/state-variables#readonly-arrays) for more details.
 
 ## Structs
 
@@ -536,7 +536,7 @@ for (const status in VaultStatus) {
 
 ## Type Inference
 
-Local variables inside functions can omit explicit types when the type can be inferred:
+Local variables inside functions can omit explicit types when the compiler can infer them:
 
 ```typescript
 transfer(to: address, amount: number): boolean {
@@ -549,12 +549,12 @@ transfer(to: address, amount: number): boolean {
 
 The compiler infers types from:
 
-- Literal values: numbers are inferred from numeric literals, strings from string literals, booleans from `true`/`false`
-- Global variables: `msg.sender` is inferred as `address`, `msg.value` as `number`
-- Block properties: `block.timestamp` and `block.number` are inferred as `number`
-- Property access on `this` → the type of the state variable
-- Mapping/array access → the value type of the mapping/array
-- Comparison operators → `boolean`
+- Literal values: numbers from numeric literals, strings from string literals and booleans from `true` or `false`
+- Global variables: `msg.sender` as `address` and `msg.value` as `number`
+- Block properties: `block.timestamp` and `block.number` as `number`
+- Property access on `this`: the type of the state variable
+- Mapping and array access: the value type of the mapping or array
+- Comparison operators: `boolean`
 
 Function parameters and return types must always be explicitly typed.
 

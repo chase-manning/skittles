@@ -5,7 +5,7 @@ title: Inheritance
 
 # Inheritance
 
-Skittles supports contract inheritance using TypeScript's `extends` keyword. Build modular, reusable contracts by extending base contracts.
+Skittles supports contract inheritance using TypeScript's `extends` keyword. A child contract inherits its parent's properties and methods, and can override methods or add its own.
 
 ## Basic Inheritance
 
@@ -98,7 +98,7 @@ abstract class Base {
 
 ## Interfaces (implements)
 
-Use `implements` to ensure your contract follows a specific shape. TypeScript will check that your contract has all the required properties and methods.
+Use `implements` when a contract must match a specific interface. TypeScript checks that your contract defines all of the required properties and methods.
 
 ```typescript title="contracts/IToken.ts"
 import { address } from "skittles";
@@ -128,7 +128,7 @@ export class Token implements IToken {
 
 ### Multiple Interfaces
 
-A contract can implement multiple interfaces, just like in TypeScript and Solidity. Separate the interfaces with commas:
+A contract can implement multiple interfaces, just as in TypeScript and Solidity. Separate the interfaces with commas:
 
 ```typescript
 interface IOwnable {
@@ -170,7 +170,7 @@ class MyContract extends Base implements IOwnable, IPausable {
 
 ## Cross-File Inheritance
 
-You can extend a base contract defined in another file. Skittles automatically generates the correct Solidity `import` statement so the child contract can reference the parent.
+You can extend a base contract defined in another file. Skittles generates the Solidity `import` statement so the child contract can reference the parent.
 
 ```typescript title="contracts/BaseToken.ts"
 export class BaseToken {

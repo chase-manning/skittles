@@ -28,7 +28,7 @@ your-project/
 └── hardhat.config.ts      # Hardhat config with Ethers toolbox
 ```
 
-It also updates your `.gitignore` to exclude `artifacts/`, `cache/`, `dist/`, `node_modules/`, and other generated directories.
+It also installs dependencies and updates your `.gitignore` to exclude `artifacts/`, `cache/`, `dist/`, `node_modules/` and other generated directories.
 
 ## Write a Contract
 
@@ -56,7 +56,7 @@ export class Token extends ERC20 {
 }
 ```
 
-This creates a mintable ERC20 token by extending the built-in `ERC20` contract from the [standard library](/guide/standard-library). You get a full token (name, symbol, decimals, transfers, approvals) from just a few lines of code. The constructor sets the initial supply and an owner for the mint function.
+This defines a mintable ERC20 token by extending the built-in `ERC20` contract from the [standard library](/guide/standard-library). The base contract provides name, symbol, decimals, transfers and approvals. The constructor sets the initial supply and records the deployer as the owner who can call mint.
 
 ## Compile
 
@@ -78,7 +78,7 @@ Output:
 ✔ 1 contract(s) compiled successfully
 ```
 
-This builds your contracts so they're ready for testing and deployment.
+This generates Solidity source for your contracts in the artifacts directory, ready for testing and deployment.
 
 ## Testing
 
@@ -88,14 +88,14 @@ Run your tests with:
 npm run test
 ```
 
-This compiles your contracts and runs the test suite against a local blockchain.
+This compiles your contracts and runs the test suite with Hardhat against a local simulated network.
 
 See the [Testing Guide](/guide/testing) for more details on writing tests.
 
 ## Next Steps
 
-- [Standard Library](/guide/standard-library) for ERC20, ERC721, Ownable, and more
+- [Standard Library](/guide/standard-library) for ERC20, ERC721, Ownable and more
 - [Type System](/guide/types) to learn what TypeScript features you can use
-- [State Variables](/guide/state-variables) for visibility, constants, and immutables
-- [Functions](/guide/functions) for mutability inference, receive/fallback, and more
-- [Configuration](/guide/configuration) to customize the compiler
+- [State Variables](/guide/state-variables) for visibility, constants and immutables
+- [Functions](/guide/functions) for mutability inference, receive/fallback and more
+- [Configuration](/guide/configuration) to customise the compiler
