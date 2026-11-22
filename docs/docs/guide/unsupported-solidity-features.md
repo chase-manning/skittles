@@ -5,7 +5,7 @@ title: Unsupported Solidity Features
 
 # Unsupported Solidity Features
 
-If you're coming from Solidity, this page lists the Solidity features that Skittles doesn't currently support. If you're new to smart contracts and learning through Skittles, you can skip this page. None of these features are required to build contracts.
+If you're coming from Solidity, this page lists the Solidity features that Skittles does not currently support. If you're new to smart contracts, you can skip this page. It won't affect your ability to build contracts.
 
 :::note
 Skittles covers the most commonly used Solidity features. The items below are either advanced, niche or have TypeScript alternatives built into Skittles.
@@ -13,7 +13,7 @@ Skittles covers the most commonly used Solidity features. The items below are ei
 
 ## Modifiers
 
-Solidity modifiers (such as `modifier onlyOwner()`) are not supported. In Skittles, you can do the same thing with a regular helper method:
+Solidity modifiers (such as `modifier onlyOwner()`) are not supported. Use regular helper methods instead:
 
 ```typescript title="contracts/MyContract.ts"
 import { address, msg } from "skittles";
@@ -45,11 +45,11 @@ Skittles does not support proxy patterns such as:
 - Beacon proxy
 - Diamond pattern (EIP-2535)
 
-Contracts compiled with Skittles are not upgradeable. If you need upgradeability, you'll need to design your system with separate contracts and migrate state manually.
+Contracts compiled with Skittles are not upgradeable. If you need to upgrade a contract, design your system with separate contracts and migrate state manually.
 
 ## Inline Assembly (YUL)
 
-Solidity's `assembly { ... }` blocks for writing low-level EVM instructions in YUL are not supported. Skittles compiles high-level TypeScript constructs and does not expose raw opcodes.
+Solidity's `assembly { ... }` blocks for writing low-level EVM instructions in YUL are not supported. Skittles compiles high-level TypeScript constructs and does not give access to raw opcodes.
 
 ## Libraries
 
@@ -90,7 +90,7 @@ The `create2` opcode for deploying contracts to deterministic addresses is not s
 
 ## Selfdestruct
 
-The `selfdestruct()` function is not supported. `selfdestruct` is also deprecated in Solidity itself as of [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049), and its behaviour changed after the Dencun upgrade.
+The `selfdestruct()` function is not supported. `selfdestruct` is also deprecated in Solidity as of [EIP-6049](https://eips.ethereum.org/EIPS/eip-6049), and its behaviour changed after the Dencun upgrade.
 
 ## Unchecked Arithmetic
 
@@ -102,11 +102,11 @@ Solidity's `abstract contract` declarations are not directly supported. Use [int
 
 ## Custom NatSpec Tags
 
-Skittles supports standard documentation comments (`@notice`, `@dev`, `@param`, `@return`), but other or custom NatSpec tags are not supported.
+Skittles supports the standard documentation comments (`@notice`, `@dev`, `@param` and `@return`), but other or custom NatSpec tags are not supported.
 
 ## Fixed-Point Numbers
 
-Solidity's fixed-point number types (`fixed` and `ufixed`) are not supported. Solidity itself has limited support for these types, as they can be declared but not assigned to. Use `number` (`uint256`) with manual decimal scaling instead.
+Solidity's fixed-point number types (`fixed` and `ufixed`) are not supported. Solidity itself has limited support for these types: they can be declared, but not assigned to. Use `number` (`uint256`) with manual decimal scaling instead.
 
 ## User-Defined Value Types
 
@@ -118,7 +118,7 @@ Direct access to function selectors (`this.myFunction.selector`) and interface I
 
 ## Ternary Assignments in State
 
-Ternary expressions (`condition ? a : b`) work in local variables and return statements, but they have limited support in certain complex contexts.
+Ternary expressions (`condition ? a : b`) work in local variables and return statements, but have limited support in some complex contexts.
 
 ## Summary
 

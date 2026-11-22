@@ -5,17 +5,17 @@ title: State Variables
 
 # State Variables
 
-Class properties in your contract become persistent state. They're stored on the blockchain and kept between function calls. Visibility, mutability and initial values are all controlled with standard TypeScript syntax.
+Class properties in your contract become persistent state. They're stored on the blockchain and kept between function calls. Visibility, mutability and initial values are controlled through standard TypeScript syntax.
 
 ## Visibility
 
 TypeScript access modifiers control who can read your state variables:
 
-| TypeScript                | Notes                                                                         |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| `public` (or no modifier) | Anyone can read this value on the blockchain                                  |
-| `private`                 | Only accessible within the contract and contracts that extend it              |
-| `protected`               | Same as `private`                                                             |
+| TypeScript | Notes |
+| --- | --- |
+| `public` (or no modifier) | Anyone can read this value on the blockchain |
+| `private` | Compiles to Solidity `internal`. Only usable within the contract in TypeScript |
+| `protected` | Compiles to Solidity `internal`, like `private`, and is usable in child contracts |
 
 ```typescript
 class Token {
@@ -26,7 +26,7 @@ class Token {
 ```
 
 :::info
-Skittles compiles `private` and `protected` properties to Solidity `internal`, so contracts that extend yours (child contracts) can still access them.
+Both `private` and `protected` compile to Solidity `internal`. In TypeScript, a child contract cannot use its parent's `private` properties, so use `protected` for properties that child contracts need.
 :::
 
 ## Initial Values
@@ -50,7 +50,7 @@ class Token {
 }
 ```
 
-Mappings and arrays do not get initialisers because they are initialised as empty by default:
+Mappings and arrays do not get initialisers (they are initialised to empty by default):
 
 ```typescript
 class Token {
@@ -79,7 +79,7 @@ let fee: number =
 
 ## Immutables
 
-Use `readonly` (without `static`) for values that are set once at deployment and never change. You can assign them with an initialiser or in the constructor:
+Use `readonly` (without `static`) for values that are set once at deployment time and never change. These can only be set in the constructor:
 
 ```typescript
 class Staking {
@@ -88,12 +88,12 @@ class Staking {
 ```
 
 :::note
-This optimisation applies only to simple value types such as `number`, `address`, `boolean` and `bytes32`. Reference types such as `string` cannot use it and are stored as regular state variables.
+This optimisation only applies to simple value types such as `number`, `address`, `boolean` and `bytes32`. Reference types such as `string` cannot use it and are stored as regular state variables.
 :::
 
 ## Readonly Arrays
 
-Use `readonly` on arrays to prevent changes after initialisation. Readonly arrays are stored internally and Skittles generates a public getter automatically:
+Putting `readonly` on an array property stores it as an `internal` storage array and generates a `public` getter for it:
 
 ```typescript
 class AdminRegistry {
@@ -105,9 +105,9 @@ class AdminRegistry {
 }
 ```
 
-This compiles to an `internal` storage array with a public `getAdmins()` view function, so external callers can read the array without being able to modify it.
+This compiles to an `internal` storage array with a `public` `getAdmins()` `view` function, so external callers can read the full array but cannot modify it.
 
-You can populate a readonly array in the constructor, and the generated getter returns the full array for read-only access.
+The `readonly` modifier does not stop the contract's own methods from pushing to or writing the array. To make TypeScript report mutations in the editor, use `ReadonlyArray<T>` or `readonly T[]`.
 
 ## Constructor
 
@@ -129,7 +129,7 @@ Constructor parameters follow the same type rules as function parameters.
 
 ### Default Parameter Values
 
-Constructor parameters can have default values, just as in TypeScript:
+Constructor parameters can have default values, just like in TypeScript:
 
 ```typescript
 class Token {
@@ -143,4 +143,4 @@ class Token {
 }
 ```
 
-Parameters with default values are baked into the contract at compile time, so you don't need to pass them when deploying. This keeps deployment simpler while leaving the default visible in your contract code.
+Parameters with default values are baked into the contract at compile time, so you don't need to pass them when deploying.
