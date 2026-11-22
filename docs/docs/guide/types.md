@@ -260,7 +260,7 @@ class Example {
 }
 ```
 
-Skittles supports many TypeScript array methods that Solidity does not provide natively (along with a `remove(value)` helper), and generates the Solidity implementation at compile time.
+Skittles compiles TypeScript array methods to Solidity, including methods that Solidity does not provide natively.
 
 ### Adding & Removing Elements
 
@@ -284,7 +284,7 @@ this.values.at(0);               // element at index (supports negative: at(-1) 
 
 ### Iterating with Callbacks
 
-Use arrow functions for array callbacks:
+Pass arrow functions as callbacks:
 
 ```typescript
 // Check if any/all elements match a condition
@@ -349,7 +349,7 @@ class Example {
 ```
 
 :::note
-- Only spread elements are supported: `[...a, ...b]`. Mixing spread and non-spread elements (for example, `[...a, 42]`) is not currently supported.
+- Only spread elements are supported: `[...a, ...b]`. Mixing spread and non-spread elements (e.g. `[...a, 42]`) is not currently supported.
 - Spread creates a new memory array, so it has O(n) gas cost where n is the total number of elements.
 :::
 
@@ -402,19 +402,19 @@ for (const owner of this.owners) {
 | `length` | `number` | No | Number of elements |
 
 :::note
-- `remove(value)` uses a **swap-and-pop** strategy to avoid shifting the remaining elements. It replaces the removed element with the last element, so array order is not preserved. If you need to keep the order, use `splice()` instead.
+- `remove(value)` uses swap-and-pop: it replaces the removed element with the last element rather than shifting the rest of the array, so array order is not preserved. If you need ordered removal, use `splice()` instead.
 - `indexOf`, `lastIndexOf` and `findIndex` return `type(uint256).max` (a very large number) when no match is found, because Solidity uses unsigned integers.
-- `find()` **reverts** if no element matches the condition, because Solidity cannot return `undefined`.
-- `at(index)` **reverts** on out-of-bounds access, unlike JavaScript which returns `undefined`. Negative literal indices (such as `at(-1)`) are supported and rewritten at compile time, but negative non-literal indices are not supported.
-- `slice(start, end)` and `splice(start, count)` have **stricter bounds** than JavaScript: they revert on invalid ranges instead of returning empty arrays or acting as no-ops. `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Negative indices are not supported for either method.
-- `sort(fn)` uses **insertion sort** (O(n²) gas cost) and must be used as a standalone statement. It is only supported on `number[]` (uint256) and `int256[]` arrays. For `number[]` arrays, comparator parameters are cast to `int256` internally so subtraction patterns like `(a, b) => a - b` work without reverting on underflow. This cast is safe for values in the range `0` to `2^255 - 1`. Sorting an array that contains values `>= 2^255` reverts at the cast step. Because of its O(n²) gas cost, use it only on small arrays.
+- `find()` reverts if no element matches the condition, because Solidity cannot return `undefined`.
+- `at(index)` reverts on out-of-bounds access, unlike JavaScript which returns `undefined`. Negative literal indices (such as `at(-1)`) are resolved at compile time, but negative non-literal indices are not supported.
+- `slice(start, end)` and `splice(start, count)` have stricter bounds than JavaScript: they revert on invalid ranges instead of returning empty arrays or doing nothing. `slice` reverts if `start > end`, and `splice` requires `start < arr.length`. Neither method supports negative indices.
+- `sort(fn)` uses insertion sort (O(n²) gas cost), so it is best suited to small arrays. It works only on `number[]` (uint256) and `int256[]` arrays and must be used as a standalone statement. For `number[]` arrays, comparator parameters are cast to `int256` with no check so subtraction patterns like `(a, b) => a - b` do not revert on underflow. Values from `0` to `2^255 - 1` sort as expected, but values `>= 2^255` wrap to negative numbers without reverting and can leave the array in the wrong order. Keep values below 2^255.
 - Callback functions can only reference the callback parameter, literals and state variables. Referencing local variables from the enclosing function scope is not supported.
-- All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost, so keep array sizes in mind.
+- All iteration-based methods (filter, map, some, every, find, findIndex, reduce, forEach) have O(n) gas cost. Be mindful of array sizes.
 :::
 
 ### Readonly Arrays
 
-Use `readonly` on array properties to prevent modification after initialisation. You can also use `ReadonlyArray<T>` or `readonly T[]` as the type:
+You can mark array properties with `readonly`, or type them as `ReadonlyArray<T>` or `readonly T[]`:
 
 ```typescript
 class Example {
@@ -423,7 +423,7 @@ class Example {
 }
 ```
 
-Readonly arrays compile to internal storage with a generated public getter function (such as `getAdmins()`). See [State Variables](/guide/state-variables#readonly-arrays) for more details.
+A `readonly` array compiles to an `internal` storage array with a generated public getter (for example, `getAdmins()`), so outside callers can only read it. The `readonly` modifier does not stop the contract's own methods from changing the array: pushing elements and writing to indices still compile. Typing the property as `ReadonlyArray<T>` or `readonly T[]` makes TypeScript report mutations in your editor. See [State Variables](/guide/state-variables#readonly-arrays) for more details.
 
 ## Structs
 
@@ -536,7 +536,7 @@ for (const status in VaultStatus) {
 
 ## Type Inference
 
-Local variables inside functions can omit explicit types when the compiler can infer them:
+Local variables inside functions can omit explicit types when the type can be inferred:
 
 ```typescript
 transfer(to: address, amount: number): boolean {
@@ -549,11 +549,11 @@ transfer(to: address, amount: number): boolean {
 
 The compiler infers types from:
 
-- Literal values: numbers from numeric literals, strings from string literals and booleans from `true` or `false`
-- Global variables: `msg.sender` as `address` and `msg.value` as `number`
-- Block properties: `block.timestamp` and `block.number` as `number`
+- Literal values: numbers are inferred from numeric literals, strings from string literals, booleans from `true`/`false`
+- Global variables: `msg.sender` is inferred as `address`, `msg.value` as `number`
+- Block properties: `block.timestamp` and `block.number` are inferred as `number`
 - Property access on `this`: the type of the state variable
-- Mapping and array access: the value type of the mapping or array
+- Mapping or array access: the value type of the mapping or array
 - Comparison operators: `boolean`
 
 Function parameters and return types must always be explicitly typed.

@@ -5,7 +5,7 @@ title: CLI Reference
 
 # CLI Reference
 
-The Skittles CLI provides commands for compiling and managing your contract projects. For testing, use Hardhat (see the [Testing Guide](/guide/testing)).
+The Skittles CLI compiles and manages your contract projects. For testing, use Hardhat (see the [Testing Guide](/guide/testing)).
 
 ```bash
 skittles <command> [options]
@@ -27,16 +27,16 @@ Watch for file changes in the contracts directory and recompile automatically.
 npx skittles compile --watch
 ```
 
-This is useful during development. The compiler will perform an initial compilation and then watch for changes to `.ts` files. When a change is detected, it recompiles automatically. This pairs well with Hardhat's test watching for a smooth development loop.
+The compiler runs an initial build and then watches `.ts` files, recompiling whenever a file changes. You can run it alongside Hardhat's test watching.
 
 This command:
 
 1. Loads the configuration from `skittles.config.json` or `skittles.config.js`
 2. Finds all `.ts` files in the configured `contractsDir` (default: `contracts/`)
-3. Pre scans files to collect shared types, functions, and constants
+3. Scans files first to collect shared types, enums, interfaces, functions and constants
 4. Parses each file's TypeScript AST into the Skittles intermediate representation
-5. Generates Solidity source code from the IR
-6. Writes Solidity files to the `solidity/` subdirectory of the configured `outputDir` (default `outputDir`: `artifacts/`, so Solidity is written to `artifacts/solidity/`)
+5. Generates Solidity source from the intermediate representation
+6. Writes Solidity files to the `solidity/` subdirectory of `outputDir` (the default `outputDir` is `artifacts/`, so Solidity goes to `artifacts/solidity/`)
 
 Output structure:
 
@@ -49,9 +49,9 @@ cache/
 └── .skittles-cache.json  # Incremental compilation cache
 ```
 
-To produce ABI and EVM bytecode, use Hardhat. Configure `paths.sources` in `hardhat.config.ts` to point at `./artifacts/solidity` and run `hardhat compile` or `hardhat test`. Hardhat will compile the generated Solidity and emit artifacts.
+To produce ABI and EVM bytecode, use Hardhat. Point `paths.sources` in `hardhat.config.ts` at `./artifacts/solidity` and run `hardhat compile` or `hardhat test`. Hardhat compiles the generated Solidity and emits the artifacts.
 
-Incremental compilation is automatic. Unchanged files are skipped using SHA256 hash comparison.
+Incremental compilation is automatic. Each file is hashed with SHA-256 and unchanged files are served from the cache. Changing a parent contract recompiles the files that extend it, and changing any shared definition or the `consoleLog`, Solidity or formatting config recompiles every file.
 
 ### Example Output
 
@@ -97,7 +97,7 @@ npx skittles@latest init
 
 ### `--no-install`
 
-Skip automatic dependency installation. By default, `init` detects your package manager (npm, yarn, or pnpm) and runs install automatically. Use `--no-install` to skip this step and install manually later.
+Skip dependency installation. By default, `init` picks npm, yarn or pnpm based on the lock file it finds and installs dependencies automatically. Pass `--no-install` if you want to install them yourself.
 
 ```bash
 npx skittles@latest init --no-install
@@ -105,19 +105,19 @@ npx skittles@latest init --no-install
 
 This creates:
 
-| File                   | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| `package.json`         | Created (or updated) with scripts and dependencies             |
-| `contracts/Token.ts`   | Example ERC20 token contract with Transfer event               |
-| `test/Token.test.ts`   | Example test using Hardhat + Mocha + fixtures                  |
-| `skittles.config.json` | Compiler configuration with defaults                           |
-| `tsconfig.json`        | TypeScript configuration for contract development              |
-| `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths                   |
-| `.gitignore` (updated) | Adds `artifacts/`, `cache/`, `dist/`, `node_modules/`          |
+| File                   | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `package.json`         | Created or updated with scripts and dependencies                         |
+| `contracts/Token.ts`   | Example ERC20 token extending the built-in ERC20 with an owner-only mint |
+| `test/Token.test.ts`   | Example test using Hardhat, Mocha and fixtures                           |
+| `skittles.config.json` | Compiler configuration with console logging enabled                      |
+| `tsconfig.json`        | TypeScript configuration for contract development                        |
+| `hardhat.config.ts`    | Hardhat config with Ethers toolbox and paths                             |
+| `.gitignore` (updated) | Adds `artifacts/`, `cache/`, `dist/`, `node_modules/`                    |
 
-If any file already exists, it is skipped with a warning.
+An ESLint config is also created. If any file already exists, it is skipped with a warning.
 
-The test file demonstrates event assertions (`.to.emit`), revert checking (`.revertedWith`), and fixtures (`loadFixture`). The test script runs `skittles compile && hardhat test`.
+The test file uses a fixture (`loadFixture`) and an event assertion (`.to.emit`) across 4 tests: the token name, the initial supply going to the deployer, the Transfer event on transfer and the owner minting tokens. The test script runs `skittles compile && hardhat test`.
 
 ### Example Output
 
@@ -155,7 +155,7 @@ npx skittles compile --help
 
 ## Exit Codes
 
-| Code | Meaning                                                          |
-| ---- | ---------------------------------------------------------------- |
-| `0`  | Success                                                          |
-| `1`  | Compilation error (syntax error, type error, or unexpected failure) |
+| Code | Meaning                                                |
+| ---- | ------------------------------------------------------ |
+| `0`  | Success                                                |
+| `1`  | Compilation error (syntax error or unexpected failure) |

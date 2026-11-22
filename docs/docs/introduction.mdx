@@ -6,7 +6,7 @@ title: Introduction
 
 # Skittles
 
-**Write smart contracts in TypeScript.**
+Skittles is an open-source compiler that turns TypeScript classes into Solidity for EVM smart contracts.
 
 <img
   src="https://skittles.dev/banner.png"
@@ -14,19 +14,20 @@ title: Introduction
   style={{ width: "100%", borderRadius: "12px", marginBottom: "2rem" }}
 />
 
-Skittles is an open-source compiler that lets you write EVM smart contracts as TypeScript classes and generates Solidity source code. You write standard TypeScript classes and types, and Skittles turns them into Solidity that Hardhat or solc compiles to ABI and bytecode.
+You write exported TypeScript classes using standard TypeScript syntax and types. Skittles compiles them to Solidity source files, which Hardhat or solc then compiles to ABI and bytecode.
 
 ## What is a Smart Contract?
 
-A **smart contract** is a program that runs on a blockchain such as Ethereum. Once deployed, it can hold funds, enforce rules and execute automatically without a middleman.
+A smart contract is a program that runs on an EVM blockchain such as Ethereum, Polygon, Arbitrum or Base. Once deployed, it can hold funds, enforce rules and run automatically without an intermediary.
 
-Think of it like a vending machine:
-- You send cryptocurrency to the contract.
-- The contract follows its programmed rules.
-- You receive the outcome defined by those rules, such as tokens or an NFT.
-- Everything runs automatically and transparently on the blockchain.
+It works a bit like a vending machine:
 
-Smart contracts are used to build decentralised applications (dApps) such as token systems, NFT marketplaces and DeFi protocols.
+- You send cryptocurrency or a transaction to the contract
+- The contract runs its programmed rules
+- You get the programmed outcome, such as tokens or an NFT
+- The code runs on the blockchain without a middleman
+
+Smart contracts are used for decentralised applications (dApps) such as tokens, NFT marketplaces and DeFi protocols.
 
 ```typescript title="contracts/Token.ts"
 import { address, msg, SkittlesEvent, Indexed } from "skittles";
@@ -60,72 +61,72 @@ export class Token {
 }
 ```
 
-This contract defines a simple token with balances and transfers. The `balances` record tracks how many tokens each address owns. The `transfer` method lets users send tokens to another address after checking that the caller has enough balance. The `Transfer` event logs each transfer on the blockchain so external tools can track activity.
+This contract defines a basic token with balances and transfers. The `balances` record tracks how many tokens each address holds. The `transfer` method checks that the sender has enough balance, updates both balances and emits a `Transfer` event so off-chain tools can track transfers on the blockchain.
 
 ## Why Skittles?
 
-**You write TypeScript.** Define contracts as exported TypeScript classes using familiar types and syntax, instead of writing Solidity syntax and memory keywords by hand.
+**Write in TypeScript.** Contracts are standard TypeScript classes, so you don't have to learn Solidity syntax or memory keywords before writing a contract.
 
-**Your editor already supports it.** Autocomplete, type checking, go-to-definition and refactoring work out of the box because your contracts are regular TypeScript files.
+**Editor support.** Autocomplete, editor type checking, go-to-definition and refactoring work in your TypeScript editor as they do for any other TypeScript code.
 
-**Skittles handles Solidity translation.** It maps TypeScript types to Solidity types, sets visibility rules (mapping `private` and protected members to Solidity internal visibility so child contracts can use them) and infers state mutability from what each function reads or writes.
+**Solidity details handled by the compiler.** Skittles converts TypeScript types to Solidity types, maps visibility rules and infers function mutability from your code.
 
-**You test with familiar tools.** Scaffolded projects use Hardhat 3 with Mocha, Chai matchers and ethers v6 against Hardhat's local simulated network.
+**Standard JavaScript testing tools.** Scaffolded projects test contracts with Hardhat, Mocha, Chai and ethers v6 against Hardhat's local simulated network.
 
 ## Features
 
-- **Familiar types**: Use `number` for amounts and counters, `string` for text, `boolean` for flags, `address` for wallet addresses, `bytes` for raw data, `Record<K,V>` or `Map<K,V>` for key-value storage, arrays, type aliases for custom structures, interfaces and enums.
-- **Class properties**: Properties become persistent state variables. Use `public`, `private`, `readonly` and `static readonly` as in TypeScript.
-- **Methods**: Mutability is inferred automatically from whether a function uses `msg.value`, writes state, reads state or EVM globals, or does none of those. Supports `virtual` and `override` for inheritance, getters and setters, plus `receive()` and `fallback()` for handling payments and calls.
-- **Events**: Log activity on the blockchain with `SkittlesEvent<T>` and mark searchable parameters with `Indexed<T>`.
-- **Custom errors**: Define typed errors using `SkittlesError<T>` or by extending the `Error` class.
-- **Inheritance**: Share behaviour across contracts with `extends` and `super`.
-- **Control flow**: Standard JavaScript patterns work, including `if`/`else`, `for`, `while`, `do`/`while`, `for...of`, `for...in` (enums), `switch`/`case`, ternary operators and `try`/`catch` for external calls.
-- **Destructuring**: Array, tuple and object destructuring for local variables and function return values.
-- **[Operators](/guide/operators)**: Arithmetic (`+`, `-`, `*`, `/`, `%`, `**`), comparison, logical, bitwise and compound assignment operators work as expected.
-- **Blockchain globals**: Access `msg.sender` (who called the function), `msg.value` (how much they sent), `block.timestamp`, `block.number`, `tx.origin` and other EVM globals.
-- **Built-in functions**: `keccak256()`, `sha256()`, `ecrecover()`, `abi.encode()` and `abi.encodePacked()` for cryptography and data encoding, plus `Math.min()`, `Math.max()`, `Math.sqrt()` and `Math.pow()` for common maths operations.
-- **Standard library**: Built-in ERC20, ERC20Permit, ERC20Votes (tracks current votes only), ERC721, Ownable, AccessControl, Pausable and ReentrancyGuard contracts based on OpenZeppelin Contracts v5, ready to extend with no extra packages needed.
-- **Debugging**: `console.log()` maps to Hardhat's console and is removed from the generated Solidity when the consoleLog config option is false (the default; scaffolded projects set it to true).
-- **Multi-file projects**: Share types, constants and functions across contract files.
-- **Incremental builds**: SHA-256 file hashing serves unchanged files from the cache and recompiles files that depend on changed shared types, constants or functions.
+- **Familiar types**: Use `number` for amounts and counters, `string` for text, `boolean` for flags, `address` for wallet addresses, `bytes` for raw data, `Record<K,V>` or `Map<K,V>` for key-value storage, arrays, type aliases for custom structures, interfaces and enums
+- **Class properties**: Class properties become persistent state variables, with `public`, `private`, `protected`, `readonly` and `static readonly`. Both `private` and `protected` compile to Solidity `internal`; use `protected` for members that child contracts need, because TypeScript does not allow a subclass to access `private` members
+- **Methods**: Function mutability (`payable`, `nonpayable`, `view` or `pure`) is inferred from what a method reads or writes, with no annotations needed. Supports `virtual`/`override` for inheritance, getters and setters, and `receive()` and `fallback()` for handling payments
+- **Events**: Log on-chain activity with `SkittlesEvent<T>` and mark searchable parameters with `Indexed<T>`
+- **Custom errors**: Define typed errors with `SkittlesError<T>` or by extending `Error`
+- **Inheritance**: Extend base contracts with `extends` and `super`
+- **Control flow**: Supports `if`/`else`, `for`, `while`, `do`/`while`, `for...of`, `for...in` (for enums), `switch`/`case`, ternary operators and `try`/`catch` for external calls
+- **Destructuring**: Array, tuple and object destructuring for local variables and function return values
+- **[Operators](/guide/operators)**: Arithmetic (`+`, `-`, `*`, `/`, `%`, `**`), comparison, logical, bitwise and compound assignment operators
+- **Blockchain globals**: Access `msg.sender` (the caller), `msg.value` (the value sent), `block.timestamp`, `block.number` and `tx.origin`
+- **Built-in functions**: `keccak256()`, `sha256()`, `ecrecover()`, `abi.encode()` and `abi.encodePacked()` for hashing and encoding, plus `Math.min()`, `Math.max()`, `Math.sqrt()` and `Math.pow()` for maths
+- **Standard library**: Import ERC20, ERC20Permit, ERC20Votes (tracks current votes only), ERC721, Ownable, AccessControl, Pausable and ReentrancyGuard from `skittles/contracts`. These are Skittles' own TypeScript implementations based on OpenZeppelin Contracts v5
+- **Debugging**: `console.log()` maps to Hardhat's console and is removed from the generated Solidity when the `consoleLog` option in `skittles.config.json` is false (the default)
+- **Multi-file projects**: Share types, enums, interfaces, constants and functions across contract files
+- **Incremental builds**: Each file is hashed with SHA-256 and unchanged files are served from the cache. Changing a shared definition recompiles every file, and changing a parent contract recompiles files that extend it
 
 ## Build Output
 
-When you compile your TypeScript contracts, Skittles writes the generated Solidity to artifacts/solidity/:
+Compiling your TypeScript contracts writes the generated Solidity to `artifacts/solidity/`:
 
 ```
 artifacts/
   solidity/     # Generated contract source code
 ```
 
-Run npx skittles compile to compile your contracts, then use Hardhat to test and deploy them. In a scaffolded project, npm run test compiles your contracts and runs the tests. The generated ABI and bytecode work with EVM tools such as ethers.js, viem, Hardhat and Foundry, and can be deployed to EVM chains such as Ethereum, Polygon, Arbitrum and Base.
+Run `npx skittles compile` to compile your contracts, then use Hardhat to test and deploy them. In a project created with `npx skittles@latest init`, `npm run test` compiles your contracts and runs the Hardhat test suite. The generated Solidity, ABI and bytecode work with tools such as ethers.js, viem, Hardhat and Foundry.
 
 ## Under the Hood
 
 <details>
 <summary>How does Skittles work? (Click to expand)</summary>
 
-Under the hood, Skittles compiles your TypeScript into Solidity source code:
+Skittles compiles TypeScript to standard Solidity source code:
 
-- **Reviewable**: Security reviewers can read and inspect the generated Solidity directly.
-- **Verifiable**: You can verify your contracts on Etherscan and other block explorers.
-- **Compatible**: The output works with EVM tools such as ethers.js, viem, Hardhat and Foundry.
-- **Transparent**: The generated Solidity is human-readable and written to artifacts/solidity/.
+- **Readable**: The generated Solidity is written to `artifacts/solidity/` so you and security reviewers can inspect it directly
+- **Verifiable**: You can submit the generated Solidity for verification on block explorers such as Etherscan
+- **Compatible**: The compiled ABI and bytecode work with tools such as ethers.js, viem, Hardhat and Foundry, and can be deployed to EVM chains such as Ethereum, Polygon, Arbitrum and Base
 
-Compilation happens in three stages:
-1. Parse your TypeScript with the official TypeScript compiler.
-2. Build an intermediate representation and analyse it for types, visibility and mutability.
-3. Generate Solidity source files.
+Compilation runs in three stages:
 
-See the [Under the Hood](/guide/under-the-hood) guide for more detail on how the compiler works.
+1. Parse your TypeScript with the official TypeScript compiler
+2. Build an intermediate representation and analyse it (types, visibility and mutability)
+3. Generate Solidity source files
+
+For more detail on each stage, read the [Under the Hood](/guide/under-the-hood) guide.
 
 </details>
 
 ## Next Steps
 
-- [Try the Playground](https://skittles.dev/#playground): Try Skittles in your browser with no installation needed.
-- [Installation](/getting-started/installation): Set up Skittles in your project.
-- [Quick Start](/getting-started/quick-start): Write, compile and test your first smart contract.
-- [Type System](/guide/types): Learn which TypeScript features you can use.
-- [Examples](/examples/erc20-token): Read complete contract examples, including an ERC20 token and a staking contract.
+- [Try the Playground](https://skittles.dev/#playground): Write TypeScript and see the generated Solidity in your browser, with no installation
+- [Installation](/getting-started/installation): Add Skittles to a project
+- [Quick Start](/getting-started/quick-start): Write and compile your first contract
+- [Type System](/guide/types): See which TypeScript types and features are supported
+- [Examples](/examples/erc20-token): Walk through an ERC20 token and a staking contract

@@ -5,7 +5,7 @@ title: Operators
 
 # Operators
 
-Skittles supports the subset of standard TypeScript operators listed below. They work exactly as you'd expect and compile to their Solidity equivalents where supported.
+Skittles supports the TypeScript operators listed below and compiles them to their Solidity equivalents.
 
 ## Arithmetic Operators
 
@@ -31,7 +31,7 @@ class Math {
 ```
 
 :::note
-Division is integer division — `7 / 2` gives `3`, not `3.5`. Solidity does not support floating-point numbers.
+Division is integer division, so `7 / 2` gives `3`, not `3.5`. Solidity does not support floating-point numbers.
 :::
 
 ## Comparison Operators
@@ -104,7 +104,7 @@ class Fallback {
 ```
 
 :::note
-Since Solidity has no `null` or `undefined`, `??` checks for the zero value of the type. `x ?? y` compiles to `(x == 0) ? y : x`. Optional chaining (`?.`) compiles to regular property access since all Solidity values are non-nullable.
+Because Solidity has no `null` or `undefined`, `??` checks for the zero value of the type. `x ?? y` compiles to `(x == 0) ? y : x`. Optional chaining (`?.`) compiles to regular property access because all Solidity values are non-nullable.
 :::
 
 ## Compound Assignment Operators
@@ -133,7 +133,7 @@ class Counter {
 ```
 
 :::note
-`**=` is desugared to `x = x ** y` because Solidity does not have a `**=` operator.
+`**=` compiles to `x = x ** y` because Solidity does not have a `**=` operator.
 :::
 
 ## Increment / Decrement Operators
@@ -205,7 +205,7 @@ class Flags {
 
 ## Operator Summary
 
-Here's a quick reference of all supported operators grouped by category:
+All supported operators, grouped by category:
 
 | Category            | Operators                                              |
 | ------------------- | ------------------------------------------------------ |

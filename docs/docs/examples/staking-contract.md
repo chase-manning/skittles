@@ -5,7 +5,7 @@ title: Staking Contract
 
 # Staking Contract Example
 
-A staking vault that accepts ETH deposits, tracks balances per user, charges withdrawal fees, and includes admin controls for pausing.
+A staking vault that accepts ETH deposits, tracks balances per user, charges withdrawal fees and includes admin controls for pausing.
 
 ## Shared Types
 
@@ -159,17 +159,17 @@ export class Staking {
 
 ## Key Patterns
 
-This example demonstrates:
+This example shows:
 
-- **Cross file types**: `VaultStatus` enum and `StakeInfo` struct imported from a shared types file
-- **`receive()`**: A special function called when the contract receives plain ETH transfers
-- **`msg.value`**: Accessing `msg.value` makes `deposit()` and `receive()` payable automatically
-- **`block.timestamp`**: Accessing block context for deposit timestamps
+- **Cross-file types**: `VaultStatus` enum and `StakeInfo` struct imported from a shared types file
+- **`receive()`**: Called when the contract receives plain ETH transfers
+- **`msg.value`**: Using `msg.value` makes `deposit()` and `receive()` `payable` automatically
+- **`block.timestamp`**: Reads the block timestamp when recording a deposit
 - **`static readonly` constants**: `FEE_BASIS_POINTS` and `BASIS_POINTS_DENOMINATOR` compile to Solidity `constant`
 - **`readonly` immutable**: `owner` is set once at deployment and cannot be changed
 - **Struct construction**: `StakeInfo` is created with an object literal and returned
-- **Custom errors with `SkittlesError<T>`**: Typed revert reasons for `NotOwner`, `VaultPaused`, and `InsufficientDeposit`
-- **Admin pattern**: `_requireOwner()` and `_requireActive()` as private guard functions
+- **Custom errors with `SkittlesError<T>`**: Typed revert reasons for `NotOwner`, `VaultPaused` and `InsufficientDeposit`
+- **Admin pattern**: `_requireOwner()` and `_requireActive()` as `private` guard functions
 
 ## Running This Example
 
