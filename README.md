@@ -4,9 +4,9 @@
 
 # Skittles
 
-Write smart contracts in TypeScript.
+Write EVM smart contracts in TypeScript.
 
-Skittles lets you write blockchain smart contracts using TypeScript — the language you already know. No new syntax to learn. Full IDE support with autocomplete, type checking, and go-to-definition. Under the hood, Skittles compiles to Solidity for compatibility with every EVM tool and blockchain.
+Skittles is an open-source compiler that turns exported TypeScript classes into standard Solidity. You keep IDE autocomplete, type checking and go-to-definition. The output works with Hardhat, Foundry, ethers.js and viem, and contracts deploy to EVM chains such as Ethereum, Polygon, Arbitrum and Base.
 
 Website: [skittles.dev](https://skittles.dev/)
 
@@ -19,7 +19,7 @@ npx skittles@latest init
 npx skittles compile
 ```
 
-This scaffolds a project with an example token contract and compiles it to `build/`.
+The first command scaffolds a project with an ERC20 Token contract and tests, then installs dependencies. The second writes generated Solidity to `artifacts/solidity/`.
 
 ## Example
 
@@ -55,7 +55,7 @@ export class Token {
 }
 ```
 
-This creates a simple token contract. Users can transfer tokens to each other, with balance checks and a Transfer event that logs activity on the blockchain.
+This contract defines a simple token. The constructor assigns the initial supply to the deployer, and the transfer method checks the sender's balance, moves tokens and emits a Transfer event.
 
 ## Contributing
 
